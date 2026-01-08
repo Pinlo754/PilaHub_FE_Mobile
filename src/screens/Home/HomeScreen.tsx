@@ -8,8 +8,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   return (
-    <SafeAreaView className="flex-1 bg-white">
-    <View className="flex-1 items-center justify-center bg-white">
+    <SafeAreaView className="flex-1 bg-background-sub2">
+    <View className="flex-1 items-center justify-center bg-background-sub2">
       <Text className="text-2xl font-bold mb-6 text-red-500">
         Home Screen
       </Text>
