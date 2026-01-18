@@ -10,7 +10,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
    return (
-    <SafeAreaView  edges={[]} className="flex-1">
+    <SafeAreaView  className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <Text className="text-lg">←</Text>
