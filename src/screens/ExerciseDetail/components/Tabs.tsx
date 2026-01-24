@@ -9,11 +9,14 @@ const TABS = [
 type Props = {
   tabId: ExerciseTab;
   onChange: (tabId: ExerciseTab) => void;
+  isVideoPlay: boolean;
 };
 
-const Tabs = ({ tabId, onChange }: Props) => {
+const Tabs = ({ tabId, onChange, isVideoPlay }: Props) => {
   return (
-    <View className="mx-auto flex-row mt-4 bg-background-sub2 rounded-full p-1.5">
+    <View
+      className={`mx-auto flex-row mt-4 rounded-full p-1.5 ${isVideoPlay ? 'bg-inactive-lighter' : 'bg-background-sub2'}`}
+    >
       {TABS.map(tab => {
         const isActive = tab.id === tabId;
         return (
@@ -21,9 +24,10 @@ const Tabs = ({ tabId, onChange }: Props) => {
             key={tab.id}
             className={`px-8 py-1.5 rounded-full ${isActive ? 'bg-foreground' : ''}`}
             onPress={() => onChange(tab.id)}
+            disabled={isVideoPlay}
           >
             <Text
-              className={`font-medium text-lg ${isActive ? 'text-white' : 'text-secondaryText'}`}
+              className={`font-medium text-lg ${isActive ? 'text-white' : isVideoPlay ? 'text-inactive-darker' : 'text-secondaryText'}`}
             >
               {tab.label}
             </Text>

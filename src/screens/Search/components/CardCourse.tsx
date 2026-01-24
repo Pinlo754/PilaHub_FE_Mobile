@@ -1,25 +1,31 @@
-import { Image, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { CourseType } from '../../../utils/CourseType';
+import MaskedImgWithHole from '../../../components/MaskedImgWithHole';
 
-const CardCourse = ({ item }: { item: CourseType }) => {
+type Props = {
+  item: CourseType;
+  onPress?: () => void;
+};
+
+const CardCourse = ({ item, onPress }: Props) => {
   return (
-    <View className="px-4 flex mb-6">
+    <Pressable className="px-4 flex mb-6" onPress={onPress}>
       {/* Image */}
-      <View className="w-full aspect-[16/9] rounded-lg overflow-hidden mb-3">
-        <Image
-          source={{
-            uri: item.img_url,
-          }}
-          style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
-        />
+      <MaskedImgWithHole imageUri={item.thumbnail_url} holeRadius={40} />
+
+      {/* SL bài */}
+      <View className="absolute top-0 left-4 w-20 h-20 rounded-full bg-background-sub1 items-center justify-center">
+        <Text className="text-2xl font-bold text-foreground leading-none">
+          {item.total_lessons}
+        </Text>
+        <Text className="font-semibold text-foreground">bài</Text>
       </View>
 
       {/* Name */}
-      <Text className="text-center color-foreground font-bold text-lg">
-        {item.name}
+      <Text className="text-center color-foreground font-bold text-lg mt-2">
+        {item.course_name}
       </Text>
-    </View>
+    </Pressable>
   );
 };
 

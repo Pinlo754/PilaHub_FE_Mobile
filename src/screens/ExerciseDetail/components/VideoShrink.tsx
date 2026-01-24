@@ -1,6 +1,6 @@
 import { Image, View } from 'react-native';
 
-const ImageExercise = ({ imgUrl }: { imgUrl: string }) => {
+const VideoShrink = ({ imgUrl }: { imgUrl: string }) => {
   return (
     <View className="w-full h-[50%] overflow-hidden">
       <Image
@@ -14,4 +14,4 @@ const ImageExercise = ({ imgUrl }: { imgUrl: string }) => {
   );
 };
 
-export default ImageExercise;
+export default VideoShrink;

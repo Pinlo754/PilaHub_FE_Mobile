@@ -1,6 +1,7 @@
 export type ExerciseType = {
-    id: string;
+    exercise_id: string;
     name: string;
-    duration: string;
+    description: string;
+    default_duration_sec: number;
     image_url: string;
 }

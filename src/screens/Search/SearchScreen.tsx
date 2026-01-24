@@ -9,7 +9,7 @@ import { useSearchScreen } from './useSearchScreen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
-const SearchScreen: React.FC<Props> = ({}) => {
+const SearchScreen: React.FC<Props> = ({ navigation }) => {
   // HOOK
   const { activeTab, onChangeTab, dataByTab } = useSearchScreen();
 
@@ -22,7 +22,11 @@ const SearchScreen: React.FC<Props> = ({}) => {
       <Tabs tabId={activeTab} onChange={onChangeTab} />
 
       {/* List */}
-      <List activeTab={activeTab} data={dataByTab[activeTab]} />
+      <List
+        activeTab={activeTab}
+        data={dataByTab[activeTab]}
+        navigation={navigation}
+      />
     </View>
   );
 };

@@ -1,7 +1,7 @@
 export type CoachType = {
-  id: string;
-  name: string;
+  coach_id: string;
+  full_name: string;
   avatar: string;
-  rating: number;
-  certificate_count: number;
+  rating_avg: number;
+  experience_years: number;
 };

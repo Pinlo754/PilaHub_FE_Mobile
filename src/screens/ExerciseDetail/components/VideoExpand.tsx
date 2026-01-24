@@ -1,11 +1,11 @@
 import { Image, View } from 'react-native';
 
-const ImageExercise = ({ imgUrl }: { imgUrl: string }) => {
+const VideoExpand = () => {
   return (
-    <View className="w-full h-[50%] overflow-hidden">
+    <View className="w-full h-[95%] overflow-hidden">
       <Image
         source={{
-          uri: imgUrl,
+          uri: 'https://cdn.mos.cms.futurecdn.net/RSRmmWZGBcNnLLynabFD2Z.jpg',
         }}
         style={{ width: '100%', height: '100%' }}
         resizeMode="cover"
@@ -14,4 +14,4 @@ const ImageExercise = ({ imgUrl }: { imgUrl: string }) => {
   );
 };
 
-export default ImageExercise;
+export default VideoExpand;

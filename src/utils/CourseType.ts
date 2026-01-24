@@ -1,6 +1,6 @@
 export type CourseType = {
-  id: string;
-  name: string;
-  img_url: string;
-  lessons: number;
+  course_id: string;
+  course_name: string;
+  thumbnail_url: string;
+  total_lessons: number;
 };

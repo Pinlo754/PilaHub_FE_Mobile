@@ -1,22 +1,20 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import Button from '../../../components/Button';
-import { ExerciseTab } from '../../../constants/exerciseTab';
+import { ExerciseType } from '../../../utils/ExerciseType';
+import { secondsToTime } from '../../../utils/time';
 
 type Props = {
-  tabId: ExerciseTab;
+  exerciseDetail: ExerciseType;
+  isPracticeTab: boolean;
 };
 
-const Description = ({ tabId }: Props) => {
+const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
   // COLOR
   const FOREGROUND = '#A0522D';
   const INFO_DARKER = '#3B82F6';
 
-  // CHECK
-  const isPracticeTab = tabId === ExerciseTab.Practice;
-
   return (
-    <View className="mt-3 flex-1">
+    <View className="mt-3 flex-1 min-h-0">
       {/* Scroll  */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Duration */}
@@ -26,7 +24,9 @@ const Description = ({ tabId }: Props) => {
             <Text className="text-foreground font-semibold">Thời lượng:</Text>
           </View>
 
-          <Text className="text-secondaryText font-medium">60p</Text>
+          <Text className="text-secondaryText font-medium">
+            {secondsToTime(exerciseDetail.default_duration_sec)}
+          </Text>
         </View>
 
         {/* Description */}
@@ -42,9 +42,7 @@ const Description = ({ tabId }: Props) => {
           </View>
 
           <Text className="text-secondaryText font-medium">
-            Hướng dẫn thực hành các động tác Pilates cơ bản, tập trung vào tư
-            thế đúng, nhịp thở và kiểm soát chuyển động, giúp người tập làm quen
-            và thực hiện bài tập một cách an toàn, hiệu quả.
+            {exerciseDetail.description}
           </Text>
         </View>
 
@@ -93,19 +91,6 @@ const Description = ({ tabId }: Props) => {
           </View>
         )}
       </ScrollView>
-
-      {/* Btn */}
-      {isPracticeTab && (
-        <View className="pt-2">
-          <Button
-            text="Bắt đầu buổi tập"
-            onPress={() => {}}
-            colorType="sub2"
-            rounded="full"
-            iconName="log-in-outline"
-          />
-        </View>
-      )}
     </View>
   );
 };

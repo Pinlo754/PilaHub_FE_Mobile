@@ -10,8 +10,7 @@ export type RootStackParamList = {
   Home: undefined;
   Login: undefined;
   Search: undefined;
-  // ExerciseDetail: { exercise_id: string };
-  ExerciseDetail: undefined;
+  ExerciseDetail: { exercise_id: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -19,7 +18,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const AppNavigator: React.FC = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName="Search"
       screenOptions={{
         headerShown: false,
       }}

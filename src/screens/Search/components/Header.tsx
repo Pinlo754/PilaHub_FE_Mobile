@@ -39,7 +39,7 @@ const Header = () => {
         />
 
         <Pressable className="px-3" onPress={() => navigation.goBack()}>
-          <Ionicons name="search-outline" size={24} color={FOREGROUND} />
+          <Ionicons name="search" size={24} color={FOREGROUND} />
         </Pressable>
       </View>
 

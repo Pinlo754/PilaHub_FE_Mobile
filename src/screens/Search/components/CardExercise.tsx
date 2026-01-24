@@ -1,9 +1,15 @@
-import { Image, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { ExerciseType } from '../../../utils/ExerciseType';
+import { secondsToTime } from '../../../utils/time';
 
-const CardExercise = ({ item }: { item: ExerciseType }) => {
+type Props = {
+  item: ExerciseType;
+  onPress?: () => void;
+};
+
+const CardExercise = ({ item, onPress }: Props) => {
   return (
-    <View key={item.id} className="flex-row gap-4 mb-3 px-4">
+    <Pressable className="flex-row gap-4 mb-3 px-4" onPress={onPress}>
       {/* Image */}
       <View className="w-32 h-20 rounded-lg overflow-hidden">
         <Image
@@ -23,10 +29,10 @@ const CardExercise = ({ item }: { item: ExerciseType }) => {
         </Text>
         {/* Duration */}
         <Text className="color-secondaryText font-medium text-lg">
-          {item.duration}
+          {secondsToTime(item.default_duration_sec)}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 };
 

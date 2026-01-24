@@ -44,6 +44,7 @@ type Props = {
   height?: number;
   rounded?: RoundedType;
   iconName?: IconName;
+  iconSize?: number;
 };
 
 const Button = ({
@@ -55,12 +56,13 @@ const Button = ({
   height,
   rounded = 'xl',
   iconName,
+  iconSize = 26,
 }: Props) => {
   const color = getColors(colorType);
 
   return (
     <Pressable
-      className={`flex-row gap-2 items-center px-4 ${width ? '' : 'w-full'} rounded-${rounded} ${iconName ? 'py-2' : 'py-2.5'}`}
+      className={`flex-row gap-2 items-center pl-4 pr-2 ${width ? '' : 'w-full'} rounded-${rounded} ${iconName ? 'py-2' : 'py-2.5'}`}
       style={{
         backgroundColor: color.backgroundColor,
         width: width ? width : undefined,
@@ -71,7 +73,7 @@ const Button = ({
     >
       {/* Icon left */}
       {iconName && (
-        <Ionicons name={iconName} size={26} color={color.textColor} />
+        <Ionicons name={iconName} size={iconSize} color={color.textColor} />
       )}
 
       {/* Label */}

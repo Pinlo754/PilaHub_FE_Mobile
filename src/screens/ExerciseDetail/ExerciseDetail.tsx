@@ -1,33 +1,76 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import ImageExercise from './components/ImageExercise';
-import Content from './components/Content';
 import { useExerciseDetail } from './useExerciseDetail';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import Header from './components/Header';
+import VideoExpand from './components/VideoExpand';
+import OverviewSection from './components/OverviewSection';
+import StatsSection from './components/StatsSection';
+import VideoShrink from './components/VideoShrink';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 
-const ExerciseDetail: React.FC<Props> = ({}) => {
-  // COLOR
-  const FOREGROUND = '#A0522D';
-
+const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
   // HOOK
-  const { activeTab, onChangeTab } = useExerciseDetail();
+  const {
+    activeTab,
+    exerciseDetail,
+    onChangeTab,
+    isVideoPlay,
+    togglePlayButton,
+    isPracticeTab,
+    isShowFlag,
+    toggleVideoExpand,
+    isVideoExpand,
+    navigatePracticeTab,
+  } = useExerciseDetail({
+    route,
+  });
+
+  // LOADING
+  if (!exerciseDetail) return null;
 
   return (
     <View className="w-full flex-1 relative">
       {/* Header */}
-      <Pressable className="absolute top-5 left-4 z-10">
-        <Ionicons name="chevron-back-outline" size={24} color={FOREGROUND} />
-      </Pressable>
+      <Header
+        isVideoExpand={isVideoExpand}
+        isVideoPlay={isVideoPlay}
+        isShowFlag={isShowFlag}
+        navigation={navigation}
+        navigatePracticeTab={navigatePracticeTab}
+      />
 
-      {/* Image */}
-      <ImageExercise />
+      {/* Image / Video */}
+      {isVideoExpand ? (
+        <VideoExpand />
+      ) : isVideoPlay ? (
+        <VideoShrink imgUrl={exerciseDetail?.image_url} />
+      ) : (
+        <ImageExercise imgUrl={exerciseDetail?.image_url} />
+      )}
 
-      {/* Content */}
-      <Content activeTab={activeTab} onChangeTab={onChangeTab} />
+      {/* Overview / Stats */}
+      {isVideoExpand ? (
+        <StatsSection
+          isPracticeTab={isPracticeTab}
+          exerciseName={exerciseDetail.name}
+          isVideoPlay={isVideoPlay}
+          togglePlayButton={togglePlayButton}
+        />
+      ) : (
+        <OverviewSection
+          activeTab={activeTab}
+          exerciseDetail={exerciseDetail}
+          onChangeTab={onChangeTab}
+          isVideoPlay={isVideoPlay}
+          togglePlayButton={togglePlayButton}
+          toggleVideoExpand={toggleVideoExpand}
+          isPracticeTab={isPracticeTab}
+        />
+      )}
     </View>
   );
 };
