@@ -15,6 +15,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       <View className="flex-row items-center px-4 py-3">
         <Text className="text-lg">←</Text>
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
+          
           Đăng Nhập
         </Text>
       </View>
@@ -32,7 +33,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Email */}
-        <View className="mt-6">
+        <View className="mt-12">
           <Text className="mb-1 text-secondaryText">Email</Text>
           <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
             <TextInput
@@ -79,7 +80,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center">
+        <TouchableOpacity className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center" onPress={() => navigation.navigate('Welcome')}>
           <Text className="text-white text-lg font-semibold">
             Đăng nhập
           </Text>
