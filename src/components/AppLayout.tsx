@@ -1,15 +1,17 @@
 import React from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View } from 'react-native';
+import { colors } from '../theme/colors';
 
-type Props = {
-  children: React.ReactNode;
-};
-
-const AppLayout: React.FC<Props> = ({ children }) => {
+const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.background.DEFAULT,
+      }}
+    >
       {children}
-    </SafeAreaView>
+    </View>
   );
 };
 
