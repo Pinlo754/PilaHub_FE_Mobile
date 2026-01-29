@@ -13,6 +13,7 @@ module.exports = {
         background: {
           DEFAULT: '#FFFAF0',
           sub1: '#F5DEB3',
+          sub1_30: '#F5DEB34D',
           sub2: '#FAEED6',
         },
 

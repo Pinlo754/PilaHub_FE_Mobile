@@ -47,7 +47,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
       {isVideoExpand ? (
         <VideoExpand />
       ) : isVideoPlay ? (
-        <VideoShrink imgUrl={exerciseDetail?.image_url} />
+        <VideoShrink />
       ) : (
         <ImageExercise imgUrl={exerciseDetail?.image_url} />
       )}

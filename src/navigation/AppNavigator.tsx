@@ -24,7 +24,7 @@ const AppNavigator: React.FC = () => {
 return (
   <AppLayout>
     <Stack.Navigator
-      initialRouteName="Search"
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
       }}
