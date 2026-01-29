@@ -19,7 +19,7 @@ const StatsSection = ({
   const DANGER_DARKER = '#BF1A1A';
 
   return (
-    <View className="absolute px-4 h-[5%] w-full bottom-0 flex bg-background">
+    <View className="absolute px-4 h-[8%] w-full bottom-0 flex bg-background">
       {/* Play button */}
       <PlayButton
         isVideoPlay={isVideoPlay}

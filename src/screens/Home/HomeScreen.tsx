@@ -13,7 +13,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // HOOK
   const { dailyTasks } = useHomeScreen();
   return (
-    <View className="flex-1 bg-background-sub2">
+    <View className="flex-1 bg-background pt-10">
       {/* Header */}
       <Header navigation={navigation} />
 

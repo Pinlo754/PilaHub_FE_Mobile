@@ -39,7 +39,7 @@ const Header = ({
     <>
       {showBack && (
         <Pressable
-          className="absolute top-5 left-4 z-10"
+          className="absolute top-16 left-4 z-10"
           onPress={() => onPressBack()}
         >
           <Ionicons
