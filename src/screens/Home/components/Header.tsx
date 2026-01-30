@@ -12,7 +12,7 @@ const Header = ({ navigation }: Props) => {
   const FOREGROUND = '#A0522D';
 
   return (
-    <View className="flex-row p-4 justify-between items-center">
+    <View className="flex-row px-4 pb-4 justify-between items-center">
       {/* Logo */}
       <Text className="color-foreground text-3xl font-bold">Pilahub</Text>
 

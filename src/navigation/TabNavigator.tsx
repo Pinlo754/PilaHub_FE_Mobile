@@ -29,7 +29,7 @@ const TabNavigator: React.FC = () => {
         tabBarStyle: {
           height: 80,
           position: 'absolute',
-          backgroundColor: 'transparent',
+          backgroundColor: colors.background.DEFAULT,
           elevation: 0,
           shadowColor: 'transparent',
           borderTopWidth: 0,
@@ -64,13 +64,13 @@ const TabNavigator: React.FC = () => {
         name="Roadmap"
         component={RoadmapScreen}
         options={{
-          tabBarLabel: 'Lộ trình',
-          //   tabBarIcon: TabIcon(
-          //     'git-network-outline',
-          //     'git-network-outline',
-          //     30,
-          //     '#FFF',
-          //   ),
+          tabBarLabel: () => null,
+          tabBarIcon: TabIcon(
+            'git-network-outline',
+            'git-network-outline',
+            30,
+            '#FFF',
+          ),
           tabBarButton: RenderCenterTabBtn,
         }}
       />

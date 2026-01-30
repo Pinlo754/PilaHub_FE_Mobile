@@ -3,15 +3,13 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { CourseType } from '../../../utils/CourseType';
 import CardDaily from './CardDaily';
 import { useCallback } from 'react';
+import { colors } from '../../../theme/colors';
 
 type Props = {
   data: CourseType[];
 };
 
 const DailyTask = ({ data }: Props) => {
-  // COLOR
-  const FOREGROUND = '#A0522D';
-
   // RENDER
   const renderItem = useCallback(({ item }: { item: CourseType }) => {
     return <CardDaily item={item} onPress={() => {}} />;
@@ -19,29 +17,26 @@ const DailyTask = ({ data }: Props) => {
   return (
     <View className="pl-4">
       {/* Header */}
-      <View className="flex-row gap-2 items-center">
+      <Pressable className="flex-row gap-2 items-center mb-2">
         <Text className="color-foreground text-lg font-semibold">
           Nhiệm vụ hôm nay
         </Text>
-        <Pressable>
-          <Ionicons
-            name="chevron-forward-outline"
-            size={24}
-            color={FOREGROUND}
-          />
-        </Pressable>
-      </View>
+
+        <Ionicons
+          name="chevron-forward-outline"
+          size={20}
+          color={colors.foreground}
+        />
+      </Pressable>
 
       {/* List */}
-      <View className="flex-1 mt-2">
-        <FlatList
-          data={data}
-          keyExtractor={item => String(item)}
-          renderItem={renderItem}
-          horizontal={true}
-          showsHorizontalScrollIndicator={false}
-        />
-      </View>
+      <FlatList
+        data={data}
+        keyExtractor={item => String(item.course_id)}
+        renderItem={renderItem}
+        horizontal={true}
+        showsHorizontalScrollIndicator={false}
+      />
     </View>
   );
 };
