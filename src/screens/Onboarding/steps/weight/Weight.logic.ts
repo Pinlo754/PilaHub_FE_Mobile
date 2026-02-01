@@ -76,6 +76,7 @@ useEffect(() => {
       setData({ weight: w });
     }
   };
+  console.log('savedWeight', savedWeight);
 
   /** switch KG / LB */
   const setUnit = (u: WeightUnit) => {

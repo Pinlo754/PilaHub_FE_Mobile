@@ -76,7 +76,7 @@ export const useTargetLogic = () => {
 
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Home' }],
+      routes: [{ name: 'MethodSelect' }],
     });
   };
 

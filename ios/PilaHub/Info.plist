@@ -56,5 +56,8 @@
 		<string>Ionicons.ttf</string>
 		<string>Feather.ttf</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+<string>Camera is required to capture body photos.</string>
+
 </dict>
 </plist>
