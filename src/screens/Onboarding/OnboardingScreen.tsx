@@ -32,6 +32,7 @@ const OnboardingScreen = () => {
   useEffect(() => {
     saveOnboarding({step, data});
   }, [step, data]);
+  console.log('OnboardingScreen: ', data);
 
   return (
   <SafeAreaView className='flex-1 bg-background justify-center items-center px-6'>

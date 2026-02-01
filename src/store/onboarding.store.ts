@@ -3,8 +3,8 @@
 import { create } from 'zustand';
 import { TargetKey } from '../screens/Onboarding/steps/target/Target.type';
 
-type OnboardingData = {
-  gender?: string;
+export type OnboardingData = {
+  gender?: 'male'|'female';
   age?: number;
   weight?: number;
   weightUnit?: 'kg' | 'lb'; 
@@ -16,6 +16,8 @@ type OnboardingData = {
   email?: string;
   nickname?: string;
   phone?: string;
+    frontPhotoUri?: string;
+  sidePhotoUri?: string;
 };
 
 type OnboardingState = {
