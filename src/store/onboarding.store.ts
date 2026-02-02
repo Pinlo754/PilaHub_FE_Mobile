@@ -1,5 +1,3 @@
-
-
 import { create } from 'zustand';
 import { TargetKey } from '../screens/Onboarding/steps/target/Target.type';
 
@@ -16,8 +14,22 @@ export type OnboardingData = {
   email?: string;
   nickname?: string;
   phone?: string;
-    frontPhotoUri?: string;
+  frontPhotoUri?: string;
   sidePhotoUri?: string;
+
+  // body measurement fields (optional) — added so screens can store measurements
+  shoulder?: number; // vai
+  waist?: number;    // eo
+  hip?: number;      // hông
+  thigh?: number;    // đùi
+  bicep?: number;    // bắp tay
+  calf?: number;     // bắp chân
+
+  // quick stats
+  bodyFatPercent?: number;
+  muscleMass?: number;
+  bmi?: number;
+  notes?: string;
 };
 
 type OnboardingState = {

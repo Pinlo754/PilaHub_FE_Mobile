@@ -61,6 +61,19 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
       const res: any = await uploadToBodygram(front, side, body);
       console.log('Bodygram full response:', res);
 
+      // ------------------ extract entry and measurements (do NOT store avatar)
+      const entry = res.entry ?? res;
+      const measurements: Measurements = entry.measurements ?? {};
+
+      // Persist measurements (small) so result screen / debugging can access them
+      try {
+        const measKey = 'bodygram:lastMeasurements';
+        await AsyncStorage.setItem(measKey, JSON.stringify(measurements));
+        console.log('Saved measurements to AsyncStorage:', measKey);
+      } catch (err) {
+        console.log('Failed to save measurements to AsyncStorage', err);
+      }
+
       // save a sanitized version to AsyncStorage for later debugging / retrieval
       try {
         const saveKey = 'bodygram:lastResponse';
@@ -77,14 +90,22 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
         console.log('Failed to save Bodygram response to AsyncStorage', err);
       }
 
-      // support both shapes: upload may return { entry: {...} } or entry directly
-      const entry = res.entry ?? res;
+      // prepare nav-safe raw response (truncate avatar) before navigating
+      let navRaw: any = undefined;
+      try {
+        navRaw = JSON.parse(JSON.stringify(res));
+        if (navRaw?.entry?.avatar?.data) navRaw.entry.avatar.data = '[BASE64_TRUNCATED]';
+        else if (navRaw?.avatar?.data) navRaw.avatar.data = '[BASE64_TRUNCATED]';
+      } catch (e) {
+        navRaw = undefined;
+      }
 
-      const measurements: Measurements = entry.measurements ?? {};
-      const avatar: string | null = entry.avatar?.data ?? null;
-
-      // navigate to result and pass the full raw response for debug display
-      navigation.navigate('Result', { measurements, avatar: avatar ?? undefined, rawResponse: res });
+      // navigate to result and pass the measurements immediately (no heavy avatar)
+      navigation.navigate('Result', {
+        measurements,
+        avatar: undefined,
+        rawResponse: navRaw ?? res,
+      });
     } catch (e) {
       console.log('Upload error', e);
       Alert.alert('Lỗi', 'Không quét được số đo. Bạn thử lại sau nhé.');
