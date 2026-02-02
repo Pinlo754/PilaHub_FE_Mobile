@@ -19,10 +19,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     useHomeScreen();
   return (
     <View className="flex-1 bg-background pt-14 pb-10">
-      <ScrollView contentContainerStyle={{ paddingBottom: 90 }}>
-        {/* Header */}
-        <Header navigation={navigation} />
+      {/* Header */}
+      <Header navigation={navigation} />
 
+      <ScrollView
+        className="pt-2"
+        contentContainerStyle={{ paddingBottom: 90 }}
+      >
         {/* Daily Task */}
         <DailyTask data={dailyTasks} />
 

@@ -4,6 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../../theme/colors';
 
 const Header = () => {
   // NAVIGATION
@@ -14,7 +15,6 @@ const Header = () => {
   const [focused, setFocused] = useState(false);
 
   // COLOR
-  const FOREGROUND = '#A0522D';
   const INACTIVE_DARKER = 'rgba(107, 114, 128, 0.5)';
 
   return (
@@ -22,7 +22,11 @@ const Header = () => {
       {/* Back */}
       <View className="">
         <Pressable onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back-outline" size={24} color={FOREGROUND} />
+          <Ionicons
+            name="chevron-back-outline"
+            size={24}
+            color={colors.foreground}
+          />
         </Pressable>
       </View>
 
@@ -39,14 +43,18 @@ const Header = () => {
         />
 
         <Pressable className="px-3" onPress={() => navigation.goBack()}>
-          <Ionicons name="search" size={24} color={FOREGROUND} />
+          <Ionicons name="search" size={24} color={colors.foreground} />
         </Pressable>
       </View>
 
       {/* Filter */}
       <View className="">
         <Pressable onPress={() => navigation.goBack()}>
-          <Ionicons name="options-outline" size={24} color={FOREGROUND} />
+          <Ionicons
+            name="options-outline"
+            size={24}
+            color={colors.foreground}
+          />
         </Pressable>
       </View>
     </View>

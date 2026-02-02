@@ -36,6 +36,13 @@ export const courseMock: TabTypeMap[SearchTab.Course][] = [
       'https://cdn.mos.cms.futurecdn.net/RSRmmWZGBcNnLLynabFD2Z.jpg',
     total_lessons: 10,
   },
+  {
+    course_id: '3',
+    course_name: 'Yoga Cơ Bản',
+    thumbnail_url:
+      'https://cdn.mos.cms.futurecdn.net/RSRmmWZGBcNnLLynabFD2Z.jpg',
+    total_lessons: 10,
+  },
 ];
 
 export const coachMock: TabTypeMap[SearchTab.Coach][] = [

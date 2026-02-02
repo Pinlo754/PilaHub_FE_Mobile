@@ -2,17 +2,15 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image, Pressable, Text, View } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
+import { colors } from '../../../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
 const Header = ({ navigation }: Props) => {
-  // COLOR
-  const FOREGROUND = '#A0522D';
-
   return (
-    <View className="flex-row px-4 pb-4 justify-between items-center">
+    <View className="flex-row px-4 pb-2 justify-between items-center">
       {/* Logo */}
       <Text className="color-foreground text-3xl font-bold">Pilahub</Text>
 
@@ -20,11 +18,15 @@ const Header = ({ navigation }: Props) => {
       <View className="flex-row gap-3 items-center">
         {/* Search */}
         <Pressable onPress={() => navigation.navigate('Search')}>
-          <Ionicons name="search" size={24} color={FOREGROUND} />
+          <Ionicons name="search-outline" size={24} color={colors.foreground} />
         </Pressable>
         {/* Notification */}
         <Pressable>
-          <Ionicons name="notifications-outline" size={24} color={FOREGROUND} />
+          <Ionicons
+            name="notifications-outline"
+            size={24}
+            color={colors.foreground}
+          />
         </Pressable>
         {/* Profile */}
         <Pressable className="w-10 h-10 rounded-full overflow-hidden">

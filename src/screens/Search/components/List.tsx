@@ -43,12 +43,13 @@ const List = <K extends SearchTab>({
   );
 
   return (
-    <View className="w-full flex-1 mt-6 gap-2">
+    <View className="w-full flex-1 mt-4 gap-2">
       <FlatList
         data={data}
         keyExtractor={item => String(item[config.idKey as keyof typeof item])}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 8 }}
       />
     </View>
   );

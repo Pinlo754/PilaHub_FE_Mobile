@@ -10,6 +10,7 @@ import SearchScreen from '../screens/Search/SearchScreen';
 import ExerciseDetail from '../screens/ExerciseDetail/ExerciseDetail';
 import TabNavigator from './TabNavigator';
 import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
+import RoadmapSummary from '../screens/RoadmapSummary/RoadmapSummary';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -20,6 +21,7 @@ export type RootStackParamList = {
   Search: undefined;
   ExerciseDetail: { exercise_id: string };
   Roadmap: undefined;
+  RoadmapSummary: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -41,6 +43,7 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
         <Stack.Screen name="Roadmap" component={RoadmapScreen} />
+        <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
       </Stack.Navigator>
     </AppLayout>
   );

@@ -23,7 +23,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 22,
     bgColor: colors.success[20],
     iconColor: colors.success.DEFAULT,
-    route: 'Roadmap',
+    route: 'RoadmapSummary',
   },
   {
     id: 'ai',
