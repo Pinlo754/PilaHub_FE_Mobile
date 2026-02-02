@@ -1,14 +1,18 @@
-import { Image, View } from 'react-native';
+import { useRef } from 'react';
+import { View } from 'react-native';
+import Video, { VideoRef } from 'react-native-video';
 
-const VideoShrink = ({ imgUrl }: { imgUrl: string }) => {
+const VideoShrink = () => {
+  // REF
+  const videoRef = useRef<VideoRef>(null);
+
   return (
     <View className="w-full h-[50%] overflow-hidden">
-      <Image
+      <Video
+        ref={videoRef}
         source={{
-          uri: imgUrl,
+          uri: 'https://youtu.be/ufcDIOS1HRo?list=RDufcDIOS1HRo',
         }}
-        style={{ width: '100%', height: '100%' }}
-        resizeMode="cover"
       />
     </View>
   );

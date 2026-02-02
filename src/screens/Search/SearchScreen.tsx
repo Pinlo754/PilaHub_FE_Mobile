@@ -14,7 +14,7 @@ const SearchScreen: React.FC<Props> = ({ navigation }) => {
   const { activeTab, onChangeTab, dataByTab } = useSearchScreen();
 
   return (
-    <View className="w-full flex-1 bg-background pt-4">
+    <View className="w-full flex-1 bg-background pt-14">
       {/* Header */}
       <Header />
 

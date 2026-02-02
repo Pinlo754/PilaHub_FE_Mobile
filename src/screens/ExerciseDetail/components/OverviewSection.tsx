@@ -27,7 +27,7 @@ const OverviewSection = ({
 }: Props) => {
   return (
     <View
-      className={`absolute px-4 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
+      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
       {!isPracticeTab && (

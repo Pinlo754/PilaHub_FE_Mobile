@@ -12,14 +12,19 @@ export const colors = {
   success: {
     DEFAULT: '#37C16D',
     darker: '#1B8D4F',
+    20: '#1B8D4F33',
   },
 
   info: {
     lighter: '#D6ECFF',
     darker: '#3B82F6',
+    20: '#3B82F633',
   },
 
-  warning: '#F2B94C',
+  warning: {
+    DEFAULT: '#F2C94C',
+    20: '#F2C94C33',
+  },
 
   danger: {
     DEFAULT: '#E96363',
@@ -31,6 +36,12 @@ export const colors = {
     darker: '#6B7280',
   },
 
-  purple: '#9B51E0',
-  orange: '#FF8A3D',
+  purple: {
+    DEFAULT: '#8B5CF6',
+    20: '#8B5CF633',
+  },
+  orange: {
+    DEFAULT: '#F97316',
+    20: '#F9731633',
+  },
 } as const;

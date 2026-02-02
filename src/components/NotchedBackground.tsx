@@ -1,5 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 import { Dimensions } from 'react-native';
+import { colors } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -11,6 +12,14 @@ type Props = {
   cornerRadius?: number;
   shoulderRadius?: number;
 };
+
+export const TabBarBg = () => (
+  <NotchedBackground
+    height={90}
+    notchRadius={35}
+    backgroundColor={colors.background.sub1}
+  />
+);
 
 const NotchedBackground = ({
   height = 90,
