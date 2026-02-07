@@ -33,7 +33,7 @@ const RoadmapSummary: React.FC<Props> = ({ navigation }) => {
           <StatsSection />
 
           {/* Heart Rate Chart */}
-          <HeartRateChart />
+          <HeartRateChart heartRateData={[56, 100, 90, 78, 70, 60]} />
 
           {/* Metrics Section */}
           <MetricsSection />

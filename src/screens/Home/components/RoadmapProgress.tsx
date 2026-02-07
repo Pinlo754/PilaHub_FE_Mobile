@@ -5,7 +5,7 @@ import ProgressCircle from '../../../components/ProgressCircle';
 
 const RoadmapProgress = () => {
   return (
-    <Pressable className="m-4 p-2 rounded-xl bg-white border border-background-sub1_30 elevation-6 shadow-lg flex-row justify-between items-center gap-6">
+    <Pressable className="m-4 p-4 rounded-xl bg-white border border-background-sub1_30 elevation-6 shadow-lg flex-row justify-between items-center gap-6">
       {/* Left section */}
       <View className="flex-grow">
         <View className="flex-row gap-2 items-center">
