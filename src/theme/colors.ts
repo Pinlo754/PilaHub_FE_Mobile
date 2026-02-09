@@ -34,6 +34,7 @@ export const colors = {
   inactive: {
     lighter: '#D1D5DB',
     darker: '#6B7280',
+    80: '#6B7280CC',
   },
 
   purple: {

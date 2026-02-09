@@ -41,6 +41,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
         isShowFlag={isShowFlag}
         navigation={navigation}
         navigatePracticeTab={navigatePracticeTab}
+        exerciseId={exerciseDetail.exercise_id}
       />
 
       {/* Image / Video */}

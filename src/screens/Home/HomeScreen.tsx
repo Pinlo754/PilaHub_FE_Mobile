@@ -15,7 +15,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // HOOK
-  const { dailyTasks, recommendCourses, newExercises, newProducts } =
+  const { dailyTasks, recommendCourses, newExercises, newProducts, scrollRef } =
     useHomeScreen();
   return (
     <View className="flex-1 bg-background pt-14 pb-10">
@@ -23,11 +23,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       <Header navigation={navigation} />
 
       <ScrollView
+        ref={scrollRef}
         className="pt-2"
-        contentContainerStyle={{ paddingBottom: 90 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
       >
         {/* Daily Task */}
-        <DailyTask data={dailyTasks} />
+        <DailyTask data={dailyTasks} navigation={navigation} />
 
         {/* Roadmap Progress */}
         <RoadmapProgress />

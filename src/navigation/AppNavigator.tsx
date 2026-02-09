@@ -11,6 +11,13 @@ import ExerciseDetail from '../screens/ExerciseDetail/ExerciseDetail';
 import TabNavigator from './TabNavigator';
 import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
 import RoadmapSummary from '../screens/RoadmapSummary/RoadmapSummary';
+import ProgramDetail from '../screens/ProgramDetail/ProgramDetail';
+import CoachDetail from '../screens/CoachDetail/CoachDetail';
+import ListScreen from '../screens/List/ListScreen';
+import DailyTask from '../screens/DailyTask/DailyTask';
+import RegisterCalendar from '../screens/RegisterCalendar/RegisterCalendar';
+import TraineeFeedback from '../screens/TraineeFeedback/TraineeFeedback';
+import TraineeReport from '../screens/TraineeReport/TraineeReport';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -22,6 +29,13 @@ export type RootStackParamList = {
   ExerciseDetail: { exercise_id: string };
   Roadmap: undefined;
   RoadmapSummary: undefined;
+  ProgramDetail: { program_id: string };
+  CoachDetail: { coach_id: string; selectedCoachId?: string | null };
+  List: undefined;
+  DailyTask: undefined;
+  RegisterCalendar: { coach_id?: string | null };
+  TraineeFeedback: undefined;
+  TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +58,13 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
         <Stack.Screen name="Roadmap" component={RoadmapScreen} />
         <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
+        <Stack.Screen name="ProgramDetail" component={ProgramDetail} />
+        <Stack.Screen name="CoachDetail" component={CoachDetail} />
+        <Stack.Screen name="List" component={ListScreen} />
+        <Stack.Screen name="DailyTask" component={DailyTask} />
+        <Stack.Screen name="RegisterCalendar" component={RegisterCalendar} />
+        <Stack.Screen name="TraineeFeedback" component={TraineeFeedback} />
+        <Stack.Screen name="TraineeReport" component={TraineeReport} />
       </Stack.Navigator>
     </AppLayout>
   );

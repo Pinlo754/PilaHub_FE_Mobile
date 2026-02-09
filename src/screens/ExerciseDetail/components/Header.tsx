@@ -2,6 +2,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
+import { colors } from '../../../theme/colors';
 
 type Props = {
   isVideoExpand: boolean;
@@ -9,6 +10,7 @@ type Props = {
   isShowFlag: boolean;
   navigation: NativeStackNavigationProp<RootStackParamList, 'ExerciseDetail'>;
   navigatePracticeTab: () => void;
+  exerciseId: string;
 };
 
 const Header = ({
@@ -17,11 +19,8 @@ const Header = ({
   isShowFlag,
   navigation,
   navigatePracticeTab,
+  exerciseId,
 }: Props) => {
-  // COLOR
-  const FOREGROUND = '#A0522D';
-  const SUB1 = '#FFFAF0';
-
   // CHECK
   const showBack = !isVideoPlay || isShowFlag;
   const showFlag = isShowFlag;
@@ -35,6 +34,10 @@ const Header = ({
     }
   };
 
+  const onPressReport = () => {
+    navigation.navigate('TraineeReport', { exercise_id: exerciseId });
+  };
+
   return (
     <>
       {showBack && (
@@ -45,14 +48,21 @@ const Header = ({
           <Ionicons
             name="chevron-back-outline"
             size={24}
-            color={isShowFlag ? SUB1 : FOREGROUND}
+            color={isShowFlag ? colors.background.sub1 : colors.foreground}
           />
         </Pressable>
       )}
 
       {showFlag && (
-        <Pressable className="absolute top-5 right-4 z-10" onPress={() => {}}>
-          <Ionicons name="flag-outline" size={24} color={SUB1} />
+        <Pressable
+          className="absolute top-16 right-4 z-10"
+          onPress={() => onPressReport()}
+        >
+          <Ionicons
+            name="flag-outline"
+            size={24}
+            color={colors.background.sub1}
+          />
         </Pressable>
       )}
     </>

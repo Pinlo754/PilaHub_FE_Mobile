@@ -32,7 +32,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 18,
     bgColor: colors.info[20],
     iconColor: colors.info.darker,
-    route: 'Roadmap',
+    route: 'TraineeFeedback',
   },
   {
     id: 'calendar',
@@ -41,7 +41,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 22,
     bgColor: colors.warning[20],
     iconColor: colors.warning.DEFAULT,
-    route: 'Roadmap',
+    route: 'RegisterCalendar',
   },
   {
     id: 'video',

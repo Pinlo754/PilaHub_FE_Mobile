@@ -4,7 +4,7 @@ import { colors } from '../../../theme/colors';
 
 const StatsSection = () => {
   return (
-    <View className="mt-4 bg-[#FFF7ED] p-4">
+    <View className="mt-4 p-4">
       <View className="flex-row flex-wrap justify-between gap-2">
         <CardStat
           title="Độ chính xác"

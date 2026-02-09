@@ -30,13 +30,13 @@ export const SEARCH_CONFIG: { [K in SearchTab]: TabConfigItem<K> } = {
   },
   [SearchTab.Course]: {
     Card: CardCourse,
-    screen: 'ExerciseDetail',
-    paramKey: 'course_id',
+    screen: 'ProgramDetail',
+    paramKey: 'program_id',
     idKey: 'course_id',
   },
   [SearchTab.Coach]: {
     Card: CardCoach,
-    screen: 'ExerciseDetail',
+    screen: 'CoachDetail',
     paramKey: 'coach_id',
     idKey: 'coach_id',
   },

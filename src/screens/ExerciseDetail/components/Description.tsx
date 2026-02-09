@@ -2,6 +2,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { ExerciseType } from '../../../utils/ExerciseType';
 import { secondsToTime } from '../../../utils/time';
+import { colors } from '../../../theme/colors';
+import { useEffect, useRef } from 'react';
 
 type Props = {
   exerciseDetail: ExerciseType;
@@ -9,18 +11,22 @@ type Props = {
 };
 
 const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
-  // COLOR
-  const FOREGROUND = '#A0522D';
-  const INFO_DARKER = '#3B82F6';
+  // USE REF
+  const scrollRef = useRef<ScrollView>(null);
+
+  // USE EFFECT
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [isPracticeTab]);
 
   return (
     <View className="mt-3 flex-1 min-h-0">
       {/* Scroll  */}
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         {/* Duration */}
         <View className="flex-row gap-2 items-center mb-2">
           <View className="flex-row gap-1 items-center">
-            <Ionicons name="time-outline" size={24} color={FOREGROUND} />
+            <Ionicons name="time-outline" size={24} color={colors.foreground} />
             <Text className="text-foreground font-semibold">Thời lượng:</Text>
           </View>
 
@@ -35,7 +41,7 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
             <Ionicons
               name="information-circle-outline"
               size={24}
-              color={FOREGROUND}
+              color={colors.foreground}
             />
 
             <Text className="text-foreground font-semibold">Mô tả:</Text>
@@ -50,7 +56,11 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
         {isPracticeTab && (
           <View className="flex-col gap-2 pb-5">
             <View className="flex-row gap-1 items-center">
-              <Ionicons name="timer-outline" size={24} color={FOREGROUND} />
+              <Ionicons
+                name="timer-outline"
+                size={24}
+                color={colors.foreground}
+              />
               <Text className="text-foreground font-semibold">Lịch sử tập</Text>
             </View>
 
@@ -83,7 +93,7 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
                     80%
                   </Text>
                   <Pressable className="rounded-lg bg-info-20 p-1.5">
-                    <Ionicons name="eye" size={18} color={INFO_DARKER} />
+                    <Ionicons name="eye" size={18} color={colors.info.darker} />
                   </Pressable>
                 </View>
               </View>

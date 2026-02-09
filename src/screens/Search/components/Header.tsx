@@ -14,9 +14,6 @@ const Header = () => {
   // STATE
   const [focused, setFocused] = useState(false);
 
-  // COLOR
-  const INACTIVE_DARKER = 'rgba(107, 114, 128, 0.5)';
-
   return (
     <View className="flex-row justify-between items-center gap-8 px-4">
       {/* Back */}
@@ -37,7 +34,7 @@ const Header = () => {
         <TextInput
           className={`color-foreground font-medium px-3 py-3 text-lg`}
           placeholder="Tìm kiếm..."
-          placeholderTextColor={INACTIVE_DARKER}
+          placeholderTextColor={colors.inactive.darker}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
