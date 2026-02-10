@@ -29,7 +29,7 @@ const Header = () => {
 
       {/* Input */}
       <View
-        className={`flex-grow flex-row justify-between items-center bg-white shadow-sm elevation-6 border rounded-lg ${focused ? 'border-foreground' : 'border-background-sub1'}`}
+        className={`flex-grow flex-row justify-between items-center bg-white shadow-md elevation-md border rounded-lg ${focused ? 'border-foreground' : 'border-background-sub1'}`}
       >
         <TextInput
           className={`color-foreground font-medium px-3 py-3 text-lg`}

@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import PlayButton from './PlayButton';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../../theme/colors';
 
 type Props = {
   isPracticeTab: boolean;
@@ -15,9 +16,6 @@ const StatsSection = ({
   isVideoPlay,
   togglePlayButton,
 }: Props) => {
-  // COLOR
-  const DANGER_DARKER = '#BF1A1A';
-
   return (
     <View className="absolute px-4 h-[8%] w-full bottom-0 flex bg-background">
       {/* Play button */}
@@ -33,7 +31,7 @@ const StatsSection = ({
               <Ionicons
                 name="fitness-outline"
                 size={20}
-                color={DANGER_DARKER}
+                color={colors.danger.darker}
               />
               <View className="flex-row gap-1 items-end">
                 <Text className="color-foreground font-bold">100</Text>

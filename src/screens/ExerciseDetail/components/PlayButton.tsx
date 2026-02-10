@@ -1,6 +1,7 @@
 import { Pressable, View } from 'react-native';
 import NotchedBackground from '../../../components/NotchedBackground';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../../theme/colors';
 
 type Props = {
   isVideoPlay: boolean;
@@ -8,9 +9,6 @@ type Props = {
 };
 
 const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
-  // COLOR
-  const FOREGROUND = '#A0522D';
-  const SUB2 = '#FFF7ED';
 
   return (
     <>
@@ -20,7 +18,7 @@ const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
           shoulderRadius={18}
           cornerRadius={25}
           height={50}
-          backgroundColor={SUB2}
+          backgroundColor={colors.background.sub2}
         />
       </View>
       <Pressable
@@ -30,7 +28,7 @@ const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
         <Ionicons
           name={isVideoPlay ? 'pause' : 'play'}
           size={38}
-          color={FOREGROUND}
+          color={colors.foreground}
         />
       </Pressable>
     </>

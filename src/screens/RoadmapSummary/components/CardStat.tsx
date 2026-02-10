@@ -31,7 +31,7 @@ const CardStat = ({
   const isUp = trend === 'up';
 
   return (
-    <View className="w-[49%] bg-white border border-background-sub1_30 rounded-2xl p-4 shadow-sm elevation-6">
+    <View className="w-[49%] bg-white border border-background-sub1_30 rounded-xl p-4 shadow-md elevation-md">
       {/* Header */}
       <View className="flex-row justify-between items-center">
         <View

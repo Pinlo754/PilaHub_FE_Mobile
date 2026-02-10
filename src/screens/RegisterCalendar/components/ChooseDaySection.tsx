@@ -21,7 +21,7 @@ const ChooseDaySection = ({}: Props) => {
         </Text>
 
         {/* Number of selected day  */}
-        <View className="px-3 py-1 rounded-lg bg-background-sub2 shadow-sm elevation-6">
+        <View className="px-3 py-1 rounded-lg bg-background-sub2 shadow-md elevation-md">
           <Text className="color-secondaryText">1 buổi</Text>
         </View>
       </View>

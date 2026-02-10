@@ -50,7 +50,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 23,
     bgColor: colors.purple[20],
     iconColor: colors.purple.DEFAULT,
-    route: 'Roadmap',
+    route: 'AISummary',
   },
 ];
 
@@ -65,7 +65,7 @@ const QuickActions = ({ navigation }: Props) => {
         <Pressable
           key={item.id}
           onPress={() => navigation.navigate(item.route as any)}
-          className="w-[49%] bg-white rounded-xl p-4 flex-row items-center shadow-sm elevation-6 border border-background-sub1_30"
+          className="w-[49%] bg-white rounded-xl p-4 flex-row items-center shadow-md elevation-md border border-background-sub1_30"
         >
           <View
             style={{ backgroundColor: item.bgColor }}

@@ -18,6 +18,7 @@ import DailyTask from '../screens/DailyTask/DailyTask';
 import RegisterCalendar from '../screens/RegisterCalendar/RegisterCalendar';
 import TraineeFeedback from '../screens/TraineeFeedback/TraineeFeedback';
 import TraineeReport from '../screens/TraineeReport/TraineeReport';
+import AISummary from '../screens/AISummary/AISummary';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   RegisterCalendar: { coach_id?: string | null };
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
+  AISummary: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -65,6 +67,7 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="RegisterCalendar" component={RegisterCalendar} />
         <Stack.Screen name="TraineeFeedback" component={TraineeFeedback} />
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
+        <Stack.Screen name="AISummary" component={AISummary} />
       </Stack.Navigator>
     </AppLayout>
   );

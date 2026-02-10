@@ -29,6 +29,7 @@ export const colors = {
   danger: {
     DEFAULT: '#E96363',
     darker: '#BF1A1A',
+    20: '#E9636333',
   },
 
   inactive: {

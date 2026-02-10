@@ -26,7 +26,11 @@ const Tabs = ({ tabId, onChange }: Props) => {
             }`}
             onPress={() => onChange(tab.id)}
           >
-            <Text className="text-lg font-semibold color-foreground">
+            <Text
+              className={`text-lg font-semibold  ${
+                isActive ? 'color-foreground' : 'color-secondaryText'
+              }`}
+            >
               {tab.label}
             </Text>
           </Pressable>

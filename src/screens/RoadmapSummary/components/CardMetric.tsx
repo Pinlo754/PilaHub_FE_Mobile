@@ -12,7 +12,7 @@ const CardMetric = ({ title, value, diff }: Props) => {
   const isUp = diff > 0;
 
   return (
-    <View className="w-[49%] bg-white border border-background-sub1_30 rounded-2xl p-4 shadow-sm elevation-6">
+    <View className="w-[49%] bg-white border border-background-sub1_30 rounded-xl p-4 shadow-md elevation-md">
       <View className="flex-row justify-between items-center">
         <Text className="text-secondaryText font-medium">{title}</Text>
 
