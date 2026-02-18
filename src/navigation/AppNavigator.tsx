@@ -19,6 +19,7 @@ import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
+import OtpScreen from '../screens/Register/OtpScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
   InputBody: undefined;
   Register: undefined;
+  VerifyEmail: { email: string; password?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -71,6 +73,7 @@ const AppNavigator: React.FC = () => {
           options={{ title: 'Nhập thông tin cơ thể' }}
         />
         <Stack.Screen name ="Register" component={RegisterScreen} />
+        <Stack.Screen name="VerifyEmail" component={OtpScreen} />
         <Stack.Screen name="MainTabs" component={TabNavigator} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />

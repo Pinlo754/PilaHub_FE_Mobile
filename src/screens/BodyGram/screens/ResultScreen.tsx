@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Text, ScrollView, View, Button,  Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
@@ -7,6 +7,9 @@ import { useOnboardingStore } from '../../../store/onboarding.store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
+import LoadingOverlay from '../../../components/LoadingOverlay';
+import Toast from '../../../components/Toast';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
@@ -111,9 +114,71 @@ export default function ResultScreen({ route, navigation }: Props) {
       Alert.alert('Lỗi', 'Không thể lưu số đo.');
     }
   };
+  
+  const [loading, setLoading] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  const handleSubmitAll = async () => {
+    setToastVisible(false);
+    setLoading(true);
+    try {
+      // prefer the normalized display measurements for API payloads
+      const entry = rawResponse?.entry ?? rawResponse ?? {};
+      // merge: display fields (cleaned, cm/kg) should take precedence for health profile
+      const bodyGramForApi = { ...entry, ...display };
+
+      // log payload about to be sent
+      try {
+        const traineePayload = buildTraineeProfilePayload(onboarding, bodyGramForApi);
+        console.log('submitProfiles -> traineePayload', traineePayload);
+        console.log('submitProfiles -> bodyGram (sample keys)', Object.keys(bodyGramForApi).slice(0,20));
+      } catch (e) {
+        console.warn('Error building traineePayload for logging', e);
+      }
+
+      const res = await submitProfiles(onboarding, bodyGramForApi, 'BodyGram');
+      setLoading(false);
+      console.log('submitProfiles result', res);
+      if (res.ok) {
+        // save measurements locally as well
+        await saveMeasurements();
+        setToastType('success');
+        setToastMsg('Lưu hồ sơ thành công');
+        setToastVisible(true);
+        // short delay to show toast then navigate
+        setTimeout(() => navigation.replace('MainTabs'), 700);
+      } else {
+        // log detailed error for debugging
+        const msg = typeof res.error === 'string' ? res.error : JSON.stringify(res.error);
+        console.warn('submitProfiles error', res.error);
+        // if server error object exists, print status and data
+        if (res.error && typeof res.error === 'object') {
+          try {
+            console.error('submitProfiles error details:', res.error);
+          } catch (e) {
+            console.warn('Could not stringify error details', e);
+          }
+        }
+        setToastType('error');
+        setToastMsg(`Lỗi khi lưu: ${msg}`);
+        setToastVisible(true);
+        Alert.alert('Lỗi', msg);
+      }
+    } catch (e: any) {
+      setLoading(false);
+      const msg = e?.message ?? String(e);
+      console.error('submitProfiles thrown error', e);
+      setToastType('error');
+      setToastMsg(`Lỗi khi lưu: ${msg}`);
+      setToastVisible(true);
+      Alert.alert('Lỗi', msg);
+    }
+  };
  console.log('Rendered ResultScreen with measurements:', saveMeasurements);
-  return (
-    <SafeAreaView className="flex-1 bg-background"><ScrollView className="flex-1  p-4">
+   return (
+     <SafeAreaView className="flex-1 bg-background"><ScrollView className="flex-1  p-4">
       {/* HEADER SUMMARY */}
       <View className="bg-amber-100 rounded-md p-3 mb-4">
         <Text className="text-sm text-gray-700">{`Chiều cao: ${summary.height ?? '-'}cm   Cân nặng: ${summary.weight ?? '-'}kg   ${summary.age ?? ''} tuổi   ${summary.gender ?? ''}`}</Text>
@@ -129,38 +194,38 @@ export default function ResultScreen({ route, navigation }: Props) {
           <BodySilhouetteOverlay mode="front" />
 
           {/* use the provided body image asset */}
-          <Image source={require('../../../assets/bodygram.png')} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+          <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
 
           {/* bubbles positioned approx; adjust with design */}
-          <View className="absolute" style={{ top: 30, left: 12 }}>
+          <View className="absolute top-8 left-3">
             <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
               <Text className="text-xs text-gray-800">Ngực</Text>
               <Text className="text-lg font-extrabold">{display.bust ?? '-'}cm</Text>
             </View>
           </View>
 
-          <View className="absolute" style={{ top: 100, left: 18 }}>
+          <View className="absolute top-24 left-4">
             <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
               <Text className="text-xs text-gray-800">Eo</Text>
               <Text className="text-lg font-extrabold">{display.waist ?? '-'}cm</Text>
             </View>
           </View>
 
-          <View className="absolute" style={{ top: 100, right: 18 }}>
+          <View className="absolute top-24 right-4">
             <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
               <Text className="text-xs text-gray-800">Hông</Text>
               <Text className="text-lg font-extrabold">{display.hip ?? '-'}cm</Text>
             </View>
           </View>
 
-          <View className="absolute" style={{ bottom: 36, left: 28 }}>
+          <View className="absolute bottom-9 left-7">
             <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
               <Text className="text-xs text-gray-800">Đùi</Text>
               <Text className="text-lg font-extrabold">{display.thigh ?? '-'}cm</Text>
             </View>
           </View>
 
-          <View className="absolute" style={{ top: 36, right: 28 }}>
+          <View className="absolute top-9 right-7">
             <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
               <Text className="text-xs text-gray-800">Bắp tay</Text>
               <Text className="text-lg font-extrabold">{display.bicep ?? '-'}cm</Text>
@@ -200,12 +265,14 @@ export default function ResultScreen({ route, navigation }: Props) {
 
       {/* ACTIONS */}
       <View className="mt-6 bg-foreground p-2 rounded-lg " >
-       <Button title ="Lưu kết quả" onPress={()=> navigation.navigate('MainTabs')} color="white" />
+       <Button title ="Lưu kết quả" onPress={handleSubmitAll} color="white" disabled={loading} />
         {/* <Button title="Lưu kết quả" onPress={saveMeasurements} color="white" /> */}
-        
       </View>
 
-    </ScrollView></SafeAreaView>
-    
-  );
-}
+      {loading ? <LoadingOverlay message="Đang lưu hồ sơ..." /> : null}
+      <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+
+     </ScrollView></SafeAreaView>
+     
+   );
+ }

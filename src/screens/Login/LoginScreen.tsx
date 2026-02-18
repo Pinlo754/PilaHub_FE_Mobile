@@ -4,13 +4,19 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
+import { login } from '../../services/auth';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
    return (
     <SafeAreaView  className="flex-1 bg-background">
+      
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <Text className="text-lg">←</Text>
@@ -39,6 +45,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <TextInput
               value={email}
               onChangeText={setEmail}
+              autoCapitalize='none'
               placeholder="Nhập Email"
               className="flex-1 text-base"
               keyboardType="email-address"
@@ -55,10 +62,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               value={password}
               onChangeText={setPassword}
               placeholder="Nhập Mật Khẩu"
-              secureTextEntry
+              autoCapitalize='none'
+              secureTextEntry={!showPassword}
+              autoCorrect={false}
+              textContentType="password"
               className="flex-1 text-base"
             />
-            <Feather name="lock" size={20} color="#CD853F" />
+            <TouchableOpacity onPress={() => setShowPassword(s => !s)} className="p-2 ml-4">
+              <Feather name={showPassword ? 'eye' : 'eye-off'} size={20} color="#CD853F" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -80,11 +92,33 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center" onPress={() => navigation.navigate('Welcome')}>
+        <TouchableOpacity
+          className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
+          onPress={async () => {
+            setError(null);
+            setLoading(true);
+            try {
+              const res = await login({ email, password });
+              setLoading(false);
+              if (res.ok) {
+                // on iOS simulator localhost works if server runs locally
+                navigation.replace('Onboarding');
+              } else {
+                setError(res.error?.message ?? JSON.stringify(res.error));
+              }
+            } catch (e: any) {
+              setLoading(false);
+              setError(e?.message ?? String(e));
+            }
+          }}
+          disabled={loading}
+        >
           <Text className="text-white text-lg font-semibold">
-            Đăng nhập
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
+
+        {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
 
         {/* Divider */}
         <View className="flex-row items-center my-6">
