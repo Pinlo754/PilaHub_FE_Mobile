@@ -32,7 +32,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 18,
     bgColor: colors.info[20],
     iconColor: colors.info.darker,
-    route: 'Roadmap',
+    route: 'UpgradePlan',
   },
   {
     id: 'calendar',

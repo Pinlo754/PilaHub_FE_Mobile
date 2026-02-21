@@ -4,10 +4,11 @@ import { TabBarBg } from '../components/NotchedBackground';
 import { colors } from '../theme/colors';
 import { TabIcon } from '../components/TabIcon';
 import ListScreen from '../screens/List/ListScreen';
-import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
+
 import { RenderCenterTabBtn } from '../components/TabCenterBtn';
 import CoachScreen from '../screens/Coach/CoachScreen';
 import ShopScreen from '../screens/Shop/ShopScreen';
+import PlanScreen from '../screens/Plan/PlanScreen';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -62,7 +63,7 @@ const TabNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Roadmap"
-        component={RoadmapScreen}
+        component={PlanScreen}
         options={{
           tabBarLabel: () => null,
           tabBarIcon: TabIcon(
