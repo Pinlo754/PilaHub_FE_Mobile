@@ -7,7 +7,10 @@ export type TimeParts = {
 
 export type FormatTimeOptions = {
   showSeconds?: boolean;
+  pad?: boolean;
 };
+
+type FormatInput = number | TimeParts;
 
 export type SessionType = 'morning' | 'afternoon' | 'evening';
 
@@ -21,11 +24,29 @@ export const calculateTimeParts = (totalSeconds: number): TimeParts => {
 
 // FORMAT
 export const formatTime = (
-  { hours, minutes, seconds }: TimeParts,
+  input: FormatInput,
   options: FormatTimeOptions = {},
 ): string => {
-  const { showSeconds = true } = options;
+  const { showSeconds = true, pad } = options;
 
+  const parts = typeof input === 'number' ? calculateTimeParts(input) : input;
+
+  const { hours, minutes, seconds } = parts;
+
+  // Video style: hh:mm:ss or mm:ss
+  if (pad) {
+    const hh = hours.toString().padStart(2, '0');
+    const mm = minutes.toString().padStart(2, '0');
+    const ss = seconds.toString().padStart(2, '0');
+
+    if (hours > 0) {
+      return showSeconds ? `${hh}:${mm}:${ss}` : `${hh}:${mm}`;
+    }
+
+    return showSeconds ? `${mm}:${ss}` : mm;
+  }
+
+  // Text style: 1h 2p 3s
   if (hours > 0) {
     return showSeconds
       ? `${hours}h ${minutes}p ${seconds}s`

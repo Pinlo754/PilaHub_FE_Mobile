@@ -16,9 +16,10 @@ const SearchSection = () => {
         <TextInput
           className={`color-foreground font-medium px-3 py-3 text-lg`}
           placeholder="Tìm kiếm..."
-          placeholderTextColor={colors.inactive.darker}
+          placeholderTextColor={colors.inactive[80]}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          style={{ width: 260 }}
         />
 
         <Pressable className="px-3" onPress={() => {}}>

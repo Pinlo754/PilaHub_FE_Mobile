@@ -1,19 +1,27 @@
+export type GenderType = 'FEMALE' | ' MALE' | 'OTHER';
+
 export type CoachType = {
-  coach_id: string;
-  full_name: string;
-  avatar: string;
+  coachId: string;
+  fullName: string;
+  age: number;
+  gender: GenderType;
+  avatarUrl: string;
   rating_avg: number;
-  experience_years: number;
-  description: string;
-  specialties: string[];
+  yearsOfExperience: number;
+  bio: string;
+  specialization: string[];
   certifications: string[];
+  active: boolean;
 };
 
 export type FeedbackType = {
-  id: string;
-  user_name: string;
+  feedbackId: string;
+  coachId: string;
+  coachFullName: string;
+  traineeId: string;
+  traineeFullName: string;
   img_url: string;
-  date: string;
   rating: number;
   comment: string;
+  createdAt: string;
 };

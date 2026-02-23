@@ -15,7 +15,7 @@ const Header = () => {
   const [focused, setFocused] = useState(false);
 
   return (
-    <View className="flex-row justify-between items-center gap-8 px-4">
+    <View className="flex-row justify-between items-center px-4">
       {/* Back */}
       <View className="">
         <Pressable onPress={() => navigation.goBack()}>
@@ -29,14 +29,15 @@ const Header = () => {
 
       {/* Input */}
       <View
-        className={`flex-grow flex-row justify-between items-center bg-white shadow-md elevation-md border rounded-lg ${focused ? 'border-foreground' : 'border-background-sub1'}`}
+        className={`w-[280px] flex-row justify-between items-center bg-white shadow-md elevation-md border rounded-lg ${focused ? 'border-foreground' : 'border-background-sub1'}`}
       >
         <TextInput
           className={`color-foreground font-medium px-3 py-3 text-lg`}
           placeholder="Tìm kiếm..."
-          placeholderTextColor={colors.inactive.darker}
+          placeholderTextColor={colors.inactive[80]}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          style={{ width: 230 }}
         />
 
         <Pressable className="px-3" onPress={() => navigation.goBack()}>

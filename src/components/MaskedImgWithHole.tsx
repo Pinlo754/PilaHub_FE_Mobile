@@ -6,6 +6,8 @@ import Svg, {
   Rect,
   Circle,
   Image as SvgImage,
+  Stop,
+  LinearGradient,
 } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
@@ -13,9 +15,10 @@ const { width } = Dimensions.get('window');
 type Props = {
   imageUri: string;
   holeRadius?: number;
+  overlay?: boolean;
 };
 
-const MaskedImgWithHole = ({ imageUri, holeRadius = 42 }: Props) => {
+const MaskedImgWithHole = ({ imageUri, holeRadius = 42, overlay }: Props) => {
   const cardWidth = width - 30;
   const cardHeight = 220;
   const holeX = 35;
@@ -55,6 +58,12 @@ const MaskedImgWithHole = ({ imageUri, holeRadius = 42 }: Props) => {
               fill="white"
             />
           </Mask>
+
+          {/* Gradient */}
+          <LinearGradient id="overlayGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#000" stopOpacity="0" />
+            <Stop offset="100%" stopColor="#000" stopOpacity="0.6" />
+          </LinearGradient>
         </Defs>
 
         <SvgImage
@@ -64,6 +73,16 @@ const MaskedImgWithHole = ({ imageUri, holeRadius = 42 }: Props) => {
           preserveAspectRatio="xMidYMid slice"
           mask="url(#holeMask)"
         />
+
+        {/* Overlay có cùng mask */}
+        {overlay && (
+          <Rect
+            width="100%"
+            height="100%"
+            fill="url(#overlayGradient)"
+            mask="url(#holeMask)"
+          />
+        )}
       </Svg>
     </View>
   );

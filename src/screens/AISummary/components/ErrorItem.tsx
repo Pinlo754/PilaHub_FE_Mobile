@@ -8,9 +8,10 @@ type Props = {
   item: ErrorItemType;
   expanded: boolean;
   onPress: () => void;
+  onPlayVideo: (src: string) => void;
 };
 
-const ErrorItem = ({ item, expanded, onPress }: Props) => {
+const ErrorItem = ({ item, expanded, onPress, onPlayVideo }: Props) => {
   return (
     <View className="mb-3">
       <Pressable
@@ -40,7 +41,7 @@ const ErrorItem = ({ item, expanded, onPress }: Props) => {
       </Pressable>
 
       {/* Expand Content */}
-      {expanded && <ErrorExpandContent item={item} />}
+      {expanded && <ErrorExpandContent item={item} onPlayVideo={onPlayVideo} />}
     </View>
   );
 };

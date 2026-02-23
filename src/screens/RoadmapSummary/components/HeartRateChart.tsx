@@ -76,22 +76,19 @@ const HeartRateChart = ({ heartRateData }: Props) => {
           if (index >= heartRateData.length) return null;
 
           return (
-            <>
-              {/* Dot shadow */}
-              <View
-                key={`shadow-${index}`}
-                style={{
-                  position: 'absolute',
-                  left: x - 8,
-                  top: y - 8,
-                  width: 16,
-                  height: 16,
-                  borderRadius: 8,
-                  backgroundColor: colors.danger.darker,
-                  opacity: 0.25,
-                }}
-              />
-            </>
+            <View
+              key={`shadow-${index}`}
+              style={{
+                position: 'absolute',
+                left: x - 8,
+                top: y - 8,
+                width: 16,
+                height: 16,
+                borderRadius: 8,
+                backgroundColor: colors.danger.darker,
+                opacity: 0.25,
+              }}
+            />
           );
         }}
         chartConfig={{

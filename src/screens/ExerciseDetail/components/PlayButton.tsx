@@ -9,7 +9,6 @@ type Props = {
 };
 
 const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
-
   return (
     <>
       <View className="absolute -top-12 w-full">
@@ -18,7 +17,7 @@ const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
           shoulderRadius={18}
           cornerRadius={25}
           height={50}
-          backgroundColor={colors.background.sub2}
+          backgroundColor={colors.background.DEFAULT}
         />
       </View>
       <Pressable

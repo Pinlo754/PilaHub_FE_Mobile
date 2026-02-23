@@ -1,6 +1,12 @@
+export type LevelType = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
 export type CourseType = {
-  course_id: string;
-  course_name: string;
-  thumbnail_url: string;
-  total_lessons: number;
+  courseId: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  level: LevelType;
+  price: number;
+  active: boolean;
+  totalLesson: number;
 };

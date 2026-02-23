@@ -8,6 +8,7 @@ export const errorMock: ErrorItemType[] = [
     desc: 'Bạn đã nâng tay quá cao, vai bị nhún lên và cột sống không giữ ở vị trí trung lập, làm giảm hiệu quả bài tập.',
     thumbnail_url:
       'https://images.pexels.com/photos/3823039/pexels-photo-3823039.jpeg',
+    video_url: 'https://www.w3schools.com/html/mov_bbb.mp4',
   },
   {
     id: 2,
@@ -16,6 +17,7 @@ export const errorMock: ErrorItemType[] = [
     desc: 'Tư thế lưng chưa đúng khi thực hiện động tác.',
     thumbnail_url:
       'https://images.pexels.com/photos/3757376/pexels-photo-3757376.jpeg',
+    video_url: 'https://www.w3schools.com/html/mov_bbb.mp4',
   },
   {
     id: 3,
@@ -24,5 +26,6 @@ export const errorMock: ErrorItemType[] = [
     desc: 'Chuyển động tay chưa kiểm soát tốt.',
     thumbnail_url:
       'https://images.pexels.com/photos/3823039/pexels-photo-3823039.jpeg',
+    video_url: 'https://www.w3schools.com/html/mov_bbb.mp4',
   },
 ];

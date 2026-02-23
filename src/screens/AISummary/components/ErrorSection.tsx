@@ -5,7 +5,11 @@ import { ErrorItemType } from '../../../utils/SummaryType';
 import ErrorItem from './ErrorItem';
 import { colors } from '../../../theme/colors';
 
-const ErrorSection = () => {
+type Props = {
+  openErrorVideo: (source: string) => void;
+};
+
+const ErrorSection = ({ openErrorVideo }: Props) => {
   // STATE
   const [activeErrorId, setActiveErrorId] = useState<number | null>(null);
 
@@ -22,10 +26,11 @@ const ErrorSection = () => {
           item={item}
           expanded={activeErrorId === item.id}
           onPress={() => onToggle(item.id)}
+          onPlayVideo={openErrorVideo}
         />
       );
     },
-    [activeErrorId],
+    [activeErrorId, openErrorVideo],
   );
 
   return (

@@ -4,4 +4,5 @@ export type ErrorItemType = {
   time: string;
   desc: string;
   thumbnail_url: string;
+  video_url: string;
 };

@@ -15,9 +15,12 @@ const Header = ({ navigation }: Props) => {
   };
 
   return (
-    <View className="px-4 pb-2">
+    <View className="px-4 pb-2 pt-14">
       {/* Back */}
-      <Pressable onPress={handleGoBack} className="absolute left-4 top-1 z-10">
+      <Pressable
+        onPress={handleGoBack}
+        className="absolute left-4 top-[55px] z-10"
+      >
         <Ionicons
           name="chevron-back-outline"
           size={24}
