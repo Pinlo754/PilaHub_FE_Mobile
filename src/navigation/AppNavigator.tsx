@@ -21,14 +21,25 @@ import RegisterScreen from '../screens/Register/RegisterScreen';
 import OtpScreen from '../screens/Register/OtpScreen';
 import StartupScreen from '../screens/StartupScreen';
 import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
-import ProgramDetail from '../screens/ProgramDetail/ProgramDetail';
-import TestNavigateScreen from './testNavigate';
+
+
 import CoachScreen from '../screens/Coach/CoachScreen';
 import CoachRegisterSchedule from '../screens/Coach/Schedule/CoachRegisterSchedule';
 import CommingsoonClass from '../screens/Coach/CommingsoonClass/CommingsoonClass';
 import EndSessionScreen from '../screens/Coach/EndSessionCoach/EndSessionScreen';
 import FeedbackScreen from '../screens/Coach/Feedback/FeedbackScreen';
 import TraineeListScreen from '../screens/Coach/TraineeList/TraineeListScreen';
+import ProgramDetail from '../screens/ProgramDetail/ProgramDetail';
+import CoachDetail from '../screens/CoachDetail/CoachDetail';
+import ListScreen from '../screens/List/ListScreen';
+import DailyTask from '../screens/DailyTask/DailyTask';
+import RegisterCalendar from '../screens/RegisterCalendar/RegisterCalendar';
+import TraineeFeedback from '../screens/TraineeFeedback/TraineeFeedback';
+import TraineeReport from '../screens/TraineeReport/TraineeReport';
+import AISummary from '../screens/AISummary/AISummary';
+import TestNavigateScreen from './testNavigate';
+import AIPractice from '../screens/AIPractice/AIPractice';
+
 export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
@@ -65,6 +76,16 @@ export type RootStackParamList = {
     selectedId: string;
   };
   FeedbackScreen: undefined;
+  
+  CoachDetail: { coach_id: string; selectedCoachId?: string | null };
+  List: undefined;
+  DailyTask: undefined;
+  RegisterCalendar: { coach_id?: string | null };
+  TraineeFeedback: undefined;
+  TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
+  AISummary: undefined;
+  AIPractice: undefined;
+ 
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -121,6 +142,19 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="CommingsoonClass" component={CommingsoonClass} />
         <Stack.Screen name="EndSessionScreen" component={EndSessionScreen} />
         <Stack.Screen name="FeedbackScreen" component={FeedbackScreen} />
+        <Stack.Screen name="ProgramDetail" component={ProgramDetail} />
+        <Stack.Screen name="CoachDetail" component={CoachDetail} />
+        <Stack.Screen name="List" component={ListScreen} />
+        <Stack.Screen name="DailyTask" component={DailyTask} />
+        <Stack.Screen name="RegisterCalendar" component={RegisterCalendar} />
+        <Stack.Screen name="TraineeFeedback" component={TraineeFeedback} />
+        <Stack.Screen name="TraineeReport" component={TraineeReport} />
+        <Stack.Screen name="AISummary" component={AISummary} />
+        <Stack.Screen name="AIPractice" component={AIPractice} />
+        <Stack.Screen
+          name="TestNavigateScreen"
+          component={TestNavigateScreen}
+        />
       </Stack.Navigator>
     </AppLayout>
   );

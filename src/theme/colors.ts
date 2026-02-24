@@ -29,11 +29,13 @@ export const colors = {
   danger: {
     DEFAULT: '#E96363',
     darker: '#BF1A1A',
+    20: '#E9636333',
   },
 
   inactive: {
     lighter: '#D1D5DB',
     darker: '#6B7280',
+    80: '#6B7280CC',
   },
 
   purple: {

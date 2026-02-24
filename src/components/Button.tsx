@@ -1,35 +1,63 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Pressable, Text, View } from 'react-native';
 import type { ComponentProps } from 'react';
+import { colors } from '../theme/colors';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-export type ColorType = 'primary' | 'sub1' | 'sub2';
+export type ColorType =
+  | 'primary'
+  | 'sub1'
+  | 'sub2'
+  | 'grey'
+  | 'red'
+  | 'green'
+  | 'yellow'
+  | 'blue';
 
 export type RoundedType = 'lg' | 'xl' | '2xl' | '3xl' | 'full';
-
-const COLORS = {
-  primary: '#A0522D',
-  sub1: '#CD853F',
-  sub2: '#F5DEB3',
-};
 
 const getColors = (type: ColorType) => {
   switch (type) {
     case 'sub1':
       return {
-        backgroundColor: COLORS.sub1,
-        textColor: '#FFF',
+        backgroundColor: colors.background.sub1,
+        textColor: colors.foreground,
       };
     case 'sub2':
       return {
-        backgroundColor: COLORS.sub2,
-        textColor: COLORS.primary,
+        backgroundColor: colors.background.sub2,
+        textColor: colors.foreground,
+      };
+    case 'blue':
+      return {
+        backgroundColor: colors.info.lighter,
+        textColor: colors.info.darker,
+      };
+    case 'green':
+      return {
+        backgroundColor: colors.success[20],
+        textColor: colors.success.DEFAULT,
+      };
+    case 'grey':
+      return {
+        backgroundColor: colors.inactive.lighter,
+        textColor: colors.inactive.darker,
+      };
+    case 'red':
+      return {
+        backgroundColor: colors.danger.DEFAULT,
+        textColor: colors.danger.darker,
+      };
+    case 'yellow':
+      return {
+        backgroundColor: colors.warning[20],
+        textColor: colors.warning.DEFAULT,
       };
     case 'primary':
     default:
       return {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.foreground,
         textColor: '#FFF',
       };
   }
@@ -62,7 +90,7 @@ const Button = ({
 
   return (
     <Pressable
-      className={`flex-row gap-2 items-center pl-4 pr-2 ${width ? '' : 'w-full'} rounded-${rounded} ${iconName ? 'py-2' : 'py-2.5'}`}
+      className={`flex-row gap-2 items-center  ${width ? '' : 'w-full'} rounded-${rounded} ${iconName ? 'py-2 pl-4 pr-2' : 'py-2.5'}`}
       style={{
         backgroundColor: color.backgroundColor,
         width: width ? width : undefined,

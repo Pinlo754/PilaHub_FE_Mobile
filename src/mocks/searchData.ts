@@ -52,6 +52,14 @@ export const coachMock: TabTypeMap[SearchTab.Coach][] = [
     avatar: 'https://cdn.mos.cms.futurecdn.net/RSRmmWZGBcNnLLynabFD2Z.jpg',
     rating_avg: 4.8,
     experience_years: 1,
+    description:
+      'Amanda Gilbert là một huấn luyện viên Pilates có chứng chỉ với nhiều năm kinh nghiệm hướng dẫn luyện tập Reformer, Mat và các hình thức Pilates khác. Cô tập trung vào kỹ thuật chính xác, kiểm soát hơi thở và di chuyển đúng nguyên tắc Pilates, giúp học viên tăng cường sức mạnh, cải thiện tư thế và kết nối sâu hơn với cơ thể của mình.',
+    specialties: [
+      'Reformer Pilates',
+      'Mat Pilates',
+      'Pilates for Rehabilitation',
+    ],
+    certifications: ['Certified Pilates Instructor (CPI)', 'CPR/AED Certified'],
   },
 ];
 

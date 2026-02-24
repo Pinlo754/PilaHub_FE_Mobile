@@ -5,10 +5,9 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import ImageExercise from './components/ImageExercise';
 import { useExerciseDetail } from './useExerciseDetail';
 import Header from './components/Header';
-import VideoExpand from './components/VideoExpand';
 import OverviewSection from './components/OverviewSection';
 import StatsSection from './components/StatsSection';
-import VideoShrink from './components/VideoShrink';
+import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 
@@ -18,13 +17,15 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     activeTab,
     exerciseDetail,
     onChangeTab,
-    isVideoPlay,
+    isVideoVisible,
+    isPlaying,
     togglePlayButton,
     isPracticeTab,
     isShowFlag,
     toggleVideoExpand,
     isVideoExpand,
     navigatePracticeTab,
+    setIsShowFlag,
   } = useExerciseDetail({
     route,
   });
@@ -36,18 +37,25 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     <View className="w-full flex-1 relative">
       {/* Header */}
       <Header
+        activeTab={activeTab}
         isVideoExpand={isVideoExpand}
-        isVideoPlay={isVideoPlay}
+        isVideoPlay={isPlaying}
         isShowFlag={isShowFlag}
         navigation={navigation}
         navigatePracticeTab={navigatePracticeTab}
+        exerciseId={exerciseDetail.exercise_id}
       />
 
       {/* Image / Video */}
-      {isVideoExpand ? (
-        <VideoExpand />
-      ) : isVideoPlay ? (
-        <VideoShrink />
+      {isVideoVisible ? (
+        <VideoPlayer
+          source="https://www.w3schools.com/html/mov_bbb.mp4"
+          isVideoPlay={isPlaying}
+          isVideoExpand={isVideoExpand}
+          toggleVideoExpand={toggleVideoExpand}
+          isPracticeTab={isPracticeTab}
+          setIsShowFlag={setIsShowFlag}
+        />
       ) : (
         <ImageExercise imgUrl={exerciseDetail?.image_url} />
       )}
@@ -57,7 +65,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
         <StatsSection
           isPracticeTab={isPracticeTab}
           exerciseName={exerciseDetail.name}
-          isVideoPlay={isVideoPlay}
+          isVideoPlay={isPlaying}
           togglePlayButton={togglePlayButton}
         />
       ) : (
@@ -65,7 +73,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
           activeTab={activeTab}
           exerciseDetail={exerciseDetail}
           onChangeTab={onChangeTab}
-          isVideoPlay={isVideoPlay}
+          isVideoPlay={isPlaying}
           togglePlayButton={togglePlayButton}
           toggleVideoExpand={toggleVideoExpand}
           isPracticeTab={isPracticeTab}

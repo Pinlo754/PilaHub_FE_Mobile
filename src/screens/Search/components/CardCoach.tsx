@@ -1,6 +1,7 @@
 import { Image, Pressable, Text, View } from 'react-native';
 import { CoachType } from '../../../utils/CoachType';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../../theme/colors';
 
 type Props = {
   item: CoachType;
@@ -9,10 +10,6 @@ type Props = {
 };
 
 const CardCoach = ({ item, isLast, onPress }: Props) => {
-  // COLOR
-  const WARNING = '#F2B94C';
-  const INFO_DARKER = '#3B82F6';
-
   return (
     <Pressable
       className={`border-t border-background-sub2 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
@@ -38,14 +35,14 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
         {/* Rate */}
         <View className="flex-row gap-6">
           <View className="flex-row gap-2 items-center">
-            <Ionicons name="star" size={18} color={WARNING} />
+            <Ionicons name="star" size={18} color={colors.warning.DEFAULT} />
             <Text className="color-secondaryText font-medium">
               {item.rating_avg}
             </Text>
           </View>
           {/* Experience year */}
           <View className="flex-row gap-2 items-center">
-            <Ionicons name="ribbon" size={18} color={INFO_DARKER} />
+            <Ionicons name="ribbon" size={18} color={colors.info.darker} />
             <Text className="color-secondaryText font-medium">
               {item.experience_years} năm
             </Text>

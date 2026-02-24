@@ -4,12 +4,15 @@ import { CourseType } from '../../../utils/CourseType';
 import CardDaily from './CardDaily';
 import { useCallback } from 'react';
 import { colors } from '../../../theme/colors';
+import { RootStackParamList } from '../../../navigation/AppNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Props = {
   data: CourseType[];
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
-const DailyTask = ({ data }: Props) => {
+const DailyTask = ({ data, navigation }: Props) => {
   // RENDER
   const renderItem = useCallback(({ item }: { item: CourseType }) => {
     return <CardDaily item={item} onPress={() => {}} />;
@@ -17,7 +20,10 @@ const DailyTask = ({ data }: Props) => {
   return (
     <View className="pl-4">
       {/* Header */}
-      <Pressable className="flex-row gap-2 items-center mb-2">
+      <Pressable
+        className="flex-row gap-2 items-center mb-2"
+        onPress={() => navigation.navigate('DailyTask')}
+      >
         <Text className="color-foreground text-lg font-semibold">
           Nhiệm vụ hôm nay
         </Text>

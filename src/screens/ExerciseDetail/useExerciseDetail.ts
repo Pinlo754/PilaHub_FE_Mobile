@@ -16,8 +16,9 @@ export const useExerciseDetail = ({ route }: Props) => {
   // STATE
   const [activeTab, setActiveTab] = useState<ExerciseTab>(ExerciseTab.Theory);
   const [exerciseDetail, setExerciseDetail] = useState<ExerciseType>();
-  const [isVideoPlay, setIsVideoPlay] = useState<boolean>(false);
   const [isShowFlag, setIsShowFlag] = useState<boolean>(false);
+  const [isVideoVisible, setIsVideoVisible] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isVideoExpand, setIsVideoExpand] = useState<boolean>(false);
 
   // CHECK
@@ -30,11 +31,25 @@ export const useExerciseDetail = ({ route }: Props) => {
 
   // HANDLERS
   const onChangeTab = (tabId: ExerciseTab) => {
+    if (tabId === ExerciseTab.Practice) {
+      hideVideo();
+    }
     setActiveTab(tabId);
   };
 
+  const showVideo = () => {
+    setIsVideoVisible(true);
+    setIsPlaying(true);
+  };
+
+  const hideVideo = () => {
+    setIsVideoVisible(false);
+    setIsPlaying(false);
+  };
+
   const togglePlayButton = () => {
-    setIsVideoPlay(prev => !prev);
+    setIsVideoVisible(true);
+    setIsPlaying(prev => !prev);
   };
 
   const toggleVideoExpand = () => {
@@ -47,7 +62,9 @@ export const useExerciseDetail = ({ route }: Props) => {
   };
 
   const navigatePracticeTab = () => {
-    setIsVideoPlay(false);
+    setIsShowFlag(false);
+    setIsVideoVisible(false);
+    setIsPlaying(false);
     setIsVideoExpand(false);
   };
 
@@ -62,12 +79,16 @@ export const useExerciseDetail = ({ route }: Props) => {
     activeTab,
     exerciseDetail,
     onChangeTab,
-    isVideoPlay,
+    isVideoVisible,
+    isPlaying,
     togglePlayButton,
     isPracticeTab,
     isShowFlag,
     isVideoExpand,
     toggleVideoExpand,
     navigatePracticeTab,
+    showVideo,
+    hideVideo,
+    setIsShowFlag,
   };
 };

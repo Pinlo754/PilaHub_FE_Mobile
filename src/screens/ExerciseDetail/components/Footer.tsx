@@ -12,7 +12,7 @@ const Footer = ({ onPress }: Props) => {
         <Button
           text="Bắt đầu buổi tập"
           onPress={onPress}
-          colorType="sub2"
+          colorType="sub1"
           rounded="full"
           iconName="log-in-outline"
           iconSize={26}
@@ -24,7 +24,7 @@ const Footer = ({ onPress }: Props) => {
           <Button
             text="Tự tập"
             onPress={() => {}}
-            colorType="sub2"
+            colorType="sub1"
             rounded="xl"
             iconName="log-in-outline"
             iconSize={26}
@@ -35,7 +35,7 @@ const Footer = ({ onPress }: Props) => {
           <Button
             text="Tập với AI"
             onPress={() => {}}
-            colorType="sub2"
+            colorType="sub1"
             rounded="xl"
             iconName="sparkles-outline"
             iconSize={20}

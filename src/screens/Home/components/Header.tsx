@@ -21,7 +21,7 @@ const Header = ({ navigation }: Props) => {
           <Ionicons name="search-outline" size={24} color={colors.foreground} />
         </Pressable>
         {/* Notification */}
-        <Pressable>
+        <Pressable onPress={() => navigation.navigate('AIPractice')}>
           <Ionicons
             name="notifications-outline"
             size={24}

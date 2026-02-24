@@ -12,7 +12,7 @@ type Props = {
 
 const InfoSection = ({ percent, dayCompleted, weight_1, weight_2 }: Props) => {
   return (
-    <View className="mx-4 mt-4 p-4 bg-background-sub2 rounded-xl shadow-sm elevation-10">
+    <View className="mx-4 mt-4 p-4 bg-background-sub2 rounded-xl shadow-md elevation-md">
       <View className="flex-row justify-between items-center">
         {/* Left section */}
         <View>
