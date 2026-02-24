@@ -1,6 +1,5 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
 import HomeScreen from '../screens/Home/HomeScreen';
 import LoginScreen from '../screens/Login/LoginScreen';
 import AppLayout from '../components/AppLayout';
@@ -22,8 +21,14 @@ import RegisterScreen from '../screens/Register/RegisterScreen';
 import OtpScreen from '../screens/Register/OtpScreen';
 import StartupScreen from '../screens/StartupScreen';
 import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
-
-
+import ProgramDetail from '../screens/ProgramDetail/ProgramDetail';
+import TestNavigateScreen from './testNavigate';
+import CoachScreen from '../screens/Coach/CoachScreen';
+import CoachRegisterSchedule from '../screens/Coach/Schedule/CoachRegisterSchedule';
+import CommingsoonClass from '../screens/Coach/CommingsoonClass/CommingsoonClass';
+import EndSessionScreen from '../screens/Coach/EndSessionCoach/EndSessionScreen';
+import FeedbackScreen from '../screens/Coach/Feedback/FeedbackScreen';
+import TraineeListScreen from '../screens/Coach/TraineeList/TraineeListScreen';
 export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
@@ -44,6 +49,22 @@ export type RootStackParamList = {
   InputBody: undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
+  ProgramDetail: { program_id: string };
+  TestNavigateScreen: undefined;
+  CoachScreen: undefined;
+  CoachRegisterSchedule: undefined;
+  TraineeListScreen: undefined;
+  RequestList: undefined;
+  Messages: undefined;
+  Courses: undefined;
+  Settings: undefined;
+  CommingsoonClass: {
+    selectedId: string;
+  };
+  EndSessionScreen: {
+    selectedId: string;
+  };
+  FeedbackScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -78,7 +99,7 @@ const AppNavigator: React.FC = () => {
           component={InputBodyScreen}
           options={{ title: 'Nhập thông tin cơ thể' }}
         />
-        <Stack.Screen name ="Register" component={RegisterScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="VerifyEmail" component={OtpScreen} />
         <Stack.Screen name="MainTabs" component={TabNavigator} />
         <Stack.Screen name="Home" component={HomeScreen} />
@@ -91,7 +112,15 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
         <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
         <Stack.Screen name="Plan" component={PlanScreen} />
-      <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
+        <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
+        <Stack.Screen name="ProgramDetail" component={ProgramDetail} />
+        <Stack.Screen name="TestNavigateScreen" component={TestNavigateScreen} />
+        <Stack.Screen name="CoachScreen" component={CoachScreen} />
+        <Stack.Screen name="CoachRegisterSchedule" component={CoachRegisterSchedule} />
+        <Stack.Screen name="TraineeListScreen" component={TraineeListScreen} />
+        <Stack.Screen name="CommingsoonClass" component={CommingsoonClass} />
+        <Stack.Screen name="EndSessionScreen" component={EndSessionScreen} />
+        <Stack.Screen name="FeedbackScreen" component={FeedbackScreen} />
       </Stack.Navigator>
     </AppLayout>
   );
