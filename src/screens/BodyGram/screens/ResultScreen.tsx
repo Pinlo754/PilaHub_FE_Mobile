@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
+import { getProfile } from '../../../services/auth';
+import { setBodySavedFor } from '../../../utils/bodyCache';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
@@ -144,6 +146,26 @@ export default function ResultScreen({ route, navigation }: Props) {
       if (res.ok) {
         // save measurements locally as well
         await saveMeasurements();
+
+        // persist per-user saved info so switching accounts won't reuse old data
+        try {
+          const me = await getProfile();
+          if (me.ok) {
+            const d: any = me.data;
+            const userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
+            if (userId) {
+              const info: any = {
+                profileId: res.data?.health?.id ?? res.data?.health?.profileId ?? undefined,
+                savedAt: Date.now(),
+                summary: { height: display.height_est, weight: display.weight_est },
+              };
+              await setBodySavedFor(userId, info);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not persist per-user body saved info', e);
+        }
+
         setToastType('success');
         setToastMsg('Lưu hồ sơ thành công');
         setToastVisible(true);

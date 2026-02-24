@@ -37,8 +37,7 @@ export default function InformationUI() {
         </Text>
 
         <Text className="text-sm text-secondaryText text-center mt-2 px-6">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit,
-          sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          Cung cấp vài thông tin cơ bản để chúng tôi cá nhân hoá gợi ý bài tập, chế độ và lộ trình phù hợp với bạn. Bạn có thể chỉnh sửa sau bất kỳ lúc nào.
         </Text>
       
 

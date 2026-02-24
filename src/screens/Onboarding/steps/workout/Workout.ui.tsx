@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
-import { useWorkoutLogic } from './Workout.logic';
+import { useWorkoutLogic, WorkoutFrequencyKey, WorkoutLevelKey } from './Workout.logic';
 
 export default function WorkoutUI() {
   const {
@@ -34,7 +34,7 @@ export default function WorkoutUI() {
           {frequencies.map((f) => (
             <Pressable
               key={f.key}
-              onPress={() => selectFrequency(f.key)}
+              onPress={() => selectFrequency(f.key as WorkoutFrequencyKey)}
               className={`p-4 rounded-xl mb-3 border ${frequency === f.key ? 'bg-foreground/10 border-foreground' : 'bg-white border-background-sub2'}`}>
               <Text className="text-base text-foreground font-medium">{f.title}</Text>
               <Text className="text-sm text-secondaryText">{f.desc}</Text>
@@ -45,7 +45,7 @@ export default function WorkoutUI() {
           {levels.map((l) => (
             <Pressable
               key={l.key}
-              onPress={() => selectLevel(l.key)}
+              onPress={() => selectLevel(l.key as WorkoutLevelKey)}
               className={`p-4 rounded-xl mb-3 border ${level === l.key ? 'bg-foreground/10 border-foreground' : 'bg-white border-background-sub2'}`}>
               <Text className="text-base text-foreground font-medium">{l.title}</Text>
             </Pressable>

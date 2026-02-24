@@ -1,10 +1,5 @@
 import { useState } from 'react';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../../../navigation/AppNavigator';
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
 export const WORKOUT_FREQUENCIES = [
   { key: 'SEDENTARY', title: 'Ít vận động', desc: '0 giờ/tuần' },
@@ -20,17 +15,19 @@ export const WORKOUT_LEVELS = [
   { key: 'ADVANCED', title: 'Nâng cao' },
 ];
 
+export type WorkoutFrequencyKey = 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'ATHLETE';
+export type WorkoutLevelKey = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
 export const useWorkoutLogic = () => {
-  const navigation = useNavigation<NavigationProp>();
   const { data, setData, step, setStep } = useOnboardingStore();
 
-  const [frequency, setFrequency] = useState<string | undefined>(
-    data.workoutFrequency
+  const [frequency, setFrequency] = useState<WorkoutFrequencyKey | undefined>(
+    data.workoutFrequency as WorkoutFrequencyKey | undefined
   );
-  const [level, setLevel] = useState<string | undefined>(data.workoutLevel);
+  const [level, setLevel] = useState<WorkoutLevelKey | undefined>(data.workoutLevel as WorkoutLevelKey | undefined);
 
-  const selectFrequency = (key: string) => setFrequency(key);
-  const selectLevel = (key: string) => setLevel(key);
+  const selectFrequency = (key: WorkoutFrequencyKey) => setFrequency(key);
+  const selectLevel = (key: WorkoutLevelKey) => setLevel(key);
 
   const onBack = () => setStep(step - 1);
 

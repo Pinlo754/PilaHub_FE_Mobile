@@ -5,6 +5,7 @@ import {
   Pressable,
   Animated,
   Dimensions,
+  StyleSheet,
 } from 'react-native'
 import { useWeightLogic, ITEM_WIDTH } from './Weight.logic'
 
@@ -36,9 +37,8 @@ export default function WeightUI() {
         Cân Nặng Của Bạn?
       </Text>
 
-      <Text className="text-sm text-foreground text-center mt-3 px-6">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit,
-        sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+      <Text className="text-sm text-secondaryText text-center mt-3 px-6">
+        Nhập cân nặng của bạn (nếu biết) để cải thiện độ chính xác của BMI và gợi ý dinh dưỡng. Có thể cập nhật sau.
       </Text>
 
       {/* ===== Unit Switch ===== */}
@@ -80,11 +80,7 @@ export default function WeightUI() {
       <View className="mt-4 items-center">
         <View
           className="rounded-xl overflow-hidden"
-          style={{
-            width: SCREEN_WIDTH - 48,
-            height: PICKER_HEIGHT,
-            backgroundColor: '#D28A45',
-          }}
+          style={[styles.scaleContainer, { width: SCREEN_WIDTH - 48, height: PICKER_HEIGHT }]}
         >
           <Animated.FlatList
             ref={listRef}
@@ -151,3 +147,7 @@ export default function WeightUI() {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  scaleContainer: { backgroundColor: '#D28A45' },
+});

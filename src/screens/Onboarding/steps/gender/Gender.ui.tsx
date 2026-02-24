@@ -89,8 +89,7 @@ export default function GenderUI() {
       <Text className="text-xl font-semibold text-foreground text-center">Giới Tính Của Bạn?</Text>
 
       <Text className="text-sm text-secondaryText text-center mt-2 px-6">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit,
-        sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        Chọn giới tính giúp hệ thống điều chỉnh các chỉ số và đề xuất luyện tập phù hợp. Thông tin này có thể thay đổi sau.
       </Text>
 
       {/* Gender options */}

@@ -5,6 +5,7 @@ import {
   Pressable,
   Animated,
   Dimensions,
+  StyleSheet,
 } from 'react-native';
 import { useAgeLogic, ITEM_WIDTH } from './Age.logic';
 
@@ -33,8 +34,7 @@ export default function AgeUI() {
       </Text>
 
       <Text className="text-sm text-secondaryText text-center mt-3 px-4">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit,
-        sed do eiusmod tempor incididunt ut labore.
+        Nhập tuổi của bạn để chúng tôi tính các chỉ số phù hợp (ví dụ: BMR, khuyến nghị tập luyện). Bạn có thể cập nhật sau.
       </Text>
 
       {/* ===== CENTER CONTENT ===== */}
@@ -46,19 +46,7 @@ export default function AgeUI() {
           </Text>
 
           {/* Arrow */}
-          <View
-            style={{
-              width: 0,
-              height: 0,
-              marginTop: 14,
-              borderLeftWidth: 14,
-              borderRightWidth: 14,
-              borderBottomWidth: 14,
-              borderLeftColor: 'transparent',
-              borderRightColor: 'transparent',
-              borderBottomColor: '#A0522D',
-            }}
-          />
+          <View style={styles.triangle} />
         </View>
 
         {/* ===== PICKER ===== */}
@@ -71,15 +59,10 @@ export default function AgeUI() {
           {/* Highlight box */}
           <View
             pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: (SCREEN_WIDTH - 48) / 2 - ITEM_WIDTH / 2,
-              top: 0,
-              width: ITEM_WIDTH,
-              height: PICKER_HEIGHT,
-              backgroundColor: '#F2B94C',
-              borderRadius: 14,
-            }}
+            style={[
+              styles.highlightBox,
+              { left: (SCREEN_WIDTH - 48) / 2 - ITEM_WIDTH / 2 },
+            ]}
           />
 
           <Animated.FlatList
@@ -129,15 +112,7 @@ export default function AgeUI() {
                   }}
                   className="items-center justify-center"
                 >
-                  <Text
-                    style={{
-                      color: isSelected
-                        ? '#FFFFFF'
-                        : 'rgba(160,82,45,0.5)',
-                      fontSize: 22,
-                      fontWeight: '700',
-                    }}
-                  >
+                  <Text style={[styles.ageText, isSelected ? styles.ageTextSelected : styles.ageTextUnselected]}>
                     {item}
                   </Text>
                 </Animated.View>
@@ -161,3 +136,35 @@ export default function AgeUI() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  triangle: {
+    width: 0,
+    height: 0,
+    marginTop: 14,
+    borderLeftWidth: 14,
+    borderRightWidth: 14,
+    borderBottomWidth: 14,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#A0522D',
+  },
+  highlightBox: {
+    position: 'absolute',
+    top: 0,
+    width: ITEM_WIDTH,
+    height: PICKER_HEIGHT,
+    backgroundColor: '#F2B94C',
+    borderRadius: 14,
+  },
+  ageText: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  ageTextSelected: {
+    color: '#FFFFFF',
+  },
+  ageTextUnselected: {
+    color: 'rgba(160,82,45,0.5)',
+  },
+});

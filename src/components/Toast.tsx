@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Text, Animated, StyleSheet } from 'react-native';
 
 type Props = {
   visible: boolean;
@@ -24,7 +24,8 @@ export default function Toast({ visible, message = '', type = 'info', onHidden }
         Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
       ]).start(() => onHidden && onHidden());
     }
-  }, [visible]);
+    // include refs and callback in deps to satisfy react-hooks/exhaustive-deps
+  }, [visible, onHidden, opacity, translateY]);
 
   if (!visible) return null;
 
@@ -32,19 +33,24 @@ export default function Toast({ visible, message = '', type = 'info', onHidden }
 
   return (
     <Animated.View
-      style={{
-        transform: [{ translateY }],
-        opacity,
-        position: 'absolute',
-        left: 20,
-        right: 20,
-        bottom: 40,
-        zIndex: 9999,
-      }}
+      style={[
+        styles.container,
+        { transform: [{ translateY }], opacity },
+      ]}
     >
-      <View className={`${bgClass} rounded-lg px-4 py-3` as any}>
+      <View className={`${bgClass} rounded-lg px-4 py-3`}>
         <Text className="text-white text-center">{message}</Text>
       </View>
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 40,
+    zIndex: 9999,
+  },
+});

@@ -4,12 +4,15 @@ import {
   Text,
   Pressable,
   ScrollView,
+  ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { useTargetLogic } from './Target.logic';
 
 export default function TargetUI() {
   const {
     targets,
+    loading,
     selected,
     toggleTarget,
     onFinish,
@@ -31,50 +34,54 @@ export default function TargetUI() {
 
       <Text className="text-sm text-secondaryText text-center mt-2 px-6">
         {allowMulti
-          ? 'Bạn có thể chọn nhiều mục tiêu'
-          : 'Chọn 1 mục tiêu phù hợp nhất'}
+          ? 'Chọn một hoặc nhiều mục tiêu chính của bạn. Chúng tôi sẽ dùng các mục tiêu này để đề xuất chương trình và bài tập phù hợp.'
+          : 'Chọn mục tiêu chính để hệ thống ưu tiên lộ trình và bài tập phù hợp.'}
       </Text>
 
       {/* TARGET LIST */}
       <ScrollView
         className="mt-10"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={styles.scrollContainer}
       >
         <View className=" items-center ">
-          {targets.map((item) => {
-            const isActive = selected.includes(item.key);
+          {loading ? (
+            <ActivityIndicator size="large" color="#CD853F" />
+          ) : (
+            targets.map((item) => {
+              const isActive = selected.includes(item.key);
 
-            return (
-              <Pressable
-                key={item.key}
-                onPress={() => toggleTarget(item.key)}
-                className={`flex-row items-center p-4 w-full max-w-[420px] mb-4 rounded-xl border shadow-sm  ${
-                  isActive
-                    ? 'bg-warning/20 border-warning'
-                    : 'bg-white border-background-sub2 '
-                }`}
-              >
-                {/* ICON */}
-                <Text className="text-2xl mr-4">{item.icon}</Text>
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => toggleTarget(item.key)}
+                  className={`flex-row items-center p-4 w-full max-w-[420px] mb-4 rounded-xl border shadow-sm  ${
+                    isActive
+                      ? 'bg-warning/20 border-warning'
+                      : 'bg-white border-background-sub2 '
+                  }`}
+                >
+                  {/* ICON */}
+                  <Text className="text-2xl mr-4">{item.icon ?? '🏁'}</Text>
 
-                {/* TEXT */}
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-foreground">
-                    {item.title}
-                  </Text>
-                  <Text className="text-sm text-secondaryText">
-                    {item.description}
-                  </Text>
-                </View>
+                  {/* TEXT */}
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold text-foreground">
+                      {item.title}
+                    </Text>
+                    <Text className="text-sm text-secondaryText">
+                      {item.description}
+                    </Text>
+                  </View>
 
-                {/* CHECK */}
-                {isActive && (
-                  <Text className="text-warning text-xl">✓</Text>
-                )}
-              </Pressable>
-            );
-          })}
+                  {/* CHECK */}
+                  {isActive && (
+                    <Text className="text-warning text-xl">✓</Text>
+                  )}
+                </Pressable>
+              );
+            })
+          )}
         </View>
       </ScrollView>
 
@@ -97,3 +104,7 @@ export default function TargetUI() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  scrollContainer: { paddingBottom: 20 },
+});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import MeasurementTag from '../components/MeasurementTag';
 import MeasurementModal from '../components/MeasurementModal';
@@ -13,6 +13,14 @@ export default function InputBodyScreen({ navigation }: Props) {
   const [modal, setModal] = useState<{ key: string; visible: boolean }>({ key: '', visible: false });
   const onboarding = useOnboardingStore((s) => s.data);
   const setData = useOnboardingStore((s) => s.setData);
+  const resetOnboarding = useOnboardingStore((s) => s.reset);
+
+  useEffect(() => {
+    // reset onboarding data when entering InputBody to avoid leftover mock values
+    try { resetOnboarding(); } catch {}
+    // ensure no modal remains
+    setModal({ key: '', visible: false });
+  }, [resetOnboarding]);
 
   const openModal = (key: string) => setModal({ key, visible: true });
   const closeModal = () => setModal({ key: '', visible: false });

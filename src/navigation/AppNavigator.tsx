@@ -20,6 +20,9 @@ import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
 import OtpScreen from '../screens/Register/OtpScreen';
+import StartupScreen from '../screens/StartupScreen';
+import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
+
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -27,10 +30,12 @@ export type RootStackParamList = {
   Login: undefined;
   Welcome: undefined;
   Onboarding: undefined;
+  Startup: undefined;
   Search: undefined;
   Roadmap: undefined;
   RoadmapSummary: undefined;
-  Plan: undefined;
+  Plan: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
+  CreateRoadmap: undefined;
   UpgradePlan: undefined;
   ExerciseDetail: { exercise_id: string };
   ManualInput: undefined;
@@ -47,11 +52,12 @@ const AppNavigator: React.FC = () => {
   return (
     <AppLayout>
       <Stack.Navigator
-        initialRouteName="MainTabs"
+        initialRouteName="Startup"
         screenOptions={{
           headerShown: false,
         }}
       >
+        <Stack.Screen name="Startup" component={StartupScreen} />
         <Stack.Screen
           name="ManualInput"
           component={ManualInputScreen}
@@ -83,7 +89,8 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
         <Stack.Screen name="Roadmap" component={RoadmapScreen} />
         <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
-         <Stack.Screen name="Plan" component={PlanScreen} />
+        <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
+        <Stack.Screen name="Plan" component={PlanScreen} />
       <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
       </Stack.Navigator>
     </AppLayout>

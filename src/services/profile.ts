@@ -317,3 +317,37 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
      return { ok: false, error: e.response?.data ?? e.message ?? e };
    }
  }
+
+// Fetch trainee profile for current authenticated account
+export async function fetchTraineeProfile(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/trainees/profile');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
+  }
+}
+
+// Fetch health profiles for the authenticated trainee (returns array or empty)
+export async function fetchMyHealthProfiles(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/health-profiles/my-profiles');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
+  }
+}
+
+export async function fetchFitnessGoals(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/fitness-goals/active');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}

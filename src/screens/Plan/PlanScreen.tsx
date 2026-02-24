@@ -1,12 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 const PlanScreen: React.FC = () => {
   const navigation: any = useNavigation();
+  const route: any = useRoute();
+  const [roadmaps, setRoadmaps] = useState<any[]>([]);
   const [dates, setDates] = useState<Date[]>([]);
   const [now, setNow] = useState<Date>(new Date());
+
+  // when CreateRoadmap navigates back with addedRoadmap, append it
+  useEffect(() => {
+    const added = route?.params?.addedRoadmap;
+    if (added) {
+      setRoadmaps(prev => [added, ...prev]);
+      // clear param to avoid duplicate if screen revisited
+      try {
+        navigation.setParams({ addedRoadmap: undefined });
+      } catch (err) {
+        // ignore if not supported
+      }
+    }
+  }, [route?.params?.addedRoadmap, navigation]);
 
   const getNextNDates = (n: number) => {
     const arr: Date[] = [];
@@ -51,13 +67,34 @@ const PlanScreen: React.FC = () => {
           <Text className="text-lg">←</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">Lộ Trình Của Bạn</Text>
-        <TouchableOpacity>
-          <Text className="text-lg">⋯</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('CreateRoadmap')}>
+          <Text className="text-lg">+ Tạo</Text>
         </TouchableOpacity>
       </View>
 
       <View className="flex-1">
         <ScrollView className="px-4" contentContainerStyle={styles.contentPadding}>
+          {/* Render any newly created roadmaps passed from CreateRoadmap */}
+          {roadmaps.map((r, i) => (
+            <View key={i} className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+              <Text className="text-lg font-semibold">{r.roadmap?.title || 'Lộ trình mới'}</Text>
+              {r.roadmap?.description ? <Text className="text-sm text-gray-500 mt-1">{r.roadmap.description}</Text> : null}
+              <View className="mt-3">
+                {(r.stages || []).map((s: any) => (
+                  <View key={s.stage?.personalStageId || Math.random()} className="mb-3">
+                    <Text className="font-semibold">{s.stage?.stageName} ({s.stage?.durationWeeks} tuần)</Text>
+                    {(s.schedules || []).map((sch: any) => (
+                      <View key={sch.schedule?.personalScheduleId || Math.random()} className="mt-2 p-2 bg-gray-50 rounded-lg">
+                        <Text className="font-semibold">{sch.schedule?.scheduleName}</Text>
+                        <Text className="text-sm text-gray-600">{sch.schedule?.dayOfWeek} • {sch.schedule?.durationMinutes} phút</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+
           {/* Stage chips */}
           <View className="flex-row justify-between mt-3">
             <View className="flex-row gap-x-2">
