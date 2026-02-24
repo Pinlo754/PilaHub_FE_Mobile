@@ -134,7 +134,6 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
         <Stack.Screen name="Plan" component={PlanScreen} />
         <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
-        <Stack.Screen name="ProgramDetail" component={ProgramDetail} />
         <Stack.Screen name="TestNavigateScreen" component={TestNavigateScreen} />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />
         <Stack.Screen name="CoachRegisterSchedule" component={CoachRegisterSchedule} />
@@ -151,10 +150,7 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
-        <Stack.Screen
-          name="TestNavigateScreen"
-          component={TestNavigateScreen}
-        />
+        
       </Stack.Navigator>
     </AppLayout>
   );
