@@ -15,7 +15,20 @@ export const exerciseService = {
       };
     }
 
-    console.log(res.data);
+    return res.data.data;
+  },
+
+  // GET BY ID
+  getById: async (exerciseId: string): Promise<ExerciseType> => {
+    const res = await api.get<ApiResponse<ExerciseType>>(`/exercises/${exerciseId}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
 
     return res.data.data;
   },

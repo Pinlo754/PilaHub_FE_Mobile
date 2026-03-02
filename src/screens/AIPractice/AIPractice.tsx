@@ -1,4 +1,4 @@
-import { Pressable, StatusBar, View } from 'react-native';
+import { StatusBar, View } from 'react-native';
 import Header from './components/Header';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -19,7 +19,9 @@ const AIPractice = (props: Props) => {
     showInstruct,
     openInstructModal,
     closeInstructModal,
-  } = useAIPractice();
+    imgUrl,
+    videoUrl,
+  } = useAIPractice({ route: props.route });
 
   return (
     <View className="flex-1 bg-background pt-14">
@@ -31,15 +33,13 @@ const AIPractice = (props: Props) => {
       {/* Image / Video Record */}
       {isVideoVisible ? (
         <VideoPlayer
-          source="https://www.w3schools.com/html/mov_bbb.mp4"
+          source={videoUrl}
           isVideoPlay={isVideoPlay}
           togglePlayButton={togglePlayButton}
         />
       ) : (
         <ImageExercise
-          img_url={
-            'https://images.pexels.com/photos/3823039/pexels-photo-3823039.jpeg'
-          }
+          img_url={imgUrl}
           setIsVideoVisible={setIsVideoVisible}
           togglePlayButton={togglePlayButton}
         />

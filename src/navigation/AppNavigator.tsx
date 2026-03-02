@@ -40,7 +40,7 @@ export type RootStackParamList = {
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: undefined;
-  AIPractice: undefined;
+  AIPractice: { exercise_id: string; imgUrl: string; videoUrl: string };
   TestNavigateScreen: undefined;
 };
 

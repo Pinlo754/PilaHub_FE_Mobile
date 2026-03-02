@@ -1,8 +1,17 @@
+import { RouteProp } from '@react-navigation/native';
 import { useState } from 'react';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 
-export const useAIPractice = () => {
+type Props = {
+  route: RouteProp<RootStackParamList, 'AIPractice'>;
+};
+
+export const useAIPractice = ({ route }: Props) => {
   // CONSTANTS
   const TIMEOUT = 3000;
+
+  // PARAM
+  const { exercise_id, imgUrl, videoUrl } = route.params;
 
   // STATE
   const [isVideoVisible, setIsVideoVisible] = useState<boolean>(false);
@@ -68,5 +77,7 @@ export const useAIPractice = () => {
     closeConfirmModal,
     openNoti,
     closeNoti,
+    imgUrl,
+    videoUrl,
   };
 };
