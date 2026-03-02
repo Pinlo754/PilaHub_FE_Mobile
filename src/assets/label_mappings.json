@@ -1,0 +1,85 @@
+{
+  "exercises": {
+    "0": "bridge_hold",
+    "1": "hundred_hold",
+    "2": "plank",
+    "3": "shoulder_bridge_single_leg",
+    "4": "side_kick_kneeling_hold",
+    "5": "side_plank",
+    "6": "superman_hold",
+    "7": "swan_hold"
+  },
+  "body_parts": {
+    "0": "none",
+    "1": "Core",
+    "2": "Elbows",
+    "3": "Glutes",
+    "4": "Hips",
+    "5": "Knees",
+    "6": "Lower Back",
+    "7": "Neck",
+    "8": "Shoulders",
+    "9": "Upper Arms",
+    "10": "Upper Back"
+  },
+  "sides": {
+    "0": "both",
+    "1": "left",
+    "2": "right"
+  },
+  "exercise_body_parts": {
+    "plank": [
+      "Core",
+      "Lower Back",
+      "Shoulders",
+      "Elbows",
+      "Neck"
+    ],
+    "side_plank": [
+      "Core",
+      "Hips",
+      "Shoulders",
+      "Upper Back"
+    ],
+    "hundred_hold": [
+      "Core",
+      "Neck",
+      "Lower Back",
+      "Shoulders",
+      "Upper Arms"
+    ],
+    "bridge_hold": [
+      "Hips",
+      "Glutes",
+      "Lower Back",
+      "Knees",
+      "Shoulders"
+    ],
+    "shoulder_bridge_single_leg": [
+      "Hips",
+      "Glutes",
+      "Lower Back",
+      "Knees"
+    ],
+    "swan_hold": [
+      "Upper Back",
+      "Lower Back",
+      "Shoulders",
+      "Neck",
+      "Glutes"
+    ],
+    "side_kick_kneeling_hold": [
+      "Core",
+      "Hips",
+      "Shoulders",
+      "Upper Back"
+    ],
+    "superman_hold": [
+      "Lower Back",
+      "Core",
+      "Neck",
+      "Shoulders",
+      "Glutes"
+    ]
+  }
+}

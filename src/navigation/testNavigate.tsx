@@ -17,8 +17,8 @@ const TestNavigateScreen = () => {
       <Text style={styles.title}>Test Navigate Screen</Text>
 
       <Button
-        title="Go to Coach Screen"
-        onPress={() => navigation.navigate('CoachScreen')}
+        title="Go to Upload Image Screen"
+        onPress={() => navigation.navigate('UploadImageScreen')}
       />
       {/* <Button
         title="Go to Program Detail"

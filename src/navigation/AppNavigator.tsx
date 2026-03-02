@@ -19,6 +19,11 @@ import CommingsoonClass from '../screens/Coach/CommingsoonClass/CommingsoonClass
 import EndSessionScreen from '../screens/Coach/EndSessionCoach/EndSessionScreen';
 import FeedbackScreen from '../screens/Coach/Feedback/FeedbackScreen';
 import TraineeListScreen from '../screens/Coach/TraineeList/TraineeListScreen';
+import AITracking from '../screens/AITracking/AITracking';
+import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
+import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
+import VideoCall from '../screens/VideoCall/VideoCall';
+import UploadImageScreen from '../screens/UploadImage/UploadImage';
 export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
@@ -45,6 +50,11 @@ export type RootStackParamList = {
     selectedId: string;
   };
   FeedbackScreen: undefined;
+  AITracking: undefined;
+  CoachProfileScreen: undefined;
+  TraineeProfileCoachScreen: undefined;
+  VideoCall: undefined;
+  UploadImageScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +85,11 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="CommingsoonClass" component={CommingsoonClass} />
         <Stack.Screen name="EndSessionScreen" component={EndSessionScreen} />
         <Stack.Screen name="FeedbackScreen" component={FeedbackScreen} />
+        <Stack.Screen name="AITracking" component={AITracking} />
+        <Stack.Screen name="CoachProfileScreen" component={CoachProfileScreen} />
+        <Stack.Screen name="TraineeProfileCoachScreen" component={TraineeProfileCoachScreen} />
+        <Stack.Screen name="VideoCall" component={VideoCall} />
+        <Stack.Screen name="UploadImageScreen" component={UploadImageScreen} />
      </Stack.Navigator>
     </AppLayout>
   );
