@@ -1,10 +1,12 @@
 import React, { useRef } from 'react';
 import { View, Text, Pressable, Animated, Easing } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useGenderLogic } from './Gender.logic';
 
 export default function GenderUI() {
-  const { gender, onSelectGender, canContinue, onNext, onBack } = useGenderLogic();
+  const { gender, onSelectGender, canContinue, onNext /* onBack intentionally unused here */ } = useGenderLogic();
+  const navigation: any = useNavigation();
 
   // Animated values for male and female
   const maleRipple = useRef(new Animated.Value(0)).current; // 0..1
@@ -81,8 +83,9 @@ export default function GenderUI() {
   return (
     <View className="flex-1 bg-background ">
       {/* Header */}
-      <Pressable onPress={onBack} className="mb-6">
+      <Pressable onPress={() => navigation.navigate('Login')} className="mb-6">
         <Text className="text-secondaryText text-base">← Quay lại</Text>
+        
       </Pressable>
 
       {/* Title */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Image,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadOnboarding } from '../../../utils/storage';
 
 import BodyScanCamera from '../components/BodyScanCamera';
 import { uploadToBodygram } from '../services/bodygramApi';
@@ -23,19 +24,57 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BodyScanFlow'>;
 export default function BodyScanFlowScreen({ navigation }: Props) {
   const [front, setFront] = useState<string | null>(null);
   const [side, setSide] = useState<string | null>(null);
-  const [step, setStep] = useState<'front' | 'side' | 'review'>('front');
+  const [screenStep, setScreenStep] = useState<'front' | 'side' | 'review'>('front');
   const [loading, setLoading] = useState(false);
 
-  // ✅ LẤY ĐÚNG DATA TỪ STORE (KHÔNG LẤY CẢ STATE)
-  const onboardingData = useOnboardingStore((state) => state.data);
+  const onboardingData = useOnboardingStore((s) => s.data);
+  const setData = useOnboardingStore((s) => s.setData);
+  const setStep = useOnboardingStore((s) => s.setStep);
+
+  // Debug: subscribe to onboarding store changes to see when/how it's written
+  useEffect(() => {
+    const unsub = useOnboardingStore.subscribe((s) => {
+      console.log('ZUSTAND onboarding store changed:', JSON.stringify(s, null, 2));
+    });
+    return () => unsub();
+  }, []);
+
+  // If store is empty (app started directly to BodyScan), try to load saved onboarding from AsyncStorage
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return; // ensure we only hydrate once
+    if (onboardingData && Object.keys(onboardingData).length > 0) {
+      hydratedRef.current = true;
+      return;
+    }
+
+    (async () => {
+      try {
+        const saved = await loadOnboarding();
+        console.log('Attempted to load onboarding from storage:', saved);
+        if (saved && saved.data) {
+          setData(saved.data);
+          setStep(saved.step ?? 0);
+          hydratedRef.current = true;
+          console.log('Loaded onboarding into store from AsyncStorage');
+        } else {
+          // also log the raw key for debugging
+          const raw = await AsyncStorage.getItem('ONBOARDING');
+          console.log('AsyncStorage ONBOARDING raw (fallback):', raw);
+        }
+      } catch (err) {
+        console.log('Failed to load onboarding from storage', err);
+      }
+    })();
+  }, [onboardingData, setData, setStep]);
 
   const handleCapture = (path: string) => {
-    if (step === 'front') {
+    if (screenStep === 'front') {
       setFront(path);
-      setStep('side');
+      setScreenStep('side');
     } else {
       setSide(path);
-      setStep('review');
+      setScreenStep('review');
     }
   };
 
@@ -45,7 +84,30 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
     let body;
     try {
       // ✅ VALIDATE + NORMALIZE ONBOARDING DATA
-      body = normalizeForBodygram(onboardingData);
+      // Prefer store data but FALLBACK to AsyncStorage (legacy flow)
+      let source: any = onboardingData && Object.keys(onboardingData).length > 0 ? onboardingData : undefined;
+      if (!source) {
+        try {
+          const raw = await AsyncStorage.getItem('ONBOARDING');
+          console.log('FALLBACK: AsyncStorage ONBOARDING raw:', raw);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            source = parsed?.data;
+          }
+        } catch (err) {
+          console.log('Error reading ONBOARDING from AsyncStorage', err);
+        }
+      } else {
+        console.log('Using onboarding data from zustand store');
+      }
+
+      if (!source || Object.keys(source).length === 0) {
+        throw new Error('Thiếu thông tin: onboarding trống. Vui lòng hoàn tất onboarding.');
+      }
+
+      console.log('DEBUG onboardingData for Bodygram (used source):', JSON.stringify(source, null, 2));
+      body = normalizeForBodygram(source);
+      console.log('DEBUG normalized body for Bodygram:', JSON.stringify(body, null, 2));
     } catch (err: any) {
       Alert.alert(
         'Thiếu thông tin',
@@ -64,6 +126,28 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
       // ------------------ extract entry and measurements (do NOT store avatar)
       const entry = res.entry ?? res;
       const measurements: Measurements = entry.measurements ?? {};
+
+      // If server didn't return measurements, prompt user to retake photos
+      const hasMeasurements = measurements && Object.keys(measurements).length > 0;
+      if (!hasMeasurements) {
+        console.warn('Bodygram returned no measurements', res);
+        Alert.alert('Quét thất bại', 'Không nhận được số đo từ server. Bạn muốn chụp lại ảnh để thử lại?', [
+          {
+            text: 'Chụp lại',
+            onPress: () => {
+              // reset photos and go back to capture
+              setFront(null);
+              setSide(null);
+              setScreenStep('front');
+            },
+          },
+          {
+            text: 'Đóng',
+            style: 'cancel',
+          },
+        ]);
+        return;
+      }
 
       // Persist measurements (small) so result screen / debugging can access them
       try {
@@ -91,12 +175,12 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
       }
 
       // prepare nav-safe raw response (truncate avatar) before navigating
-      let navRaw: any = undefined;
+      let navRaw: any;
       try {
         navRaw = JSON.parse(JSON.stringify(res));
         if (navRaw?.entry?.avatar?.data) navRaw.entry.avatar.data = '[BASE64_TRUNCATED]';
         else if (navRaw?.avatar?.data) navRaw.avatar.data = '[BASE64_TRUNCATED]';
-      } catch (e) {
+      } catch {
         navRaw = undefined;
       }
 
@@ -108,17 +192,30 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
       });
     } catch (e) {
       console.log('Upload error', e);
-      Alert.alert('Lỗi', 'Không quét được số đo. Bạn thử lại sau nhé.');
+      Alert.alert('Lỗi quét', 'Không quét được số đo. Bạn muốn chụp lại ảnh?', [
+        {
+          text: 'Chụp lại',
+          onPress: () => {
+            setFront(null);
+            setSide(null);
+            setScreenStep('front');
+          },
+        },
+        {
+          text: 'Đóng',
+          style: 'cancel',
+        },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
   // 📸 STEP CHỤP ẢNH
-  if (step === 'front' || step === 'side') {
-    return <BodyScanCamera mode={step} onCapture={handleCapture} />;
+  if (screenStep === 'front' || screenStep === 'side') {
+    return <BodyScanCamera mode={screenStep} onCapture={handleCapture} />;
   }
-
+  console.log('Onboarding data used for Bodygram:', onboardingData);
   // 🔍 REVIEW + SUBMIT
   return (
     <ScrollView className="flex-1 p-4 mt-10 bg-slate-50">

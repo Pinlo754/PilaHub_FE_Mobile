@@ -9,6 +9,9 @@ export type OnboardingData = {
   height?: number;
   heightUnit?: 'cm' ;
   targets?: TargetKey[];
+  // new: explicitly store primary + secondary goals (server UUIDs)
+  primaryGoalId?: string;
+  secondaryGoalIds?: string[];
   avatar?: string;
   fullName?: string;
   email?: string;

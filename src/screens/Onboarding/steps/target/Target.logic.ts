@@ -13,15 +13,17 @@ import { getProfile } from '../../../../services/auth';
 import { RootStackParamList } from '../../../../navigation/AppNavigator';
 import { fetchFitnessGoals } from '../../../../services/profile';
 
-const ALLOW_MULTI = true; // false = chọn 1 | true = chọn nhiều
+const ALLOW_MULTI = true; // keep allowing multiple selections but now we choose primary
 
 export const useTargetLogic = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Onboarding'>>();
-  const { data, setData, step, setStep } = useOnboardingStore();
+  const { setData, step, setStep } = useOnboardingStore();
 
   const [targets, setTargets] = useState<TargetItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<string[]>(data.targets ?? []);
+  // store selected as a set of secondary + primary
+  const [secondarySelected, setSecondarySelected] = useState<string[]>([]);
+  const [primarySelected, setPrimarySelected] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let mounted = true;
@@ -32,7 +34,7 @@ export const useTargetLogic = () => {
         if (!mounted) return;
         if (res.ok) {
           const items = (res.data && (res.data.data ?? res.data)) ?? res.data;
-          const mapped: TargetItem[] = (Array.isArray(items) ? items : []).map((g: any) => ({
+          const mapped: TargetItem[] = (Array.isArray(items ? items : []) ? items : []).map((g: any) => ({
             key: g.id ?? g.goalId ?? String(g._id ?? ''),
             title: g.vietnameseName ?? g.name ?? g.viName ?? g.vietName ?? g.code ?? String(g.id),
             description: g.description ?? '',
@@ -54,16 +56,15 @@ export const useTargetLogic = () => {
     };
   }, []);
 
-  const toggleTarget = (key: string) => {
-    if (ALLOW_MULTI) {
-      setSelected((prev) =>
-        prev.includes(key)
-          ? prev.filter((k) => k !== key)
-          : [...prev, key]
-      );
-    } else {
-      setSelected([key]);
-    }
+  // Tap to set primary; long-press to toggle secondary
+  const togglePrimary = (key: string) => {
+    setPrimarySelected((prev) => (prev === key ? undefined : key));
+  };
+
+  const toggleSecondary = (key: string) => {
+    setSecondarySelected((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
   };
 
   const onBack = () => {
@@ -71,9 +72,15 @@ export const useTargetLogic = () => {
   };
 
   const onFinish = async () => {
-    if (selected.length === 0) return;
+    // require at least primary
+    if (!primarySelected) return;
 
-    setData({ targets: selected });
+    // persist both for API usage
+    setData({
+      targets: [primarySelected, ...secondarySelected],
+      primaryGoalId: primarySelected,
+      secondaryGoalIds: secondarySelected,
+    });
 
     await clearOnboarding();
 
@@ -102,8 +109,10 @@ export const useTargetLogic = () => {
   return {
     targets,
     loading,
-    selected,
-    toggleTarget,
+    primarySelected,
+    secondarySelected,
+    togglePrimary,
+    toggleSecondary,
     onBack,
     onFinish,
     allowMulti: ALLOW_MULTI,

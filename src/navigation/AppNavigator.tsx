@@ -21,7 +21,7 @@ import RegisterScreen from '../screens/Register/RegisterScreen';
 import OtpScreen from '../screens/Register/OtpScreen';
 import StartupScreen from '../screens/StartupScreen';
 import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
-
+import PlanDetailScreen from '../screens/Plan/PlanDetailScreen';
 
 import CoachScreen from '../screens/Coach/CoachScreen';
 import CoachRegisterSchedule from '../screens/Coach/Schedule/CoachRegisterSchedule';
@@ -51,6 +51,7 @@ export type RootStackParamList = {
   Roadmap: undefined;
   RoadmapSummary: undefined;
   Plan: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
+  PlanDetail: { roadmap?: any; stages?: any[] } | undefined;
   CreateRoadmap: undefined;
   UpgradePlan: undefined;
   ExerciseDetail: { exercise_id: string };
@@ -133,6 +134,7 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
         <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
         <Stack.Screen name="Plan" component={PlanScreen} />
+        <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
         <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
         <Stack.Screen name="TestNavigateScreen" component={TestNavigateScreen} />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />

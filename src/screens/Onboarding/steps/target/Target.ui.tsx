@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
 import { useTargetLogic } from './Target.logic';
 
@@ -13,12 +14,24 @@ export default function TargetUI() {
   const {
     targets,
     loading,
-    selected,
-    toggleTarget,
+    primarySelected,
+    secondarySelected,
+    togglePrimary,
+    toggleSecondary,
     onFinish,
     onBack,
-    allowMulti,
   } = useTargetLogic();
+
+  const [openPrimary, setOpenPrimary] = useState(false);
+  const [openSecondary, setOpenSecondary] = useState(false);
+
+  const findTitle = (key: string) => {
+    const f = targets.find((t) => t.key === key);
+    return f ? f.title : key;
+  };
+
+  const availableForPrimary = targets.filter((t) => !secondarySelected.includes(t.key));
+  const availableForSecondary = targets.filter((t) => t.key !== primarySelected && !secondarySelected.includes(t.key));
 
   return (
     <View className="flex-1 bg-background w-full">
@@ -33,72 +46,114 @@ export default function TargetUI() {
       </Text>
 
       <Text className="text-sm text-secondaryText text-center mt-2 px-6">
-        {allowMulti
-          ? 'Chọn một hoặc nhiều mục tiêu chính của bạn. Chúng tôi sẽ dùng các mục tiêu này để đề xuất chương trình và bài tập phù hợp.'
-          : 'Chọn mục tiêu chính để hệ thống ưu tiên lộ trình và bài tập phù hợp.'}
+        Chọn một mục tiêu chính và các mục tiêu phụ (nếu cần).
       </Text>
 
-      {/* TARGET LIST */}
+      {/* SELECTORS */}
       <ScrollView
-        className="mt-10"
+        className="mt-6 px-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
       >
-        <View className=" items-center ">
-          {loading ? (
-            <ActivityIndicator size="large" color="#CD853F" />
-          ) : (
-            targets.map((item) => {
-              const isActive = selected.includes(item.key);
+        {loading ? (
+          <ActivityIndicator size="large" color="#CD853F" />
+        ) : (
+          <View>
+            {/* Primary selector */}
+            <Text className="text-sm text-secondaryText mb-2">Mục tiêu chính</Text>
+            <TouchableOpacity
+              onPress={() => setOpenPrimary((s) => !s)}
+              className={`w-full bg-white border rounded-xl p-3 mb-4 ${primarySelected ? 'border-foreground' : 'border-gray-200'}`}
+            >
+              <Text className={`${primarySelected ? 'text-foreground font-semibold' : 'text-secondaryText'}`}>
+                {primarySelected ? findTitle(primarySelected) : 'Chọn mục tiêu chính'}
+              </Text>
+            </TouchableOpacity>
 
-              return (
-                <Pressable
-                  key={item.key}
-                  onPress={() => toggleTarget(item.key)}
-                  className={`flex-row items-center p-4 w-full max-w-[420px] mb-4 rounded-xl border shadow-sm  ${
-                    isActive
-                      ? 'bg-warning/20 border-warning'
-                      : 'bg-white border-background-sub2 '
-                  }`}
-                >
-                  {/* ICON */}
-                  <Text className="text-2xl mr-4">{item.icon ?? '🏁'}</Text>
+            {openPrimary && (
+              <View style={styles.dropdownContainer} className="bg-white rounded-xl border border-gray-200 p-2 mb-4">
+                <ScrollView nestedScrollEnabled style={styles.dropdown} contentContainerStyle={styles.dropdownContent}>
+                  {availableForPrimary.map((t) => (
+                    <Pressable
+                      key={t.key}
+                      onPress={() => {
+                        togglePrimary(t.key);
+                        setOpenPrimary(false);
+                      }}
+                      className="p-3 border-b border-gray-100"
+                    >
+                      <Text className="font-medium">{t.title}</Text>
+                      <Text className="text-xs text-secondaryText">{t.description}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                {availableForPrimary.length === 0 && (
+                  <Text className="text-xs text-secondaryText p-3">Không còn lựa chọn</Text>
+                )}
+              </View>
+            )}
 
-                  {/* TEXT */}
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-foreground">
-                      {item.title}
-                    </Text>
-                    <Text className="text-sm text-secondaryText">
-                      {item.description}
-                    </Text>
+            {/* Secondary selector */}
+            <Text className="text-sm text-secondaryText mb-2">Mục tiêu phụ (có thể chọn nhiều)</Text>
+
+            {/* chips */}
+            <View className="flex-row flex-wrap mb-3">
+              {secondarySelected.length > 0 ? (
+                secondarySelected.map((key) => (
+                  <View key={key} className="flex-row items-center bg-gray-100 px-3 py-1 mr-2 mb-2 rounded-full border border-gray-200">
+                    <Text className="mr-2">{findTitle(key)}</Text>
+                    <Pressable onPress={() => toggleSecondary(key)} className="px-1">
+                      <Text className="text-sm text-secondaryText">✕</Text>
+                    </Pressable>
                   </View>
+                ))
+              ) : (
+                <Text className="text-xs text-secondaryText">Chưa có mục tiêu phụ</Text>
+              )}
+            </View>
 
-                  {/* CHECK */}
-                  {isActive && (
-                    <Text className="text-warning text-xl">✓</Text>
-                  )}
-                </Pressable>
-              );
-            })
-          )}
-        </View>
+            <TouchableOpacity
+              onPress={() => setOpenSecondary((s) => !s)}
+              className="w-full bg-white border border-gray-200 rounded-xl p-3 mb-4"
+            >
+              <Text className="text-secondaryText">Thêm mục tiêu phụ</Text>
+            </TouchableOpacity>
+
+            {openSecondary && (
+              <View style={styles.dropdownContainer} className="bg-white rounded-xl border border-gray-200 p-2 mb-4">
+                <ScrollView nestedScrollEnabled style={styles.dropdown} contentContainerStyle={styles.dropdownContent}>
+                  {availableForSecondary.map((t) => (
+                    <Pressable
+                      key={t.key}
+                      onPress={() => {
+                        toggleSecondary(t.key);
+                      }}
+                      className="p-3 border-b border-gray-100"
+                    >
+                      <Text className="font-medium">{t.title}</Text>
+                      <Text className="text-xs text-secondaryText">{t.description}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                {availableForSecondary.length === 0 && (
+                  <Text className="text-xs text-secondaryText p-3">Không còn lựa chọn</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* CONTINUE */}
       <View className="mt-6 mb-6 px-6 w-full">
         <Pressable
           onPress={onFinish}
-          disabled={selected.length === 0}
+          disabled={!primarySelected}
           className={`h-14 rounded-xl items-center justify-center ${
-            selected.length
-              ? 'bg-foreground'
-              : 'bg-foreground/40'
+            primarySelected ? 'bg-foreground' : 'bg-foreground/40'
           }`}
         >
-          <Text className="text-white font-semibold text-base">
-            Hoàn tất
-          </Text>
+          <Text className="text-white font-semibold text-base">Hoàn tất</Text>
         </Pressable>
       </View>
     </View>
@@ -107,4 +162,7 @@ export default function TargetUI() {
 
 const styles = StyleSheet.create({
   scrollContainer: { paddingBottom: 20 },
+  dropdownContainer: { overflow: 'hidden' },
+  dropdown: { maxHeight: 240 },
+  dropdownContent: { paddingBottom: 8 },
 });

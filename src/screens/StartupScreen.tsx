@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isOnboardingCompleted, isOnboardingCompletedFor, setOnboardingCompletedFor } from '../utils/storage';
+import { isOnboardingCompleted, isOnboardingCompletedFor, setOnboardingCompletedFor, loadOnboarding } from '../utils/storage';
 import { useOnboardingStore } from '../store/onboarding.store';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -13,10 +13,22 @@ import { fetchTraineeProfile, fetchMyHealthProfiles } from '../services/profile'
 type Props = NativeStackScreenProps<RootStackParamList, 'Startup'>;
 
 export default function StartupScreen({ navigation }: Props) {
-  const { reset: resetOnboarding } = useOnboardingStore();
+  const { reset: resetOnboarding, setData, setStep } = useOnboardingStore();
   useEffect(() => {
     (async () => {
       try {
+        // hydrate onboarding store from AsyncStorage if available so other screens can use it on cold start
+        try {
+          const savedOnboarding = await loadOnboarding();
+          if (savedOnboarding && savedOnboarding.data) {
+            setData(savedOnboarding.data);
+            setStep(savedOnboarding.step ?? 0);
+            console.log('Hydrated onboarding store from AsyncStorage');
+          }
+        } catch (e) {
+          console.log('Failed to hydrate onboarding store', e);
+        }
+
         // try to resolve current user id from auth/me
         let userId: string | null = null;
         const me = await getProfile();
@@ -101,7 +113,7 @@ export default function StartupScreen({ navigation }: Props) {
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }
     })();
-  }, [navigation, resetOnboarding]);
+  }, [navigation, resetOnboarding, setData, setStep]);
 
   return (
     <SafeAreaView className="flex-1 bg-background items-center justify-center">
