@@ -24,6 +24,15 @@ import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
 import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import UploadImageScreen from '../screens/UploadImage/UploadImage';
+import { Measurements } from '../screens/BodyGram/types/measurement';
+import ManualInputScreen from '../screens/BodyGram/screens/ManualInputScreen';
+import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
+import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
+import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
+import PlanScreen from '../screens/Plan/PlanScreen';
+import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
+import RegisterScreen from '../screens/Register/RegisterScreen';
+
 export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
@@ -31,7 +40,6 @@ export type RootStackParamList = {
   Welcome: undefined;
   Onboarding: undefined;
   Search: undefined;
-  ExerciseDetail: { exercise_id: string };
   Roadmap: undefined;
   RoadmapSummary: undefined;
   ProgramDetail: { program_id: string };
@@ -55,6 +63,14 @@ export type RootStackParamList = {
   TraineeProfileCoachScreen: undefined;
   VideoCall: undefined;
   UploadImageScreen: undefined;
+  Plan: undefined;
+  UpgradePlan: undefined;
+  ExerciseDetail: { exercise_id: string };
+  ManualInput: undefined;
+  BodyScanFlow: undefined;
+  Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
+  InputBody: undefined;
+  Register: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -68,6 +84,27 @@ const AppNavigator: React.FC = () => {
           headerShown: false,
         }}
       >
+        <Stack.Screen
+          name="ManualInput"
+          component={ManualInputScreen}
+          options={{ title: 'Nhập số đo' }}
+        />
+        <Stack.Screen
+          name="BodyScanFlow"
+          component={BodyScanFlowScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Result"
+          component={ResultScreen}
+          options={{ title: 'Kết quả' }}
+        />
+        <Stack.Screen
+          name="InputBody"
+          component={InputBodyScreen}
+          options={{ title: 'Nhập thông tin cơ thể' }}
+        />
+        <Stack.Screen name ="Register" component={RegisterScreen} />
         <Stack.Screen name="MainTabs" component={TabNavigator} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -90,7 +127,9 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeProfileCoachScreen" component={TraineeProfileCoachScreen} />
         <Stack.Screen name="VideoCall" component={VideoCall} />
         <Stack.Screen name="UploadImageScreen" component={UploadImageScreen} />
-     </Stack.Navigator>
+        <Stack.Screen name="Plan" component={PlanScreen} />
+        <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
+      </Stack.Navigator>
     </AppLayout>
   );
 };

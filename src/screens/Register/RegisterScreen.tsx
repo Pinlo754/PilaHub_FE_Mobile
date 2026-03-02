@@ -1,22 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput,  TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
-type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
-const LoginScreen: React.FC<Props> = ({ navigation }) => {
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
+
+const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
-   return (
-    <SafeAreaView  className="flex-1 bg-background">
+  const [phone, setPhone] = useState('');
+   const validateEmail = (value: string) => {
+    return /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value);
+  };
+  const validatePhone = (value: string) => {
+    return /^\d{9,11}$/.test(value.replace(/\s+/g, ''));
+  };
+
+  const canRegister = validateEmail(email) && password.length >= 6 && validatePhone(phone);
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <Text className="text-lg">←</Text>
-        <Text className="flex-1 text-center text-lg font-semibold text-foreground">
-          
-          Đăng Nhập
+        <Text className="flex-1 text-center text-lg font-semibold text-foreground">          
+          Đăng Ký
         </Text>
       </View>
 
@@ -30,6 +40,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           <Text className="mt-3 text-xl font-semibold text-foreground">
             PilaHub
           </Text>
+          {/* Subtitle to differentiate register screen */}
+          <Text className="mt-2 text-sm text-secondaryText">Tạo tài khoản mới để bắt đầu hành trình của bạn</Text>
         </View>
 
         {/* Email */}
@@ -45,6 +57,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             />
             <Feather name="mail" size={20} color="#CD853F" />
           </View>
+          {/* Inline error message for email */}
+          {!validateEmail(email) && email.length > 0 && (
+            <Text className="mt-1 text-xs text-red-500">Email không hợp lệ</Text>
+          )}
         </View>
 
         {/* Password */}
@@ -60,29 +76,40 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             />
             <Feather name="lock" size={20} color="#CD853F" />
           </View>
+          {/* Inline error message for password */}
+          {password.length < 6 && password.length > 0 && (
+            <Text className="mt-1 text-xs text-red-500">Mật khẩu tối thiểu 6 ký tự</Text>
+          )}
         </View>
 
-        {/* Remember & Forgot */}
-        <View className="flex-row items-center justify-between mt-4">
-          <TouchableOpacity
-            className="flex-row items-center"
-            onPress={() => setRemember(!remember)}
-          >
-            <View
-              className={`w-4 h-4 border mr-2 ${
-                remember ? "bg-secondaryText" : "bg-white"
-              }`}
+        {/* Phone Number */}
+        <View className="mt-4">
+          <Text className="mb-1 text-secondaryText">Số điện thoại</Text>
+          <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Nhập Số Điện Thoại"
+              className="flex-1 text-base"
+              keyboardType="phone-pad"
             />
-            <Text>Nhớ tài khoản</Text>
-          </TouchableOpacity>
-
-          <Text className="text-secondaryText">Quên mật khẩu?</Text>
+            <Feather name="phone" size={20} color="#CD853F" />
+          </View>
+          {/* Inline error message for phone number */}
+          {!validatePhone(phone) && phone.length > 0 && (
+            <Text className="mt-1 text-xs text-red-500">Số điện thoại không hợp lệ</Text>
+          )}
         </View>
 
-        {/* Login Button */}
-        <TouchableOpacity className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center" onPress={() => navigation.navigate('Welcome')}>
+       
+        {/* Register Button */}
+        <TouchableOpacity 
+          className={`mt-6 h-12 rounded-lg items-center justify-center ${canRegister ? 'bg-foreground' : 'bg-gray-300'}`} 
+          onPress={() => canRegister && navigation.navigate('Welcome')}
+          disabled={!canRegister}
+        >
           <Text className="text-white text-lg font-semibold">
-            Đăng nhập
+            Đăng ký
           </Text>
         </TouchableOpacity>
 
@@ -106,20 +133,20 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* Footer */}
-        <TouchableOpacity className="mt-6 items-center" onPress={() => navigation.navigate('Register')}>
+        <View className="mt-6 items-center">
           <Text>
-            Bạn chưa có tài khoản?{" "}
-            <Text className="text-foreground font-family">Đăng Ký</Text>
+            Bạn đã có tài khoản?{' '}
+            <Text className="text-foreground font-family" onPress={() => navigation.navigate('Login')}>Đăng nhập</Text>
           </Text>
 
           <View className="flex-row mt-3">
             <Text className="text-xs text-gray-500 mr-3">Chính Sách Bảo Mật</Text>
             <Text className="text-xs text-gray-500">Điều Khoản Dịch Vụ</Text>
           </View>
-        </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
 };
 
-export default LoginScreen;
+export default RegisterScreen;
