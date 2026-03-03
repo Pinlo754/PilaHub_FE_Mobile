@@ -20,6 +20,7 @@ export default function AgeUI() {
     onMomentumEnd,
     onNext,
     onBack,
+    listRef,
   } = useAgeLogic();
 
   return (
@@ -61,11 +62,12 @@ export default function AgeUI() {
             pointerEvents="none"
             style={[
               styles.highlightBox,
-              { left: (SCREEN_WIDTH - 48) / 2 - ITEM_WIDTH / 2 },
+              { left: (SCREEN_WIDTH - 48) / 2 - ITEM_WIDTH / 2, width: ITEM_WIDTH },
             ]}
           />
 
           <Animated.FlatList
+            ref={listRef}
             horizontal
             data={ages}
             keyExtractor={(item) => item.toString()}

@@ -270,6 +270,8 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
          // If server returns 500/internal error, retry with minimal payload (some backends fail on metadata)
          const errObj = t.error;
          console.warn('createTraineeProfile failed, attempting minimal retry', errObj);
+         // log full error for debugging
+         try { console.log('createTraineeProfile full error:', JSON.stringify(errObj, null, 2)); } catch { /* ignore */ }
          const isInternal = (errObj && (errObj.errorCode === 'INTERNAL_SERVER_ERROR' || errObj.message?.toLowerCase?.().includes('internal')));
          if (isInternal) {
            try {
@@ -277,6 +279,8 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
              if (onboarding.fullName) minimal.fullName = onboarding.fullName;
              if (onboarding.age != null) minimal.age = onboarding.age;
              if (onboarding.gender) minimal.gender = mapGenderToEnum(onboarding.gender);
+             if (onboarding.workoutFrequency) minimal.workoutFrequency = onboarding.workoutFrequency;
+             if (onboarding.workoutLevel) minimal.workoutLevel = onboarding.workoutLevel;
              console.warn('Retrying createTraineeProfile with minimal payload', minimal);
              const retry = await createTraineeProfile(minimal as any, undefined);
              if (retry.ok) {
@@ -297,8 +301,36 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
             results.trainee = { skipped: true, reason: 'already_exists' } as any;
             // continue to health creation
           } else {
-            return { ok: false, error: { step: 'trainee', error: t.error } };
-          }
+            // If the server responded with validation errors, attempt a targeted minimal retry
+            const errCode = errObj?.errorCode ?? '';
+            const isValidation = errCode === 'VALIDATION_ERROR' || String(errObj?.message ?? '').toLowerCase().includes('validation');
+            if (isValidation) {
+              try {
+                const minimal2: any = {};
+                if (onboarding.fullName) minimal2.fullName = onboarding.fullName;
+                if (onboarding.email) minimal2.email = onboarding.email;
+                if (onboarding.age != null) minimal2.age = onboarding.age;
+                if (onboarding.gender) minimal2.gender = mapGenderToEnum(onboarding.gender);
+                if (onboarding.workoutFrequency) minimal2.workoutFrequency = onboarding.workoutFrequency;
+                if (onboarding.workoutLevel) minimal2.workoutLevel = onboarding.workoutLevel;
+                 // if we have at least one field to send, try retry
+                 if (Object.keys(minimal2).length === 0) {
+                   return { ok: false, error: { step: 'trainee', error: t.error } };
+                 }
+                 console.warn('Retrying createTraineeProfile with validation-aware minimal payload', minimal2);
+                 const retry = await createTraineeProfile(minimal2 as any, undefined);
+                 if (retry.ok) {
+                   results.trainee = retry.data;
+                 } else {
+                   return { ok: false, error: { step: 'trainee', error: t.error, retry: retry.error } };
+                 }
+               } catch (e: any) {
+                 return { ok: false, error: { step: 'trainee', error: t.error, retryThrown: e } };
+               }
+             } else {
+               return { ok: false, error: { step: 'trainee', error: t.error } };
+             }
+           }
          }
        } else {
          results.trainee = t.data;
@@ -320,8 +352,20 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
 
 // Fetch trainee profile for current authenticated account
 export async function fetchTraineeProfile(): Promise<ServiceResult> {
+   try {
+     const res = await api.get('/trainees/profile');
+     const data = res.data?.data ?? res.data ?? res;
+     return { ok: true, data };
+   } catch (e: any) {
+     const error = e.response?.data ?? e.message ?? e;
+     return { ok: false, error };
+   }
+ }
+ 
+// Update trainee profile for authenticated account (PUT)
+export async function updateTraineeProfile(payload: Record<string, any>): Promise<ServiceResult> {
   try {
-    const res = await api.get('/trainees/profile');
+    const res = await api.put('/trainees/profile', payload);
     const data = res.data?.data ?? res.data ?? res;
     return { ok: true, data };
   } catch (e: any) {
@@ -330,10 +374,22 @@ export async function fetchTraineeProfile(): Promise<ServiceResult> {
   }
 }
 
-// Fetch health profiles for the authenticated trainee (returns array or empty)
-export async function fetchMyHealthProfiles(): Promise<ServiceResult> {
+ // Fetch health profiles for the authenticated trainee (returns array or empty)
+ export async function fetchMyHealthProfiles(): Promise<ServiceResult> {
   try {
     const res = await api.get('/health-profiles/my-profiles');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
+  }
+}
+
+// Fetch a specific health profile by id for the authenticated trainee
+export async function fetchHealthProfileById(id: string): Promise<ServiceResult> {
+  try {
+    const res = await api.get(`/health-profiles/my-profiles/${id}`);
     const data = res.data?.data ?? res.data ?? res;
     return { ok: true, data };
   } catch (e: any) {

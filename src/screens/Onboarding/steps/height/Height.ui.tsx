@@ -120,9 +120,6 @@ export default function HeightUI() {
                     <View className="flex-row items-center">
                       {/* line */}
                       <View className="w-12 h-[2px] bg-warning mr-1" />
-                   
-                      
-                      
                     </View>
                   )}
                 </Animated.View>

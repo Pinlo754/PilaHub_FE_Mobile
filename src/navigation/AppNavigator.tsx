@@ -39,6 +39,8 @@ import TraineeReport from '../screens/TraineeReport/TraineeReport';
 import AISummary from '../screens/AISummary/AISummary';
 import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
+import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
+import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -77,7 +79,7 @@ export type RootStackParamList = {
     selectedId: string;
   };
   FeedbackScreen: undefined;
-  
+  HealthProfiles: undefined;
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;
@@ -86,7 +88,7 @@ export type RootStackParamList = {
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: undefined;
   AIPractice: undefined;
- 
+  TraineeProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -133,6 +135,8 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="Roadmap" component={RoadmapScreen} />
         <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
         <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
+        <Stack.Screen name="TraineeProfile" component={TraineeProfileScreen} />
+        <Stack.Screen name="HealthProfiles" component={HealthProfilesScreen} />
         <Stack.Screen name="Plan" component={PlanScreen} />
         <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
         <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
