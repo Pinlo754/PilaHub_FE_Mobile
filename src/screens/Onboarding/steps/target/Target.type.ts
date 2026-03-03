@@ -1,12 +1,8 @@
-export type TargetKey =
-  | 'lose_weight'
-  | 'gain_muscle'
-  | 'maintain'
-  | 'healthy';
+export type TargetKey = string;
 
 export interface TargetItem {
-  key: TargetKey;
-  title: string;
-  description: string;
-  icon: string;
+  key: string; // server id
+  title: string; // display (we'll use vietnameseName)
+  description?: string;
+  icon?: string;
 }

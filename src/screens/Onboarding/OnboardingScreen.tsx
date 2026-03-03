@@ -1,4 +1,3 @@
-
 import React, {  useEffect } from 'react'
 import GenderUI from './steps/gender/Gender.ui'
 import { useOnboardingStore } from '../../store/onboarding.store'
@@ -9,12 +8,14 @@ import WeightUI from './steps/weight/Weight.ui'
 import HeightUI from './steps/height/Height.ui'
 import InformationUI from './steps/infor/Information.ui'
 import TargetUI from './steps/target/Target.ui'
+import WorkoutUI from './steps/workout/Workout.ui'
 const STEPS = [
   GenderUI,
   AgeUI,
   WeightUI,
   HeightUI,
   InformationUI,
+  WorkoutUI,
   TargetUI
 ]
 

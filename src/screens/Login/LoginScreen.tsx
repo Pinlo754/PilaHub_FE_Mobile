@@ -4,13 +4,23 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
+import { login, getProfile } from '../../services/auth';
+import { getBodySavedFor } from '../../utils/bodyCache';
+import { setOnboardingCompletedFor } from '../../utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchTraineeProfile, fetchMyHealthProfiles } from '../../services/profile';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
    return (
     <SafeAreaView  className="flex-1 bg-background">
+      
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <Text className="text-lg">←</Text>
@@ -39,6 +49,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <TextInput
               value={email}
               onChangeText={setEmail}
+              autoCapitalize='none'
               placeholder="Nhập Email"
               className="flex-1 text-base"
               keyboardType="email-address"
@@ -55,10 +66,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               value={password}
               onChangeText={setPassword}
               placeholder="Nhập Mật Khẩu"
-              secureTextEntry
+              autoCapitalize='none'
+              secureTextEntry={!showPassword}
+              autoCorrect={false}
+              textContentType="password"
               className="flex-1 text-base"
             />
-            <Feather name="lock" size={20} color="#CD853F" />
+            <TouchableOpacity onPress={() => setShowPassword(s => !s)} className="p-2 ml-4">
+              <Feather name={showPassword ? 'eye' : 'eye-off'} size={20} color="#CD853F" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -80,11 +96,111 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center" onPress={() => navigation.navigate('Welcome')}>
+        <TouchableOpacity
+          className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
+          onPress={async () => {
+            setError(null);
+            setLoading(true);
+            try {
+              const res = await login({ email, password });
+              if (!res.ok) {
+                setLoading(false);
+                setError(res.error?.message ?? JSON.stringify(res.error));
+                return;
+              }
+
+              // fetch current user profile to get userId
+              const me = await getProfile();
+              let userId: string | null = null;
+              if (me.ok) {
+                const d: any = me.data;
+                userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
+              }
+
+              // Primary server-driven checks: trainee profile and health profiles
+              let traineeExists = false;
+              try {
+                const tRes = await fetchTraineeProfile();
+                if (tRes.ok) {
+                  traineeExists = true;
+                } else {
+                  const err = tRes.error || {};
+                  const msg = String(err?.message ?? err ?? '').toLowerCase();
+                  const code = err?.errorCode ?? err?.code ?? err?.status;
+                  if (code === 404 || msg.includes('not found') || code === 'TRAINEE_NOT_FOUND') {
+                    traineeExists = false;
+                  } else {
+                    // unknown error: treat as not existing to be safe
+                    traineeExists = false;
+                  }
+                }
+              } catch {
+                traineeExists = false;
+              }
+
+              // if server says no trainee profile -> require onboarding
+              if (!traineeExists) {
+                // mark loading done then navigate
+                setLoading(false);
+                navigation.replace('Onboarding');
+                return;
+              }
+
+              // server has trainee -> mark per-user onboarding completed
+              if (userId) {
+                try {
+                  await setOnboardingCompletedFor(userId);
+                } catch {}
+              }
+
+              // check health profiles
+              let hasHealth = false;
+              try {
+                const hRes = await fetchMyHealthProfiles();
+                if (hRes.ok) {
+                  const data = (hRes.data && (hRes.data.data ?? hRes.data)) ?? hRes.data;
+                  if (Array.isArray(data)) hasHealth = data.length > 0;
+                  else if (Array.isArray(hRes.data)) hasHealth = hRes.data.length > 0;
+                }
+              } catch {
+                // ignore and fallback to local cache
+                hasHealth = false;
+              }
+
+              // fallback to local per-user body cache if server check inconclusive
+              if (!hasHealth) {
+                if (userId) {
+                  const saved = await getBodySavedFor(userId);
+                  hasHealth = !!saved;
+                } else {
+                  const savedRaw = await AsyncStorage.getItem('bodygram:savedMeasurements');
+                  hasHealth = !!savedRaw;
+                }
+              }
+
+              setLoading(false);
+
+              if (!hasHealth) {
+                navigation.replace('InputBody');
+                return;
+              }
+
+              // default
+              navigation.replace('MainTabs');
+
+            } catch (e: any) {
+              setLoading(false);
+              setError(e?.message ?? String(e));
+            }
+          }}
+          disabled={loading}
+        >
           <Text className="text-white text-lg font-semibold">
-            Đăng nhập
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
+
+        {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
 
         {/* Divider */}
         <View className="flex-row items-center my-6">
@@ -106,7 +222,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* Footer */}
-        <View className="mt-6 items-center">
+        <TouchableOpacity className="mt-6 items-center" onPress={() => navigation.navigate('Register')}>
           <Text>
             Bạn chưa có tài khoản?{" "}
             <Text className="text-foreground font-family">Đăng Ký</Text>
@@ -116,7 +232,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-xs text-gray-500 mr-3">Chính Sách Bảo Mật</Text>
             <Text className="text-xs text-gray-500">Điều Khoản Dịch Vụ</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

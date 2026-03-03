@@ -6,6 +6,11 @@ import { ExerciseType, TutorialType } from '../../utils/ExerciseType';
 import { exerciseService } from '../../hooks/exercise.service';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { tutorialService } from '../../hooks/tutorial.service';
+import { workoutSessionService } from '../../hooks/workoutSession.service';
+import {
+  WorkoutExerciseReq,
+  WorkoutSessionType,
+} from '../../utils/WorkoutSessionType';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -26,11 +31,15 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [isVideoExpand, setIsVideoExpand] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [haveAITracking, setHaveAITracking] = useState<boolean>(false);
+  const [haveIOTDeviceTracking, setHaveIOTDeviceTracking] =
+    useState<boolean>(false);
+  const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType>();
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
 
-  // FETCH
+  // API
   const fetchById = async () => {
     if (!exercise_id) return;
 
@@ -42,6 +51,32 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
       setExerciseDetail(resExercise);
       setTutorial(resTutorial);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
+      } else {
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startWorkoutExercise = async () => {
+    if (!exercise_id) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const payload: WorkoutExerciseReq = {
+        exerciseId: exercise_id,
+        haveAITracking,
+        haveIOTDeviceTracking,
+      };
+
+      const res = await workoutSessionService.startFreeWorkout(payload);
+
+      setWorkoutSession(res);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
@@ -92,13 +127,20 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setIsVideoExpand(false);
   };
 
-  const onPressAIPractice = () => {
+  const onPressAIPractice = async () => {
     if (!exerciseDetail || !tutorial) return null;
+
+    setHaveAITracking(true);
+
+    startWorkoutExercise();
+
+    if (!workoutSession) return null;
 
     navigation.navigate('AIPractice', {
       exercise_id,
       imgUrl: exerciseDetail?.imageUrl,
       videoUrl: tutorial?.practiceVideoUrl,
+      workoutSessionId: workoutSession?.workoutSessionId,
     });
   };
 

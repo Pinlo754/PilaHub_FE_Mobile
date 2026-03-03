@@ -2,16 +2,17 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
-  baseURL: 'http://192.168.100.100:8080/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
+    // baseURL: 'http://192.168.1.4:8080/api',
+    baseURL:'http://192.168.2.242:8080/api',
+    headers: {
+        "Content-Type": "application/json",
+    },
+    withCredentials: true,
 });
 
 api.interceptors.request.use(async config => {
   // const token = await AsyncStorage.getItem('accessToken');
-  const token = 'eyJhbGciOiJIUzUxMiJ9.eyJhY2NvdW50SWQiOiI3N2JiZWZhNS02MTczLTRmNDUtODZkZC0yZTZlOTg5NDBhOTQiLCJyb2xlIjoiQURNSU4iLCJ0eXBlIjoiYWNjZXNzIiwic3ViIjoiYWRtaW5AcGlsYS5jb20iLCJpYXQiOjE3NzI1MTgzMTcsImV4cCI6MTc3MjYwNDcxN30.xqZ8DgKyHVEnYc-pOfne9dFbwv9xaX_D7XXWCeicRZWw-fnkncVkOmqbyRwafiWNtF5A5YP5KDJ9JL4FYeoF4A';
+  const token = 'eyJhbGciOiJIUzUxMiJ9.eyJhY2NvdW50SWQiOiJlNzY0Y2U1OS1jMTAwLTQ2ZDktYTE3ZS0xNDYwODJlYWUxNjYiLCJyb2xlIjoiVFJBSU5FRSIsInR5cGUiOiJhY2Nlc3MiLCJzdWIiOiJudm10aG9haTE0NzM4ODM3QGdtYWlsLmNvbSIsImlhdCI6MTc3MjUzNzcxOCwiZXhwIjoxNzcyNjI0MTE4fQ.jc9IfcWzmuxj3EjlA9_gvzd9AAaFIvwlFC126MPIvbaxlQNzUjVVeRHLG0FjUhJK9QjqM69LHf8cQUd0_80Hjg';
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -20,3 +21,4 @@ api.interceptors.request.use(async config => {
   return config;
 });
 export default api;
+ 

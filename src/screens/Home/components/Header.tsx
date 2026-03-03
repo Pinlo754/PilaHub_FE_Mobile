@@ -29,7 +29,7 @@ const Header = ({ navigation }: Props) => {
           />
         </Pressable>
         {/* Profile */}
-        <Pressable className="w-10 h-10 rounded-full overflow-hidden">
+        <Pressable className="w-10 h-10 rounded-full overflow-hidden" onPress={() => navigation.navigate('Login')}>
           <Image
             source={{
               uri: 'https://www.toponseek.com/wp-content/uploads/2024/07/celeb-la-gi-6.jpg',
@@ -37,6 +37,7 @@ const Header = ({ navigation }: Props) => {
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
+          
         </Pressable>
       </View>
     </View>

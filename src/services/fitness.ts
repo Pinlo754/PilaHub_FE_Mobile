@@ -1,0 +1,1 @@
+export { fetchFitnessGoals } from './profile';

@@ -33,7 +33,7 @@ export default function HeightUI() {
       </Text>
 
       <Text className="text-sm text-secondaryText text-center mt-2 px-6">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        Nhập chiều cao để chúng tôi ước lượng chỉ số cơ thể (ví dụ BMI). Nếu không chính xác bạn có thể sửa sau.
       </Text>
 
       {/* ===== VALUE ===== */}

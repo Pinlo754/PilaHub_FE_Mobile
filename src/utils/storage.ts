@@ -24,3 +24,23 @@ export const isOnboardingCompleted = async (): Promise<boolean> => {
 export const clearOnboardingCompleted = async () => {
   await AsyncStorage.removeItem(COMPLETED_KEY);
 };
+
+// Per-user onboarding helpers
+export const setOnboardingCompletedFor = async (userId: string) => {
+  if (!userId) return;
+  await AsyncStorage.setItem(`${COMPLETED_KEY}:${userId}`, 'true');
+};
+
+export const isOnboardingCompletedFor = async (userId?: string): Promise<boolean> => {
+  if (!userId) return isOnboardingCompleted();
+  const key = `${COMPLETED_KEY}:${userId}`;
+  const value = await AsyncStorage.getItem(key);
+  if (value != null) return value === 'true';
+  // fallback to global flag for backward compatibility
+  return isOnboardingCompleted();
+};
+
+export const clearOnboardingCompletedFor = async (userId: string) => {
+  if (!userId) return;
+  await AsyncStorage.removeItem(`${COMPLETED_KEY}:${userId}`);
+};
