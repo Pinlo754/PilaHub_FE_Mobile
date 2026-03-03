@@ -3,9 +3,8 @@ import {
   ScrollView,
   Text,
   View,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  StyleSheet,
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { useRoadmapStore } from "../../store/roadmap.store";
@@ -18,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import StageCarousel from "./components/StageCarousel";
 import axios from "../../hooks/axiosInstance";
 import { getProfile } from "../../services/auth";
+import StageRendererApi from "./components/StageRendererApi";
 
 const PlanScreen = () => {
   const route: any = useRoute();
@@ -56,6 +56,10 @@ const PlanScreen = () => {
     selectedStage?.schedules?.find((s: any) =>
       selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false
     ) ?? null;
+
+  // detect api-shaped stages
+  const isApiShaped =
+    Array.isArray(stages) && stages.length > 0 && Boolean(stages[0]?.stage || stages[0]?._raw);
 
   const handleSaveToServer = async () => {
     try {
@@ -124,7 +128,7 @@ const PlanScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F3EDE3]">
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View className="px-5 mt-4">
           <Text className="text-2xl font-bold text-[#8B4513]">
@@ -142,24 +146,32 @@ const PlanScreen = () => {
           <Text className="text-lg font-semibold text-[#8B4513] mb-3 px-2">
             Giai đoạn
           </Text>
-          <StageCarousel
-            stages={stages}
-            onChangeIndex={setSelectedStageIndex}
-          />
+          {isApiShaped ? (
+            <StageRendererApi apiStages={stages} roadmap={roadmap} />
+          ) : (
+            <StageCarousel
+              stages={stages}
+              onChangeIndex={setSelectedStageIndex}
+            />
+          )}
         </View>
 
         {/* Calendar */}
-        <StageCalendar
-          stage={selectedStage}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
+        {isApiShaped ? null : (
+          <>
+            <StageCalendar
+              stage={selectedStage}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
 
-        {/* Schedule detail */}
-        <ScheduleDetail schedule={selectedSchedule} />
+            {/* Schedule detail */}
+            <ScheduleDetail schedule={selectedSchedule} />
 
-        {/* Supplement */}
-        <SupplementSection stage={selectedStage} />
+            {/* Supplement */}
+            <SupplementSection stage={selectedStage} />
+          </>
+        )}
       </ScrollView>
 
       <BottomActionBar onSave={handleSaveToServer} saving={saving} />
@@ -168,3 +180,7 @@ const PlanScreen = () => {
 };
 
 export default PlanScreen;
+
+const styles = StyleSheet.create({
+  scrollContent: { paddingBottom: 140 },
+});

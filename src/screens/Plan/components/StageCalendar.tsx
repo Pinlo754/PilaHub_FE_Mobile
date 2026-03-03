@@ -21,9 +21,27 @@ export default function StageCalendar({
   const markedDates = useMemo(() => {
     const marks: any = {};
 
-    stage?.schedules?.forEach((sch: any) => {
-      const date = sch.scheduledDate.split("T")[0];
-      marks[date] = {
+    // tolerate missing schedules or malformed scheduledDate values
+    const schedules = Array.isArray(stage?.schedules) ? stage!.schedules : [];
+    schedules.forEach((sch: any) => {
+      const sd = sch?.scheduledDate;
+      if (!sd) return; // skip if missing
+
+      let dateStr: string | null = null;
+      if (typeof sd === 'string') {
+        // common formats: 'YYYY-MM-DDTHH:mm:...Z' or 'YYYY-MM-DD'
+        dateStr = sd.includes('T') ? sd.split('T')[0] : sd.split(' ')[0];
+      } else {
+        try {
+          const d = new Date(sd);
+          if (!isNaN(d.getTime())) dateStr = d.toISOString().split('T')[0];
+        } catch (e) {
+          // ignore invalid date
+        }
+      }
+      if (!dateStr) return;
+
+      marks[dateStr] = {
         selected: true,
         selectedColor: "#C98A5E",
       };

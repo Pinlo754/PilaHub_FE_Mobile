@@ -1,8 +1,9 @@
 module.exports = {
-  presets: ['module:metro-react-native-babel-preset'],
-  plugins: [
+  presets: [
+    'module:@react-native/babel-preset',
     'nativewind/babel',
-    'react-native-worklets/plugin', // nếu thật sự dùng
-    'react-native-reanimated/plugin', // LUÔN Ở CUỐI
   ],
-};
+  plugins: [
+    'react-native-worklets/plugin'
+  ],
+}

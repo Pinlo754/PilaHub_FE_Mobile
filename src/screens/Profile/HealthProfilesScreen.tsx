@@ -67,7 +67,7 @@ const HealthProfilesScreen: React.FC = () => {
                         let metadata: any = {};
                         try { if (typeof data.metadata === 'string') metadata = JSON.parse(data.metadata); else metadata = data.metadata ?? {}; } catch { metadata = {}; }
                         const measurements = data.measurements ?? metadata.measurements ?? [];
-                        (navigation as any).navigate('Result', { measurements, rawResponse: { entry: data, metadata } });
+                        (navigation as any).navigate('BodyGramResult', { measurements, rawResponse: { entry: data, metadata } });
                         // update selected locally so list highlight follows selection
                         setSelected(data);
                       } catch {
