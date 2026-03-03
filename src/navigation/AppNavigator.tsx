@@ -14,6 +14,7 @@ import { Measurements } from '../screens/BodyGram/types/measurement';
 import ManualInputScreen from '../screens/BodyGram/screens/ManualInputScreen';
 import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
 import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
+import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
@@ -39,6 +40,10 @@ import TraineeReport from '../screens/TraineeReport/TraineeReport';
 import AISummary from '../screens/AISummary/AISummary';
 import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
+import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
+import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
+import RoadMap from '../screens/Plan/RoadMap';
+
 import AITracking from '../screens/AITracking/AITracking';
 import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
 import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
@@ -55,6 +60,7 @@ export type RootStackParamList = {
   Roadmap: undefined;
   RoadmapSummary: undefined;
   Plan: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
+  RoadMap: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
   PlanDetail: { roadmap?: any; stages?: any[] } | undefined;
   CreateRoadmap: undefined;
   UpgradePlan: undefined;
@@ -62,6 +68,7 @@ export type RootStackParamList = {
   ManualInput: undefined;
   BodyScanFlow: undefined;
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
+  BodyGramResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
   InputBody: undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
@@ -81,6 +88,7 @@ export type RootStackParamList = {
     selectedId: string;
   };
   FeedbackScreen: undefined;
+  HealthProfiles: undefined;
 
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
@@ -89,6 +97,8 @@ export type RootStackParamList = {
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: undefined;
+  AIPractice: undefined;
+  TraineeProfile: undefined;
   AIPractice: {
     exercise_id: string;
     imgUrl: string;
@@ -133,6 +143,11 @@ const AppNavigator: React.FC = () => {
           options={{ title: 'Kết quả' }}
         />
         <Stack.Screen
+          name="BodyGramResult"
+          component={BodyGramResult}
+          options={{ title: 'Kết quả Bodygram' }}
+        />
+        <Stack.Screen
           name="InputBody"
           component={InputBodyScreen}
           options={{ title: 'Nhập thông tin cơ thể' }}
@@ -149,7 +164,10 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="Roadmap" component={RoadmapScreen} />
         <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
         <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
+        <Stack.Screen name="TraineeProfile" component={TraineeProfileScreen} />
+        <Stack.Screen name="HealthProfiles" component={HealthProfilesScreen} />
         <Stack.Screen name="Plan" component={PlanScreen} />
+        <Stack.Screen name="RoadMap" component={RoadMap} />
         <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
         <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
         <Stack.Screen
