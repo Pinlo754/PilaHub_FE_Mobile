@@ -14,6 +14,7 @@ type Props = {
   togglePlayButton: () => void;
   toggleVideoExpand: () => void;
   isPracticeTab: boolean;
+  onPressAIPractice: () => void;
 };
 
 const OverviewSection = ({
@@ -24,6 +25,7 @@ const OverviewSection = ({
   togglePlayButton,
   toggleVideoExpand,
   isPracticeTab,
+  onPressAIPractice,
 }: Props) => {
   return (
     <View
@@ -58,7 +60,12 @@ const OverviewSection = ({
       />
 
       {/* Btn */}
-      {isPracticeTab && <Footer onPress={toggleVideoExpand} />}
+      {isPracticeTab && (
+        <Footer
+          onPress={toggleVideoExpand}
+          onPressAIPractice={onPressAIPractice}
+        />
+      )}
     </View>
   );
 };

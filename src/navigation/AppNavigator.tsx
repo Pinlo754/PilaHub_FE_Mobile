@@ -81,7 +81,7 @@ export type RootStackParamList = {
     selectedId: string;
   };
   FeedbackScreen: undefined;
-  
+
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;
@@ -89,8 +89,16 @@ export type RootStackParamList = {
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: undefined;
-  AIPractice: undefined;
-  AITracking: {onFeedback: (data: { status: string; detail: string }) => void};
+  AIPractice: {
+    exercise_id: string;
+    imgUrl: string;
+    videoUrl: string;
+    workoutSessionId: string;
+  };
+  AITracking: {
+    workoutSessionId: string;
+    onFeedback: (data: { status: string; detail: string }) => void;
+  };
   CoachProfileScreen: undefined;
   TraineeProfileCoachScreen: undefined;
   VideoCall: undefined;
@@ -144,9 +152,15 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="Plan" component={PlanScreen} />
         <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
         <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
-        <Stack.Screen name="TestNavigateScreen" component={TestNavigateScreen} />
+        <Stack.Screen
+          name="TestNavigateScreen"
+          component={TestNavigateScreen}
+        />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />
-        <Stack.Screen name="CoachRegisterSchedule" component={CoachRegisterSchedule} />
+        <Stack.Screen
+          name="CoachRegisterSchedule"
+          component={CoachRegisterSchedule}
+        />
         <Stack.Screen name="TraineeListScreen" component={TraineeListScreen} />
         <Stack.Screen name="CommingsoonClass" component={CommingsoonClass} />
         <Stack.Screen name="EndSessionScreen" component={EndSessionScreen} />
@@ -160,8 +174,14 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
-        <Stack.Screen name="CoachProfileScreen" component={CoachProfileScreen} />
-        <Stack.Screen name="TraineeProfileCoachScreen" component={TraineeProfileCoachScreen} />
+        <Stack.Screen
+          name="CoachProfileScreen"
+          component={CoachProfileScreen}
+        />
+        <Stack.Screen
+          name="TraineeProfileCoachScreen"
+          component={TraineeProfileCoachScreen}
+        />
         <Stack.Screen name="VideoCall" component={VideoCall} />
         <Stack.Screen name="UploadImageScreen" component={UploadImageScreen} />
       </Stack.Navigator>
