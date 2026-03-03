@@ -11,6 +11,7 @@ import ShopScreen from '../screens/Shop/ShopScreen';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import AppLayout from '../components/AppLayout';
 import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
+import RoadMap from '../screens/Plan/RoadMap';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -66,7 +67,7 @@ const TabNavigator: React.FC = () => {
         />
         <Tab.Screen
           name="Roadmap"
-          component={CreateRoadmapScreen}
+          component={RoadMap}
           options={{
             tabBarLabel: () => null,
             tabBarIcon: TabIcon(

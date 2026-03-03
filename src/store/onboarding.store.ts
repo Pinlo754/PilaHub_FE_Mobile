@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { TargetKey } from '../screens/Onboarding/steps/target/Target.type';
 
 export type OnboardingData = {
   gender?: 'male'|'female';
@@ -8,10 +7,6 @@ export type OnboardingData = {
   weightUnit?: 'kg' | 'lb'; 
   height?: number;
   heightUnit?: 'cm' ;
-  targets?: TargetKey[];
-  // new: explicitly store primary + secondary goals (server UUIDs)
-  primaryGoalId?: string;
-  secondaryGoalIds?: string[];
   avatar?: string;
   fullName?: string;
   email?: string;

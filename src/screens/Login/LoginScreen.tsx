@@ -109,12 +109,29 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 return;
               }
 
-              // fetch current user profile to get userId
+              // Prefer role from login response when available (normalize to uppercase)
+              const loginData: any = res.data ?? {};
+              const roleFromLogin = String(loginData?.account?.role ?? '').toUpperCase();
+              if (roleFromLogin === 'COACH') {
+                setLoading(false);
+                navigation.replace('CoachScreen');
+                return;
+              }
+
+              // fetch current user profile to get userId (fallback if needed)
               const me = await getProfile();
               let userId: string | null = null;
               if (me.ok) {
                 const d: any = me.data;
                 userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
+              }
+
+              // If login response didn't indicate role, try profile role
+              const profileRole = (me.ok ? String((me as any).data?.account?.role ?? (me as any).data?.role ?? '') : '').toUpperCase();
+              if (!roleFromLogin && profileRole === 'COACH') {
+                setLoading(false);
+                navigation.replace('CoachScreen');
+                return;
               }
 
               // Primary server-driven checks: trainee profile and health profiles

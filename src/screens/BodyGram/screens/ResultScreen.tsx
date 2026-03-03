@@ -61,21 +61,44 @@ export default function ResultScreen({ route, navigation }: Props) {
     arr.forEach((m: any) => {
       const name = (m.name || m.key || '').toString().toLowerCase();
       const unit = (m.unit || '').toString().toLowerCase();
-      const val = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? null;
+      const val = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? m.value_mm ?? m.value_cm ?? null;
       const num = val != null ? Number(val) : null;
-      const asCm = num == null ? null : unit === 'mm' ? mmToCm(num) : unit === 'cm' ? Math.round(num) : Math.round(num);
+      const asCm = num == null ? null : (unit === 'mm' ? mmToCm(num) : Math.round(num));
 
       if (!name) return;
-      if (name.includes('bust') || name.includes('chest') || name.includes('bustgirth')) out.bust = asCm;
-      else if (name.includes('waist') || name.includes('belly') || name.includes('vong eo') || name.includes('bellywaist')) out.waist = asCm;
-      else if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip')) out.hip = asCm;
-      else if (name.includes('thigh') || name.includes('thighgirth') || name.includes('midthigh')) out.thigh = asCm;
-      else if (name.includes('calf') || name.includes('calfgirth')) out.calf = asCm;
-      else if (name.includes('forearm') || name.includes('forearmgirth') || name.includes('wrist')) out.forearm = asCm;
-      else if (name.includes('shoulder') || name.includes('acrossbackshoulder')) out.shoulder = asCm;
-      else if (name.includes('upperarm') || name.includes('bicep') || name.includes('arm')) out.bicep = asCm;
-      else if (name.includes('height') || name.includes('stature') || name.includes('heightmm')) out.height_est = unit === 'mm' ? mmToCm(num) : Math.round(num as any);
-      else if (name.includes('weight') || name.includes('mass')) out.weight_est = unit === 'g' ? gToKg(num) : Math.round(num as any);
+
+      // PRIMARY friendly groups (prefer the first sensible match)
+      if (name.includes('bust') || name.includes('chest') || name.includes('bustgirth')) {
+        out.bust = out.bust ?? asCm;
+      } else if (name.includes('waist') || name.includes('belly') || name.includes('bellywaist') || name.includes('waistgirth') || name.includes('waistheight')) {
+        out.waist = out.waist ?? asCm;
+      } else if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip') || name.includes('hipheight')) {
+        out.hip = out.hip ?? asCm;
+      } else if (name.includes('thigh') || name.includes('thighgirth') || name.includes('midthigh') || name.includes('midthigh')) {
+        out.thigh = out.thigh ?? asCm;
+      } else if (name.includes('calf') || name.includes('calfgirth')) {
+        out.calf = out.calf ?? asCm;
+      } else if (name.includes('forearm') || name.includes('forearmgirth') || (name.includes('wrist') || name.includes('wristgirth'))) {
+        out.forearm = out.forearm ?? asCm;
+      } else if (name.includes('knee')) {
+        out.knee = out.knee ?? asCm;
+      } else if (name.includes('neck') || name.includes('neckgirth') || name.includes('neckbase')) {
+        out.neck = out.neck ?? asCm;
+      } else if (name.includes('shoulder') || name.includes('acrossbackshoulder') || name.includes('acrossback')) {
+        out.shoulder = out.shoulder ?? asCm;
+      } else if (name.includes('upperarm') || name.includes('bicep') || (name.includes('arm') && !name.includes('forearm'))) {
+        out.bicep = out.bicep ?? asCm;
+      } else if (name.includes('height') || name.includes('stature') || name.includes('heightmm')) {
+        out.height_est = out.height_est ?? (unit === 'mm' ? mmToCm(num) : Math.round(num as any));
+      } else if (name.includes('weight') || name.includes('mass')) {
+        out.weight_est = out.weight_est ?? (unit === 'g' ? gToKg(num) : Math.round(num as any));
+      } else {
+        // keep other numeric measurements under sanitized keys for debugging/inspection
+        if (asCm != null) {
+          const safeKey = name.replace(/[^a-z0-9]/g, '_');
+          out[safeKey] = out[safeKey] ?? asCm;
+        }
+      }
     });
 
     // fallback to input values if missing
