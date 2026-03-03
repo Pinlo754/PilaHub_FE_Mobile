@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text, ScrollView, View, Image, Pressable, StyleSheet } from 'react-native';
+import { Text, ScrollView, View, Button,  Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
@@ -12,8 +12,6 @@ import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 import { getProfile } from '../../../services/auth';
 import { setBodySavedFor } from '../../../utils/bodyCache';
-import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
@@ -31,83 +29,28 @@ function gToKg(g?: number | null) {
 }
 
 export default function ResultScreen({ route, navigation }: Props) {
-  const nav = useNavigation();
-  // onboarding store access
-  const onboarding = useOnboardingStore((s) => s.data);
+  const { measurements: rawMeasurements, rawResponse } = route.params as any;
   const setData = useOnboardingStore((s) => s.setData);
-   const { measurements: rawMeasurements, rawResponse } = route.params as any;
-   // parse a health profile / rawResponse entry into a friendly object
-   function parseProfile(entry: any) {
-     const out: any = { measurements: {}, meta: {} };
-     if (!entry) return out;
-     const data = entry?.entry ?? entry ?? {};
+  const onboarding = useOnboardingStore((s) => s.data);
+ 
+  // summary (prefer store values for height/weight if present)
+  const summary = useMemo(() => {
+    const heightFromStore = onboarding?.height && (onboarding.heightUnit === 'cm' ? onboarding.height : undefined);
+    const weightFromStore = onboarding?.weight && (onboarding.weightUnit === 'kg' ? onboarding.weight : undefined);
 
-     // top-level fields
-     out.height = data.heightCm ?? data.height ?? data.height_est ?? undefined;
-     out.weight = data.weightKg ?? data.weight ?? data.weight_est ?? undefined;
-     out.bmi = data.bmi ?? undefined;
-     out.bodyFat = data.bodyFatPercentage ?? undefined;
-     // try bodyComposition
-     const metadata = (typeof data.metadata === 'string') ? (() => { try { return JSON.parse(data.metadata); } catch { return data.metadata; } })() : data.metadata ?? {};
-     const bodyComp = metadata?.bodyComposition ?? {};
-     out.bodyFat = out.bodyFat ?? bodyComp?.bodyFatPercentage ?? metadata?.bodyFatPercentage ?? undefined;
-     out.muscle = data.muscleMassKg ?? bodyComp?.skeletalMuscleMass ?? metadata?.skeletalMuscleMass ?? undefined;
-     out.waist = data.waistCm ?? data.waist ?? metadata?.waistCm ?? undefined;
-     out.hip = data.hipCm ?? data.hip ?? metadata?.hipCm ?? undefined;
-     out.source = data.source ?? undefined;
-     out.createdAt = data.createdAt ?? data.created_at ?? metadata?.createdAt ?? undefined;
+    const entry = rawResponse?.entry ?? rawResponse ?? {};
+    const input = entry?.input?.photoScan ?? entry?.input ?? {};
 
-     // measurements array (prefer top-level then metadata.measurements)
-     const measurementsArr = data.measurements ?? metadata.measurements ?? [];
-     (measurementsArr || []).forEach((m: any) => {
-       const name = ((m.name || m.key || '') + '').toLowerCase();
-       const unit = ((m.unit || '') + '').toLowerCase();
-       const rawVal = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? null;
-       const num = rawVal != null ? Number(rawVal) : null;
-       const valCm = num == null ? null : (unit === 'mm' ? Math.round(num/10) : Math.round(num));
-       const valKg = num == null ? null : (unit === 'g' ? Math.round(num/1000) : Math.round(num));
+    const hRaw = input?.height ?? input?.heightMm ?? null;
+    const wRaw = input?.weight ?? input?.weightG ?? null;
 
-       // map many known keys
-       if (name.includes('bust') || name.includes('bustgirth') || name.includes('chest')) out.measurements.chest = out.measurements.chest ?? valCm;
-       else if (name.includes('waist') || name.includes('bellywaist') || name.includes('belly')) out.measurements.waist = out.measurements.waist ?? valCm;
-       else if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip')) out.measurements.hip = out.measurements.hip ?? valCm;
-       else if (name.includes('thigh')) out.measurements.thigh = out.measurements.thigh ?? valCm;
-       else if (name.includes('calf')) out.measurements.calf = out.measurements.calf ?? valCm;
-       else if (name.includes('bicep') || name.includes('upperarm') || name.includes('arm')) out.measurements.bicep = out.measurements.bicep ?? valCm;
-       else if (name.includes('forearm') || name.includes('wrist')) out.measurements.forearm = out.measurements.forearm ?? valCm;
-       else if (name.includes('shoulder')) out.measurements.shoulder = out.measurements.shoulder ?? valCm;
-       else if (name.includes('neck')) out.measurements.neck = out.measurements.neck ?? valCm;
-       else if (name.includes('height')) {
-         if (valCm != null) out.measurements.height_est = out.measurements.height_est ?? valCm;
-       } else if (name.includes('weight')) {
-         if (valKg != null) out.measurements.weight_est = out.measurements.weight_est ?? valKg;
-       } else {
-         // keep extras under meta
-         out.meta[name] = m.value ?? m;
-       }
-     });
+    const height = heightFromStore ?? (typeof hRaw === 'number' ? (hRaw > 1000 ? mmToCm(hRaw) : hRaw) : undefined);
+    const weight = weightFromStore ?? (typeof wRaw === 'number' ? (wRaw > 500 ? gToKg(wRaw) : wRaw) : undefined);
+    const age = input?.age ?? onboarding?.age ?? undefined;
+    const gender = input?.gender ?? onboarding?.gender ?? undefined;
 
-     // also pull input.photoScan quick fields
-     try {
-       const input = data.input ?? metadata.input ?? {};
-       const ps = input.photoScan ?? input;
-       if (ps) {
-         if (!out.measurements.height_est && (ps.height || ps.heightMm)) {
-           const hraw = ps.height ?? ps.heightMm; out.measurements.height_est = (hraw > 1000 ? Math.round(hraw/10) : Math.round(hraw));
-         }
-         if (!out.measurements.weight_est && (ps.weight || ps.weightG)) {
-           const wraw = ps.weight ?? ps.weightG; out.measurements.weight_est = (wraw > 500 ? Math.round(wraw/1000) : Math.round(wraw));
-         }
-         out.age = ps.age ?? data.age ?? undefined;
-         out.gender = (ps.gender ?? data.gender ?? '');
-       }
-     } catch { /* ignore */ }
-
-     out.metadata = metadata;
-     return out;
-   }
-
-   const parsed = parseProfile(rawResponse?.entry ?? rawResponse ?? {});
+    return { height, weight, age, gender };
+  }, [rawResponse, onboarding]);
 
   // normalize measurement array into friendly keys (cm)
   const display = useMemo(() => {
@@ -279,123 +222,102 @@ export default function ResultScreen({ route, navigation }: Props) {
     }
   };
  console.log('Rendered ResultScreen with measurements:', saveMeasurements);
-  return (
-    <SafeAreaView className="flex-1 bg-background">
-      {/* HEADER: centered title + back */}
-      <View style={styles.header}>
-        <Pressable onPress={() => (nav as any).goBack()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={22} color="#333" />
-        </Pressable>
-        <Text style={[styles.headerTitle, styles.headerTitleCenter]}>{'Thông tin hồ sơ'}</Text>
-        <View style={styles.headerButton} />
+   return (
+     <SafeAreaView className="flex-1 bg-background"><ScrollView className="flex-1  p-4">
+      {/* HEADER SUMMARY */}
+      <View className="bg-amber-100 rounded-md p-3 mb-4">
+        <Text className="text-sm text-gray-700">{`Chiều cao: ${summary.height ?? '-'}cm   Cân nặng: ${summary.weight ?? '-'}kg   ${summary.age ?? ''} tuổi   ${summary.gender ?? ''}`}</Text>
       </View>
 
-      <ScrollView className="flex-1 p-4" contentContainerStyle={styles.scrollContent}>
-        {/* HEADER SUMMARY */}
-        <View className="bg-white rounded-xl p-4 mb-4 flex-row items-center">
-          <View className="flex-1">
-            <Text className="text-lg font-semibold">{parsed.source ? `Nguồn: ${parsed.source}` : 'Hồ sơ sức khỏe'}</Text>
-            <Text className="text-sm text-gray-500 mt-1">{parsed.createdAt ? new Date(parsed.createdAt).toLocaleString() : ''}</Text>
-            <Text className="text-sm text-gray-700 mt-2">Chiều cao: {parsed.height ?? parsed.measurements?.height_est ?? '-'} cm   Cân nặng: {parsed.weight ?? parsed.measurements?.weight_est ?? '-'} kg</Text>
-          </View>
-          <View className="ml-3 items-center">
-            <View className="bg-amber-50 rounded-full w-16 h-16 items-center justify-center">
-              <Text className="text-amber-700 font-bold">{parsed.bodyFat ? `${parsed.bodyFat}%` : (parsed.bmi ? `BMI ${parsed.bmi}` : '—')}</Text>
-            </View>
-          </View>
-        </View>
+      {/* SILHOUETTE CARD */}
+      <View className="bg-white rounded-xl p-4 items-center mb-4">
+        <View className="w-64 h-80 items-center justify-center">
+          {/* If you add a 3D image asset at src/assets/body_3d.png you can replace the overlay with:
+              <Image source={require('../../../assets/body_3d.png')} className="w-full h-full" resizeMode="contain" />
+              For now use the SVG overlay to avoid missing-asset crashes.
+          */}
+          <BodySilhouetteOverlay mode="front" />
 
-        {/* SILHOUETTE CARD (unchanged)*/}
-        <View className="bg-white rounded-xl p-4 items-center mb-4">
-          <View className="w-64 h-80 items-center justify-center">
-            <BodySilhouetteOverlay mode="front" />
-            <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
-            {/* measurement bubbles (unchanged) */}
-            <View className="absolute top-8 left-3">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-                <Text className="text-xs text-gray-800">Ngực</Text>
-                <Text className="text-lg font-extrabold">{display.bust ?? '-'}cm</Text>
-              </View>
+          {/* use the provided body image asset */}
+          <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
+
+          {/* bubbles positioned approx; adjust with design */}
+          <View className="absolute top-8 left-3">
+            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <Text className="text-xs text-gray-800">Ngực</Text>
+              <Text className="text-lg font-extrabold">{display.bust ?? '-'}cm</Text>
             </View>
-            <View className="absolute top-24 left-4">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-                <Text className="text-xs text-gray-800">Eo</Text>
-                <Text className="text-lg font-extrabold">{display.waist ?? '-'}cm</Text>
-              </View>
+          </View>
+
+          <View className="absolute top-24 left-4">
+            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <Text className="text-xs text-gray-800">Eo</Text>
+              <Text className="text-lg font-extrabold">{display.waist ?? '-'}cm</Text>
             </View>
-            <View className="absolute top-24 right-4">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-                <Text className="text-xs text-gray-800">Hông</Text>
-                <Text className="text-lg font-extrabold">{display.hip ?? '-'}cm</Text>
-              </View>
+          </View>
+
+          <View className="absolute top-24 right-4">
+            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <Text className="text-xs text-gray-800">Hông</Text>
+              <Text className="text-lg font-extrabold">{display.hip ?? '-'}cm</Text>
             </View>
-            <View className="absolute bottom-9 left-7">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-                <Text className="text-xs text-gray-800">Đùi</Text>
-                <Text className="text-lg font-extrabold">{display.thigh ?? '-'}cm</Text>
-              </View>
+          </View>
+
+          <View className="absolute bottom-9 left-7">
+            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <Text className="text-xs text-gray-800">Đùi</Text>
+              <Text className="text-lg font-extrabold">{display.thigh ?? '-'}cm</Text>
             </View>
-            <View className="absolute top-9 right-7">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-                <Text className="text-xs text-gray-800">Bắp tay</Text>
-                <Text className="text-lg font-extrabold">{display.bicep ?? '-'}cm</Text>
-              </View>
+          </View>
+
+          <View className="absolute top-9 right-7">
+            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <Text className="text-xs text-gray-800">Bắp tay</Text>
+              <Text className="text-lg font-extrabold">{display.bicep ?? '-'}cm</Text>
             </View>
           </View>
         </View>
-
-        {/* HEALTH CARD */}
-        <View className="bg-amber-100 rounded-xl p-4 mb-4">
-          <Text className="text-base font-semibold mb-2">Chỉ số sức khỏe</Text>
-          <View className="flex-row justify-between items-center">
-            <Text className="text-sm text-gray-700">Waist-to-Hip Ratio</Text>
-            <Text className="text-xl font-extrabold">{whr ?? '-'}</Text>
-          </View>
-        </View>
-
-        {/* DETAIL TILES */}
-        <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
-        <View className="flex-row flex-wrap -m-2">
-          {[
-            { key: 'bust', label: 'Ngực' },
-            { key: 'waist', label: 'Eo' },
-            { key: 'hip', label: 'Hông' },
-            { key: 'bicep', label: 'Bắp tay' },
-            { key: 'thigh', label: 'Đùi' },
-            { key: 'calf', label: 'Bắp chân' },
-          ].map((t) => (
-            <View key={t.key} className="w-1/2 p-2">
-              <View className="bg-background-sub2 rounded-xl p-4 shadow">
-                <Text className="text-sm text-gray-700">{t.label}</Text>
-                <Text className="text-2xl font-extrabold mt-2">{display[t.key] ?? '-'}cm</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {loading ? <LoadingOverlay message="Đang lưu hồ sơ..." /> : null}
-        <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
-
-      </ScrollView>
-
-      {/* Fixed footer with Save button */}
-      <View style={styles.footer}>
-        <Pressable onPress={handleSubmitAll} style={styles.saveBtn} disabled={loading}>
-          <Text style={styles.saveBtnText}>Lưu kết quả</Text>
-        </Pressable>
       </View>
-    </SafeAreaView>
-  );
-}
 
-const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff' },
-  headerButton: { padding: 8 },
-  headerButtonText: { color: '#333' },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
-  headerTitleCenter: { textAlign: 'center', flex: 1 },
-  scrollContent: { paddingBottom: 140 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: 'transparent' },
-  saveBtn: { backgroundColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700' },
-});
+      {/* HEALTH CARD */}
+      <View className="bg-amber-100 rounded-xl p-4 mb-4">
+        <Text className="text-base font-semibold mb-2">Chỉ số sức khỏe</Text>
+        <View className="flex-row justify-between items-center">
+          <Text className="text-sm text-gray-700">Waist-to-Hip Ratio</Text>
+          <Text className="text-xl font-extrabold">{whr ?? '-'}</Text>
+        </View>
+      </View>
+
+      {/* DETAIL TILES */}
+      <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
+      <View className="flex-row flex-wrap -m-2">
+        {[
+          { key: 'bust', label: 'Ngực' },
+          { key: 'waist', label: 'Eo' },
+          { key: 'hip', label: 'Hông' },
+          { key: 'bicep', label: 'Bắp tay' },
+          { key: 'thigh', label: 'Đùi' },
+          { key: 'calf', label: 'Bắp chân' },
+        ].map((t) => (
+          <View key={t.key} className="w-1/2 p-2">
+            <View className="bg-background-sub2 rounded-xl p-4 shadow">
+              <Text className="text-sm text-gray-700">{t.label}</Text>
+              <Text className="text-2xl font-extrabold mt-2">{display[t.key] ?? '-'}cm</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* ACTIONS */}
+      <View className="mt-6 bg-foreground p-2 rounded-lg " >
+       <Button title ="Lưu kết quả" onPress={handleSubmitAll} color="white" disabled={loading} />
+        {/* <Button title="Lưu kết quả" onPress={saveMeasurements} color="white" /> */}
+      </View>
+
+      {loading ? <LoadingOverlay message="Đang lưu hồ sơ..." /> : null}
+      <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+
+     </ScrollView></SafeAreaView>
+     
+   );
+ }
