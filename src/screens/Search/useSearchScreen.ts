@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SearchTab } from '../../constants/searchTab';
 import { TabTypeMap } from '../../utils/SearchType';
-import { coachMock, courseMock, exerciseMock } from '../../mocks/searchData';
 import { exerciseService } from '../../hooks/exercise.service';
 import { courseService } from '../../hooks/course.service';
 
@@ -85,7 +84,6 @@ export const useSearchScreen = () => {
   // USE EFFECT
   useEffect(() => {
     fetchSearchData(activeTab);
-    console.log('Search', dataByTab);
   }, [activeTab]);
 
   return {

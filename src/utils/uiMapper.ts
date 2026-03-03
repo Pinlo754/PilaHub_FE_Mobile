@@ -1,4 +1,5 @@
 import { colors } from '../theme/colors';
+import { LevelType } from './CourseType';
 
 // RULES
 const PROGRESS_RULES = [
@@ -21,3 +22,20 @@ export const getProgressColor = (progress: number) =>
 
 export const getPointContent = (point: number) =>
   POINT_RULES.find(r => point >= r.min) ?? POINT_RULES.at(-1)!;
+
+export const LEVEL_MAP: Record<
+  LevelType,
+  { value: number; label: string }
+> = {
+  BEGINNER: { value: 1, label: 'Dễ' },
+  INTERMEDIATE: { value: 2, label: 'Trung bình' },
+  ADVANCED: { value: 3, label: 'Khó' },
+};
+
+export const getLevelConfig = (level: LevelType) => LEVEL_MAP[level];
+
+export const getLevelNumber = (level: LevelType) =>
+  LEVEL_MAP[level].value;
+
+export const getLevelLabel = (level: LevelType) =>
+  LEVEL_MAP[level].label;

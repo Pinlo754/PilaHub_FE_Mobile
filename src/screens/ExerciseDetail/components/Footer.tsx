@@ -3,12 +3,13 @@ import Button from '../../../components/Button';
 
 type Props = {
   onPress: () => void;
+  onPressAIPractice: () => void;
 };
 
-const Footer = ({ onPress }: Props) => {
+const Footer = ({ onPress, onPressAIPractice }: Props) => {
   return (
     <>
-      <View className="pt-2">
+      {/* <View className="pt-2">
         <Button
           text="Bắt đầu buổi tập"
           onPress={onPress}
@@ -17,13 +18,13 @@ const Footer = ({ onPress }: Props) => {
           iconName="log-in-outline"
           iconSize={26}
         />
-      </View>
+      </View> */}
 
-      {/* <View className="pt-2 flex-row justify-between">
+      <View className="pt-2 flex-row justify-between">
         <View className="w-[46%]">
           <Button
             text="Tự tập"
-            onPress={() => {}}
+            onPress={onPress}
             colorType="sub1"
             rounded="xl"
             iconName="log-in-outline"
@@ -34,14 +35,14 @@ const Footer = ({ onPress }: Props) => {
         <View className="w-[46%]">
           <Button
             text="Tập với AI"
-            onPress={() => {}}
+            onPress={onPressAIPractice}
             colorType="sub1"
             rounded="xl"
             iconName="sparkles-outline"
             iconSize={20}
           />
         </View>
-      </View> */}
+      </View>
     </>
   );
 };

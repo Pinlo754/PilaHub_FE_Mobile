@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Camera, useCameraDevice, CameraPermissionStatus } from 'react-native-vision-camera';
+import { Camera, CameraPermissionStatus, useCameraDevice } from 'react-native-vision-camera';
 import BodySilhouetteOverlay from './BodySilhouetteOverlay';
 
 type Props = {
@@ -22,7 +22,7 @@ export default function BodyScanCamera({ onCapture, mode }: Props) {
   // countdown state
   const [countdown, setCountdown] = useState<number>(0);
   const intervalRef = useRef<any>(null);
-
+  
   useEffect(() => {
     (async () => {
       const status = await Camera.requestCameraPermission();

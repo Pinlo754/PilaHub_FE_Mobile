@@ -16,6 +16,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
   const {
     activeTab,
     exerciseDetail,
+    tutorial,
     onChangeTab,
     isVideoVisible,
     isPlaying,
@@ -26,12 +27,14 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     isVideoExpand,
     navigatePracticeTab,
     setIsShowFlag,
+    onPressAIPractice,
   } = useExerciseDetail({
     route,
+    navigation,
   });
 
   // LOADING
-  if (!exerciseDetail) return null;
+  if (!exerciseDetail || !tutorial) return null;
 
   return (
     <View className="w-full flex-1 relative">
@@ -43,13 +46,17 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
         isShowFlag={isShowFlag}
         navigation={navigation}
         navigatePracticeTab={navigatePracticeTab}
-        exerciseId={exerciseDetail.exercise_id}
+        exerciseId={exerciseDetail.exerciseId}
       />
 
       {/* Image / Video */}
       {isVideoVisible ? (
         <VideoPlayer
-          source="https://www.w3schools.com/html/mov_bbb.mp4"
+          source={
+            isPracticeTab
+              ? tutorial?.practiceVideoUrl
+              : tutorial?.theoryVideoUrl
+          }
           isVideoPlay={isPlaying}
           isVideoExpand={isVideoExpand}
           toggleVideoExpand={toggleVideoExpand}
@@ -57,7 +64,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
           setIsShowFlag={setIsShowFlag}
         />
       ) : (
-        <ImageExercise imgUrl={exerciseDetail?.image_url} />
+        <ImageExercise imgUrl={exerciseDetail?.imageUrl} />
       )}
 
       {/* Overview / Stats */}
@@ -77,6 +84,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
           togglePlayButton={togglePlayButton}
           toggleVideoExpand={toggleVideoExpand}
           isPracticeTab={isPracticeTab}
+          onPressAIPractice={onPressAIPractice}
         />
       )}
     </View>
