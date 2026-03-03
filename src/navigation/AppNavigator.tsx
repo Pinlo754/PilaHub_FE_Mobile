@@ -39,7 +39,11 @@ import TraineeReport from '../screens/TraineeReport/TraineeReport';
 import AISummary from '../screens/AISummary/AISummary';
 import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
-
+import AITracking from '../screens/AITracking/AITracking';
+import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
+import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
+import VideoCall from '../screens/VideoCall/VideoCall';
+import UploadImageScreen from '../screens/UploadImage/UploadImage';
 export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
@@ -86,7 +90,11 @@ export type RootStackParamList = {
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: undefined;
   AIPractice: undefined;
- 
+  AITracking: {onFeedback: (data: { status: string; detail: string }) => void};
+  CoachProfileScreen: undefined;
+  TraineeProfileCoachScreen: undefined;
+  VideoCall: undefined;
+  UploadImageScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -95,7 +103,7 @@ const AppNavigator: React.FC = () => {
   return (
     <AppLayout>
       <Stack.Navigator
-        initialRouteName="Startup"
+        initialRouteName="TestNavigateScreen"
         screenOptions={{
           headerShown: false,
         }}
@@ -152,7 +160,10 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
-        
+        <Stack.Screen name="CoachProfileScreen" component={CoachProfileScreen} />
+        <Stack.Screen name="TraineeProfileCoachScreen" component={TraineeProfileCoachScreen} />
+        <Stack.Screen name="VideoCall" component={VideoCall} />
+        <Stack.Screen name="UploadImageScreen" component={UploadImageScreen} />
       </Stack.Navigator>
     </AppLayout>
   );

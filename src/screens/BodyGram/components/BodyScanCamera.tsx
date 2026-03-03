@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Camera, useCameraDevices, CameraPermissionStatus } from 'react-native-vision-camera';
+import { Camera, CameraPermissionStatus, useCameraDevice } from 'react-native-vision-camera';
 import BodySilhouetteOverlay from './BodySilhouetteOverlay';
 
 type Props = {
@@ -9,13 +9,11 @@ type Props = {
 };
 
 export default function BodyScanCamera({ onCapture, mode }: Props) {
-  const devices = useCameraDevices();
+  
   // default to back camera for full-body shots
   const [useFront, setUseFront] = useState(false);
   // support both shapes: devices can be array or object with front/back
-  const device = Array.isArray(devices)
-    ? devices.find((d) => d.position === (useFront ? 'front' : 'back'))
-    : (devices as any)[useFront ? 'front' : 'back'];
+  const device = useCameraDevice(useFront ? 'front' : 'back');
 
   const cameraRef = useRef<Camera>(null);
   const [permission, setPermission] = useState<CameraPermissionStatus>('not-determined');
@@ -24,7 +22,7 @@ export default function BodyScanCamera({ onCapture, mode }: Props) {
   // countdown state
   const [countdown, setCountdown] = useState<number>(0);
   const intervalRef = useRef<any>(null);
-
+  
   useEffect(() => {
     (async () => {
       const status = await Camera.requestCameraPermission();

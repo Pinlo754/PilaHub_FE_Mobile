@@ -3,6 +3,7 @@ import { View, Text, Button, StyleSheet } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import api from '../hooks/axiosInstance';
+import AITracking from '../screens/AITracking/AITracking';
 
 const TestNavigateScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -30,7 +31,7 @@ const TestNavigateScreen = () => {
         title="Go to Coach Screen"
         onPress={() => navigation.navigate('CoachScreen')}
       /> */}
-      <Button title="Go to Program Detail" onPress={login} />
+      <Button title="Go to AIPractice" onPress={() => navigation.navigate('AIPractice')} />
     </View>
   );
 };
