@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
@@ -12,6 +12,7 @@ type Props = {
   toggleVideoExpand: () => void;
   isVideoPlay: boolean;
   togglePlayButton: () => void;
+  seekTime: number | null;
 };
 
 export default function VideoPlayer({
@@ -20,14 +21,22 @@ export default function VideoPlayer({
   toggleVideoExpand,
   isVideoPlay,
   togglePlayButton,
+  seekTime,
 }: Props) {
-  // HOOOK
+  // HOOK
   const player = useVideoPlayer({ isVideoPlay });
 
-  // HANDLERS
+  // PLAY BUTTON
   const onPressPlayBtn = () => {
     togglePlayButton();
   };
+
+  // 🔥 SEEK KHI CLICK ERROR
+  useEffect(() => {
+    if (seekTime !== null) {
+      player.videoRef.current?.seek(seekTime);
+    }
+  }, [seekTime, player.videoRef]);
 
   return (
     <View className="w-full" style={{ height: isVideoExpand ? height : 260 }}>
@@ -40,7 +49,6 @@ export default function VideoPlayer({
       />
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">
-        {/* CONTROLS */}
         {player.showControls && (
           <View className="absolute inset-0 justify-end bg-black/20">
             <VideoControls

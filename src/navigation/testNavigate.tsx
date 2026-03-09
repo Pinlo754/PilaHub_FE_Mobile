@@ -31,7 +31,7 @@ const TestNavigateScreen = () => {
         title="Go to Coach Screen"
         onPress={() => navigation.navigate('CoachScreen')}
       /> */}
-      <Button title="Go to AIPractice" onPress={() => navigation.navigate('AIPractice')} />
+      <Button title="Go to AIPractice Screen" onPress={() => navigation.navigate('Login')} />
     </View>
   );
 };

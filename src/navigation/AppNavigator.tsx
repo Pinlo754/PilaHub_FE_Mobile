@@ -97,7 +97,10 @@ export type RootStackParamList = {
   RegisterCalendar: { coach_id?: string | null };
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
-  AISummary: undefined;
+  AISummary: {
+  videoUrl: string;
+  mistakeLog: any; 
+};
   AIPractice: {
     exercise_id: string;
     imgUrl: string;
@@ -112,6 +115,7 @@ export type RootStackParamList = {
   TraineeProfileCoachScreen: undefined;
   VideoCall: undefined;
   UploadImageScreen: undefined;
+  TraineeProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -173,15 +177,7 @@ const AppNavigator: React.FC = () => {
           name="TestNavigateScreen"
           component={TestNavigateScreen}
         />
-        <Stack.Screen
-          name="TestNavigateScreen"
-          component={TestNavigateScreen}
-        />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />
-        <Stack.Screen
-          name="CoachRegisterSchedule"
-          component={CoachRegisterSchedule}
-        />
         <Stack.Screen
           name="CoachRegisterSchedule"
           component={CoachRegisterSchedule}
@@ -199,14 +195,6 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
-        <Stack.Screen
-          name="CoachProfileScreen"
-          component={CoachProfileScreen}
-        />
-        <Stack.Screen
-          name="TraineeProfileCoachScreen"
-          component={TraineeProfileCoachScreen}
-        />
         <Stack.Screen
           name="CoachProfileScreen"
           component={CoachProfileScreen}

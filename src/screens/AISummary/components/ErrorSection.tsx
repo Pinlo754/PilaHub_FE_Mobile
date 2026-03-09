@@ -1,36 +1,43 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
-import { errorMock } from '../../../mocks/summaryData';
-import { ErrorItemType } from '../../../utils/SummaryType';
 import ErrorItem from './ErrorItem';
 import { colors } from '../../../theme/colors';
 
-type Props = {
-  openErrorVideo: (source: string) => void;
+type ErrorLog = {
+  bodyPart: string;
+  side: string;
+  recordedAtSecond: number;
 };
 
-const ErrorSection = ({ openErrorVideo }: Props) => {
+type Props = {
+  errors: ErrorLog[];
+  openErrorVideo: (time: number) => void;
+};
+
+const ErrorSection = ({ errors, openErrorVideo }: Props) => {
   // STATE
-  const [activeErrorId, setActiveErrorId] = useState<number | null>(null);
+  const [activeErrorIndex, setActiveErrorIndex] = useState<number | null>(null);
 
   // HANDLERS
-  const onToggle = (id: number) => {
-    setActiveErrorId(prev => (prev === id ? null : id));
+  const onToggle = (index: number) => {
+    setActiveErrorIndex(prev => (prev === index ? null : index));
   };
 
-  // RENDER
+  // RENDER ITEM
   const renderItem = useCallback(
-    ({ item }: { item: ErrorItemType }) => {
+    ({ item, index }: { item: ErrorLog; index: number }) => {
+      console.log('Error:', errors);
+      console.log('Render ErrorItem:', index);
       return (
         <ErrorItem
           item={item}
-          expanded={activeErrorId === item.id}
-          onPress={() => onToggle(item.id)}
-          onPlayVideo={openErrorVideo}
+          expanded={activeErrorIndex === index}
+          onPress={() => onToggle(index)}
+          onPlayVideo={() => openErrorVideo(item.recordedAtSecond)}
         />
       );
     },
-    [activeErrorId, openErrorVideo],
+    [activeErrorIndex, openErrorVideo],
   );
 
   return (
@@ -45,18 +52,22 @@ const ErrorSection = ({ openErrorVideo }: Props) => {
         {/* Number of errors */}
         <View
           className="rounded-lg flex justify-center items-center"
-          style={{ width: 30, height: 30, backgroundColor: colors.danger[20] }}
+          style={{
+            width: 30,
+            height: 30,
+            backgroundColor: colors.danger[20],
+          }}
         >
           <Text className="color-danger font-semibold text-xl">
-            {errorMock.length}
+            {errors.length}
           </Text>
         </View>
       </View>
 
       {/* List Section */}
       <FlatList
-        data={errorMock}
-        keyExtractor={item => item.id.toString()}
+        data={errors}
+        keyExtractor={(_, index) => index.toString()}
         scrollEnabled={false}
         renderItem={renderItem}
       />

@@ -19,6 +19,8 @@ export async function login(payload: LoginPayload): Promise<AuthResult> {
 
     if (data?.accessToken) {
       await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+      await AsyncStorage.setItem('id', JSON.stringify(data.account.accountId));
+      await AsyncStorage.setItem('role', data.account.role);
     }
     if (data?.refreshToken) {
       await AsyncStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);

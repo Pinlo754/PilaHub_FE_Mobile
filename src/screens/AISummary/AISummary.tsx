@@ -13,10 +13,11 @@ import ErrorSection from './components/ErrorSection';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import ImageRecord from './components/ImageRecord';
 import ErrorVideoPlayer from './components/VideoPlayer/ErrorVideoPlayer';
+import { useState } from 'react';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AISummary'>;
 
-const AISummary = (props: Props) => {
+const AISummary = ({ route, navigation }: Props) => {
   // HOOK
   const {
     activeTab,
@@ -33,6 +34,22 @@ const AISummary = (props: Props) => {
     isVideoPlay,
     togglePlayButton,
   } = useAISummary();
+  const { videoUrl, mistakeLog } = route.params;
+  const [seekTime, setSeekTime] = useState<number | null>(null);
+
+  const handleSeekToError = (time: number) => {
+    if (!isVideoVisible) {
+      setIsVideoVisible(true);
+    }
+
+    // Luôn đảm bảo giá trị mới để trigger useEffect bên trong VideoPlayer
+    setSeekTime(time);
+
+    if (!isVideoPlay) {
+      togglePlayButton();
+    }
+  };
+
 
   return (
     <View className="flex-1 bg-background ">
@@ -41,7 +58,7 @@ const AISummary = (props: Props) => {
       {!isVideoExpand && !showVideoError.visible && (
         <>
           {/* Header */}
-          <Header navigation={props.navigation} />
+          <Header navigation={navigation} />
           {/* Tabs */}
           <Tabs tabId={activeTab} onChange={onChangeTab} />
         </>
@@ -75,7 +92,8 @@ const AISummary = (props: Props) => {
             {isVideoVisible ? (
               <VideoPlayer
                 key="main-video"
-                source="https://www.w3schools.com/html/mov_bbb.mp4"
+                source={videoUrl}
+                seekTime={seekTime}
                 isVideoPlay={isVideoPlay}
                 isVideoExpand={isVideoExpand}
                 toggleVideoExpand={toggleVideoExpand}
@@ -92,7 +110,12 @@ const AISummary = (props: Props) => {
             )}
 
             {/* Error Section */}
-            {!isVideoExpand && <ErrorSection openErrorVideo={openErrorVideo} />}
+            {!isVideoExpand && (
+              <ErrorSection
+                errors={mistakeLog}
+                openErrorVideo={handleSeekToError}
+              />
+            )}
           </>
         )}
       </ScrollView>

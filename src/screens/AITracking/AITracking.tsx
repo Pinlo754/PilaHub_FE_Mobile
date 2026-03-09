@@ -20,12 +20,17 @@ import storage from '@react-native-firebase/storage';
 import { workoutSessionService } from '../../hooks/workoutSession.service';
 import { mistakeLogService } from '../../hooks/mistakeLog.service';
 import { CreateMistakeReq, MistakeLogReq } from '../../utils/MistakeLogType';
+
+import { NavigationProp, RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RootStackParamList } from "../../navigation/AppNavigator";
 type Props = {
   workoutSessionId: string;
   onFeedback: (data: { status: string; detail: string }) => void;
 };
 
 export default function AITracking({ workoutSessionId, onFeedback }: Props) {
+  type RouteProps = RouteProp<RootStackParamList, 'VideoCall'>;
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const plugin = useTensorflowModel(
     require('../../assets/pose_correction_exercise_aware.tflite'),
   );
@@ -36,6 +41,8 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
   const { isRecording } = useGlobalRecording({
     onRecordingStarted: () => {
       console.log('🎬 Global Recording Started');
+      sessionStartTime.current = Date.now();
+      setIsSessionActive(true);
     },
     onRecordingFinished: file => {
       if (file) {
@@ -52,6 +59,7 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const sessionStartTime = useRef<number>(0);
   const [mistakeLogs, setMistakeLogs] = useState<any[]>([]);
+  const [showCamera, setShowCamera] = useState(true);
   const uploadVideoToFirebase = async (filePath: string) => {
     try {
       const filename = `videos/${Date.now()}.mp4`;
@@ -84,7 +92,6 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
   const handleStartSession = async () => {
     try {
       setMistakeLogs([]);
-      sessionStartTime.current = Date.now();
 
       startGlobalRecording({
         onRecordingError: err => {
@@ -128,25 +135,30 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
       //     }),
       // });
 
-      await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
+      // await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
 
-      const transformedMistakeLogs: MistakeLogReq[] = mistakeLogs.map(
-        ({ bodyPart, recordedAtSecond }) => ({
-          bodyPartId: bodyPart,
-          details: 'Form error detected',
-          imageUrl: 'https://example.com/mistake.jpg',
-          recordedAtSecond,
-        }),
-      );
+      // const transformedMistakeLogs: MistakeLogReq[] = mistakeLogs.map(
+      //   ({ bodyPart, recordedAtSecond }) => ({
+      //     bodyPartId: bodyPart,
+      //     details: 'Form error detected',
+      //     imageUrl: 'https://example.com/mistake.jpg',
+      //     recordedAtSecond,
+      //   }),
+      // );
 
-      const payload: CreateMistakeReq = {
-        workoutSessionId,
-        mistakeLogs: transformedMistakeLogs,
-      };
+      // const payload: CreateMistakeReq = {
+      //   workoutSessionId,
+      //   mistakeLogs: transformedMistakeLogs,
+      // };
 
-      await mistakeLogService.createMistakeLog(payload);
+      // await mistakeLogService.createMistakeLog(payload);
 
       setIsSessionActive(false);
+      setShowCamera(false);
+      navigation.navigate('AISummary', {
+        videoUrl: downloadURL,
+        mistakeLog: mistakeLogs,
+      });
     } catch (e) {
       console.error(e);
     }
@@ -157,6 +169,8 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
     ============================ */
   const handlePose = useCallback(
     async (data: any) => {
+      if (!isSessionActive) return;
+
       if (!data?.landmarks || !model) return;
       if (isProcessing.current) return;
 
@@ -182,7 +196,7 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
         }
 
         const exArray = new Float32Array(8).fill(0);
-        const exIdx = LABELS.exercises.indexOf('plank');
+        const exIdx = LABELS.exercises.indexOf('shoulder_bridge_single_leg');
         if (exIdx !== -1) exArray[exIdx] = 1;
 
         const outputs = await model.run([exArray, kpArray]);
@@ -232,7 +246,7 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
         isProcessing.current = false;
       }
     },
-    [model],
+    [model, isSessionActive],
   );
 
   const handlePoseRef = useRef(handlePose);
@@ -256,13 +270,20 @@ export default function AITracking({ workoutSessionId, onFeedback }: Props) {
 
   return (
     <View className="flex-1 bg-background-sub2">
-      <RNMediapipe
-        style={{ flex: 1 }}
-        onLandmark={data => {
-          const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-          handlePoseRef.current(parsed);
-        }}
-      />
+      {showCamera ? (
+        <RNMediapipe
+          style={{ flex: 1 }}
+          onLandmark={data => {
+            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+            handlePoseRef.current(parsed);
+          }}
+        />
+      ) : (
+        <View className="flex-1 justify-center items-center bg-black">
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text className="text-white mt-4">Đang xử lý kết quả...</Text>
+        </View>
+      )}
 
       <View className="absolute top-20 left-0 right-0 items-center z-10">
         {!isSessionActive ? (
