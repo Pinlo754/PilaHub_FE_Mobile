@@ -90,6 +90,7 @@ export type RootStackParamList = {
   FeedbackScreen: undefined;
   HealthProfiles: undefined;
 
+
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;
@@ -174,7 +175,15 @@ const AppNavigator: React.FC = () => {
           name="TestNavigateScreen"
           component={TestNavigateScreen}
         />
+        <Stack.Screen
+          name="TestNavigateScreen"
+          component={TestNavigateScreen}
+        />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />
+        <Stack.Screen
+          name="CoachRegisterSchedule"
+          component={CoachRegisterSchedule}
+        />
         <Stack.Screen
           name="CoachRegisterSchedule"
           component={CoachRegisterSchedule}
@@ -192,6 +201,14 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
+        <Stack.Screen
+          name="CoachProfileScreen"
+          component={CoachProfileScreen}
+        />
+        <Stack.Screen
+          name="TraineeProfileCoachScreen"
+          component={TraineeProfileCoachScreen}
+        />
         <Stack.Screen
           name="CoachProfileScreen"
           component={CoachProfileScreen}
