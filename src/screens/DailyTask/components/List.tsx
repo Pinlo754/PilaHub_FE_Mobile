@@ -24,10 +24,10 @@ const List = ({ data, navigation }: Props) => {
   // RENDER
   const renderItem = ({ item }: { item: CardItem }) => {
     if (item.type === 'call') {
-      return <CardCall item={item} onPress={() => onPressItem(item)} />;
+      return <CardCall item={item} onPress={() => navigation.navigate('VideoCall')} />;
     }
 
-    return <CardCourse item={item} onPress={() => onPressItem(item)} />;
+    return <CardCourse item={item} onPress={() => navigation.navigate('ExerciseDetail', { exercise_id: item.id })} />;
   };
 
   return (

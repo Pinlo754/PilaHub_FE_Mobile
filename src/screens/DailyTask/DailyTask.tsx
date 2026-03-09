@@ -4,21 +4,29 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Header from './components/Header';
 import Calendar from './components/Calendar';
 import List from './components/List';
-import { dailyTaskMock } from '../../mocks/dailyTaskData';
+import { mockApi } from '../../hooks/mockapiHook';
+import { CardItem } from '../../utils/DailyTaskType';
+import { useState, useEffect } from 'react';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyTask'>;
 
 const DailyTask = (props: Props) => {
+  const [dailyTasks, setDailyTasks] = useState<CardItem[]>([]);
+
+  useEffect(() => {
+    const fetchDailyTasks = async () => {
+      const data = await mockApi.getSchedules();
+      setDailyTasks(data);
+    };
+
+    fetchDailyTasks();
+  }, []);
+
   return (
     <View className="flex-1 pt-14 bg-background">
-      {/* Header */}
       <Header navigation={props.navigation} />
-
-      {/* Calendar */}
       <Calendar />
-
-      {/* List Section */}
-      <List data={dailyTaskMock} navigation={props.navigation} />
+      <List data={dailyTasks} navigation={props.navigation} />
     </View>
   );
 };

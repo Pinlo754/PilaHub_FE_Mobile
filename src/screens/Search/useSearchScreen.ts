@@ -3,6 +3,7 @@ import { SearchTab } from '../../constants/searchTab';
 import { TabTypeMap } from '../../utils/SearchType';
 import { exerciseService } from '../../hooks/exercise.service';
 import { courseService } from '../../hooks/course.service';
+import { CoachService } from '../../hooks/coach.service';
 
 type DataByTab = {
   [K in SearchTab]: TabTypeMap[K][];
@@ -52,8 +53,7 @@ export const useSearchScreen = () => {
           break;
 
         case SearchTab.Coach:
-          // result = await coachService.getAll();
-          result = [];
+          result = await CoachService.getAll();
           break;
       }
 

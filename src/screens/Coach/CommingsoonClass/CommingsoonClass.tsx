@@ -9,7 +9,8 @@ const CommingsoonClass = () => {
     const route = useRoute<RouteProps>();
     const startSession = (id: string) => {
         console.log(`Bắt đầu lớp học với ID: ${id}`);
-        navigation.navigate('EndSessionScreen', { selectedId: id });
+        //navigation.navigate('EndSessionScreen', { selectedId: id });
+        navigation.navigate('VideoCall');
     }
     const selectedId = route.params.selectedId;
     return (

@@ -39,16 +39,17 @@ const CardExercise = ({ item, onPress }: Props) => {
 
           {/* Difficult Level */}
           <View className="flex-row items-center gap-1">
-            {Array.from({ length: getLevelNumber(item.difficultyLevel) }).map(
-              (_, index) => (
+            {item.difficultyLevel &&
+              Array.from({
+                length: getLevelNumber(item.difficultyLevel),
+              }).map((_, index) => (
                 <Ionicons
                   key={index}
                   name="star"
                   size={18}
                   color={colors.warning.DEFAULT}
                 />
-              ),
-            )}
+              ))}
           </View>
 
           {/* Require Equipment */}

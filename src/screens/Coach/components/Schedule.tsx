@@ -6,6 +6,7 @@ import 'moment/locale/vi'; // Import tiếng Việt
 import { NavigationProp, useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
+import { CoachService } from '../../../hooks/coach.service';
 
 // Thiết lập locale cho moment
 moment.locale('vi');
@@ -39,11 +40,9 @@ const MyCalendar = () => {
     }
   };
 
-
-  const scheduleData: ScheduleItem[] = [
-    {
+  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([{
       id: '1',
-      date: '2026-02-07',
+      date: '2026-03-04',
       time: '08:00 10:00',
       student: 'Nguyễn Thanh Phong',
       lesson: '9',
@@ -51,21 +50,45 @@ const MyCalendar = () => {
     },
     {
       id: '2',
-      date: '2026-02-07',
+      date: '2026-03-04',
       time: '16:00 18:00',
-      student: 'Nguyễn Văn Minh Thoại',
-      lesson: '2',
+      student: 'Nguyễn Thanh Phong',
+      lesson: '10',
       content: 'Điều khiển hơi thở',
     },
     {
       id: '3',
-      date: '2026-02-08',
+      date: '2026-03-05',
       time: '09:00 11:00',
-      student: 'Lê Hoàng Nam',
+      student: 'Nguyễn Thanh Phong',
       lesson: '11',
       content: 'Tập cơ bụng nâng cao',
-    },
-  ];
+    },]);
+
+    useEffect(() => {
+  const fetchSchedule = async () => {
+    try {
+      const response = await CoachService.getSchedules();
+
+      const formattedData: ScheduleItem[] = response.map((item: any) => ({
+        id: item.id.toString(),
+        date: item.date,
+        time: `${item.startTime} ${item.endTime}`,
+        student: item.studentName,
+        lesson: item.lessonNumber.toString(),
+        content: item.content,
+      }));
+      
+      //setScheduleData(formattedData);
+   
+    } catch (error) {
+      console.log("Fetch schedule error:", error);
+    }
+  };
+
+  fetchSchedule();
+}, []);
+    
 
   const filteredData = useMemo(() => {
     return scheduleData.filter(item =>

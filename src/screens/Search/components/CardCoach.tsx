@@ -19,7 +19,7 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
       <View className="rounded-full w-16 h-16 overflow-hidden">
         <Image
           source={{
-            uri: item.avatar,
+            uri: item.avatarUrl,
           }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
@@ -30,7 +30,7 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
       <View className="flex">
         {/* Name */}
         <Text className="font-bold color-foreground text-lg">
-          {item.full_name}
+          {item.fullName}
         </Text>
         {/* Rate */}
         <View className="flex-row gap-6">
@@ -44,7 +44,7 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
           <View className="flex-row gap-2 items-center">
             <Ionicons name="ribbon" size={18} color={colors.info.darker} />
             <Text className="color-secondaryText font-medium">
-              {item.experience_years} năm
+              {item.yearsOfExperience} năm
             </Text>
           </View>
         </View>

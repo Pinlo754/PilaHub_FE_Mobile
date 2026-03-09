@@ -38,16 +38,17 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
-
+  const id = '1a5ab0e2-7171-4abf-bb31-21518c57eb76';
   // API
   const fetchById = async () => {
+    
     if (!exercise_id) return;
 
     setIsLoading(true);
     setError(null);
     try {
-      const resExercise = await exerciseService.getById(exercise_id);
-      const resTutorial = await tutorialService.getById(exercise_id);
+      const resExercise = await exerciseService.getById(id);
+      const resTutorial = await tutorialService.getById('188aaa74-19f3-4475-8fdc-fb626d760126');
 
       setExerciseDetail(resExercise);
       setTutorial(resTutorial);
@@ -69,7 +70,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setError(null);
     try {
       const payload: WorkoutExerciseReq = {
-        exerciseId: exercise_id,
+        exerciseId: id,
         haveAITracking,
         haveIOTDeviceTracking,
       };
@@ -132,15 +133,15 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
     setHaveAITracking(true);
 
-    startWorkoutExercise();
+    //startWorkoutExercise();
 
-    if (!workoutSession) return null;
+    //if (!workoutSession) return null;
 
     navigation.navigate('AIPractice', {
-      exercise_id,
+      exercise_id: id,
       imgUrl: exerciseDetail?.imageUrl,
       videoUrl: tutorial?.practiceVideoUrl,
-      workoutSessionId: workoutSession?.workoutSessionId,
+      workoutSessionId: workoutSession?.workoutSessionId || 'id-demo-123',
     });
   };
 

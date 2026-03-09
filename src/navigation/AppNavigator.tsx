@@ -97,9 +97,10 @@ export type RootStackParamList = {
   RegisterCalendar: { coach_id?: string | null };
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
-  AISummary: undefined;
-  AIPractice: undefined;
-  TraineeProfile: undefined;
+  AISummary: {
+  videoUrl: string;
+  mistakeLog: any; 
+};
   AIPractice: {
     exercise_id: string;
     imgUrl: string;
@@ -114,6 +115,7 @@ export type RootStackParamList = {
   TraineeProfileCoachScreen: undefined;
   VideoCall: undefined;
   UploadImageScreen: undefined;
+  TraineeProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
