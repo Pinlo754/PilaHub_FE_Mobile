@@ -12,13 +12,7 @@ export default function InformationUI() {
   const {
     avatar,
     fullName,
-    nickname,
-    email,
-    phone,
     setFullName,
-    setNickname,
-    setEmail,
-    setPhone,
     pickAvatar,
     onNext,
     onBack,
@@ -62,19 +56,8 @@ export default function InformationUI() {
       {/* FORM */}
       <View className=" mt-6 space-y-4 ">
         <Input label="Họ và tên" value={fullName} onChange={setFullName} />
-        <Input label="Nickname" value={nickname} onChange={setNickname} />
-        <Input 
-          label="Email"
-          value={email}
-          onChange={setEmail}
-          keyboard="email-address"
-        />
-        <Input
-          label="Số điện thoại"
-          value={phone}
-          onChange={setPhone}
-          keyboard="phone-pad"
-        />
+       
+       
       </View>
 
       {/* BUTTON */}

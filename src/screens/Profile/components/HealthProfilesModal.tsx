@@ -27,7 +27,8 @@ export default function HealthProfilesModal({ visible, onClose }: Props) {
         } else {
           setProfiles([]);
         }
-      } catch (e) {
+      } catch (e) { 
+        console.log('Failed to fetch health profiles', e);
         setProfiles([]);
       } finally {
         if (mounted) setLoading(false);

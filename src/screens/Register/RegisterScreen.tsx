@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -9,7 +9,7 @@ import Toast from '../../components/Toast';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
-const RegisterScreen: React.FC<Props> = ({ navigation }) => {
+const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,7 +22,14 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success'|'error'|'info'>('info');
 
-   const validateEmail = (value: string) => {
+  const googleIdToken = (route.params as any)?.googleIdToken as string | undefined;
+  const prefillEmail = (route.params as any)?.email as string | undefined;
+
+  useEffect(() => {
+    if (prefillEmail) setEmail(prefillEmail);
+  }, [prefillEmail]);
+
+  const validateEmail = (value: string) => {
     return /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value);
   };
   const validatePhone = (value: string) => {
@@ -40,7 +47,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     if (!canRegister) return;
     setLoading(true);
     try {
-      const payload = { email, phoneNumber: phone, password };
+      const payload: any = { email, phoneNumber: phone, password };
+      if (googleIdToken) payload.googleIdToken = googleIdToken;
       const res = await register(payload);
       // success typical status 201
       setLoading(false);
@@ -51,7 +59,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         setToastType('success');
         setToastVisible(true);
       } else {
-        const msg = typeof res.error === 'string' ? res.error : JSON.stringify(res.error);
+        const msg = typeof res.error.message === 'string' ? res.error.message : JSON.stringify(res.error.message);
         setError(msg);
         setToastMsg(msg);
         setToastType('error');
@@ -70,8 +78,10 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
    return (
      <SafeAreaView className="flex-1 bg-background">
        <View className="flex-row items-center px-4 py-3">
-        <Text className="text-lg">←</Text>
-        <Text className="flex-1 text-center text-lg font-semibold text-foreground">          
+        <TouchableOpacity onPress={() => navigation.goBack()} >
+          <Text>←</Text>
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-lg font-semibold text-foreground">
           Đăng Ký
         </Text>
       </View>

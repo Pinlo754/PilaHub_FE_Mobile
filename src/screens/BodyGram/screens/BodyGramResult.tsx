@@ -337,12 +337,7 @@ export default function BodyGramResult({ route, navigation }: Props) {
 
       </ScrollView>
 
-      {/* Fixed footer with Save button */}
-      <View style={styles.footer}>
-        <Pressable onPress={handleSubmitAll} style={styles.saveBtn} disabled={loading}>
-          <Text style={styles.saveBtnText}>Lưu kết quả</Text>
-        </Pressable>
-      </View>
+      
     </SafeAreaView>
   );
 }
@@ -355,6 +350,5 @@ const styles = StyleSheet.create({
   headerTitleCenter: { textAlign: 'center', flex: 1 },
   scrollContent: { paddingBottom: 140 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: 'transparent' },
-  saveBtn: { backgroundColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700' },
+ 
 });

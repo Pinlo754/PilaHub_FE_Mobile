@@ -10,7 +10,6 @@ export type OnboardingData = {
   avatar?: string;
   fullName?: string;
   email?: string;
-  nickname?: string;
   phone?: string;
   frontPhotoUri?: string;
   sidePhotoUri?: string;
@@ -31,7 +30,7 @@ export type OnboardingData = {
 
   // workout fields (required during onboarding flow): use enum-like strings
   workoutFrequency?: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'ATHLETE';
-  workoutLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  workoutLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';  
 };
 
 type OnboardingState = {

@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, Pressable, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { fetchMyHealthProfiles, fetchHealthProfileById } from '../../services/profile';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 
 const HealthProfilesScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<any>>();
 
   // details are shown in ResultScreen when user opens a profile
 
@@ -38,8 +38,12 @@ const HealthProfilesScreen: React.FC = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-background p-4">
-      <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-xl font-bold">Thông tin cơ thể</Text>
+      <View className="flex-row items-center justify-between mb-3">
+        <Pressable onPress={() => navigation.navigate('MainTabs')} className="p-2">
+          <Text className="text-xl">‹</Text>
+        </Pressable>
+        <Text className="text-xl font-bold text-center flex-1">Thông tin cơ thể</Text>
+        <View className="w-8" />
       </View>
 
       {loading ? (
@@ -68,8 +72,13 @@ const HealthProfilesScreen: React.FC = () => {
                         try { if (typeof data.metadata === 'string') metadata = JSON.parse(data.metadata); else metadata = data.metadata ?? {}; } catch { metadata = {}; }
                         const measurements = data.measurements ?? metadata.measurements ?? [];
                         (navigation as any).navigate('BodyGramResult', { measurements, rawResponse: { entry: data, metadata } });
+                        // add action: View AI assessment
+                        // show small button to open assessment screen
+                        // navigation to HealthProfileAssessment expects healthProfileId
+                        // we'll add a navigable text on the right (below 'Mở')
                         // update selected locally so list highlight follows selection
                         setSelected(data);
+                        
                       } catch {
                         Alert.alert('Lỗi', 'Không tải được hồ sơ chi tiết');
                       }
@@ -86,6 +95,9 @@ const HealthProfilesScreen: React.FC = () => {
                           </View>
                         ) : null}
                         <Text className="text-amber-700">Mở</Text>
+                        <Pressable onPress={() => (navigation as any).navigate('HealthProfileAssessment', { healthProfileId: p.healthProfileId ?? p.id })} className="ml-3 px-2 py-1 bg-amber-50 rounded">
+                          <Text className="text-amber-700 text-sm">Đánh giá</Text>
+                        </Pressable>
                       </View>
                     </View>
                   </Pressable>

@@ -20,6 +20,7 @@ import { workoutSessionService } from '../../hooks/workoutSession.service';
 import { mistakeLogService } from '../../hooks/mistakeLog.service';
 import { CreateMistakeReq, MistakeLogReq } from '../../utils/MistakeLogType';
 
+
 import { NavigationProp, RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { WorkoutSessionType } from '../../utils/WorkoutSessionType';
@@ -32,6 +33,7 @@ type Props = {
   captureMistakeImage: () => Promise<string | undefined>;
 };
 
+
 export default function AITracking({ workoutSessionId, onFeedback, captureMistakeImage }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const plugin = useTensorflowModel(
@@ -39,7 +41,9 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   );
   const model = plugin.model;
 
+
   const { loadSounds, play } = useSoundManager();
+
 
   const { isRecording } = useGlobalRecording({
     onRecordingStarted: () => {
@@ -58,6 +62,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     },
   });
 
+
   const isProcessing = useRef(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const sessionStartTime = useRef<number>(0);
@@ -72,6 +77,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const [isSaving, setIsSaving] = useState(false);
   const [errorBodyPart, setErrorBodyPart] = useState<string | null>(null);
 
+
   const BODY_PART_MAP: Record<string, number[]> = {
     "Lower Back": [23, 24],
     "Upper Back": [11, 12],
@@ -81,13 +87,17 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     "Right Elbow": [14],
   };
 
+
   const uploadVideoToFirebase = async (filePath: string) => {
     try {
       const filename = `videos/${Date.now()}.mp4`;
 
+
       const reference = storage().ref(filename);
 
+
       const task = reference.putFile(filePath);
+
 
       task.on('state_changed', taskSnapshot => {
         const percent =
@@ -95,11 +105,15 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         console.log('Upload progress:', percent.toFixed(0) + '%');
       });
 
+
       await task;
+
 
       const downloadURL = await reference.getDownloadURL();
 
+
       console.log('🔥 VIDEO URL:', downloadURL);
+
 
       return downloadURL;
     } catch (error) {
@@ -114,17 +128,20 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     try {
       setMistakeLogs([]);
 
+
       startGlobalRecording({
         onRecordingError: err => {
           Alert.alert('Recording error', err.message);
         },
       });
 
+
       setIsSessionActive(true);
     } catch (e) {
       console.error(e);
     }
   };
+
 
   /* ===========================
        🛑 STOP GLOBAL RECORDING
@@ -138,16 +155,20 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         settledTimeMs: 1000,
       });
 
+
       if (!file?.path) {
         Alert.alert('Error', 'No video file found');
         return;
       }
 
+
       if (activeMistake.current) {
         finalizeMistake(Date.now());
       }
 
+
       console.log("Original video:", file.path);
+
 
       // 🎥 Compress video
       const compressedVideo = await Video.compress(file.path, {
@@ -161,10 +182,13 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
           console.log(`Đang nén: ${Math.round(progress * 100)}%`);
         });
 
+
       // 🔥 Upload video đã nén
       const downloadURL = await uploadVideoToFirebase(compressedVideo);
 
+
       console.log('Video uploaded. URL:', downloadURL);
+
 
       await Promise.all(
         mistakeLogs.map(async log => {
@@ -178,9 +202,12 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
               `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
             );
 
+
             await ref.putFile(log.imagePath);
 
+
             log.imageUrl = await ref.getDownloadURL();
+
 
             delete log.imagePath;
           }
@@ -191,7 +218,9 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         )
       );
 
+
       await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
+
 
       if (mistakeLogs) {
         const transformedMistakeLogs: MistakeLogReq[] = mistakeLogs.map(
@@ -204,18 +233,24 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
           })
         );
 
+
         const payload: CreateMistakeReq = {
           workoutSessionId,
           mistakeLogs: transformedMistakeLogs,
         };
 
+
         await mistakeLogService.createMistakeLog(payload);
+
 
       }
 
+
       const AIFeedback = await workoutSessionService.feedbackWorkout(workoutSessionId);;
 
+
       console.log('Mistake logs saved:', mistakeLogs);
+
 
       console.log('AI Feedback')
       navigation.navigate('AISummary', {
@@ -223,6 +258,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         videoUrl: downloadURL,
         mistakeLog: mistakeLogs,
       });
+
 
     } catch (e) {
       console.error(e);
@@ -232,6 +268,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     }
   };
 
+
   /* ===========================
        🧠 AI INFERENCE
     ============================ */
@@ -239,22 +276,29 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     async (data: any) => {
       if (!isSessionActive) return;
 
+
       if (!data?.landmarks || !model) return;
       if (isProcessing.current) return;
+
 
       try {
         isProcessing.current = true;
 
+
         const posePoints = data.landmarks;
         if (posePoints.length < 33) return;
 
+
         const kpArray = new Float32Array(132);
+
 
         for (let i = 0; i < 33; i++) {
           const lm = posePoints[i];
           const base = i * 4;
 
+
           const raw = [lm.x ?? 0, lm.y ?? 0, lm.z ?? 0, lm.visibility ?? 0];
+
 
           for (let j = 0; j < 4; j++) {
             const mean = SCALER_MEAN[base + j] ?? 0;
@@ -263,18 +307,23 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
           }
         }
 
+
         const exArray = new Float32Array(8).fill(0);
 
+
         const exerciseName = workoutSession?.exerciseName?.toLowerCase();
+
 
         const exIdx = LABELS.exercises.findIndex(e => e === 'plank');
         // const exIdx = LABELS.exercises.findIndex(
         //   e => e.toLowerCase() === exerciseName
         // );
 
+
         if (exIdx !== -1) {
           exArray[exIdx] = 1;
         }
+
 
         const outputs = await model.run([exArray, kpArray]);
         const bodyPartOutput = outputs[0] as Float32Array;
@@ -282,13 +331,16 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         const sideOutput = outputs[2] as Float32Array;
         const incorrectProb = labelOutput[0];
 
+
         if (incorrectProb < 0.2) {
           if (activeMistake.current) {
             handleCorrect();
             return;
           }
 
+
           const now = Date.now();
+
 
           if (now - lastCorrectTime.current > 400) {
             onFeedback({
@@ -297,16 +349,20 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
             });
           }
 
+
           return;
         } else {
           const argMax = (arr: Float32Array) =>
             arr.reduce((best, val, idx) => (val > arr[best] ? idx : best), 0);
 
+
           const partIdx = argMax(bodyPartOutput);
           const sideIdx = argMax(sideOutput);
 
+
           const bodyPart = LABELS.body_parts[partIdx];
           const side = LABELS.sides[sideIdx];
+
 
           handleIncorrect(bodyPart, side);
         }
@@ -319,11 +375,14 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     [model, isSessionActive],
   );
 
+
   const finalizeMistake = (endTime: number) => {
     if (!activeMistake.current) return;
 
+
     const duration =
       (endTime - activeMistake.current.startTime) / 1000;
+
 
     if (duration >= 1.25) {
       const log = {
@@ -334,19 +393,26 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         imagePath: activeMistake.current.imagePath
       };
 
+
       setMistakeLogs(prev => [...prev, log]);
     }
+
+
 
 
     activeMistake.current = null;
   };
 
+
   const handleCorrect = () => {
     const now = Date.now();
 
+
     lastCorrectTime.current = now;
 
+
     if (!activeMistake.current) return;
+
 
     if (now - activeMistake.current.startTime >= DEBOUNCE_TIME) {
       finalizeMistake(now);
@@ -354,16 +420,20 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     }
   };
 
+
   const handleIncorrect = (bodyPart: string, side: string) => {
     const now = Date.now();
 
+
     const secondsFromStart =
       (now - sessionStartTime.current) / 1000;
+
 
     // nếu đang có active mistake
     if (activeMistake.current) {
       if (activeMistake.current.bodyPart !== bodyPart) {
         finalizeMistake(now);
+
 
         pendingMistake.current = {
           bodyPart,
@@ -372,8 +442,10 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         };
       }
 
+
       return;
     }
+
 
     // chưa có active -> xử lý pending
     if (!pendingMistake.current) {
@@ -385,6 +457,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       return;
     }
 
+
     if (pendingMistake.current.bodyPart !== bodyPart) {
       pendingMistake.current = {
         bodyPart,
@@ -393,6 +466,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       };
       return;
     }
+
 
     // đủ 1.25s -> confirm mistake
     if (now - pendingMistake.current.detectedAt >= DEBOUNCE_TIME) {
@@ -404,6 +478,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         imagePath: ''
       };
 
+
       setErrorBodyPart(bodyPart);
       captureMistakeImage().then((path) => {
         console.log('Chụp ảnh lỗi thành công, path:', path);
@@ -412,20 +487,26 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         }
       });
 
+
       console.log('current mistake:', activeMistake.current)
 
+
       play(bodyPart.toLowerCase().replace(' ', ''));
+
 
       onFeedback({
         status: '❌ CẦN SỬA',
         detail: `${bodyPart} (${side})`,
       });
 
+
       pendingMistake.current = null;
     }
   };
 
+
   const handlePoseRef = useRef(handlePose);
+
 
   useEffect(() => {
     const fetchWorkoutSession = async () => {
@@ -433,8 +514,11 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       setWorkoutSession(res);
     };
 
+
     fetchWorkoutSession();
   }, [workoutSessionId]);
+
+
 
 
   useEffect(() => {
@@ -442,9 +526,11 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     handlePoseRef.current = handlePose;
   }, [handlePose]);
 
+
   useEffect(() => {
     loadSounds();
   }, []);
+
 
   if (plugin.state === 'loading') {
     return (
@@ -454,6 +540,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       </View>
     );
   }
+
 
   return (
     <View className="flex-1 bg-background-sub2">
@@ -491,6 +578,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         )}
       </View>
 
+
       {isRecording && (
         <View className="absolute top-16 right-5 flex-row items-center bg-black/60 px-3 py-1 rounded-full">
           <View className="w-3 h-3 bg-red-500 rounded-full mr-2" />
@@ -520,3 +608,6 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     </View>
   );
 }
+
+
+
