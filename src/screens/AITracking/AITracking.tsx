@@ -82,8 +82,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorBodyPart, setErrorBodyPart] = useState<string | null>(null);
-
-
+  const [heartRateList, setHeartRateList] = useState<any[]>([]);
   const BODY_PART_MAP: Record<string, number[]> = {
     "Lower Back": [23, 24],
     "Upper Back": [11, 12],
@@ -133,6 +132,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const handleStartSession = async () => {
     try {
       setMistakeLogs([]);
+      setHeartRateList([]);
 
 
       // reset HR samples
