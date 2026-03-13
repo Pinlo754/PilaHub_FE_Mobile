@@ -362,8 +362,8 @@ export async function fetchTraineeProfile(): Promise<ServiceResult> {
    }
  }
  
-// Update trainee profile for authenticated account (PUT)
-export async function updateTraineeProfile(payload: Record<string, any>): Promise<ServiceResult> {
+ // Update trainee profile for authenticated account (PUT)
+ export async function updateTraineeProfile(payload: Record<string, any>): Promise<ServiceResult> {
   try {
     const res = await api.put('/trainees/profile', payload);
     const data = res.data?.data ?? res.data ?? res;
@@ -374,7 +374,31 @@ export async function updateTraineeProfile(payload: Record<string, any>): Promis
   }
 }
 
- // Fetch health profiles for the authenticated trainee (returns array or empty)
+// Fetch injuries library
+export async function fetchInjuries(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/injuries');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
+  }
+}
+
+// Create personal injury for trainee
+export async function createPersonalInjury(payload: { injuryId: string; notes?: string }): Promise<ServiceResult> {
+  try {
+    const res = await api.post('/personal-injuries', payload);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
+  }
+}
+
+// Fetch health profiles for the authenticated trainee (returns array or empty)
  export async function fetchMyHealthProfiles(): Promise<ServiceResult> {
   try {
     const res = await api.get('/health-profiles/my-profiles');
@@ -415,5 +439,17 @@ export async function fetchTraineeHealthProfiles(id: string): Promise<ServiceRes
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
+
+// Retrieve AI-generated assessment for a specific health profile (trainee-owned)
+export async function fetchHealthProfileAssessment(id: string): Promise<ServiceResult> {
+  try {
+    const res = await api.get(`/health-profile-assessments/my-profiles/${id}`);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
   }
 }

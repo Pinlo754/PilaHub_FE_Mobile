@@ -5,6 +5,7 @@ import { SafeAreaProvider} from 'react-native-safe-area-context';
 import './global.css';
 
 const App: React.FC = () => {
+  console.log('App component rendered');
   return (
     <SafeAreaProvider>
       <NavigationContainer>

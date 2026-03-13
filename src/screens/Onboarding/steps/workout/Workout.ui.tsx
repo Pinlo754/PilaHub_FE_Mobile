@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useWorkoutLogic, WorkoutFrequencyKey, WorkoutLevelKey } from './Workout.logic';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function WorkoutUI() {
   const {

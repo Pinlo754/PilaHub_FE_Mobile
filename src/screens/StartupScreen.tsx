@@ -99,9 +99,9 @@ export default function StartupScreen({ navigation }: Props) {
           return;
         }
 
-        // onboarding done; if no saved body measurements, go to InputBody (let user scan)
+        // onboarding done; if no saved body measurements, go to Onboarding
         if (!hasSaved) {
-          navigation.reset({ index: 0, routes: [{ name: 'InputBody' }] });
+          navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
           return;
         }
 

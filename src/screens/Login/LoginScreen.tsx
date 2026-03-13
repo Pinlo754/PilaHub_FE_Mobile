@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput,  TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
-import { login, getProfile } from '../../services/auth';
-import { getBodySavedFor } from '../../utils/bodyCache';
-import { setOnboardingCompletedFor } from '../../utils/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchTraineeProfile, fetchMyHealthProfiles } from '../../services/profile';
+import { login } from '../../services/auth';
+import { postLoginRouting } from '../../utils/afterAuth';
+import { configureGoogleSignIn, signInWithGoogle } from '../../utils/google';
+import { googleAuth } from '../../services/googleAuth';
+import { WEB_CLIENT_ID } from '../../config/key';
+
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
@@ -18,12 +19,68 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    configureGoogleSignIn({
+      webClientId: WEB_CLIENT_ID,
+    });
+  }, []);
+
+  async function handleGoogle() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await signInWithGoogle();
+      console.log('Google Sign-In Response:', res);
+      if (!res.ok) {
+        setError(String(res.error));
+        setLoading(false);
+        return;
+      }
+      const idToken = res.idToken;
+      const googleEmail = res.email;
+      if (!idToken) {
+        setError('Không lấy được idToken từ Google');
+        setLoading(false);
+        return;
+      }
+
+      const backendRes = await googleAuth({ email: googleEmail, googleIdToken: idToken });
+      // Log backend response for debugging
+      console.log('Google Sign-In Backend Response:', backendRes);
+
+      if (!backendRes.ok) {
+        setError(JSON.stringify(backendRes.error));
+        setLoading(false);
+        return;
+      }
+
+      const data = backendRes.data ?? {};
+      // Log backend data payload
+      console.log('Google Sign-In Backend Data:', data);
+
+      if (data.requiresRegistration) {
+        // open register screen with prefilled email and idToken stored in route params for later
+        navigation.navigate('Register', { googleIdToken: idToken, email: googleEmail } as any);
+        setLoading(false);
+        return;
+      }
+
+      // success
+      await postLoginRouting(navigation, data);
+      setLoading(false);
+    } catch (e: any) {
+      setLoading(false);
+      setError(e?.message ?? String(e));
+    }
+  }
+
    return (
     <SafeAreaView  className="flex-1 bg-background">
       
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
-        <Text className="text-lg">←</Text>
+   
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
           
           Đăng Nhập
@@ -92,7 +149,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <Text>Nhớ tài khoản</Text>
           </TouchableOpacity>
 
-          <Text className="text-secondaryText">Quên mật khẩu?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text className="text-secondaryText">Quên mật khẩu?</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Login Button */}
@@ -114,101 +173,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 return;
               }
 
-              // Prefer role from login response when available (normalize to uppercase)
-              const loginData: any = res.data ?? {};
-              const roleFromLogin = String(loginData?.account?.role ?? '').toUpperCase();
-              if (roleFromLogin === 'COACH') {
-                setLoading(false);
-                navigation.replace('CoachScreen');
-                return;
-              }
-
-              // fetch current user profile to get userId (fallback if needed)
-              const me = await getProfile();
-              let userId: string | null = null;
-              if (me.ok) {
-                const d: any = me.data;
-                userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
-              }
-
-              // If login response didn't indicate role, try profile role
-              const profileRole = (me.ok ? String((me as any).data?.account?.role ?? (me as any).data?.role ?? '') : '').toUpperCase();
-              if (!roleFromLogin && profileRole === 'COACH') {
-                setLoading(false);
-                navigation.replace('CoachScreen');
-                return;
-              }
-
-              // Primary server-driven checks: trainee profile and health profiles
-              let traineeExists = false;
-              try {
-                const tRes = await fetchTraineeProfile();
-                if (tRes.ok) {
-                  traineeExists = true;
-                } else {
-                  const err = tRes.error || {};
-                  const msg = String(err?.message ?? err ?? '').toLowerCase();
-                  const code = err?.errorCode ?? err?.code ?? err?.status;
-                  if (code === 404 || msg.includes('not found') || code === 'TRAINEE_NOT_FOUND') {
-                    traineeExists = false;
-                  } else {
-                    // unknown error: treat as not existing to be safe
-                    traineeExists = false;
-                  }
-                }
-              } catch {
-                traineeExists = false;
-              }
-
-              // if server says no trainee profile -> require onboarding
-              if (!traineeExists) {
-                // mark loading done then navigate
-                setLoading(false);
-                navigation.replace('Onboarding');
-                return;
-              }
-
-              // server has trainee -> mark per-user onboarding completed
-              if (userId) {
-                try {
-                  await setOnboardingCompletedFor(userId);
-                } catch {}
-              }
-
-              // check health profiles
-              let hasHealth = false;
-              try {
-                const hRes = await fetchMyHealthProfiles();
-                if (hRes.ok) {
-                  const data = (hRes.data && (hRes.data.data ?? hRes.data)) ?? hRes.data;
-                  if (Array.isArray(data)) hasHealth = data.length > 0;
-                  else if (Array.isArray(hRes.data)) hasHealth = hRes.data.length > 0;
-                }
-              } catch {
-                // ignore and fallback to local cache
-                hasHealth = false;
-              }
-
-              // fallback to local per-user body cache if server check inconclusive
-              if (!hasHealth) {
-                if (userId) {
-                  const saved = await getBodySavedFor(userId);
-                  hasHealth = !!saved;
-                } else {
-                  const savedRaw = await AsyncStorage.getItem('bodygram:savedMeasurements');
-                  hasHealth = !!savedRaw;
-                }
-              }
-
-              setLoading(false);
-
-              if (!hasHealth) {
-                navigation.replace('InputBody');
-                return;
-              }
-
-              // default
-              navigation.replace('MainTabs');
+              await postLoginRouting(navigation, res.data ?? {});
 
             } catch (e: any) {
               setLoading(false);
@@ -232,7 +197,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Google */}
-        <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3">
+        <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3" onPress={handleGoogle}>
           <Text className="text-base">G</Text>
           <Text className="ml-2 text-base">Tiếp tục với Google</Text>
         </TouchableOpacity>

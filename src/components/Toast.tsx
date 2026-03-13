@@ -1,15 +1,16 @@
 import React, { useEffect } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet, Pressable } from 'react-native';
 
 type Props = {
   visible: boolean;
   message?: string;
   type?: 'success' | 'error' | 'info';
   onHidden?: () => void;
+  duration?: number; // ms to auto-hide, default 3000; if 0 or undefined, auto-hide
 };
 
-export default function Toast({ visible, message = '', type = 'info', onHidden }: Props) {
-  const translateY = React.useRef(new Animated.Value(40)).current;
+export default function Toast({ visible, message = '', type = 'info', onHidden, duration = 3000 }: Props) {
+  const translateY = React.useRef(new Animated.Value(-40)).current; // start above
   const opacity = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -20,12 +21,22 @@ export default function Toast({ visible, message = '', type = 'info', onHidden }
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(translateY, { toValue: 40, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -40, duration: 180, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
       ]).start(() => onHidden && onHidden());
     }
     // include refs and callback in deps to satisfy react-hooks/exhaustive-deps
   }, [visible, onHidden, opacity, translateY]);
+
+  // auto-hide timer
+  useEffect(() => {
+    if (!visible) return;
+    if (!duration || duration <= 0) return; // no auto-hide
+    const id = setTimeout(() => {
+      try { if (onHidden) onHidden(); } catch { /* ignore */ }
+    }, duration);
+    return () => clearTimeout(id);
+  }, [visible, duration, onHidden]);
 
   if (!visible) return null;
 
@@ -33,14 +44,17 @@ export default function Toast({ visible, message = '', type = 'info', onHidden }
 
   return (
     <Animated.View
+      pointerEvents="box-none"
       style={[
         styles.container,
         { transform: [{ translateY }], opacity },
       ]}
     >
-      <View className={`${bgClass} rounded-lg px-4 py-3`}>
-        <Text className="text-white text-center">{message}</Text>
-      </View>
+      <Pressable onPress={() => onHidden && onHidden()} android_ripple={{color: '#00000010'}}>
+        <View className={`${bgClass} rounded-lg px-4 py-3`}> 
+          <Text className="text-white text-center">{message}</Text>
+        </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -48,9 +62,10 @@ export default function Toast({ visible, message = '', type = 'info', onHidden }
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 40,
+    left: 16,
+    right: 16,
+    top: 48,
     zIndex: 9999,
+    alignItems: 'center',
   },
 });

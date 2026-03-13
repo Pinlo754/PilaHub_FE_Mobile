@@ -16,6 +16,10 @@ const Header = ({ navigation }: Props) => {
 
       {/* Right section */}
       <View className="flex-row gap-3 items-center">
+        {/* Bluetooth - open DeviceScan */}
+        <Pressable onPress={() => navigation.navigate('DeviceScan')}>
+          <Ionicons name="bluetooth-outline" size={22} color={colors.foreground} />
+        </Pressable>
         {/* Search */}
         <Pressable onPress={() => navigation.navigate('Search')}>
           <Ionicons name="search-outline" size={24} color={colors.foreground} />

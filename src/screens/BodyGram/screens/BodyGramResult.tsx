@@ -1,19 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Text, ScrollView, View, Image, Pressable, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
 import { useOnboardingStore } from '../../../store/onboarding.store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
-import { getProfile } from '../../../services/auth';
-import { setBodySavedFor } from '../../../utils/bodyCache';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { fetchMyHealthProfiles } from '../../../services/profile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyGramResult'>;
 
@@ -30,13 +26,13 @@ function gToKg(g?: number | null) {
   return +(n / 1000).toFixed(0);
 }
 
-export default function BodyGramResult({ route, navigation }: Props) {
+export default function BodyGramResult({ route, navigation: _navigation }: Props) {
   const nav = useNavigation();
-  const onboarding = useOnboardingStore((s) => s.data);
-  const setData = useOnboardingStore((s) => s.setData);
+  const _onboarding = useOnboardingStore((s) => s.data);
+  const _setData = useOnboardingStore((s) => s.setData);
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
 
-  function parseProfile(entry: any) {
+  const parseProfile = useCallback((entry: any) => {
     const out: any = { measurements: {}, meta: {} };
     if (!entry) return out;
     const data = entry?.entry ?? entry ?? {};
@@ -98,7 +94,7 @@ export default function BodyGramResult({ route, navigation }: Props) {
 
     out.metadata = metadata;
     return out;
-  }
+  }, []);
 
   const parsed = parseProfile(rawResponse?.entry ?? rawResponse ?? {});
 
@@ -141,103 +137,102 @@ export default function BodyGramResult({ route, navigation }: Props) {
 
   const whr = display.waist && display.hip ? (display.waist / display.hip).toFixed(2) : undefined;
 
-  const saveMeasurements = async () => {
-    try {
-      const map: any = {};
-      if (display.shoulder) map.shoulder = display.shoulder;
-      if (display.waist) map.waist = display.waist;
-      if (display.hip) map.hip = display.hip;
-      if (display.thigh) map.thigh = display.thigh;
-      if (display.height_est) map.height = display.height_est;
-      if (display.weight_est) map.weight = display.weight_est;
-
-      if (Object.keys(map).length > 0) {
-        setData(map);
-        await AsyncStorage.setItem('bodygram:savedMeasurements', JSON.stringify(display));
-        Alert.alert('Lưu thành công', 'Số đo đã được lưu vào hồ sơ.');
-      } else {
-        Alert.alert('Không có số đo', 'Không tìm thấy số đo hợp lệ để lưu.');
-      }
-    } catch (e) {
-      console.log('Save measurements error', e);
-      Alert.alert('Lỗi', 'Không thể lưu số đo.');
-    }
-  };
-  
-  const [loading, setLoading] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [toastMsg, _setToastMsg] = useState('');
+  const [toastType, _setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  const handleSubmitAll = async () => {
-    setToastVisible(false);
-    setLoading(true);
-    try {
-      const entry = rawResponse?.entry ?? rawResponse ?? {};
-      const bodyGramForApi = { ...entry, ...display };
+  // previous profile state for automatic comparison
+  const [previousDisplay, setPreviousDisplay] = useState<any | null>(null);
+  const [prevLoading, setPrevLoading] = useState(false);
+  const [parsedProfilesList, setParsedProfilesList] = useState<any[]>([]);
+  const [selectedProfileIndex, setSelectedProfileIndex] = useState<number | null>(null);
+  const didLoadPrevRef = React.useRef(false);
 
+  // normalize a parsed profile into the same shape as `display` used for current
+  function normalizeParsedToDisplay(parsedProfile: any) {
+    if (!parsedProfile) return null;
+    const out: any = {};
+    // prefer explicit measurement fields if present
+    out.weight_est = parsedProfile.weight ?? parsedProfile.measurements?.weight_est ?? null;
+    out.height_est = parsedProfile.height ?? parsedProfile.measurements?.height_est ?? null;
+    out.bust = parsedProfile.measurements?.chest ?? parsedProfile.measurements?.bust ?? parsedProfile.measurements?.bust ?? parsedProfile.measurements?.chest ?? null;
+    out.waist = parsedProfile.waist ?? parsedProfile.measurements?.waist ?? null;
+    out.hip = parsedProfile.hip ?? parsedProfile.measurements?.hip ?? null;
+    out.thigh = parsedProfile.measurements?.thigh ?? null;
+    out.bicep = parsedProfile.muscle ?? parsedProfile.measurements?.bicep ?? null;
+    out.calf = parsedProfile.measurements?.calf ?? null;
+    return out;
+  }
+
+  // fetch user's health profiles and pick the most recent one before current parsed.createdAt
+  // load previous profiles once per source timestamp (avoid reruns)
+  useEffect(() => {
+    // run previous-profile load only once per mount
+    if (didLoadPrevRef.current) return;
+    let mounted = true;
+    async function loadPrevious() {
+      didLoadPrevRef.current = true;
+      setPrevLoading(true);
       try {
-        const traineePayload = buildTraineeProfilePayload(onboarding, bodyGramForApi);
-        console.log('submitProfiles -> traineePayload', traineePayload);
-        console.log('submitProfiles -> bodyGram (sample keys)', Object.keys(bodyGramForApi).slice(0,20));
+        const res = await fetchMyHealthProfiles();
+        if (!mounted) return;
+        if (!res.ok) return setPreviousDisplay(null);
+        const profiles: any[] = res.data ?? [];
+        if (!Array.isArray(profiles) || profiles.length === 0) return setPreviousDisplay(null);
+
+        // parse entries into normalized parsed objects using existing parseProfile
+        const parsedProfiles = profiles.map((p: any, idx: number) => ({ raw: p, parsed: parseProfile(p.entry ?? p ?? {}), idx })).filter((p: any) => p && (p.parsed.createdAt || p.parsed.metadata?.createdAt));
+        console.log('[BodyGramResult] fetched profiles count:', parsedProfiles.length);
+        setParsedProfilesList(parsedProfiles.map(p => p.parsed));
+
+        // sort by createdAt descending (operate on parsed)
+        parsedProfiles.sort((a: any, b: any) => {
+          const ta = new Date(a.parsed.createdAt || a.parsed.metadata?.createdAt || 0).getTime();
+          const tb = new Date(b.parsed.createdAt || b.parsed.metadata?.createdAt || 0).getTime();
+          return tb - ta;
+        });
+
+        // find the first profile that is older than current parsed (if parsed.createdAt exists)
+        let candidateWrapper: any = null;
+        const currentTime = parsed?.createdAt ? new Date(parsed.createdAt).getTime() : null;
+        if (currentTime != null) {
+          candidateWrapper = parsedProfiles.find((p: any) => {
+            const t = new Date(p.parsed.createdAt || p.parsed.metadata?.createdAt || 0).getTime();
+            return t < currentTime;
+          });
+        }
+        // if none found, pick the second-most-recent (i.e., parsedProfiles[1]) or the most recent if list has at least one and current is not in list
+        if (!candidateWrapper) {
+          candidateWrapper = parsedProfiles.find(p => {
+            const curId = parsed?.metadata?.profileId ?? parsed?.metadata?.id ?? parsed?.createdAt;
+            const pid = p.parsed?.metadata?.profileId ?? p.parsed?.metadata?.id ?? p.parsed?.createdAt;
+            return curId !== pid;
+          }) || parsedProfiles[1] || parsedProfiles[0];
+        }
+
+        if (candidateWrapper) {
+          const candidate = candidateWrapper.parsed;
+          const norm = normalizeParsedToDisplay(candidate);
+          setPreviousDisplay(norm);
+          // set selectedProfileIndex to first candidate index in parsedProfilesList
+          const foundIndex = parsedProfiles.findIndex((pp: any) => pp.parsed === candidate);
+          setSelectedProfileIndex(foundIndex >= 0 ? foundIndex : 0);
+        } else {
+          setPreviousDisplay(null);
+        }
       } catch (e) {
-        console.warn('Error building traineePayload for logging', e);
+        console.warn('Could not load previous profiles', e);
+        setPreviousDisplay(null);
+      } finally {
+        if (mounted) setPrevLoading(false);
       }
-
-      const res = await submitProfiles(onboarding, bodyGramForApi, 'BodyGram');
-      setLoading(false);
-      console.log('submitProfiles result', res);
-      if (res.ok) {
-        await saveMeasurements();
-
-        try {
-          const me = await getProfile();
-          if (me.ok) {
-            const d: any = me.data;
-            const userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
-            if (userId) {
-              const info: any = {
-                profileId: res.data?.health?.id ?? res.data?.health?.profileId ?? undefined,
-                savedAt: Date.now(),
-                summary: { height: display.height_est, weight: display.weight_est },
-              };
-              await setBodySavedFor(userId, info);
-            }
-          }
-        } catch (e) {
-          console.warn('Could not persist per-user body saved info', e);
-        }
-
-        setToastType('success');
-        setToastMsg('Lưu hồ sơ thành công');
-        setToastVisible(true);
-        setTimeout(() => navigation.replace('MainTabs'), 700);
-      } else {
-        const msg = typeof res.error === 'string' ? res.error : JSON.stringify(res.error);
-        console.warn('submitProfiles error', res.error);
-        if (res.error && typeof res.error === 'object') {
-          try {
-            console.error('submitProfiles error details:', res.error);
-          } catch (e) {
-            console.warn('Could not stringify error details', e);
-          }
-        }
-        setToastType('error');
-        setToastMsg(`Lỗi khi lưu: ${msg}`);
-        setToastVisible(true);
-        Alert.alert('Lỗi', msg);
-      }
-    } catch (e: any) {
-      setLoading(false);
-      const msg = e?.message ?? String(e);
-      console.error('submitProfiles thrown error', e);
-      setToastType('error');
-      setToastMsg(`Lỗi khi lưu: ${msg}`);
-      setToastVisible(true);
-      Alert.alert('Lỗi', msg);
     }
-  };
- console.log('Rendered BodyGramResult with measurements:', saveMeasurements);
+    // derive a stable key from rawResponse timestamps so effect doesn't re-run every render
+    loadPrevious();
+    return () => { mounted = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawResponse?.entry?.createdAt, rawResponse?.createdAt]);
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* HEADER: centered title + back */}
@@ -312,6 +307,31 @@ export default function BodyGramResult({ route, navigation }: Props) {
           </View>
         </View>
 
+        {/* PROFILE SELECTOR (previous profiles) */}
+        {parsedProfilesList.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+            {parsedProfilesList.map((p, i) => {
+              const label = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : `#${i+1}`;
+              const active = selectedProfileIndex === i;
+              const brief = normalizeParsedToDisplay(p);
+              return (
+                <Pressable
+                  key={i}
+                  onPress={() => { setSelectedProfileIndex(i); setPreviousDisplay(normalizeParsedToDisplay(p)); }}
+                  className={`mr-3 p-3 rounded-lg ${active ? 'bg-amber-200' : 'bg-white'}`}
+                  style={{ minWidth: 140 }}
+                >
+                  <Text className="text-sm font-semibold mb-1">{label}</Text>
+                  <Text className="text-xs text-gray-600">Cân nặng: {brief?.weight_est ?? '-'} kg</Text>
+                  <Text className="text-xs text-gray-600">Ngực: {brief?.bust ?? '-'} cm</Text>
+                  <Text className="text-xs text-gray-600">Eo: {brief?.waist ?? '-'} cm</Text>
+                  <Text className="text-xs text-gray-600">Hông: {brief?.hip ?? '-'} cm</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
+
         {/* DETAIL TILES */}
         <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
         <View className="flex-row flex-wrap -m-2">
@@ -322,30 +342,47 @@ export default function BodyGramResult({ route, navigation }: Props) {
             { key: 'bicep', label: 'Bắp tay' },
             { key: 'thigh', label: 'Đùi' },
             { key: 'calf', label: 'Bắp chân' },
-          ].map((t) => (
-            <View key={t.key} className="w-1/2 p-2">
-              <View className="bg-background-sub2 rounded-xl p-4 shadow">
-                <Text className="text-sm text-gray-700">{t.label}</Text>
-                <Text className="text-2xl font-extrabold mt-2">{display[t.key] ?? '-'}cm</Text>
+          ].map((t) => {
+            const cur = display[t.key] ?? null;
+            const prev = previousDisplay ? previousDisplay[t.key] ?? null : null;
+            const delta = (cur != null && prev != null) ? cur - prev : null;
+            const pct = (delta != null && prev) ? (delta / prev * 100) : null;
+            const isIncrease = delta != null ? delta > 0 : false;
+            const changeColor = delta == null ? 'text-gray-500' : isIncrease ? 'text-green-600' : 'text-red-600';
+
+            return (
+              <View key={t.key} className="w-1/2 p-2">
+                <View className="bg-background-sub2 rounded-xl p-4 shadow">
+                  <Text className="text-sm text-gray-700">{t.label}</Text>
+                  <View className="flex-row items-baseline justify-between mt-2">
+                    <Text className="text-2xl font-extrabold">{cur ?? '-'}cm</Text>
+                    {delta != null ? (
+                      <View className="items-end">
+                        <Text className={`${changeColor} text-lg font-semibold`}>{delta > 0 ? `+${delta}` : `${delta}`}{t.key === 'weight' || t.key === 'weight_est' ? ' kg' : ' cm'}</Text>
+                        {pct != null ? <Text className="text-xs text-gray-500">{pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}</Text> : null}
+                      </View>
+                    ) : (
+                      <Text className="text-sm text-gray-500">Không có dữ liệu trước</Text>
+                    )}
+                  </View>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
-        {loading ? <LoadingOverlay message="Đang lưu hồ sơ..." /> : null}
-        <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+        {/* Compare with previous profile if available (auto-loaded most recent) */}
+        {/* detailed per-tile deltas rendered above */}
 
-      </ScrollView>
+         {prevLoading ? <LoadingOverlay message="Đang tải hồ sơ trước..." /> : null}
+         <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
-      {/* Fixed footer with Save button */}
-      <View style={styles.footer}>
-        <Pressable onPress={handleSubmitAll} style={styles.saveBtn} disabled={loading}>
-          <Text style={styles.saveBtnText}>Lưu kết quả</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
-  );
-}
+       </ScrollView>
+
+       
+     </SafeAreaView>
+   );
+ }
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff' },
@@ -355,6 +392,5 @@ const styles = StyleSheet.create({
   headerTitleCenter: { textAlign: 'center', flex: 1 },
   scrollContent: { paddingBottom: 140 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: 'transparent' },
-  saveBtn: { backgroundColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700' },
+ 
 });

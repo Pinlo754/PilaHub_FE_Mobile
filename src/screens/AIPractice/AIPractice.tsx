@@ -7,9 +7,9 @@ import ImageExercise from './components/ImageExercise';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import InstructModal from './components/InstructModal';
 import AITracking from '../AITracking/AITracking';
-import { useRef, useState } from 'react';
-import { captureScreen } from "react-native-view-shot";
-import RNFS from "react-native-fs";
+import { useRef, useState, useEffect } from 'react';
+import { useBle } from '../../services/BleProvider';
+import ViewShot from 'react-native-view-shot';
 type Props = NativeStackScreenProps<RootStackParamList, 'AIPractice'>;
 
 const AIPractice = (props: Props) => {
@@ -31,46 +31,51 @@ const AIPractice = (props: Props) => {
     detail: 'Đang đợi dữ liệu...',
   });
 
+  const viewShotRef = useRef<ViewShot>(null);
+
   const captureMistakeImage = async () => {
     try {
-      const uri = await captureScreen({
-        format: "jpg",
-        quality: 0.9,
-      });
+      const uri = await viewShotRef.current?.capture?.();
 
-      // folder lưu ảnh lâu dài
-      const folder = `${RNFS.DocumentDirectoryPath}/mistakes`;
-
-      // tạo folder nếu chưa có
-      const folderExists = await RNFS.exists(folder);
-      if (!folderExists) {
-        await RNFS.mkdir(folder);
-      }
-
-      const newPath = `${folder}/mistake_${Date.now()}.jpg`;
-
-      // copy từ cache -> document
-      await RNFS.copyFile(uri ?? '', newPath);
-
-      console.log("Saved image:", newPath);
-
-      return newPath;
+      return uri; // local path
     } catch (e) {
       console.log(e);
       return "";
     }
   };
 
+  // start BLE scan automatically when this screen mounts to surface HR quickly
+  const { startScanForPolar, stopScan } = useBle();
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await startScanForPolar();
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      if (mounted) stopScan();
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <View className="flex-1 bg-background">      
-        <StatusBar hidden={showInstruct} />
+    <View className="flex-1 bg-background pt-14">
+      <ViewShot
+      ref={viewShotRef}
+      style={{ flex: 1 }}
+      options={{ format: "jpg", quality: 0.8, result: "tmpfile" }}
+    >
+      <StatusBar hidden={showInstruct} />
 
-        {/* Header */}
-        <View className="absolute top-0 h-36 pt-8 left-0 right-0 z-10 bg-background ">
-          <Header openInstructModal={openInstructModal} />
-        </View>
-        {/* Image / Video Record
+      {/* Header */}
+      <View className="absolute top-0 h-36 pt-8 left-0 right-0 z-10 bg-background ">
+        <Header openInstructModal={openInstructModal} />
+      </View>
+      {/* Image / Video Record
       {isVideoVisible ? (
         <VideoPlayer
           source={videoUrl}
@@ -85,51 +90,52 @@ const AIPractice = (props: Props) => {
         />
       )} */}
 
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
-          <AITracking
-            workoutSessionId={workoutSessionId}
-            onFeedback={setFeedback}
-            captureMistakeImage={captureMistakeImage}
-          />
-        </View>
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
-          <View className="absolute bottom-0 left-0 right-0 h-40 bg-background" />
-          <View className="absolute bottom-10 left-5 right-5">
-            <View
-              className={`p-5 rounded-3xl border-2 ${feedback.status.includes('❌') ? 'border-red-500' : 'border-emerald-500'}`}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        <AITracking
+          workoutSessionId={workoutSessionId}
+          onFeedback={setFeedback}
+          captureMistakeImage ={captureMistakeImage}
+        />
+      </View>
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        <View className="absolute bottom-0 left-0 right-0 h-40 bg-background" />
+        <View className="absolute bottom-10 left-5 right-5">
+          <View
+            className={`p-5 rounded-3xl border-2 ${feedback.status.includes('❌') ? 'border-red-500' : 'border-emerald-500'}`}
+          >
+            <Text
+className={`text-2xl font-bold text-center ${feedback.status.includes('❌') ? 'text-red-500' : 'text-emerald-500'}`}
             >
-              <Text
-                className={`text-2xl font-bold text-center ${feedback.status.includes('❌') ? 'text-red-500' : 'text-emerald-500'}`}
-              >
-                {feedback.status}
-              </Text>
-              <Text className="text-foreground text-center text-base mt-2 font-medium">
-                {feedback.detail}
-              </Text>
-            </View>
+              {feedback.status}
+            </Text>
+            <Text className="text-foreground text-center text-base mt-2 font-medium">
+              {feedback.detail}
+            </Text>
           </View>
         </View>
-        {/* Instruct Modal */}
-        {showInstruct && (
-          <View className="absolute inset-0 bg-black/40">
-            <InstructModal visible={showInstruct} onClose={closeInstructModal} />
-          </View>
-        )}
+      </View>
+      {/* Instruct Modal */}
+      {showInstruct && (
+        <View className="absolute inset-0 bg-black/40">
+          <InstructModal visible={showInstruct} onClose={closeInstructModal} />
+        </View>
+      )}
+      </ViewShot>
     </View>
   );
 };

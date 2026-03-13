@@ -11,6 +11,7 @@ import {
   WorkoutExerciseReq,
   WorkoutSessionType,
 } from '../../utils/WorkoutSessionType';
+import { useBle } from '../../services/BleProvider';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -35,6 +36,13 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [haveIOTDeviceTracking, setHaveIOTDeviceTracking] =
     useState<boolean>(false);
   const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType>();
+
+  // read BLE connection state to decide whether IoT device tracking is available
+  const { connectedDevice } = useBle();
+
+  useEffect(() => {
+    setHaveIOTDeviceTracking(Boolean(connectedDevice));
+  }, [connectedDevice]);
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
@@ -99,7 +107,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const payload: WorkoutExerciseReq = {
         exerciseId: id,
         haveAITracking: true,
-        haveIOTDeviceTracking: false,
+        haveIOTDeviceTracking: Boolean(connectedDevice) || haveIOTDeviceTracking,
       };
 
       const res = await workoutSessionService.startFreeWorkout(payload);

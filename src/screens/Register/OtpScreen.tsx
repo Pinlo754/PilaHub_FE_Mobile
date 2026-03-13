@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { verifyEmail, resendOtp, login } from '../../services/auth';
 import Toast from '../../components/Toast';
+import { postLoginRouting } from '../../utils/afterAuth';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
@@ -42,11 +43,11 @@ const OtpScreen: React.FC<Props> = ({ route, navigation }) => {
         setToastType('success');
         setToastMsg('Xác thực thành công');
         setToastVisible(true);
-        // auto login then go to MainTabs
+        // auto login then go through post-login routing
         if (password) {
           const r = await login({ email, password });
           if (r.ok) {
-            navigation.replace('MainTabs');
+            await postLoginRouting(navigation, r.data ?? {});
             return;
           }
         }

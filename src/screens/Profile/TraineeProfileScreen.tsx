@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, ActivityIndicator, Alert, SafeAreaView, StyleSheet, Pressable } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Alert, StyleSheet, Pressable } from 'react-native';
 import { getProfile } from '../../services/auth';
 import { fetchTraineeProfile, updateTraineeProfile } from '../../services/profile';
+import { fetchMyWallet } from '../../services/wallet';
 import ProfileHeader from './components/ProfileHeader';
 import StatsGrid from './components/StatsGrid';
 import ActivityChart from './components/ActivityChart';
@@ -11,6 +12,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import PlanList from './components/PlanList';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const localStyles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF6EE' },
@@ -23,6 +25,8 @@ const TraineeProfileScreen: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [wallet, setWallet] = useState<any | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -49,6 +53,23 @@ const TraineeProfileScreen: React.FC = () => {
         if (mounted) setLoading(false);
       }
     })();
+
+    // fetch wallet separately
+    (async () => {
+      try {
+        setWalletLoading(true);
+        const w = await fetchMyWallet();
+        if (mounted) {
+          if (w.ok) setWallet(w.data ?? w);
+          else setWallet(null);
+        }
+      } catch {
+        if (mounted) setWallet(null);
+      } finally {
+        if (mounted) setWalletLoading(false);
+      }
+    })();
+
     return () => { mounted = false; };
   }, []);
 
@@ -125,8 +146,13 @@ const TraineeProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-amber-50">
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+        <Pressable onPress={() => navigation.goBack()} className="p-2"><Text className="text-xl">‹</Text></Pressable>
+        <Text className="text-lg font-semibold">Hồ sơ</Text>
+        <View className="w-8" />
+      </View>
       <ScrollView contentContainerStyle={localStyles.scrollPadding}>
-        <ProfileHeader profile={profile} onEdit={openEdit} onAvatarPress={() => Alert.alert('Chi tiết', 'Mở trang chi tiết hồ sơ (hardcoded)')} onAvatarEdit={handleAvatarEdit} />
+        <ProfileHeader profile={profile} onEdit={openEdit} onAvatarPress={() => Alert.alert('Chi tiết', 'Mở trang chi tiết hồ sơ (hardcoded)')} onAvatarEdit={handleAvatarEdit} wallet={wallet} walletLoading={walletLoading} />
 
         <StatsGrid stats={{ exercisesCount, kcal, streak, level }} />
 
