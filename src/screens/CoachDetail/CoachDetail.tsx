@@ -13,10 +13,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CoachDetail'>;
 
 const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   // HOOK
-  const { coachDetail, scrollY, onPressBtn } = useCoachDetail({
+  const { coachDetail, coachFeedbacks, scrollY, onPressBtn } = useCoachDetail({
     route,
     navigation,
   });
+
+  // CALC
+  const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
 
   // LOADING
   if (!coachDetail) return null;
@@ -27,11 +30,11 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       <Header
         navigation={navigation}
         scrollY={scrollY}
-        coachId={coachDetail.coach_id}
+        coachId={coachDetail.coachId}
       />
 
       <Animated.ScrollView
-        contentContainerStyle={{ paddingBottom: 320 }}
+        contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -41,18 +44,21 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       >
         {/* Image */}
         <ImageCoach
-          imgUrl={coachDetail?.avatar}
-          coachName={coachDetail?.full_name}
+          imgUrl={coachDetail?.avatarUrl}
+          coachName={coachDetail?.fullName}
         />
 
         {/* Stats Card */}
         <StatsCard
-          rate={coachDetail?.rating_avg}
-          experienceYears={coachDetail?.experience_years}
+          rate={coachDetail?.avgRating || 0}
+          experienceYears={coachDetail?.yearsOfExperience}
         />
 
         {/* Overview Section */}
-        <OverviewSection coachDetail={coachDetail} />
+        <OverviewSection
+          coachDetail={coachDetail}
+          coachFeedbacks={coachFeedbacks}
+        />
       </Animated.ScrollView>
 
       <View className="pt-2 px-4 pb-6">

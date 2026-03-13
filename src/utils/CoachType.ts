@@ -6,11 +6,12 @@ export type CoachType = {
   age: number;
   gender: GenderType;
   avatarUrl: string;
-  rating_avg: number;
+  avgRating: number | null;
   yearsOfExperience: number;
   bio: string;
-  specialization: string[];
-  certifications: string[];
+  specialization: string;
+  certificationsUrl: string;
+  pricePerHour: number;
   active: boolean;
 };
 
@@ -20,7 +21,7 @@ export type FeedbackType = {
   coachFullName: string;
   traineeId: string;
   traineeFullName: string;
-  img_url: string;
+  traineeAvatarUrl: string;
   rating: number;
   comment: string;
   createdAt: string;

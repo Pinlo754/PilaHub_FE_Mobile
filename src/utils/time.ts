@@ -14,12 +14,18 @@ type FormatInput = number | TimeParts;
 
 export type SessionType = 'morning' | 'afternoon' | 'evening';
 
+// CALC
 export const calculateTimeParts = (totalSeconds: number): TimeParts => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = Math.floor(totalSeconds % 60);
 
   return { hours, minutes, seconds };
+};
+
+export const hoursToTimeParts = (hours: number): TimeParts => {
+  const totalSeconds = Math.round(hours * 3600);
+  return calculateTimeParts(totalSeconds);
 };
 
 // FORMAT
@@ -50,7 +56,9 @@ export const formatTime = (
   if (hours > 0) {
     return showSeconds
       ? `${hours}h ${minutes}p ${seconds}s`
-      : `${hours}h ${minutes}p`;
+      : minutes > 0
+        ? `${hours}h ${minutes}p`
+        : `${hours}h`;
   }
 
   if (minutes > 0) {
@@ -60,6 +68,10 @@ export const formatTime = (
   return showSeconds ? `${seconds}s` : `0p`;
 };
 
+export const formatHours = (hours: number) => {
+  return formatTime(hoursToTimeParts(hours), { showSeconds: false });
+};
+
 // CONVERT
 export const secondsToTime = (
   totalSeconds: number,
@@ -67,6 +79,11 @@ export const secondsToTime = (
 ): string => {
   const parts = calculateTimeParts(totalSeconds);
   return formatTime(parts, options);
+};
+
+export const timeToMinutes = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
 };
 
 // GET

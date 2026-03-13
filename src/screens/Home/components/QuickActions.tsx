@@ -32,7 +32,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 18,
     bgColor: colors.info[20],
     iconColor: colors.info.darker,
-    route: 'TraineeFeedback',
+    route: 'VideoCall',
   },
   {
     id: 'calendar',
@@ -50,7 +50,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     size: 23,
     bgColor: colors.purple[20],
     iconColor: colors.purple.DEFAULT,
-    route: 'AISummary',
+    route: 'TraineeBooking',
   },
 ];
 

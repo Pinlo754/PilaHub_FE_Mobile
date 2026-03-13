@@ -5,7 +5,7 @@ export type CourseType = {
   name: string;
   description: string;
   imageUrl: string;
-  difficultyLevel: LevelType;
+  level: LevelType;
   price: number;
   active: boolean;
   totalLesson: number;

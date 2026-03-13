@@ -32,12 +32,12 @@ const List = ({ data, navigation, onPressCoach }: Props) => {
           isLast={index === data.length - 1}
           onPressCard={() =>
             navigation.navigate('CoachDetail', {
-              coach_id: item.coach_id,
-              selectedCoachId: item.coach_id,
+              coach_id: item.coachId,
+              selectedCoachId: item.coachId,
             })
           }
           onPressBtn={() => {
-            onPressCoach(item.coach_id);
+            onPressCoach(item.coachId);
           }}
         />
       );
@@ -45,14 +45,12 @@ const List = ({ data, navigation, onPressCoach }: Props) => {
     [data.length, navigation, onPressCoach],
   );
 
-  console.log('coach', data);
-
   return (
     <View className="w-full flex-1 gap-2">
       <FlatList
         ref={listRef}
         data={data}
-        keyExtractor={item => item.coach_id}
+        keyExtractor={item => item.coachId}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 8 }}

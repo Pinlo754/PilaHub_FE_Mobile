@@ -38,6 +38,6 @@ export const SEARCH_CONFIG: { [K in SearchTab]: TabConfigItem<K> } = {
     Card: CardCoach,
     screen: 'CoachDetail',
     paramKey: 'coach_id',
-    idKey: 'coach_id',
+    idKey: 'coachId',
   },
 };

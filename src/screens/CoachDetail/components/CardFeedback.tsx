@@ -1,9 +1,9 @@
 import { Image, Text, View } from 'react-native';
 import StarRating from './StarRating';
-import { FeedbackType } from '../../../utils/CoachType';
+import { CoachFeedbackType } from '../../../utils/CoachFeedbackType';
 
 type Props = {
-  item: FeedbackType;
+  item: CoachFeedbackType;
 };
 
 const CardFeedback = ({ item }: Props) => {
@@ -14,7 +14,7 @@ const CardFeedback = ({ item }: Props) => {
         <View className="rounded-full overflow-hidden w-10 h-10">
           <Image
             source={{
-              uri: item.img_url,
+              uri: item.traineeAvatarUrl,
             }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
@@ -24,13 +24,13 @@ const CardFeedback = ({ item }: Props) => {
         {/* Name & Rating */}
         <View className="flex-grow self-center">
           <Text className="color-foreground font-semibold">
-            {item.user_name}
+            {item.traineeFullName}
           </Text>
           <StarRating rating={item.rating} size={12} />
         </View>
 
         {/* Date */}
-        <Text className="color-secondaryText text-xs">{item.date}</Text>
+        <Text className="color-secondaryText text-xs">{item.createdAt}</Text>
       </View>
 
       {/* Comment */}

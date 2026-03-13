@@ -21,6 +21,8 @@ import TraineeReport from '../screens/TraineeReport/TraineeReport';
 import AISummary from '../screens/AISummary/AISummary';
 import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
+import TraineeBooking from '../screens/TraineeBooking/TraineeBooking';
+import VideoCall from '../screens/VideoCall/VideoCall';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -36,11 +38,13 @@ export type RootStackParamList = {
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;
-  RegisterCalendar: { coach_id?: string | null };
-  TraineeFeedback: undefined;
+  RegisterCalendar: { coach_id?: string | null; pricePerHour?: number };
+  TraineeFeedback: { liveSessionId?: string };
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: undefined;
   AIPractice: { exercise_id: string; imgUrl: string; videoUrl: string };
+  TraineeBooking: undefined;
+  VideoCall: { bookingId: string };
   TestNavigateScreen: undefined;
 };
 
@@ -73,6 +77,8 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
+        <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
+        <Stack.Screen name="VideoCall" component={VideoCall} />
         <Stack.Screen
           name="TestNavigateScreen"
           component={TestNavigateScreen}

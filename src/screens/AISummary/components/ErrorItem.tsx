@@ -3,6 +3,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { ErrorItemType } from '../../../utils/SummaryType';
 import ErrorExpandContent from './ErrorExpandContent';
 import { colors } from '../../../theme/colors';
+import { secondsToTime } from '../../../utils/time';
 
 type Props = {
   item: ErrorItemType;
@@ -27,7 +28,7 @@ const ErrorItem = ({ item, expanded, onPress, onPlayVideo }: Props) => {
         <View className="flex-row items-center">
           <View className="bg-background-sub2 px-2 py-1 rounded mr-2">
             <Text className="text-secondaryText font-semibold">
-              {item.time}
+              {secondsToTime(item.time)}
             </Text>
           </View>
 

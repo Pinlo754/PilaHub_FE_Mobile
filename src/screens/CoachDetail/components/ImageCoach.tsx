@@ -9,7 +9,7 @@ type Props = {
 
 const ImageCoach = ({ imgUrl, coachName }: Props) => {
   return (
-    <View className="w-full h-[40%] overflow-hidden relative">
+    <View className="w-full h-[320px] overflow-hidden relative">
       <Image
         source={{ uri: imgUrl }}
         style={{ width: '100%', height: '100%' }}
