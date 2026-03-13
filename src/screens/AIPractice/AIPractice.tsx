@@ -7,7 +7,8 @@ import ImageExercise from './components/ImageExercise';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import InstructModal from './components/InstructModal';
 import AITracking from '../AITracking/AITracking';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useBle } from '../../services/BleProvider';
 import ViewShot from 'react-native-view-shot';
 type Props = NativeStackScreenProps<RootStackParamList, 'AIPractice'>;
 
@@ -43,6 +44,23 @@ const AIPractice = (props: Props) => {
     }
   };
 
+  // start BLE scan automatically when this screen mounts to surface HR quickly
+  const { startScanForPolar, stopScan } = useBle();
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await startScanForPolar();
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      if (mounted) stopScan();
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <View className="flex-1 bg-background pt-14">

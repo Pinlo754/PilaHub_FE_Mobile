@@ -1,4 +1,4 @@
-import { ScrollView, StatusBar, View } from 'react-native';
+import { ScrollView, StatusBar, View, StyleSheet } from 'react-native';
 import Header from './components/Header';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -29,13 +29,20 @@ const AISummary = ({ route, navigation }: Props) => {
     isVideoExpand,
     toggleVideoExpand,
     showVideoError,
-    openErrorVideo,
     closeErrorVideo,
     isVideoPlay,
     togglePlayButton,
   } = useAISummary();
-  const { videoUrl, mistakeLog, feedback } = route.params;
+  // receive heartRateLogs from navigation params
+  const { videoUrl, mistakeLog, feedback, heartRateLogs } = route.params;
   const [seekTime, setSeekTime] = useState<number | null>(null);
+
+  // prepare numeric array for chart
+  const heartRateData: number[] = (heartRateLogs && heartRateLogs.length > 0)
+    ? [...heartRateLogs]
+        .sort((a, b) => a.recordedAt - b.recordedAt)
+        .map(h => h.heartRate || 0)
+    : [];
 
   const handleSeekToError = (time: number) => {
     if (!isVideoVisible) {
@@ -65,7 +72,7 @@ const AISummary = ({ route, navigation }: Props) => {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         scrollEnabled={!isVideoExpand && !showVideoError.visible}
       >
@@ -78,7 +85,7 @@ const AISummary = ({ route, navigation }: Props) => {
             <StatsSection feedback={feedback} />
 
             {/* Heart Rate Chart */}
-            <HeartRateChart heartRateData={[56, 100, 90, 78, 70, 60]} />
+            <HeartRateChart heartRateData={heartRateData.length ? heartRateData : [56, 100, 90, 78, 70, 60]} />
 
             {/* Metrics Section */}
             <MetricsSection
@@ -142,3 +149,7 @@ const AISummary = ({ route, navigation }: Props) => {
 };
 
 export default AISummary;
+
+const styles = StyleSheet.create({
+  contentContainer: { paddingBottom: 20 },
+});

@@ -27,6 +27,9 @@ import { WorkoutSessionType } from '../../utils/WorkoutSessionType';
 import { Video } from 'react-native-compressor';
 import { getBodyPartId } from '../../utils/BodyPart';
 import ViewShot from "react-native-view-shot";
+import { useBle } from '../../services/BleProvider';
+import api from '../../hooks/axiosInstance';
+import { heartRateService } from '../../hooks/heartRate.service';
 type Props = {
   workoutSessionId: string;
   onFeedback: (data: { status: string; detail: string }) => void;
@@ -66,6 +69,9 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const isProcessing = useRef(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const sessionStartTime = useRef<number>(0);
+  const { hr } = useBle();
+  const hrSamplesRef = useRef<Array<{ heartRate: number; recordedAt: number }>>([]);
+  const hrTimerRef = useRef<number | null>(null);
   const [mistakeLogs, setMistakeLogs] = useState<any[]>([]);
   const [showCamera, setShowCamera] = useState(true);
   const DEBOUNCE_TIME = 1250;
@@ -129,6 +135,13 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       setMistakeLogs([]);
 
 
+      // reset HR samples
+      hrSamplesRef.current = [];
+
+      // mark session start immediately to ensure recordedAt is relative
+      sessionStartTime.current = Date.now();
+
+
       startGlobalRecording({
         onRecordingError: err => {
           Alert.alert('Recording error', err.message);
@@ -150,6 +163,11 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     setIsSessionActive(false);
     setShowCamera(false);
     try {
+      // stop HR sampling
+      if (hrTimerRef.current) {
+        clearInterval(hrTimerRef.current as unknown as number);
+        hrTimerRef.current = null;
+      }
       setIsSaving(true);
       const file = await stopGlobalRecording({
         settledTimeMs: 1000,
@@ -170,24 +188,45 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       console.log("Original video:", file.path);
 
 
-      // 🎥 Compress video
-      const compressedVideo = await Video.compress(file.path, {
-        compressionMethod: 'manual',
-        bitrate: 5000000,
-        //bitrate: 20000000,    //production
-        //minimumFileSizeForCompress: 1000000000,   //production
-        progressDivider: 10,
-      },
-        (progress) => {
-          console.log(`Đang nén: ${Math.round(progress * 100)}%`);
-        });
+      // // 🎥 Compress video
+      // const compressedVideo = await Video.compress(file.path, {
+      //   compressionMethod: 'manual',
+      //   // bitrate: 5000000,
+      //   bitrate: 20000000,    //production
+      //   minimumFileSizeForCompress: 1000000000,   //production
+      //   progressDivider: 10,
+      // },
+      //   (progress) => {
+      //     console.log(`Đang nén: ${Math.round(progress * 100)}%`);
+      //   });
 
 
       // 🔥 Upload video đã nén
-      const downloadURL = await uploadVideoToFirebase(compressedVideo);
-
+      // const downloadURL = await uploadVideoToFirebase(compressedVideo);
+const downloadURL = await uploadVideoToFirebase(file.path);
 
       console.log('Video uploaded. URL:', downloadURL);
+
+
+      // send HR samples batch to backend if any
+      try {
+        const samples = hrSamplesRef.current || [];
+        if (samples.length > 0) {
+          // simple dedupe: collapse consecutive samples with same HR
+          const compressed: Array<{ heartRate: number; recordedAt: number }> = [];
+          for (const s of samples) {
+            const last = compressed[compressed.length - 1];
+            if (!last || last.heartRate !== s.heartRate) {
+              compressed.push(s);
+            }
+          }
+          console.log('Sending HR logs batch (compressed):', compressed.length, 'original:', samples.length);
+          await heartRateService.sendBatch(workoutSessionId, compressed);
+          console.log('HR logs batch sent:', compressed.length);
+        }
+      } catch (e) {
+        console.warn('Failed to send HR logs batch', e);
+      }
 
 
       await Promise.all(
@@ -253,10 +292,12 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
 
 
       console.log('AI Feedback')
+      // pass HR samples to AISummary so UI can render heart rate timeline
       navigation.navigate('AISummary', {
         feedback: AIFeedback,
         videoUrl: downloadURL,
         mistakeLog: mistakeLogs,
+        heartRateLogs: hrSamplesRef.current || [],
       });
 
 
@@ -265,6 +306,8 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       setIsSaving(false);
     } finally {
       setIsSaving(false);
+      // reset session start time
+      sessionStartTime.current = 0;
     }
   };
 
@@ -382,6 +425,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
 
     const duration =
       (endTime - activeMistake.current.startTime) / 1000;
+      
 
 
     if (duration >= 1.25) {
@@ -530,6 +574,42 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   useEffect(() => {
     loadSounds();
   }, []);
+
+
+  // start/stop HR sampling while session active
+  useEffect(() => {
+    if (isSessionActive) {
+      // ensure previous timer cleared
+      if (hrTimerRef.current) {
+        clearInterval(hrTimerRef.current as unknown as number);
+        hrTimerRef.current = null;
+      }
+      // sample every 500ms
+      hrTimerRef.current = setInterval(() => {
+        try {
+          const s = sessionStartTime.current;
+          if (!s || s === 0) return; // wait until recording started
+          if (typeof hr !== 'number' || hr === null) return;
+          const recordedAt = Math.round((Date.now() - s) / 1000);
+          hrSamplesRef.current.push({ heartRate: hr, recordedAt });
+        } catch (e) {
+          // ignore sampling errors
+        }
+      }, 500) as unknown as number;
+    } else {
+      if (hrTimerRef.current) {
+        clearInterval(hrTimerRef.current as unknown as number);
+        hrTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (hrTimerRef.current) {
+        clearInterval(hrTimerRef.current as unknown as number);
+        hrTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSessionActive, hr]);
 
 
   if (plugin.state === 'loading') {

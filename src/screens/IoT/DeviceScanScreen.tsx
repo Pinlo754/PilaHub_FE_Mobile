@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, Platform, PermissionsAndroid, TextInput } from 'react-native';
-import { BleManager, Device } from 'react-native-ble-plx';
+import { Device } from 'react-native-ble-plx';
+import { getBleManager } from '../../services/bleManager';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createIoTDevice } from '../../hooks/iotClient';
 // Types for optional bluetooth-classic library
 type ClassicDevice = { id: string; name?: string; address?: string; rssi?: number };
 
-const manager = new BleManager();
+const manager = getBleManager();
 
 const requestAndroidPermissions = async () => {
   if (Platform.OS !== 'android') return true;
@@ -69,7 +70,8 @@ const DeviceScanScreen: React.FC = () => {
       Object.keys(timersSnapshot).forEach((id) => {
         try { clearTimeout(timersSnapshot[id]); } catch {}
       });
-      manager.destroy();
+      // Do NOT destroy the global BleManager singleton here — keep it alive for the app.
+      // manager.destroy();
     };
   }, []);
 

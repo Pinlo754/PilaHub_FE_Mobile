@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Button,
   Platform,
   PermissionsAndroid,
   StyleSheet,
@@ -12,11 +11,13 @@ import {
 import { Device, Subscription } from 'react-native-ble-plx';
 import { Buffer } from 'buffer';
 import { getBleManager } from '../services/bleManager';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../theme/colors';
 
 const HEART_RATE_SERVICE = '180D';
 const HEART_RATE_MEASUREMENT = '2A37';
 
-export default function PolarHeartRate() {
+export default function PolarHeartRate({ compact = false }: { compact?: boolean }) {
   const manager = getBleManager();
   const [scanning, setScanning] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -24,7 +25,10 @@ export default function PolarHeartRate() {
   const [hr, setHr] = useState<number | null>(null);
   const [status, setStatus] = useState<string>('idle');
   const monitorSub = useRef<Subscription | null>(null);
-  const scanSub = useRef<Subscription | null>(null);
+  const stopTimer = useRef<number | null>(null);
+  const [servicesList, setServicesList] = useState<
+    { uuid: string; characteristics: { uuid: string; isNotifiable?: boolean }[] }[]
+  >([]);
 
   useEffect(() => {
     return () => {
@@ -63,7 +67,7 @@ export default function PolarHeartRate() {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       }
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -73,15 +77,16 @@ export default function PolarHeartRate() {
     try {
       const data = Buffer.from(base64Value, 'base64');
       const flags = data.readUInt8(0);
-      const hrFormatUint16 = (flags & 0x01) === 0x01;
-      let hrValue = null;
+      // avoid bitwise lint rule by using modulo to check LSB
+      const hrFormatUint16 = flags % 2 === 1;
+      let hrValue: number | null = null;
       if (hrFormatUint16) {
         hrValue = data.readUInt16LE(1);
       } else {
         hrValue = data.readUInt8(1);
       }
       return hrValue;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -95,16 +100,20 @@ export default function PolarHeartRate() {
 
     setScanning(true);
     setStatus('scanning');
+    console.log('[PolarHeartRate] startScan');
 
-    scanSub.current = manager.startDeviceScan([HEART_RATE_SERVICE], null, (err, d) => {
+    // scan all devices (some Polar H10 may not advertise HR service in advertisement)
+    manager.startDeviceScan(null, null, (err, d) => {
       if (err) {
+        console.log('[PolarHeartRate] scan error', err);
         setStatus('scan_error');
         setScanning(false);
         return;
       }
       if (!d) return;
-      const name = d.name || d.localName || '';
-      if (name.toLowerCase().includes('polar') || name.toLowerCase().includes('h10')) {
+      console.log('[PolarHeartRate] found device', d.id, d.name, d.localName, d.serviceUUIDs);
+      const name = (d.name || d.localName || '').toLowerCase();
+      if (name.includes('polar') || name.includes('h10')) {
         // found presumed Polar H10
         stopScan();
         connectToDevice(d);
@@ -112,7 +121,7 @@ export default function PolarHeartRate() {
     });
 
     // fallback stop after 15s
-    setTimeout(() => {
+    stopTimer.current = setTimeout(() => {
       if (scanning) {
         stopScan();
         setStatus('not_found');
@@ -122,8 +131,10 @@ export default function PolarHeartRate() {
 
   function stopScan() {
     try {
-      scanSub.current?.remove();
-      scanSub.current = null;
+      if (stopTimer.current) {
+        clearTimeout(stopTimer.current as unknown as number);
+        stopTimer.current = null;
+      }
       manager.stopDeviceScan();
     } catch {
       // ignore
@@ -143,30 +154,114 @@ export default function PolarHeartRate() {
   async function connectToDevice(d: Device) {
     setConnecting(true);
     setStatus('connecting');
+    console.log('[PolarHeartRate] connectToDevice', d.id, d.name);
     try {
       const connected = await manager.connectToDevice(d.id, { timeout: 10000 });
+      console.log('[PolarHeartRate] connected', connected.id);
       await connected.discoverAllServicesAndCharacteristics();
+      console.log('[PolarHeartRate] discovered services/characteristics');
       setDevice(connected);
       setStatus('connected');
-      // subscribe to heart rate measurement characteristic
-      monitorSub.current = manager.monitorCharacteristicForDevice(
-        connected.id,
-        HEART_RATE_SERVICE,
-        HEART_RATE_MEASUREMENT,
-        (error, characteristic) => {
-          if (error) {
-            setStatus('monitor_error');
-            return;
+
+      // enumerate services & characteristics and pick proper HR characteristic dynamically
+      try {
+        const services = await manager.servicesForDevice(connected.id);
+        console.log('[PolarHeartRate] services', services.map(s => s.uuid));
+        let found = false;
+        // collect services + characteristics for UI
+        const collected: { uuid: string; characteristics: { uuid: string; isNotifiable?: boolean }[] }[] = [];
+        for (const s of services) {
+          try {
+            const chars = await manager.characteristicsForDevice(connected.id, s.uuid);
+            // push service + its characteristics into collected for later UI display
+            collected.push({ uuid: s.uuid, characteristics: chars.map(c => ({ uuid: c.uuid, isNotifiable: !!(c as any).isNotifiable })) });
+            console.log('[PolarHeartRate] chars for', s.uuid, chars.map(c => c.uuid));
+            const hrChar = chars.find(c => c.uuid.toLowerCase().includes('2a37'));
+            if (hrChar) {
+              found = true;
+              monitorSub.current = manager.monitorCharacteristicForDevice(
+                connected.id,
+                s.uuid,
+                hrChar.uuid,
+                (error, characteristic) => {
+                  if (error) {
+                    console.log('[PolarHeartRate] monitor error', error);
+                    setStatus('monitor_error');
+                    return;
+                  }
+                  console.log('[PolarHeartRate] characteristic update', characteristic?.uuid, characteristic?.value);
+                  const bpm = parseHeartRate(characteristic?.value ?? null);
+                  if (bpm !== null) {
+                    console.log('[PolarHeartRate] parsed bpm', bpm);
+                    setHr(bpm);
+                    setStatus('receiving');
+                  }
+                },
+              );
+              break;
+            }
+          } catch (e) {
+            console.log('[PolarHeartRate] characteristicsForDevice error', e);
           }
-          const bpm = parseHeartRate(characteristic?.value ?? null);
-          if (bpm !== null) {
-            setHr(bpm);
-            setStatus('receiving');
+        }
+
+        if (!found) {
+          console.log('[PolarHeartRate] HR characteristic not found');
+          setStatus('hr_char_not_found');
+
+          // fallback: subscribe to first notifiable characteristic we can find
+          try {
+            const allChars: Array<{ service: string; uuid: string; notifiable: boolean }> = [];
+            for (const s of services) {
+              try {
+                const chars = await manager.characteristicsForDevice(connected.id, s.uuid);
+                chars.forEach((c: any) => {
+                  allChars.push({ service: s.uuid, uuid: c.uuid, notifiable: !!c.isNotifiable });
+                });
+              } catch (e) {
+                // ignore per-service errors
+              }
+            }
+
+            const fallback = allChars.find(c => c.notifiable) || allChars[0];
+            if (fallback) {
+              console.log('[PolarHeartRate] using fallback char', fallback);
+              monitorSub.current = manager.monitorCharacteristicForDevice(
+                connected.id,
+                fallback.service,
+                fallback.uuid,
+                (error, characteristic) => {
+                  if (error) {
+                    console.log('[PolarHeartRate] fallback monitor error', error);
+                    setStatus('monitor_error');
+                    return;
+                  }
+                  console.log('[PolarHeartRate] fallback characteristic update', characteristic?.uuid, characteristic?.value);
+                  const bpm = parseHeartRate(characteristic?.value ?? null);
+                  if (bpm !== null) {
+                    console.log('[PolarHeartRate] parsed bpm (fallback)', bpm);
+                    setHr(bpm);
+                    setStatus('receiving');
+                  }
+                },
+              );
+            } else {
+              console.log('[PolarHeartRate] no fallback characteristic available');
+            }
+          } catch (e) {
+            console.log('[PolarHeartRate] fallback subscribe error', e);
           }
-        },
-      );
-    } catch (err: any) {
+        }
+
+        // Save the collected services/characteristics to state for UI display
+        setServicesList(collected);
+      } catch (e) {
+        console.log('[PolarHeartRate] servicesForDevice error', e);
+        setStatus('monitor_error');
+      }
+    } catch {
       setStatus('connect_error');
+      console.log('[PolarHeartRate] connect error');
       // try to cancel any partial connection
       try {
         await manager.cancelDeviceConnection(d.id);
@@ -190,6 +285,26 @@ export default function PolarHeartRate() {
       setHr(null);
       setStatus('idle');
     }
+  }
+
+  if (compact) {
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          if (scanning) stopScan();
+          else startScan();
+        }}
+        disabled={connecting}
+      >
+        <View style={compactStyles.row}>
+          <Ionicons name="fitness-outline" size={22} color={colors.danger.DEFAULT} />
+          <Text style={compactStyles.compactText}>
+            {hr === null ? '--' : hr}{' '}
+            <Text style={compactStyles.compactUnit}>bpm</Text>
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   }
 
   return (
@@ -228,15 +343,41 @@ export default function PolarHeartRate() {
         ) : null}
       </View>
 
-      <View style={{ marginTop: 8 }}>
-        <Text style={{ color: '#666' }}>
+      <View style={styles.tipBox}>
+        <Text style={styles.tipText}>
           Tip: run on a physical device. Ensure react-native-ble-plx is installed and Bluetooth
           enabled.
         </Text>
       </View>
+
+      <View style={styles.servicesList}>
+        <Text style={styles.servicesListTitle}>Discovered Services & Characteristics:</Text>
+        {servicesList.length === 0 ? (
+          <Text style={styles.noServicesText}>No services found</Text>
+        ) : (
+          servicesList.map((service, index) => (
+            <View key={service.uuid} style={styles.serviceItem}>
+              <Text style={styles.serviceUuid}>{service.uuid}</Text>
+              <View style={styles.characteristicsList}>
+                {service.characteristics.map(char => (
+                  <Text key={char.uuid} style={styles.characteristicItem}>
+                    {char.uuid} {char.isNotifiable ? '(Notifiable)' : ''}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))
+        )}
+      </View>
     </View>
   );
 }
+
+const compactStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center' },
+  compactText: { color: colors.foreground, fontWeight: '600', marginLeft: 8 },
+  compactUnit: { color: colors.secondaryText, fontSize: 12, fontWeight: '600' },
+});
 
 const styles = StyleSheet.create({
   container: { padding: 16 },
@@ -266,4 +407,20 @@ const styles = StyleSheet.create({
   },
   disconnectBtn: { backgroundColor: '#ff5c5c', marginLeft: 8 },
   btnText: { color: '#fff', fontWeight: '600' },
+  tipBox: { marginTop: 8 },
+  tipText: { color: '#666' },
+  servicesList: { marginTop: 16 },
+  servicesListTitle: { fontSize: 16, fontWeight: '500', marginBottom: 8 },
+  noServicesText: { color: '#999' },
+  serviceItem: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+    borderColor: '#ddd',
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  serviceUuid: { fontWeight: '500' },
+  characteristicsList: { marginTop: 4, paddingLeft: 8 },
+  characteristicItem: { color: '#333' },
 });
