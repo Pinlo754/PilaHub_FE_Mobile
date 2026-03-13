@@ -13,7 +13,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CoachDetail'>;
 
 const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   // HOOK
-  const { coachDetail, scrollY, onPressBtn } = useCoachDetail({
+  const { coachDetail, scrollY, onPressBtn, sendRequestRoadmap } = useCoachDetail({
     route,
     navigation,
   });
@@ -27,7 +27,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       <Header
         navigation={navigation}
         scrollY={scrollY}
-        coachId={coachDetail.coach_id}
+        coachId={coachDetail.coachId}
       />
 
       <Animated.ScrollView
@@ -41,24 +41,32 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       >
         {/* Image */}
         <ImageCoach
-          imgUrl={coachDetail?.avatar}
-          coachName={coachDetail?.full_name}
+          imgUrl={coachDetail?. avatarUrl}
+          coachName={coachDetail?.fullName}
         />
 
         {/* Stats Card */}
         <StatsCard
-          rate={coachDetail?.rating_avg}
-          experienceYears={coachDetail?.experience_years}
+          rate={coachDetail?.avgRating}
+          experienceYears={coachDetail?.yearsOfExperience}
         />
 
         {/* Overview Section */}
         <OverviewSection coachDetail={coachDetail} />
       </Animated.ScrollView>
 
-      <View className="pt-2 px-4 pb-6">
+      <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4">
         <Button
           text="Đăng ký lịch"
           onPress={onPressBtn}
+          colorType="sub1"
+          rounded="full"
+          iconName="today-outline"
+          iconSize={26}
+        />
+        <Button
+          text="Đăng ký Roadmap"
+          onPress={sendRequestRoadmap}
           colorType="sub1"
           rounded="full"
           iconName="today-outline"

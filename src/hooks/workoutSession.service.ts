@@ -6,6 +6,22 @@ import {
 import api from './axiosInstance';
 
 export const workoutSessionService = {
+  getById: async (id: string): Promise<WorkoutSessionType> => {
+    const res = await api.get<ApiResponse<WorkoutSessionType>>(
+      `/workout-sessions/${id}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
   // START FREE WORKOUT
   startFreeWorkout: async (
     payload: WorkoutExerciseReq,
@@ -36,6 +52,23 @@ export const workoutSessionService = {
       {
         recordUrl,
       },
+    );
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  feedbackWorkout: async (
+    workoutSessionId: string,
+  ): Promise<any> => {
+    const res = await api.post<ApiResponse<any>>(
+      `/workout-feedback/generate/${workoutSessionId}`,
     );
     if (!res.data.success) {
       throw {

@@ -7,6 +7,7 @@ type ErrorLog = {
   bodyPart: string;
   side: string;
   recordedAtSecond: number;
+  imageUrl: string;
 };
 
 type Props = {
@@ -33,7 +34,7 @@ const ErrorSection = ({ errors, openErrorVideo }: Props) => {
           item={item}
           expanded={activeErrorIndex === index}
           onPress={() => onToggle(index)}
-          onPlayVideo={() => openErrorVideo(item.recordedAtSecond)}
+          onPlayVideo={openErrorVideo}
         />
       );
     },

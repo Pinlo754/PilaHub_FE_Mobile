@@ -7,6 +7,7 @@ type ErrorLog = {
   bodyPart: string;
   side: string;
   recordedAtSecond: number;
+  imageUrl: string;
 };
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 const formatTime = (seconds: number) => {
+  console.log("time value:", seconds);
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;

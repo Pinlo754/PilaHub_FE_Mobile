@@ -40,6 +40,7 @@ const List = <K extends SearchTab>({
           item={item}
           isLast={index === data.length - 1}
           onPress={() => {
+            console.log('ID: ', id);
             navigation.navigate(
               config.screen as any,
               {

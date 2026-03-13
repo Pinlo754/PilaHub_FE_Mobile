@@ -7,8 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import storage from '@react-native-firebase/storage';
 
 const UploadImageScreen = () => {
@@ -17,16 +18,16 @@ const UploadImageScreen = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // 📌 Chọn ảnh
+  // 📌 Chọn ảnh từ thư viện
   const pickImage = async () => {
-    const result = await launchImageLibrary({
+    const result: ImagePickerResponse = await launchImageLibrary({
       mediaType: 'photo',
-      quality: 0.8,
+      quality: 0.6, // Giảm chất lượng một chút để upload nhanh hơn
     });
 
     if (result.didCancel) return;
     if (result.errorCode) {
-      Alert.alert('Error', result.errorMessage || 'Image picker error');
+      Alert.alert('Lỗi', result.errorMessage || 'Không thể chọn ảnh');
       return;
     }
 
@@ -34,73 +35,62 @@ const UploadImageScreen = () => {
     if (uri) {
       setImageUri(uri);
       setUploadedUrl(null);
-    }
-  };
-
-  // 📌 Upload ảnh
-  const uploadImage = async () => {
-    if (!imageUri) return;
-
-    try {
-      setUploading(true);
       setProgress(0);
-
-      const filename = `images/${Date.now()}.jpg`;
-      const reference = storage().ref(filename);
-
-      const task = reference.putFile(imageUri);
-
-      task.on('state_changed', taskSnapshot => {
-        const percent =
-          (taskSnapshot.bytesTransferred / taskSnapshot.totalBytes) * 100;
-        setProgress(percent);
-      });
-
-      await task;
-
-      const downloadURL = await reference.getDownloadURL();
-      setUploadedUrl(downloadURL);
-      console.log('Image uploaded to Firebase Storage:', downloadURL);
-
-      Alert.alert('Success', 'Image uploaded successfully!');
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Upload error', 'Something went wrong');
-    } finally {
-      setUploading(false);
     }
   };
+
+  const uploadImage = async () => {
+    console.log('Bắt đầu tải lên...');
+  if (!imageUri) return;
+
+  const filename = `images/${Date.now()}.jpg`;
+
+  const reference = storage().ref(filename);
+
+  await reference.putFile(imageUri);
+
+  const url = await reference.getDownloadURL();
+
+  console.log(url);
+};
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Upload Image to Firebase</Text>
+      <Text style={styles.title}>Firebase Image Upload</Text>
 
       <TouchableOpacity style={styles.button} onPress={pickImage}>
-        <Text style={styles.buttonText}>Choose Image</Text>
+        <Text style={styles.buttonText}>1. Chọn ảnh</Text>
       </TouchableOpacity>
 
       {imageUri && (
-        <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-      )}
-
-      {imageUri && !uploading && (
-        <TouchableOpacity style={styles.uploadButton} onPress={uploadImage}>
-          <Text style={styles.buttonText}>Upload</Text>
-        </TouchableOpacity>
+        <View style={styles.previewContainer}>
+          <Text style={styles.label}>Ảnh đã chọn:</Text>
+          <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+          
+          {!uploading && !uploadedUrl && (
+            <TouchableOpacity style={styles.uploadButton} onPress={uploadImage}>
+              <Text style={styles.buttonText}>2. Tải lên Firebase</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
       {uploading && (
-        <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <ActivityIndicator size="large" />
-          <Text>{progress.toFixed(0)}%</Text>
+        <View style={styles.progressContainer}>
+          <ActivityIndicator size="large" color="#2ecc71" />
+          <Text style={styles.progressText}>Đang tải lên: {progress}%</Text>
+          <View style={styles.progressBarBackground}>
+             <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+          </View>
         </View>
       )}
 
       {uploadedUrl && (
-        <>
-          <Text style={styles.urlText}>Uploaded Image:</Text>
+        <View style={styles.previewContainer}>
+          <Text style={[styles.label, { color: '#2ecc71' }]}>✅ Đã tải lên thành công:</Text>
           <Image source={{ uri: uploadedUrl }} style={styles.imagePreview} />
-        </>
+          <Text style={styles.urlText} numberOfLines={1}>{uploadedUrl}</Text>
+        </View>
       )}
     </View>
   );
@@ -112,39 +102,76 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 30,
     textAlign: 'center',
+    color: '#2c3e50',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#34495e',
   },
   button: {
     backgroundColor: '#3498db',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    elevation: 2,
   },
   uploadButton: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: '#27ae60',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 15,
+    marginTop: 20,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
+  },
+  previewContainer: {
+    marginTop: 30,
+    alignItems: 'center',
   },
   imagePreview: {
     width: '100%',
-    height: 250,
-    marginTop: 20,
-    borderRadius: 10,
+    height: 200,
+    borderRadius: 15,
+    backgroundColor: '#ddd',
+  },
+  progressContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+  },
+  progressText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#2ecc71',
   },
   urlText: {
-    marginTop: 20,
-    fontWeight: 'bold',
+    marginTop: 10,
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontStyle: 'italic',
   },
 });

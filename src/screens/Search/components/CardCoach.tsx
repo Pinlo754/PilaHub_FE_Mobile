@@ -37,7 +37,7 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
           <View className="flex-row gap-2 items-center">
             <Ionicons name="star" size={18} color={colors.warning.DEFAULT} />
             <Text className="color-secondaryText font-medium">
-              {item.rating_avg}
+              {item.avgRating.toFixed(1)}
             </Text>
           </View>
           {/* Experience year */}

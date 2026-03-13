@@ -5,6 +5,7 @@ import { coachMock } from '../../mocks/searchData';
 import { CoachType } from '../../utils/CoachType';
 import { Animated } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import api from '../../hooks/axiosInstance';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CoachDetail'>;
@@ -13,7 +14,7 @@ type Props = {
 
 export const useCoachDetail = ({ route, navigation }: Props) => {
   // PARAM
-  const { coach_id } = route.params;
+  const { coachId } = route.params;
   const { selectedCoachId } = route.params;
 
   // STATE
@@ -24,27 +25,45 @@ export const useCoachDetail = ({ route, navigation }: Props) => {
 
   // FETCH
   const fetchById = () => {
-    setCoachDetail(coachMock[0]);
+    api.get(`/coaches/${coachId}`).then((res) => {
+      if (res.data.success) {
+        setCoachDetail(res.data.data);
+      } else {
+        throw {
+          type: 'BUSINESS_ERROR',
+          message: res.data.message,
+          errorCode: res.data.errorCode,
+        };
+      }
+    });
   };
 
   // HANDLERS
   const onPressBtn = () => {
     navigation.navigate('RegisterCalendar', {
-      coach_id: selectedCoachId || coach_id,
+      coach_id: selectedCoachId || coachId,
+    });
+  };
+
+  const sendRequestRoadmap = () => {
+    console.log('Send request roadmap with coach id: ', coachId);
+    navigation.navigate('SendRequestScreen', {
+      coach_id: coachId,
     });
   };
 
   // USE EFFECT
   useEffect(() => {
-    if (!coach_id) return;
+    if (!coachId) return;
 
     fetchById();
-  }, [coach_id]);
+  }, [coachId]);
 
   return {
     coachDetail,
     scrollY,
     selectedCoachId,
     onPressBtn,
+    sendRequestRoadmap
   };
 };

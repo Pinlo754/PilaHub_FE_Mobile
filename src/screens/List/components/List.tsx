@@ -35,6 +35,7 @@ const List = <K extends ListTab>({ activeTab, data, navigation }: Props<K>) => {
         <Card
           item={item}
           onPress={() => {
+            console.log('Navigate to', config.screen, 'with id:', id);
             navigation.navigate(
               config.screen as any,
               {

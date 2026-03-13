@@ -3,7 +3,7 @@ import { SearchTab } from '../../constants/searchTab';
 import { TabTypeMap } from '../../utils/SearchType';
 import { exerciseService } from '../../hooks/exercise.service';
 import { courseService } from '../../hooks/course.service';
-import { CoachService } from '../../hooks/coach.service';
+import { CoachService } from '../../services/coach';
 
 type DataByTab = {
   [K in SearchTab]: TabTypeMap[K][];

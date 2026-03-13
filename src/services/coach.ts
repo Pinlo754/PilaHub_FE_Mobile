@@ -1,5 +1,5 @@
+import api from '../hooks/axiosInstance';
 import { ApiResponse } from '../utils/ApiResType';
-import api from './axiosInstance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 export const CoachService = {
   
@@ -16,7 +16,8 @@ export const CoachService = {
   },
 
   getSchedules: async () => {
-    const res = await api.get<ApiResponse<[]>>(`/live-sessions/my-sessions`);
+    const id = await AsyncStorage.getItem('id').then((val) => val?.replace(/"/g, ''));
+    const res = await api.get<ApiResponse<[]>>(`/coach-time-offs/coach/${id}`);
     
     if (!res.data.success) {
       throw {
@@ -28,18 +29,4 @@ export const CoachService = {
 
     return res.data.data;
   },
-
-  getRequestRoadmap: async () => {
-
-    const res = await api.get<ApiResponse<[]>>(`/coach-roadmap-requests/my-received`);
-
-    if (!res.data.success) {
-      throw {
-        type: 'BUSINESS_ERROR',
-        message: res.data.message,
-        errorCode: res.data.errorCode,
-      };
-    }
-    return res.data.data;
-  } 
 };

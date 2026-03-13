@@ -35,7 +35,7 @@ export const LEVEL_MAP: Record<
 export const getLevelConfig = (level: LevelType) => LEVEL_MAP[level];
 
 export const getLevelNumber = (level: LevelType) =>
-  LEVEL_MAP[level].value;
+  LEVEL_MAP[level]?.value;
 
 export const getLevelLabel = (level: LevelType) =>
   LEVEL_MAP[level].label;

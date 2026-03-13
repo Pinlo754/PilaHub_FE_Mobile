@@ -23,12 +23,12 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
     Card: CardExercise,
     screen: 'ExerciseDetail',
     paramKey: 'exercise_id',
-    idKey: 'exercise_id',
+    idKey: 'exerciseId',
   },
   [ListTab.Course]: {
     Card: CardCourse,
     screen: 'ProgramDetail',
     paramKey: 'program_id',
-    idKey: 'course_id',
+    idKey: 'courseId',
   },
 };

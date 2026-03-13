@@ -6,6 +6,7 @@ export type MistakeLogType = {
   details: string;
   imageUrl: string;
   recordedAtSecond: number;
+  duration: number;
 };
 
 export type MistakeLogReq = Omit<

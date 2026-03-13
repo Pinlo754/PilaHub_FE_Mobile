@@ -14,10 +14,12 @@ moment.locale('vi');
 type ScheduleItem = {
   id: string;
   date: string;
+  startTime: string;
+  endTime: string;
   time: string;
   student: string;
-  lesson: string;
-  content: string;
+  lesson?: string;
+  content?: string;
 };
 
 const MyCalendar = () => {
@@ -30,8 +32,8 @@ const MyCalendar = () => {
     // nếu chưa ở trang CommingsoonClass thì navigate
     if (route.name !== 'CommingsoonClass') {
       navigation.navigate('CommingsoonClass', {
-      selectedId:id,
-    });
+        selectedId: id,
+      });
     } else {
       // nếu đã ở rồi thì chỉ update param
       navigation.setParams({
@@ -40,61 +42,38 @@ const MyCalendar = () => {
     }
   };
 
-  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([{
-      id: '1',
-      date: '2026-03-04',
-      time: '08:00 10:00',
-      student: 'Nguyễn Thanh Phong',
-      lesson: '9',
-      content: 'Duỗi chân đơn, duỗi chân đôi',
-    },
-    {
-      id: '2',
-      date: '2026-03-04',
-      time: '16:00 18:00',
-      student: 'Nguyễn Thanh Phong',
-      lesson: '10',
-      content: 'Điều khiển hơi thở',
-    },
-    {
-      id: '3',
-      date: '2026-03-05',
-      time: '09:00 11:00',
-      student: 'Nguyễn Thanh Phong',
-      lesson: '11',
-      content: 'Tập cơ bụng nâng cao',
-    },]);
+  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([]);
 
-    useEffect(() => {
-  const fetchSchedule = async () => {
-    try {
-      const response = await CoachService.getSchedules();
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        const response = await CoachService.getSchedules();
 
-      const formattedData: ScheduleItem[] = response.map((item: any) => ({
-        id: item.id.toString(),
-        date: item.date,
-        time: `${item.startTime} ${item.endTime}`,
-        student: item.studentName,
-        lesson: item.lessonNumber.toString(),
-        content: item.content,
-      }));
-      
-      //setScheduleData(formattedData);
-   
-    } catch (error) {
-      console.log("Fetch schedule error:", error);
-    }
-  };
+        const formattedData: ScheduleItem[] = response.map((item: any) => ({
+          id: item.liveSessionId,
+          date: item.coachBooking.startTime,
+          startTime: item.coachBooking.startTime,
+          endTime: item.coachBooking.endTime,
+          time: `${moment(item.coachBooking.startTime).format('HH:mm')} ${moment(item.coachBooking.endTime).format('HH:mm')}`,
+          student: item.coachBooking.trainee.fullName,
+        }));
 
-  fetchSchedule();
-}, []);
-    
+        setScheduleData(formattedData);
+
+      } catch (error) {
+        console.log("Fetch schedule error:", error);
+      }
+    };
+
+    fetchSchedule();
+  }, []);
+
 
   const filteredData = useMemo(() => {
     return scheduleData.filter(item =>
       moment(item.date).isSame(moment(selectedDate), 'day'),
     );
-  }, [selectedDate]);
+  }, [selectedDate, scheduleData]);
 
 
   const markedDates = useMemo(() => {
@@ -102,7 +81,7 @@ const MyCalendar = () => {
       date: moment(item.date),
       dots: [{ color: '#D28C4A', selectedColor: 'white' }],
     }));
-  }, []);
+  }, [scheduleData]);
 
   useEffect(() => {
     setSelectedDate(moment());
@@ -153,7 +132,6 @@ const MyCalendar = () => {
         calendarColor={'#F5DEB3'}
         scrollToOnSetSelectedDate={true}
         useIsoWeekday={false}
-
         dateNumberStyle={{ color: '#8B5E3C', fontSize: 12, fontWeight: '600' }}
         dateNameStyle={{ color: '#8B5E3C', fontSize: 10, textTransform: 'uppercase' }}
         dayContainerStyle={{ backgroundColor: 'white', borderRadius: 12, marginHorizontal: 5 }}

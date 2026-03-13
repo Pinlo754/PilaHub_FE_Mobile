@@ -407,3 +407,13 @@ export async function fetchFitnessGoals(): Promise<ServiceResult> {
     return { ok: false, error: e.response?.data ?? e.message ?? e };
   }
 }
+
+export async function fetchTraineeHealthProfiles(id: string): Promise<ServiceResult> {
+  try {
+    const res = await api.get(`/health-profiles/trainee/${id}/latest-with-assessment`);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}

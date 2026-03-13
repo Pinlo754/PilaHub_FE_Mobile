@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, Image } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
 
@@ -6,6 +6,7 @@ type ErrorLog = {
   bodyPart: string;
   side: string;
   recordedAtSecond: number;
+  imageUrl: string;
 };
 
 type Props = {
@@ -27,14 +28,33 @@ const ErrorExpandContent = ({ item, onPlayVideo }: Props) => {
         </Text>
 
         <Text className="text-secondaryText">
-          Thời điểm lỗi: {item.recordedAtSecond.toFixed(2)}s
+          Thời điểm lỗi: {item.recordedAtSecond}s
         </Text>
-        <Text className="text-foreground font-medium">Bạn đã nâng tay quá cao, vai bị nhún lên và cột sống không giữ ở vị trí trung lập, làm giảm hiệu quả bài tập.</Text>
+        {item.imageUrl ? (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={{
+              width: '100%',
+              height: 200,
+              borderRadius: 12,
+              marginTop: 4,
+            }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text className="text-secondaryText italic">
+            Không có ảnh minh họa
+          </Text>
+        )}
+
       </View>
 
       {/* Play Button */}
       <Pressable
-        onPress={() => onPlayVideo(item.recordedAtSecond ?? 0)}
+        onPress={() => {
+          console.log('played video at', item.recordedAtSecond);
+          onPlayVideo(item.recordedAtSecond)
+        }}
         className="bg-danger rounded-xl py-3 flex-row justify-center items-center"
       >
         <Ionicons

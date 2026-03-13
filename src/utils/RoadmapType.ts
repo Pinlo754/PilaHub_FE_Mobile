@@ -29,3 +29,12 @@ export type personalExercise = {
     rest_time: number;
     isCompleted: boolean;
 }
+
+export type RoadmapRequestGenerate = {
+    traineeId: string;
+    primaryGoalId: string;
+    secondaryGoalIds: string[];
+    workoutLevel: string;
+    trainingDays: string[];
+    durationWeeks: number;
+}

@@ -38,10 +38,10 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
-  const id = '1a5ab0e2-7171-4abf-bb31-21518c57eb76';
+  const id = route.params.exercise_id;
   // API
   const fetchById = async () => {
-    
+
     if (!exercise_id) return;
 
     setIsLoading(true);
@@ -63,7 +63,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     }
   };
 
-  const startWorkoutExercise = async () => {
+  const startWorkoutExerciseFree = async () => {
     if (!exercise_id) return;
 
     setIsLoading(true);
@@ -71,13 +71,42 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     try {
       const payload: WorkoutExerciseReq = {
         exerciseId: id,
-        haveAITracking,
-        haveIOTDeviceTracking,
+        haveAITracking: false,
+        haveIOTDeviceTracking: false,
       };
 
       const res = await workoutSessionService.startFreeWorkout(payload);
 
       setWorkoutSession(res);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
+      } else {
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startWorkoutExerciseAI = async () => {
+    if (!exercise_id) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const payload: WorkoutExerciseReq = {
+        exerciseId: id,
+        haveAITracking: true,
+        haveIOTDeviceTracking: false,
+      };
+
+      const res = await workoutSessionService.startFreeWorkout(payload);
+
+      setWorkoutSession(res);
+
+      return res; // 🔥 return session
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
@@ -113,6 +142,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const toggleVideoExpand = () => {
+    startWorkoutExerciseFree();
     setIsVideoExpand(prev => {
       if (activeTab === ExerciseTab.Practice) {
         togglePlayButton();
@@ -129,19 +159,19 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const onPressAIPractice = async () => {
-    if (!exerciseDetail || !tutorial) return null;
+    if (!exerciseDetail || !tutorial) return;
 
     setHaveAITracking(true);
 
-    //startWorkoutExercise();
+    const session = await startWorkoutExerciseAI();
 
-    //if (!workoutSession) return null;
+    if (!session) return;
 
     navigation.navigate('AIPractice', {
       exercise_id: id,
-      imgUrl: exerciseDetail?.imageUrl,
-      videoUrl: tutorial?.practiceVideoUrl,
-      workoutSessionId: workoutSession?.workoutSessionId || 'id-demo-123',
+      imgUrl: exerciseDetail.imageUrl,
+      videoUrl: tutorial.practiceVideoUrl,
+      workoutSessionId: session.workoutSessionId,
     });
   };
 
