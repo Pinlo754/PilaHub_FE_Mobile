@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RoadmapServices } from '../../../hooks/roadmap.service';
 import { exerciseService } from '../../../hooks/exercise.service';
 import { Picker } from '@react-native-picker/picker'
+import { CoachService } from '../../../hooks/coach.service';
 
 type ExerciseEditContext = {
     stageIndex: number
@@ -185,6 +186,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
         try {
             setLoading(true);
 
+            await CoachService.acceptRequestRoadmap(RequestItem.requestId)
             const payload = {
                 aiResponse: roadmap,
                 traineeId: RequestItem.traineeId,
@@ -351,14 +353,14 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                     {/* Goal */}
                     <View className="bg-amber-50 p-3 rounded-xl mb-3">
-                        <Text className="text-amber-700 font-semibold">
+                        <Text className="text-amber-700 font-bold text-2xl">
                             🎯 {RequestItem.primaryGoalName}
                         </Text>
                     </View>
 
                     <View className="bg-amber-50 p-3 rounded-xl mb-3">
-                        <Text className="text-amber-700 font-semibold">
-                            🎯 {RequestItem.secondaryGoalIds.join(', ')}
+                        <Text className="text-amber-700 font-normal">
+                            🎯 {RequestItem.secondaryGoalNames.join(', ')}
                         </Text>
                     </View>
 
@@ -465,33 +467,44 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                         {roadmap?.stages?.map((stage: any, stageIndex: number) => (
 
-                            <View key={stageIndex} className="bg-white rounded-xl p-4 mb-6">
+                            <View key={stageIndex} style={styles.stageCard}>
 
                                 {/* Stage header */}
-                                <Text className="text-lg font-bold text-emerald-700">
-                                    {stage.stageName}
-                                </Text>
+                                <View style={styles.stageHeader}>
 
-                                <Text className="text-gray-500 mb-3">
+                                    <View style={styles.stageDot} />
+
+                                    <Text style={styles.stageTitle}>
+                                        {stage.stageName}
+                                    </Text>
+
+                                </View>
+
+                                <Text style={styles.stageDescription}>
                                     {stage.description}
                                 </Text>
 
-                                <Text className="text-xs text-gray-400 mb-4">
-                                    Duration: {stage.durationWeeks} weeks
+                                <Text style={styles.stageDuration}>
+                                    {stage.durationWeeks} tuần
                                 </Text>
 
                                 {/* schedules */}
                                 {stage.schedules.map((schedule: any, scheduleIndex: number) => (
 
-                                    <View key={scheduleIndex} className="bg-gray-50 rounded-lg p-3 mb-4">
+                                    <View key={scheduleIndex} style={styles.scheduleCard}>
+                                        <View style={styles.scheduleHeader}>
 
-                                        <View className="flex-row justify-between mb-2">
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
 
-                                            <Text className="font-semibold">
-                                                {schedule.scheduleName}
-                                            </Text>
+                                                <Ionicons name="calendar-outline" size={18} color="#10B981" />
 
-                                            <Text className="text-xs text-gray-500">
+                                                <Text style={styles.scheduleTitle}>
+                                                    {schedule.scheduleName}
+                                                </Text>
+
+                                            </View>
+
+                                            <Text style={styles.scheduleMeta}>
                                                 {schedule.dayOfWeek} • {schedule.durationMinutes} phút
                                             </Text>
 
@@ -510,16 +523,32 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                                                         ex
                                                     )
                                                 }
-                                                className="flex-row justify-between items-center py-2 border-b border-gray-200"
+                                                style={styles.exerciseRow}
                                             >
 
-                                                <Text className="text-gray-700">
-                                                    {ex.exerciseOrder}. {ex.exerciseName}
-                                                </Text>
+                                                <View style={styles.exerciseLeft}>
+                                                    <View style={styles.exerciseOrder}>
+                                                        <Text style={styles.exerciseOrderText}>
+                                                            {ex.exerciseOrder}
+                                                        </Text>
+                                                    </View>
 
-                                                <Text className="text-xs text-gray-500">
-                                                    {ex.sets} sets • {ex.reps ?? ex.durationSeconds}
-                                                </Text>
+                                                    <Text style={styles.exerciseName}>
+                                                        {ex.exerciseName}
+                                                    </Text>
+                                                </View>
+
+                                                <View style={styles.exerciseMeta}>
+                                                    <Text style={styles.exerciseBadge}>
+                                                        {ex.sets} sets
+                                                    </Text>
+
+                                                    <Text style={styles.exerciseBadge}>
+                                                        {ex.reps ?? `${ex.durationSeconds}s`}
+                                                    </Text>
+
+                                                    <Ionicons name="create-outline" size={18} color="#9CA3AF" />
+                                                </View>
 
                                             </Pressable>
 
@@ -567,63 +596,75 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                 )}
             </View>
 
-            <Modal visible={modalVisible} transparent animationType="fade">
+            <Modal visible={modalVisible} transparent animationType="slide">
 
-                <View style={styles.modalBackdrop}>
+                <View style={styles.bottomSheetBackdrop}>
 
-                    <View style={styles.modalCard}>
+                    <View style={styles.bottomSheet}>
 
-                        <Text style={styles.modalTitle}>
+                        <View style={styles.sheetHandle} />
+
+                        <Text style={styles.sheetTitle}>
                             Chỉnh sửa bài tập
                         </Text>
+
+                        <Text style={styles.sheetLabel}>Bài tập</Text>
 
                         <Picker
                             selectedValue={selectedExerciseName}
                             onValueChange={(v) => setSelectedExerciseName(v)}
                         >
                             {exerciseList.map((ex) => (
-                                <Picker.Item
-                                    key={ex.id}
-                                    label={ex.name}
-                                    value={ex.name}
-                                />
+                                <Picker.Item key={ex.id} label={ex.name} value={ex.name} />
                             ))}
                         </Picker>
 
-                        <TextInput
-                            style={styles.input}
-                            value={sets}
-                            onChangeText={setSets}
-                            keyboardType="numeric"
-                            placeholder="Sets"
-                        />
+                        <View style={styles.rowInputs}>
 
-                        <TextInput
-                            style={styles.input}
-                            value={reps}
-                            onChangeText={setReps}
-                            keyboardType="numeric"
-                            placeholder="Reps"
-                        />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.sheetLabel}>Sets</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={sets}
+                                    onChangeText={setSets}
+                                    keyboardType="numeric"
+                                />
+                            </View>
 
-                        <View style={styles.modalButtons}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.sheetLabel}>Reps</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={reps}
+                                    onChangeText={setReps}
+                                    keyboardType="numeric"
+                                />
+                            </View>
 
-                            <Pressable onPress={() => setModalVisible(false)}>
-                                <Text>Cancel</Text>
+                        </View>
+
+                        <View style={styles.sheetButtons}>
+
+                            <Pressable
+                                style={styles.cancelBtn}
+                                onPress={() => setModalVisible(false)}
+                            >
+                                <Text>Huỷ</Text>
                             </Pressable>
 
-                            <Pressable onPress={handleSaveExercise}>
-                                <Text style={{ color: '#10B981', fontWeight: '700' }}>
-                                    Save
+                            <Pressable
+                                style={styles.saveBtnModal}
+                                onPress={handleSaveExercise}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                                    Lưu thay đổi
                                 </Text>
                             </Pressable>
 
                         </View>
 
                     </View>
-
                 </View>
-
             </Modal>
         </SafeAreaView>
     );
@@ -671,4 +712,173 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 12
     },
+    stageCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 6
+    },
+
+    stageHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6
+    },
+
+    stageDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#10B981',
+        marginRight: 8
+    },
+
+    stageTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#065F46'
+    },
+
+    stageDescription: {
+        color: '#6B7280',
+        marginBottom: 6
+    },
+
+    stageDuration: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        marginBottom: 12
+    },
+
+    scheduleCard: {
+        backgroundColor: '#F9FAFB',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 14
+    },
+
+    scheduleHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8
+    },
+
+    scheduleTitle: {
+        marginLeft: 6,
+        fontWeight: '600'
+    },
+
+    scheduleMeta: {
+        fontSize: 12,
+        color: '#9CA3AF'
+    },
+
+    exerciseRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+
+    exerciseLeft: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+
+    exerciseOrder: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: '#10B981',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10
+    },
+
+    exerciseOrderText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 12
+    },
+
+    exerciseName: {
+        fontWeight: '500',
+        color: '#374151'
+    },
+
+    exerciseMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6
+    },
+
+    exerciseBadge: {
+        backgroundColor: '#E5E7EB',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        fontSize: 11
+    },
+
+    bottomSheetBackdrop: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.4)'
+    },
+
+    bottomSheet: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 20
+    },
+
+    sheetHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#D1D5DB',
+        alignSelf: 'center',
+        borderRadius: 2,
+        marginBottom: 12
+    },
+
+    sheetTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 10
+    },
+
+    sheetLabel: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginTop: 10
+    },
+
+    rowInputs: {
+        flexDirection: 'row',
+        gap: 10
+    },
+
+    sheetButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 20
+    },
+
+    cancelBtn: {
+        padding: 12
+    },
+
+    saveBtnModal: {
+        backgroundColor: '#10B981',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 10
+    }
 });
