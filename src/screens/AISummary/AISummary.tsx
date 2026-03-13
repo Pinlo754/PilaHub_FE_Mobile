@@ -34,14 +34,14 @@ const AISummary = ({ route, navigation }: Props) => {
     isVideoPlay,
     togglePlayButton,
   } = useAISummary();
-  const { videoUrl, mistakeLog } = route.params;
+  const { videoUrl, mistakeLog, feedback } = route.params;
   const [seekTime, setSeekTime] = useState<number | null>(null);
 
   const handleSeekToError = (time: number) => {
     if (!isVideoVisible) {
       setIsVideoVisible(true);
     }
-
+    console.log('play video atttt', time);
     // Luôn đảm bảo giá trị mới để trigger useEffect bên trong VideoPlayer
     setSeekTime(time);
 
@@ -72,19 +72,26 @@ const AISummary = ({ route, navigation }: Props) => {
         {isPointTab ? (
           <>
             {/* Point Section */}
-            <PointSection point={70} isPass={isPass} />
+            <PointSection point={feedback.overallScore} isPass={isPass} />
 
             {/* Stats Section */}
-            <StatsSection />
+            <StatsSection feedback={feedback} />
 
             {/* Heart Rate Chart */}
             <HeartRateChart heartRateData={[56, 100, 90, 78, 70, 60]} />
 
             {/* Metrics Section */}
-            <MetricsSection />
+            <MetricsSection
+              formScore={feedback.formScore}
+              enduranceScore={feedback.enduranceScore}
+            />
 
             {/* Advice Section */}
-            <AdviceSection />
+            <AdviceSection
+              strengths={feedback.strengths}
+              weaknesses={feedback.weaknesses}
+              recommendations={feedback.recommendations}
+            />
           </>
         ) : (
           <>

@@ -2,7 +2,13 @@ import { View } from 'react-native';
 import CardStat from './CardStat';
 import { colors } from '../../../theme/colors';
 
-const StatsSection = () => {
+type Props = {
+  feedback: {
+    totalMistakes?: string;
+  };
+};
+
+const StatsSection = ({ feedback }: Props) => {
   return (
     <View className="mt-4 p-4">
       <View className="flex-row flex-wrap justify-between gap-2">
@@ -34,8 +40,8 @@ const StatsSection = () => {
         />
 
         <CardStat
-          title="Độ chính xác"
-          value="80%"
+          title="Tổng số lỗi"
+          value={feedback?.totalMistakes ?? '0'}
           colorIcon={colors.purple.DEFAULT}
           colorBg={colors.purple[20]}
           iconName="speedometer"

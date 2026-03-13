@@ -5,11 +5,13 @@ import { colors } from '../../../theme/colors';
 type InfoSectionProps = {
   icon: string;
   title: string;
-  data: string[];
+  data: string | string[];
 };
 
 const InfoSection = ({ icon, title, data }: InfoSectionProps) => {
   if (!data?.length) return null;
+
+  const list = Array.isArray(data) ? data : [data];
 
   return (
     <View className="mt-2">
@@ -19,7 +21,7 @@ const InfoSection = ({ icon, title, data }: InfoSectionProps) => {
       </View>
 
       <View className="mt-2">
-        {data.map((item, index) => (
+        {list.map((item, index) => (
           <View key={index} className="flex-row items-center gap-1 pl-3 mb-2">
             <Ionicons
               name="checkmark-outline"

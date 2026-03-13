@@ -49,6 +49,9 @@ import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
 import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import UploadImageScreen from '../screens/UploadImage/UploadImage';
+import SendRequestScreen from '../screens/RegisterCoachRoadmap/SendRequest';
+import ListRequest from '../screens/Coach/ViewRequest/ListRequest';
+import TraineeHealthProfileResult from '../screens/Coach/ViewRequest/HealthProfileResult';
 export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
@@ -91,16 +94,17 @@ export type RootStackParamList = {
   HealthProfiles: undefined;
 
 
-  CoachDetail: { coach_id: string; selectedCoachId?: string | null };
+  CoachDetail: { coachId: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;
   RegisterCalendar: { coach_id?: string | null };
   TraineeFeedback: undefined;
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: {
-  videoUrl: string;
-  mistakeLog: any; 
-};
+    feedback: any;
+    videoUrl: string;
+    mistakeLog: any;
+  };
   AIPractice: {
     exercise_id: string;
     imgUrl: string;
@@ -116,6 +120,9 @@ export type RootStackParamList = {
   VideoCall: undefined;
   UploadImageScreen: undefined;
   TraineeProfile: undefined;
+  SendRequestScreen: { coach_id: string };
+  ListRequest: undefined;
+  TraineeHealthProfileResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -177,15 +184,7 @@ const AppNavigator: React.FC = () => {
           name="TestNavigateScreen"
           component={TestNavigateScreen}
         />
-        <Stack.Screen
-          name="TestNavigateScreen"
-          component={TestNavigateScreen}
-        />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />
-        <Stack.Screen
-          name="CoachRegisterSchedule"
-          component={CoachRegisterSchedule}
-        />
         <Stack.Screen
           name="CoachRegisterSchedule"
           component={CoachRegisterSchedule}
@@ -211,16 +210,11 @@ const AppNavigator: React.FC = () => {
           name="TraineeProfileCoachScreen"
           component={TraineeProfileCoachScreen}
         />
-        <Stack.Screen
-          name="CoachProfileScreen"
-          component={CoachProfileScreen}
-        />
-        <Stack.Screen
-          name="TraineeProfileCoachScreen"
-          component={TraineeProfileCoachScreen}
-        />
         <Stack.Screen name="VideoCall" component={VideoCall} />
         <Stack.Screen name="UploadImageScreen" component={UploadImageScreen} />
+        <Stack.Screen name="SendRequestScreen" component={SendRequestScreen} />
+        <Stack.Screen name="ListRequest" component={ListRequest} />
+        <Stack.Screen name="TraineeHealthProfileResult" component={TraineeHealthProfileResult} />
       </Stack.Navigator>
     </AppLayout>
   );

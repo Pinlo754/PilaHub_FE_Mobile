@@ -12,7 +12,7 @@ const OverviewSection = ({ coachDetail }: Props) => {
     <View className="mt-24 px-4 w-full">
       {/* Desctiption */}
       <Text className="color-foreground font-medium">
-        {coachDetail.description}
+        {coachDetail.bio}
       </Text>
 
       {/* Border */}
@@ -22,14 +22,14 @@ const OverviewSection = ({ coachDetail }: Props) => {
       <InfoSection
         icon="golf-outline"
         title="Lĩnh vực"
-        data={coachDetail.specialties}
+        data={coachDetail.specialization}
       />
 
       {/* Certifications */}
       <InfoSection
         icon="receipt-outline"
         title="Chứng chỉ"
-        data={coachDetail.certifications}
+        data={coachDetail.certificationsUrl}
       />
 
       {/* Border */}

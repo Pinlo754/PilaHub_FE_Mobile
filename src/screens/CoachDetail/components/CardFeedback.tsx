@@ -24,13 +24,13 @@ const CardFeedback = ({ item }: Props) => {
         {/* Name & Rating */}
         <View className="flex-grow self-center">
           <Text className="color-foreground font-semibold">
-            {item.user_name}
+            {item.traineeFullName}
           </Text>
           <StarRating rating={item.rating} size={12} />
         </View>
 
         {/* Date */}
-        <Text className="color-secondaryText text-xs">{item.date}</Text>
+        <Text className="color-secondaryText text-xs">{item.createdAt}</Text>
       </View>
 
       {/* Comment */}

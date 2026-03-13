@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
@@ -30,13 +30,14 @@ export default function VideoPlayer({
   const onPressPlayBtn = () => {
     togglePlayButton();
   };
-
+  const [isLoaded, setIsLoaded] = useState(false);
   // 🔥 SEEK KHI CLICK ERROR
   useEffect(() => {
-    if (seekTime !== null) {
-      player.videoRef.current?.seek(seekTime);
-    }
-  }, [seekTime, player.videoRef]);
+  if (seekTime !== null && isLoaded) {
+    console.log("seek video to:", seekTime);
+    player.videoRef.current?.seek(seekTime);
+  }
+}, [seekTime, isLoaded]);
 
   return (
     <View className="w-full" style={{ height: isVideoExpand ? height : 260 }}>
@@ -44,7 +45,10 @@ export default function VideoPlayer({
         videoRef={player.videoRef}
         source={source}
         paused={!isVideoPlay}
-        onLoad={d => player.setDuration(d.duration)}
+        onLoad={d => {
+          player.setDuration(d.duration);
+          setIsLoaded(true);
+        }}
         onProgress={p => player.setCurrentTime(p.currentTime)}
       />
 

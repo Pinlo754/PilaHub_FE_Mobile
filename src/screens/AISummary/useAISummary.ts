@@ -38,6 +38,8 @@ export const useAISummary = () => {
     setIsVideoPlay(prev => !prev);
   };
 
+  
+
   // USE EFFECT
   useEffect(() => {
     if (showVideoError.visible) {

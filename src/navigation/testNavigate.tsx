@@ -3,35 +3,15 @@ import { View, Text, Button, StyleSheet } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import api from '../hooks/axiosInstance';
-import AITracking from '../screens/AITracking/AITracking';
 
 const TestNavigateScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-
-  const handleGoToProgramDetail = () => {
-    navigation.navigate('ProgramDetail', {
-      program_id: 'test_id_123',
-    });
-  };
-
-  const login = () => {
-    const res = api.post('http://192.168.1.64:8080/api/auth/login', {
-      email: 'maintse184085@fpt.edu.vn',
-      password: 'SecurePass123!',
-    });
-
-    console.log(res);
-  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Test Navigate Screen</Text>
 
-      {/* <Button
-        title="Go to Coach Screen"
-        onPress={() => navigation.navigate('CoachScreen')}
-      /> */}
-      <Button title="Go to AIPractice Screen" onPress={() => navigation.navigate('Login')} />
+      <Button title="Go to ListRequest" onPress={() => navigation.navigate('Login')} />
     </View>
   );
 };
