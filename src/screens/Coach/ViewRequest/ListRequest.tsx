@@ -21,6 +21,7 @@ type RequestItem = {
     traineeAvatarUrl: string | null;
     primaryGoalName: string;
     secondaryGoalIds: string[];
+    secondaryGoalNames: string[];
     workoutLevel: string;
     trainingDays: string[];
     durationWeeks: number;
@@ -204,7 +205,11 @@ const ListRequest = () => {
 
                 const response = await CoachService.getRequestRoadmap();
 
-                setRequests(response);
+                const pendingRequests = response.filter(
+                    (req: any) => req.status === "PENDING"
+                );
+
+                setRequests(pendingRequests);
 
             } catch (error) {
 
@@ -245,7 +250,28 @@ const ListRequest = () => {
                     renderItem={({ item }) => (
                         <RequestCard item={item} navigation={navigation} />
                     )}
-                    contentContainerStyle={{ paddingBottom: 120 }}
+                    contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+                    ListEmptyComponent={
+                        !loading ? (
+                            <View className="flex-1 justify-center items-center mt-20">
+
+                                <Ionicons
+                                    name="document-text-outline"
+                                    size={70}
+                                    color="#D1D5DB"
+                                />
+
+                                <Text className="text-lg font-semibold text-gray-400 mt-4">
+                                    Không có yêu cầu nào
+                                </Text>
+
+                                <Text className="text-gray-400 text-sm mt-1">
+                                    Khi học viên gửi yêu cầu, nó sẽ xuất hiện ở đây
+                                </Text>
+
+                            </View>
+                        ) : null
+                    }
                 />
 
             )}
