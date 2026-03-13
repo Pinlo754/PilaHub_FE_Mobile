@@ -13,11 +13,16 @@ export async function googleAuth(payload: { email?: string; googleIdToken: strin
     const res = await api.post('/auth/google-login', payload);
     const data = res.data?.data ?? res.data ?? res;
 
-    if (data?.accessToken) {
-      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+    // backend may return tokens at top-level or inside data.authResponse
+    const authPayload = data?.authResponse ?? data;
+    const accessToken = authPayload?.accessToken ?? null;
+    const refreshToken = authPayload?.refreshToken ?? null;
+
+    if (accessToken) {
+      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     }
-    if (data?.refreshToken) {
-      await AsyncStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    if (refreshToken) {
+      await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     }
 
     return { ok: true, data };

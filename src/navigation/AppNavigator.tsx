@@ -56,6 +56,8 @@ import WalletScreen from '../screens/Wallet/WalletScreen';
 import TransactionDetailScreen from '../screens/Wallet/TransactionDetailScreen';
 import DepositWebViewScreen from '../screens/Wallet/DepositWebViewScreen';
 import DepositResultScreen from '../screens/Wallet/DepositResultScreen';
+import DeviceScanScreen from '../screens/IoT/DeviceScanScreen';
+import MyDevicesScreen from '../screens/IoT/MyDevicesScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -137,6 +139,8 @@ export type RootStackParamList = {
   Deposit: undefined;
   Withdraw: undefined;
   TransactionDetail: { transactionId: string } | undefined;
+  DeviceScan: undefined;
+  MyDevices: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -191,11 +195,15 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="RoadMap" component={RoadMap} />
         <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
         <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
+        <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
+        <Stack.Screen name="MyDevices" component={MyDevicesScreen} />
+       
         <Stack.Screen
           name="TestNavigateScreen"
           component={TestNavigateScreen}
         />
         <Stack.Screen name="CoachScreen" component={CoachScreen} />
+        
         <Stack.Screen
           name="CoachRegisterSchedule"
           component={CoachRegisterSchedule}
@@ -213,6 +221,8 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen name="TraineeReport" component={TraineeReport} />
         <Stack.Screen name="AISummary" component={AISummary} />
         <Stack.Screen name="AIPractice" component={AIPractice} />
+       
+     
         <Stack.Screen
           name="CoachProfileScreen"
           component={CoachProfileScreen}

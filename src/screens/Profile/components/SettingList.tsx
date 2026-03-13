@@ -54,6 +54,11 @@ export default function SettingList({ profile }: Props) {
           <Text className="ml-3">Trợ giúp & Hỗ trợ</Text>
         </Pressable>
 
+        <Pressable className="p-4 border-b border-gray-100 flex-row items-center" onPress={() => (navigation as any).navigate('MyDevices')}>
+          <Ionicons name="phone-portrait-outline" size={18} color="#A0522D" />
+          <Text className="ml-3">Thiết bị kết nối</Text>
+        </Pressable>
+
         <Pressable className="p-4 flex-row items-center" onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="#ef4444" />
           <Text className="ml-3 text-red-500">Đăng xuất</Text>

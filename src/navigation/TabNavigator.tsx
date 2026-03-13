@@ -8,9 +8,7 @@ import ListScreen from '../screens/List/ListScreen';
 import { RenderCenterTabBtn } from '../components/TabCenterBtn';
 import CoachScreen from '../screens/Coach/CoachScreen';
 import ShopScreen from '../screens/Shop/ShopScreen';
-import PlanScreen from '../screens/Plan/PlanScreen';
 import AppLayout from '../components/AppLayout';
-import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
 import RoadMap from '../screens/Plan/RoadMap';
 
 export type RootTabParamList = {
