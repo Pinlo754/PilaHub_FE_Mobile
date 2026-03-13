@@ -209,8 +209,9 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
           workoutSessionId,
           mistakeLogs: transformedMistakeLogs,
         };
-        
+
         await mistakeLogService.createMistakeLog(payload);
+
       }
 
       const AIFeedback = await workoutSessionService.feedbackWorkout(workoutSessionId);;
