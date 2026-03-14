@@ -1,21 +1,20 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { Text, View, Pressable } from 'react-native';
+import { LevelType } from '../../../utils/CourseType';
+import { getLevelTarget } from '../../../utils/uiMapper';
 
 type ProgramInformationProps = {
   goal: string;
-  target_trainee: string;
+  level: LevelType;
 };
 
-const ProgramInformation = ({
-  goal,
-  target_trainee,
-}: ProgramInformationProps) => {
+const ProgramInformation = ({ goal, level }: ProgramInformationProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const target_trainee = getLevelTarget(level);
 
   return (
-    <View className="w-full bg-background px-6">
-      
+    <View className="w-full bg-background px-4">
       <Pressable
         onPress={() => setIsOpen(!isOpen)}
         className="w-full bg-background-sub1 py-2 px-4 rounded-3xl flex-row justify-between items-center"
@@ -39,28 +38,24 @@ const ProgramInformation = ({
 
       {isOpen && (
         <>
-          <View className="bg-background-sub2 mt-2 rounded-2xl p-4">
+          <View className="bg-background-sub2 mt-2 rounded-lg p-4">
             <View className="mb-2 flex-row items-center">
               <Ionicons name="rocket-sharp" size={20} color="#A0522D" />
               <Text className="text-foreground text-fs16 font-bold ml-2">
                 Mục tiêu
               </Text>
             </View>
-            <Text className="text-foreground text-fs14">
-              {goal}
-            </Text>
+            <Text className="text-foreground text-fs14">{goal}</Text>
           </View>
 
-          <View className="bg-background-sub2 mt-2 rounded-2xl p-4">
+          <View className="bg-background-sub2 mt-2 rounded-lg p-4">
             <View className="mb-2 flex-row items-center">
               <Ionicons name="person" size={20} color="#A0522D" />
               <Text className="text-foreground text-fs16 font-bold ml-2">
                 Đối tượng
               </Text>
             </View>
-            <Text className="text-foreground text-fs14">
-              {target_trainee}
-            </Text>
+            <Text className="text-foreground text-fs14">{target_trainee}</Text>
           </View>
         </>
       )}

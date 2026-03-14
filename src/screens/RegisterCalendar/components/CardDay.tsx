@@ -7,6 +7,7 @@ type Props = {
   isSelected: boolean;
   is2Digit: boolean;
   onPressDate: (date: Date) => void;
+  isDisabled: boolean;
 };
 
 const CardDay = ({
@@ -15,13 +16,16 @@ const CardDay = ({
   isSelected,
   is2Digit,
   onPressDate,
+  isDisabled,
 }: Props) => {
   return (
     <Pressable
       onPress={() => onPressDate(item.fullDate)}
+      disabled={isDisabled}
+      style={{ opacity: isDisabled ? 0.6 : 1 }}
       className={`pt-1 pb-5 flex-col items-center rounded-lg relative border border-foreground ${
-        isSelected && 'bg-background-sub1'
-      } ${is2Digit ? 'px-2' : 'px-3'}`}
+        isDisabled ? 'bg-inactive-lighter' : isSelected && 'bg-background-sub1'
+      } ${is2Digit ? 'px-2' : 'px-3'} `}
     >
       <Text className="color-secondaryText font-medium text-xs">
         Thg {item.month}

@@ -9,6 +9,7 @@ type ErrorLog = {
   recordedAtSecond: number;
   imageUrl: string;
 };
+import { secondsToTime } from '../../../utils/time';
 
 type Props = {
   item: ErrorLog;

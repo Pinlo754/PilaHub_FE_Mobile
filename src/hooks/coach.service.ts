@@ -1,6 +1,7 @@
 import { ApiResponse } from '../utils/ApiResType';
 import api from './axiosInstance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CoachType } from '../utils/CoachType';
 
 export const CoachService = {
 
@@ -89,5 +90,18 @@ export const CoachService = {
 
     return res.data.data;
   },
+  // GET BY ID
+  getById: async (coachId: string)=> {
+    const res = await api.get<ApiResponse<CoachType>>(`/coaches/${coachId}`);
 
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

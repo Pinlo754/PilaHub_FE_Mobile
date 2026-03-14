@@ -20,7 +20,7 @@ const CardCoach = ({ item, isLast, onPressCard, onPressBtn }: Props) => {
       <View className="rounded-full w-16 h-16 overflow-hidden">
         <Image
           source={{
-            uri: item.avatar,
+            uri: item.avatarUrl,
           }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
@@ -31,21 +31,21 @@ const CardCoach = ({ item, isLast, onPressCard, onPressBtn }: Props) => {
       <View className="flex-grow">
         {/* Name */}
         <Text className="font-bold color-foreground text-lg">
-          {item.full_name}
+          {item.fullName}
         </Text>
         {/* Rate */}
         <View className="flex-row gap-6">
           <View className="flex-row gap-2 items-center">
             <Ionicons name="star" size={18} color={colors.warning.DEFAULT} />
             <Text className="color-secondaryText font-medium">
-              {item.rating_avg}
+              {item.avgRating}
             </Text>
           </View>
           {/* Experience year */}
           <View className="flex-row gap-2 items-center">
             <Ionicons name="ribbon" size={18} color={colors.info.darker} />
             <Text className="color-secondaryText font-medium">
-              {item.experience_years} năm
+              {item.yearsOfExperience} năm
             </Text>
           </View>
         </View>

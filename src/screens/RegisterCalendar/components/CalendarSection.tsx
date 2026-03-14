@@ -8,55 +8,78 @@ import {
 } from '../../../utils/day';
 import CardDay from './CardDay';
 import { useFocusEffect } from '@react-navigation/native';
-import ScheduleAvailable from './ScheduleAvailable';
 import CalendarHeader from './CalendarHeader';
+import ChooseTime from './ChooseTime';
+import { DaySchedule } from '../../../utils/availableSchedule';
+import dayjs from 'dayjs';
+import { BookingSlot } from '../../../utils/CoachBookingType';
+import BookingTable from './BookingTable';
 
-type Props = {};
+type Props = {
+  weekStart: Date;
+  schedule: DaySchedule[];
+  selectedDate: Date | null;
+  onChangeWeek: (date: Date) => void;
+  startTime: string | null;
+  endTime: string | null;
+  onSelectDate: (date: Date) => void;
+  onSelectStart: (time: string) => void;
+  onSelectEnd: (time: string) => void;
+  onPressConfirmSlot: () => void;
+  bookingSlots: BookingSlot[];
+};
 
-const CalendarSection = ({}: Props) => {
+const CalendarSection = ({
+  weekStart,
+  schedule,
+  selectedDate,
+  onChangeWeek,
+  endTime,
+  onSelectDate,
+  onSelectEnd,
+  onSelectStart,
+  startTime,
+  onPressConfirmSlot,
+  bookingSlots,
+}: Props) => {
   // STATE
   const today = new Date();
-  const [currentDate, setCurrentDate] = useState(today);
   const [days, setDays] = useState<DayItem[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // USE REF
   const scrollRef = useRef<ScrollView>(null);
-  const dayLayouts = useRef<Record<string, number>>({});
 
   // HANDLERS
   const changeWeek = (step: number) => {
-    setCurrentDate(prev => getNextWeekDate(prev, step));
+    const newDate = getNextWeekDate(weekStart, step);
+    onChangeWeek(newDate);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
-  const getKey = (date: Date) =>
-    `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-
   const handlePressDate = (date: Date) => {
-    setSelectedDate(date);
-    const key = getKey(date);
-    const y = dayLayouts.current[key];
+    const isPast = dayjs(date).isBefore(dayjs(), 'day');
 
-    if (y !== undefined) {
-      scrollRef.current?.scrollTo({ y: y - 10, animated: true });
-    }
-  };
+    if (isPast) return;
 
-  const getSelectedIndex = () => {
-    if (!selectedDate) return -1;
-
-    return days.findIndex(d => checkIsToday(d.fullDate, selectedDate));
+    onSelectDate(date);
   };
 
   // CALC
-  const selectedIndex = getSelectedIndex();
-  const dynamicPaddingBottom = selectedIndex >= days.length - 2 ? 225 : 0;
+  const selectedSlots = selectedDate
+    ? (schedule.find(d => d.date === dayjs(selectedDate).format('YYYY-MM-DD'))
+        ?.slots ?? [])
+    : [];
+
+  // CHECK
+  const isPrevDisabled = dayjs(getNextWeekDate(weekStart, -1)).isBefore(
+    dayjs(),
+    'week',
+  );
 
   // USE EFFECTS
   useEffect(() => {
-    setDays(getWeekDays(currentDate));
-  }, [currentDate]);
+    setDays(getWeekDays(weekStart));
+  }, [weekStart]);
 
   // USE FOCUS EFFECT
   useFocusEffect(
@@ -68,39 +91,59 @@ const CalendarSection = ({}: Props) => {
   return (
     <View className="mt-4">
       {/* Week */}
-      <CalendarHeader days={days} changeWeek={changeWeek} />
+      <CalendarHeader
+        days={days}
+        changeWeek={changeWeek}
+        disablePrev={isPrevDisabled}
+      />
 
       {/* Days */}
       <View className="w-full p-3 mb-3 rounded-2xl bg-background-sub2 flex-row justify-between  items-center">
-        {days.map((item, index) => {
+        {days.map((item, _index) => {
           const isToday = checkIsToday(item.fullDate, today);
           const isSelected = selectedDate
             ? checkIsToday(item.fullDate, selectedDate)
             : false;
-          const is2Digit = item.month.length >= 10;
+          const is2Digit = Number(item.month) >= 10;
+          const isPast = dayjs(item.fullDate).isBefore(dayjs(), 'day');
 
           return (
             <CardDay
-              key={index}
+              key={`${item.fullDate.getTime()}`}
               item={item}
               isToday={isToday}
               isSelected={isSelected}
               is2Digit={is2Digit}
               onPressDate={handlePressDate}
+              isDisabled={isPast}
             />
           );
         })}
       </View>
 
+      {/* Choose Time */}
+      <ChooseTime
+        slots={selectedSlots}
+        startTime={startTime}
+        endTime={endTime}
+        onSelectStart={onSelectStart}
+        onSelectEnd={onSelectEnd}
+        onPressConfirmSlot={onPressConfirmSlot}
+        bookingSlots={bookingSlots}
+      />
+
+      {/* Booking Slot */}
+      {bookingSlots.length > 0 && <BookingTable bookingSlots={bookingSlots} />}
+
       {/* Schedule Available  */}
-      <ScheduleAvailable
+      {/* <ScheduleAvailable
         days={days}
         selectedDate={selectedDate}
         scrollRef={scrollRef}
         dayLayouts={dayLayouts}
         getKey={getKey}
         dynamicPaddingBottom={dynamicPaddingBottom}
-      />
+      /> */}
     </View>
   );
 };

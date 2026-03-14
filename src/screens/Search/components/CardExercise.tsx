@@ -14,7 +14,7 @@ const CardExercise = ({ item, onPress }: Props) => {
   return (
     <Pressable className="flex-row gap-4 mb-3 px-4" onPress={onPress}>
       {/* Image */}
-      <View className="w-32 h-20 rounded-lg overflow-hidden">
+      <View className="w-32 h-24 rounded-lg overflow-hidden">
         <Image
           source={{
             uri: item.imageUrl,
@@ -37,29 +37,32 @@ const CardExercise = ({ item, onPress }: Props) => {
             {secondsToTime(item.default_duration_sec)}
           </Text>
 
-          {/* Difficult Level */}
-          <View className="flex-row items-center gap-1">
-            {item.difficultyLevel &&
-              Array.from({
-                length: getLevelNumber(item.difficultyLevel),
-              }).map((_, index) => (
-                <Ionicons
-                  key={index}
-                  name="star"
-                  size={18}
-                  color={colors.warning.DEFAULT}
-                />
-              ))}
-          </View>
+          <View className="flex-row items-center justify-between">
+            {/* Difficult Level */}
+            <View className="flex-row items-center gap-1">
+              {Array.from({ length: getLevelNumber(item.difficultyLevel) }).map(
+                (_, index) => (
+                  <Ionicons
+                    key={index}
+                    name="star"
+                    size={18}
+                    color={colors.warning.DEFAULT}
+                  />
+                ),
+              )}
+            </View>
 
-          {/* Require Equipment */}
-          {item.equipmentRequired && (
-            <Ionicons
-              name="barbell-outline"
-              size={22}
-              color={colors.secondaryText}
-            />
-          )}
+            {/* Require Equipment */}
+            {item.equipmentRequired && (
+              <View className="px-2 py-1 rounded-full mr-4">
+                <Ionicons
+                  name="barbell-outline"
+                  size={22}
+                  color={colors.secondaryText}
+                />
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </Pressable>

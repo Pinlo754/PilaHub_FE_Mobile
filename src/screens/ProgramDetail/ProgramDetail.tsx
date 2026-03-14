@@ -8,6 +8,7 @@ import { useProgramDetail } from './useProgramDetail';
 import ProgressConsume from './components/ProgressConsume';
 import ProgramInformation from './components/ProgramInformation';
 import ProgrameContent from './components/ProgrameContent';
+import Header from './components/Header';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProgramDetail'>;
 
@@ -15,20 +16,22 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
   const { programDetail } = useProgramDetail({ route });
 
   return (
-    <View className="w-full flex-1">
+    <View className="w-full flex-1 bg-background">
       {programDetail ? (
         <>
+          {/* Header */}
+          <Header navigation={navigation} />
           <ImageProgram
-            imgUrl={programDetail.image_url}
+            imgUrl={programDetail.imageUrl}
             programName={programDetail.name}
           />
           <ProgressConsume
-            progress={programDetail.progress}
-            number_of_programs={programDetail.number_of_programs}
+            progress={10}
+            number_of_programs={programDetail.totalLesson}
           />
           <ProgramInformation
-            goal={programDetail.goal}
-            target_trainee={programDetail.target_trainee}
+            goal={programDetail.description}
+            level={programDetail.level}
           />
           <ProgrameContent />
         </>

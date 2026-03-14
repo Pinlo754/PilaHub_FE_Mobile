@@ -59,6 +59,7 @@ import DepositResultScreen from '../screens/Wallet/DepositResultScreen';
 import DeviceScanScreen from '../screens/IoT/DeviceScanScreen';
 import MyDevicesScreen from '../screens/IoT/MyDevicesScreen';
 import { BleProvider } from '../services/BleProvider';
+import TraineeBooking from '../screens/TraineeBooking/TraineeBooking';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -103,11 +104,11 @@ export type RootStackParamList = {
   HealthProfileAssessment: { healthProfileId: string } | undefined;
 
 
-  CoachDetail: { coachId: string; selectedCoachId?: string | null };
+  CoachDetail: { coachId: string; selectedCoachId?: string | null; pricePerHour: number };
   List: undefined;
   DailyTask: undefined;
-  RegisterCalendar: { coach_id?: string | null };
-  TraineeFeedback: undefined;
+  RegisterCalendar: { coach_id?: string | null; pricePerHour?: number };
+  TraineeFeedback: { liveSessionId?: string };
   TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
   AISummary: {
     feedback: any;
@@ -128,10 +129,10 @@ export type RootStackParamList = {
   };
   CoachProfileScreen: undefined;
   TraineeProfileCoachScreen: undefined;
-  VideoCall: undefined;
+  VideoCall: { bookingId: string };
   UploadImageScreen: undefined;
   TraineeProfile: undefined;
-  SendRequestScreen: { coach_id: string };
+  SendRequestScreen: { coach_id: string, pricePerHour: number | undefined };
   ListRequest: undefined;
   TraineeHealthProfileResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
   ForgotPassword: undefined;
@@ -143,6 +144,7 @@ export type RootStackParamList = {
   TransactionDetail: { transactionId: string } | undefined;
   DeviceScan: undefined;
   MyDevices: undefined;
+  TraineeBooking: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -152,7 +154,7 @@ const AppNavigator: React.FC = () => {
     <BleProvider>
       <AppLayout>
         <Stack.Navigator
-          initialRouteName="Startup"
+          initialRouteName="TestNavigateScreen"
           screenOptions={{
             headerShown: false,
           }}
@@ -200,6 +202,7 @@ const AppNavigator: React.FC = () => {
           <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
           <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
           <Stack.Screen name="MyDevices" component={MyDevicesScreen} />
+
          
           <Stack.Screen
             name="TestNavigateScreen"
@@ -249,6 +252,7 @@ const AppNavigator: React.FC = () => {
           <Stack.Screen name="DepositWebView" component={DepositWebViewScreen} />
           <Stack.Screen name="DepositResult" component={DepositResultScreen} />
           <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+          <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
         </Stack.Navigator>
       </AppLayout>
     </BleProvider>

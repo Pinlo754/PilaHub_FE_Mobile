@@ -1,18 +1,23 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Pressable, Text, View } from 'react-native';
 import { colors } from '../../../theme/colors';
+import { ModeType } from '../useTraineeFeedback';
 
 type Props = {
   rating: number;
   onChange: (value: number) => void;
+  mode: ModeType;
 };
 
-const RateSection = ({ rating, onChange }: Props) => {
+const RateSection = ({ rating, onChange, mode }: Props) => {
   // CONSTANTS
   const MAXSTARS = 5;
 
+  // CHECK
+  const isFeedbackForCoach = mode === 'feedbackForCoach';
+
   return (
-    <View className="mt-6 mx-4">
+    <View className={`mx-4 ${isFeedbackForCoach ? 'mb-6' : 'mt-6 '}`}>
       {/* Title */}
       <Text className="color-secondaryText font-semibold text-lg">
         Đánh giá trải nghiệm của bạn
