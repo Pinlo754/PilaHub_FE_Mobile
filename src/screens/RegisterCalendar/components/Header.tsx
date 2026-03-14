@@ -9,9 +9,15 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'RegisterCalendar'>;
   selectedCoachId: string | null;
   clearCoachId: () => void;
+  clearBooking: () => void;
 };
 
-const Header = ({ navigation, selectedCoachId, clearCoachId }: Props) => {
+const Header = ({
+  navigation,
+  selectedCoachId,
+  clearCoachId,
+  clearBooking,
+}: Props) => {
   // VARIABLES
   const previousRouteName = useNavigationState(state => {
     const index = state.index;
@@ -20,6 +26,7 @@ const Header = ({ navigation, selectedCoachId, clearCoachId }: Props) => {
 
   // HANDLERS
   const handleGoBack = () => {
+    clearBooking();
     if (previousRouteName === 'CoachDetail') {
       clearCoachId();
       navigation.goBack();

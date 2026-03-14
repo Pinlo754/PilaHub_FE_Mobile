@@ -13,16 +13,19 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CoachDetail'>;
 
 const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   // HOOK
-  const { coachDetail, scrollY, onPressBtn, sendRequestRoadmap } = useCoachDetail({
+  const { coachDetail, coachFeedbacks, scrollY, onPressBtn, sendRequestRoadmap } = useCoachDetail({
     route,
     navigation,
   });
+
+  // CALC
+  const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
 
   // LOADING
   if (!coachDetail) return null;
 
   return (
-    <View className="w-full flex-1 relative bg-background">
+    <View className="w-full flex-1  bg-background">
       {/* Header */}
       <Header
         navigation={navigation}
@@ -41,18 +44,21 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       >
         {/* Image */}
         <ImageCoach
-          imgUrl={coachDetail?. avatarUrl}
+          avatarUrl={coachDetail?. avatarUrl}
           coachName={coachDetail?.fullName}
         />
 
         {/* Stats Card */}
         <StatsCard
-          rate={coachDetail?.avgRating}
+          rate={coachDetail?.avgRating || 5}
           experienceYears={coachDetail?.yearsOfExperience}
         />
 
         {/* Overview Section */}
-        <OverviewSection coachDetail={coachDetail} />
+        <OverviewSection
+          coachDetail={coachDetail}
+          coachFeedbacks={coachFeedbacks}
+        />
       </Animated.ScrollView>
 
       <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4">

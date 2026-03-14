@@ -10,7 +10,7 @@ const CommingsoonClass = () => {
     const startSession = (id: string) => {
         console.log(`Bắt đầu lớp học với ID: ${id}`);
         //navigation.navigate('EndSessionScreen', { selectedId: id });
-        navigation.navigate('VideoCall');
+        navigation.navigate('VideoCall', {bookingId: id});
     }
     const selectedId = route.params.selectedId;
     return (

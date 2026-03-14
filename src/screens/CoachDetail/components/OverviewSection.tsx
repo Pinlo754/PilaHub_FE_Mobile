@@ -2,18 +2,18 @@ import { Text, View } from 'react-native';
 import { CoachType } from '../../../utils/CoachType';
 import InfoSection from './InfoSection';
 import FeedbackSection from './FeedbackSection';
+import { CoachFeedbackType } from '../../../utils/CoachFeedbackType';
 
 type Props = {
   coachDetail: CoachType;
+  coachFeedbacks: CoachFeedbackType[];
 };
 
-const OverviewSection = ({ coachDetail }: Props) => {
+const OverviewSection = ({ coachDetail, coachFeedbacks }: Props) => {
   return (
     <View className="mt-24 px-4 w-full">
       {/* Desctiption */}
-      <Text className="color-foreground font-medium">
-        {coachDetail.bio}
-      </Text>
+      <Text className="color-foreground font-medium">{coachDetail.bio}</Text>
 
       {/* Border */}
       <View className="h-px bg-background-sub1 mt-4 mb-2" />
@@ -22,7 +22,7 @@ const OverviewSection = ({ coachDetail }: Props) => {
       <InfoSection
         icon="golf-outline"
         title="Lĩnh vực"
-        data={coachDetail.specialization}
+         data={coachDetail.specialization}
       />
 
       {/* Certifications */}
@@ -36,7 +36,7 @@ const OverviewSection = ({ coachDetail }: Props) => {
       <View className="h-px bg-background-sub1 mt-2 mb-4" />
 
       {/* Feedback Section */}
-      <FeedbackSection />
+      <FeedbackSection feedbackData={coachFeedbacks} />
     </View>
   );
 };

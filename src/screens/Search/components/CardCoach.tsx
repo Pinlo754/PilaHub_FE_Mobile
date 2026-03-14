@@ -12,7 +12,7 @@ type Props = {
 const CardCoach = ({ item, isLast, onPress }: Props) => {
   return (
     <Pressable
-      className={`border-t border-background-sub2 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
+      className={`border-t border-background-sub1 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
       onPress={onPress}
     >
       {/* Image */}

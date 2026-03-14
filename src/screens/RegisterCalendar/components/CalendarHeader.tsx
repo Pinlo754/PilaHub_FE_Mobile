@@ -6,19 +6,22 @@ import { DayItem, formatWeekRange } from '../../../utils/day';
 type Props = {
   days: DayItem[];
   changeWeek: (step: number) => void;
+  disablePrev: boolean;
 };
 
-const CalendarHeader = ({ days, changeWeek }: Props) => {
+const CalendarHeader = ({ days, changeWeek, disablePrev }: Props) => {
   return (
     <View className="flex-row items-center gap-4 self-center mb-3">
       {/* Arrow */}
-      <Pressable onPress={() => changeWeek(-1)}>
-        <Ionicons
-          name="chevron-back-outline"
-          size={22}
-          color={colors.foreground}
-        />
-      </Pressable>
+      {!disablePrev && (
+        <Pressable onPress={() => changeWeek(-1)}>
+          <Ionicons
+            name="chevron-back-outline"
+            size={22}
+            color={colors.foreground}
+          />
+        </Pressable>
+      )}
 
       {/* Week Range */}
       <Text className="color-foreground font-semibold">

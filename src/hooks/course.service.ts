@@ -17,4 +17,19 @@ export const courseService = {
 
     return res.data.data;
   },
+
+  // GET BY ID
+  getById: async (courseId: string): Promise<CourseType> => {
+    const res = await api.get<ApiResponse<CourseType>>(`/courses/${courseId}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

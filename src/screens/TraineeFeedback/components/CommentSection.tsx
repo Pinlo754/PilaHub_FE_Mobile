@@ -1,13 +1,18 @@
 import { Text, TextInput, View } from 'react-native';
 import { colors } from '../../../theme/colors';
+import { ModeType } from '../useTraineeFeedback';
 type Props = {
   comment: string;
   onChange: (text: string) => void;
+  mode: ModeType;
 };
 
-const CommentSection = ({ comment, onChange }: Props) => {
+const CommentSection = ({ comment, onChange, mode }: Props) => {
+  // CHECK
+  const isFeedbackForTrainee = mode === 'feedbackForTrainee';
+
   return (
-    <View className="m-4">
+    <View className={`m-4 ${isFeedbackForTrainee && 'pb-4'}`}>
       {/* Title */}
       <Text className="color-secondaryText font-semibold text-lg">
         Nhận xét của bạn

@@ -73,6 +73,7 @@ type Props = {
   rounded?: RoundedType;
   iconName?: IconName;
   iconSize?: number;
+  showArrow?: boolean;
 };
 
 const Button = ({
@@ -85,8 +86,11 @@ const Button = ({
   rounded = 'xl',
   iconName,
   iconSize = 26,
+  showArrow,
 }: Props) => {
   const color = getColors(colorType);
+
+  const isShowArrow = iconName || showArrow;
 
   return (
     <Pressable
@@ -106,14 +110,14 @@ const Button = ({
 
       {/* Label */}
       <Text
-        className={`text-lg font-semibold ${iconName ? '' : 'flex-1 text-center'}`}
+        className={`text-lg font-semibold ${iconName ? '' : 'flex-grow text-center'}`}
         style={{ color: color.textColor }}
       >
         {text}
       </Text>
 
       {/* Chevron right */}
-      {iconName && (
+      {isShowArrow && (
         <View className="flex-1 items-end">
           <Ionicons
             name="chevron-forward-outline"

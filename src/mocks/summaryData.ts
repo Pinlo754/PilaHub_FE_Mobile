@@ -4,7 +4,7 @@ export const errorMock: ErrorItemType[] = [
   {
     id: 1,
     title: 'Lỗi sai 1',
-    time: '01:50',
+    time: 4.265,
     desc: 'Bạn đã nâng tay quá cao, vai bị nhún lên và cột sống không giữ ở vị trí trung lập, làm giảm hiệu quả bài tập.',
     thumbnail_url:
       'https://images.pexels.com/photos/3823039/pexels-photo-3823039.jpeg',
@@ -13,7 +13,7 @@ export const errorMock: ErrorItemType[] = [
   {
     id: 2,
     title: 'Lỗi sai 2',
-    time: '04:31',
+    time: 5.172,
     desc: 'Tư thế lưng chưa đúng khi thực hiện động tác.',
     thumbnail_url:
       'https://images.pexels.com/photos/3757376/pexels-photo-3757376.jpeg',
@@ -22,7 +22,7 @@ export const errorMock: ErrorItemType[] = [
   {
     id: 3,
     title: 'Lỗi sai 3',
-    time: '10:01',
+    time: 8.491,
     desc: 'Chuyển động tay chưa kiểm soát tốt.',
     thumbnail_url:
       'https://images.pexels.com/photos/3823039/pexels-photo-3823039.jpeg',
