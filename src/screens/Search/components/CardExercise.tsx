@@ -34,12 +34,12 @@ const CardExercise = ({ item, onPress }: Props) => {
        
           {/* Duration */}
           <Text className="color-secondaryText font-medium text-lg">
-            {secondsToTime(item.default_duration_sec)}
+            {secondsToTime(item.duration)}
           </Text>
 
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center">
           {/* Difficult Level */}
-          <View className="flex-row items-center gap-1">
+          <View className="flex-row w-[100px] items-center gap-1">
             {Array.from({ length: getLevelNumber(item.difficultyLevel) }).map(
               (_, index) => (
                 <Ionicons

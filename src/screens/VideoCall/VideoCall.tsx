@@ -6,7 +6,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useVideoCall } from './useVideoCall';
 import InstructModal from './components/InstructModal';
 import LoadingOverlay from '../../components/LoadingOverlay';
-import { RtcSurfaceView } from 'react-native-agora';
+import { RtcSurfaceView, RtcTextureView } from 'react-native-agora';
 import { colors } from '../../theme/colors';
 import ModalPopup from '../../components/ModalPopup';
 
@@ -19,7 +19,6 @@ const VideoCall = (props: Props) => {
     error,
     isLoading,
     onLeave,
-    liveSessionDetail,
     micOn,
     remoteUid,
     toggleCamera,
@@ -32,6 +31,7 @@ const VideoCall = (props: Props) => {
     onConfirmModal,
     showConfirmModal,
     confirmMsg,
+    localUid,
   } = useVideoCall({ navigation: props.navigation, route: props.route });
   return (
     <>
@@ -43,7 +43,7 @@ const VideoCall = (props: Props) => {
 
         {/* Remote video */}
         {remoteUid ? (
-          <RtcSurfaceView
+          <RtcTextureView
             canvas={{ uid: remoteUid, renderMode: 1 }}
             style={{
               flex: 1,
@@ -68,16 +68,19 @@ const VideoCall = (props: Props) => {
             right: 10,
             borderRadius: 10,
             overflow: 'hidden',
-            zIndex: 10,
+            zIndex: 100,
           }}
         >
-          <RtcSurfaceView
-            canvas={{ uid: 0, renderMode: 1 }}
-            style={{
-              width: '100%',
-              height: '100%',
-            }}
-          />
+          {localUid && (
+            <RtcSurfaceView
+              canvas={{ uid: localUid, renderMode: 1 }}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+              zOrderMediaOverlay={true}
+            />
+          )}
         </View>
 
         {/* Control */}

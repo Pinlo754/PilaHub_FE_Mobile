@@ -115,7 +115,7 @@ const CardBooking = ({ item, onPressBtn, onPressCard }: Props) => {
       {config.showButton && (
         <>
           {/* Border */}
-          <View className="border-t border-background-sub1 absolute left-0 right-0 top-[155px]" />
+          <View  pointerEvents="none" className="border-t border-background-sub1 absolute left-0 right-0 top-[155px]" />
 
           {/* Button */}
           <View className="flex self-end mt-6 -mr-2">

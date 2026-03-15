@@ -29,7 +29,6 @@ const List = <K extends ListTab>({ activeTab, data, navigation }: Props<K>) => {
   const renderItem = useCallback(
     ({ item }: { item: TabTypeMap[K] }) => {
       const Card = config.Card;
-      const id = (item as any)[config.idKey];
 
       return (
         <Card
@@ -37,9 +36,7 @@ const List = <K extends ListTab>({ activeTab, data, navigation }: Props<K>) => {
           onPress={() => {
             navigation.navigate(
               config.screen as any,
-              {
-                [config.paramKey]: id,
-              } as any,
+              config.getParams(item) as any,
             );
           }}
         />

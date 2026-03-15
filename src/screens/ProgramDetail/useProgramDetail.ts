@@ -1,71 +1,129 @@
 import { useEffect, useState } from 'react';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
-import { CourseLessonType } from '../../utils/CourseLessonType';
-import { courseLessonService } from '../../hooks/courseLesson.service';
 import { courseService } from '../../hooks/course.service';
-import { CourseType } from '../../utils/CourseType';
-import { LessonExerciseType } from '../../utils/LessonExerciseType';
-import { lessonExerciseService } from '../../hooks/lessonExercise.service';
+import { CourseDetailType } from '../../utils/CourseType';
+import { traineeCourseService } from '../../hooks/traineeCourse.service';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
 };
 
-export const useProgramDetail = ({ route }: Props) => {
+export const useProgramDetail = ({ route, navigation }: Props) => {
   // PARAM
-  const { program_id } = route.params;
+  const { program_id, traineeCourseId } = route.params;
+
+  // CONSTANT
+  const TIMEOUT = 3010;
 
   // STATE
-  const [programDetail, setProgramDetail] = useState<CourseType>();
-  const [courseLessons, setCourseLessons] = useState<CourseLessonType[]>();
-  const [lessonExercises, setLessonExercises] = useState<
-    Record<string, LessonExerciseType[]>
-  >({});
+  const [programFullDetail, setProgramFullDetail] =
+    useState<CourseDetailType>();
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, openErrorModalMsg] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+  const [successMsg, setSuccessMsg] = useState<string>('');
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [confirmMsg, setConfirmMsg] = useState<string>('');
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
 
   // FETCH
   const fetchById = async () => {
     if (!program_id) return;
 
     setIsLoading(true);
-    setError(null);
     try {
-      // 1. Fetch course + course lesson
-      const [resCourse, resCourseLesson] = await Promise.all([
-        courseService.getById(program_id),
-        courseLessonService.getCourseLessonById(program_id),
+      const [programDetail, enrolled] = await Promise.all([
+        courseService.getFullDetail(program_id),
+        traineeCourseService.checkEnrollment(
+          'e764ce59-c100-46d9-a17e-146082eae166',
+          program_id,
+        ),
       ]);
 
-      setProgramDetail(resCourse);
-      setCourseLessons(resCourseLesson);
-
-      // 2. Lấy tất cả lessonId
-      const lessonIds = resCourseLesson.map(l => l.lessonId);
-
-      // 3. Fetch lesson exercise
-      const resLessonExercise = await Promise.all(
-        lessonIds.map(id => lessonExerciseService.getLessonExerciseById(id)),
-      );
-
-      // 4. Convert thành object theo lessonId
-      const exerciseMap: Record<string, LessonExerciseType[]> = {};
-
-      lessonIds.forEach((id, index) => {
-        exerciseMap[id] = resLessonExercise[index];
-      });
-
-      setLessonExercises(exerciseMap);
+      setProgramFullDetail(programDetail);
+      setIsEnrolled(enrolled);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
+        openErrorModal(err.message);
       } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const enrollCourse = async () => {
+    if (!program_id) return;
+
+    setIsLoading(true);
+    try {
+      const res = await traineeCourseService.enrollCourse(
+        'e764ce59-c100-46d9-a17e-146082eae166',
+        program_id,
+      );
+
+      if (res) {
+        openSuccessModal('Đăng ký khóa học thành công!');
+
+        setTimeout(() => {
+          navigation.navigate('MainTabs', {
+            screen: 'List',
+          });
+        }, TIMEOUT);
+      }
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // HANDLERS
+  const onPress = () => {
+    openConfirmModal('Bạn có chắc muốn đăng ký khóa học này không?');
+  };
+  const openSuccessModal = (msg: string) => {
+    setSuccessMsg(msg);
+    setShowSuccessModal(true);
+  };
+
+  const closeSuccessModal = () => {
+    setSuccessMsg('');
+    setShowSuccessModal(false);
+  };
+
+  const openErrorModal = (msg: string) => {
+    openErrorModalMsg(msg);
+    setShowErrorModal(true);
+  };
+
+  const closeErrorModal = () => {
+    openErrorModalMsg('');
+    setShowErrorModal(false);
+  };
+
+  const openConfirmModal = (msg: string) => {
+    setConfirmMsg(msg);
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmMsg('');
+    setShowConfirmModal(false);
+  };
+
+  const onConfirmModal = () => {
+    closeConfirmModal();
+    enrollCourse();
   };
 
   // USE EFFECT
@@ -76,10 +134,21 @@ export const useProgramDetail = ({ route }: Props) => {
   }, [program_id]);
 
   return {
-    programDetail,
-    courseLessons,
-    lessonExercises,
+    programFullDetail,
+    programDetail: programFullDetail?.course,
+    lessons: programFullDetail?.lessons ?? [],
     isLoading,
-    error,
+    isEnrolled,
+    closeConfirmModal,
+    closeErrorModal,
+    closeSuccessModal,
+    confirmMsg,
+    errorMsg,
+    successMsg,
+    onConfirmModal,
+    showConfirmModal,
+    showErrorModal,
+    showSuccessModal,
+    onPress,
   };
 };

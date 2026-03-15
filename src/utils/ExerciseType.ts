@@ -36,7 +36,7 @@ export type ExerciseType = {
   prerequisites: string | null;
   contraindications: string | null;
   active: boolean;
-  default_duration_sec: number;
+  duration: number;
 };
 
 export type TutorialType = {

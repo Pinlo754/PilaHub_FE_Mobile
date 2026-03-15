@@ -20,6 +20,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
   // STATE
   const [engine, setEngine] = useState<any>();
   const [liveSessionDetail, setLiveSessionDetail] = useState<LiveSessionType>();
+  const [localUid, setLocalUid] = useState<number | null>(null);
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const [connected, setConnected] = useState(false);
   const [micOn, setMicOn] = useState<boolean>(true);
@@ -83,6 +84,8 @@ export const useVideoCall = ({ navigation, route }: Props) => {
       const resSession = await LiveSessionService.getAgoraToken(
         resLiveSession.liveSessionId,
       );
+
+      setLocalUid(resSession.uid);
       console.log('AGORA TOKEN:', resSession);
 
       const engineInstance = await agoraService.init(resConfig.appId);
@@ -103,6 +106,13 @@ export const useVideoCall = ({ navigation, route }: Props) => {
         },
       );
 
+      engineInstance.addListener(
+        'onJoinChannelSuccess',
+        (connection, elapsed) => {
+          console.log('✅ Joined channel:', connection.channelId);
+        },
+      );
+
       await agoraService.joinChannel(
         resSession.token,
         resSession.channelName,
@@ -115,13 +125,6 @@ export const useVideoCall = ({ navigation, route }: Props) => {
 
       setEngine(engineInstance);
       setConnected(true);
-
-      engineInstance.addListener(
-        'onJoinChannelSuccess',
-        (connection, elapsed) => {
-          console.log('✅ Joined channel:', connection.channelId);
-        },
-      );
 
       engineInstance.addListener('onLeaveChannel', () => {
         console.log('👋 Left channel');
@@ -235,6 +238,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
 
   return {
     engine,
+    localUid,
     remoteUid,
     connected,
     onLeave,

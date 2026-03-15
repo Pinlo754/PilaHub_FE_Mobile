@@ -1,51 +1,39 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useRef, useState } from 'react';
-import { FlatList, Image, Pressable, Text, View } from 'react-native';
-import { CourseLessonType } from '../../../utils/CourseLessonType';
+import { useRef } from 'react';
+import { FlatList, Text, View } from 'react-native';
 import ExerciseItem from './ExerciseItem';
-import ExerciseDetail from '../../ExerciseDetail/ExerciseDetail';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
-import { CourseType } from '../../../utils/CourseType';
+import { CourseLessonDetailType } from '../../../utils/CourseType';
 
 type Props = {
-  data: CourseType[];
+  data: CourseLessonDetailType[];
   navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
 };
 
 const ProgrameContent = ({ data, navigation }: Props) => {
-  // STATE
-  const [isExpand, setIsExpand] = useState<boolean>(false);
-
   // USE REF
   const listRef = useRef<FlatList>(null);
 
-  // HANDLERS
-  const onToggle = (id: number) => {};
-
   // RENDER
-  // const renderItem = ({
-  //   item,
-  //   index,
-  // }: {
-  //   item: CourseLessonType;
-  //   index: number;
-  // }) => {
-  //   return (
-  //     <ExerciseItem
-  //       item={item}
-  //       isFirst={index === 0}
-  //       onPress={() => {
-  //         navigation.navigate('ExerciseDetail', {
-  //           exercise_id: item.courseId,
-  //         });
-  //       }}
-  //     />
-  //   );
-  // };
+  const renderItem = ({
+    item,
+    index,
+  }: {
+    item: CourseLessonDetailType;
+    index: number;
+  }) => {
+    return (
+      <ExerciseItem
+        item={item}
+        index={index}
+       navigation={navigation}
+      />
+    );
+  };
 
   return (
-    <View className="w-full bg-background px-4 mt-4">
+    <View className="w-full flex-1 bg-background px-4 mt-4">
       <View className="w-full bg-background-sub1 py-2 px-4 rounded-3xl flex-row justify-between items-center">
         <View className="flex-row items-center">
           <Ionicons
@@ -59,14 +47,14 @@ const ProgrameContent = ({ data, navigation }: Props) => {
         </View>
       </View>
 
-      {/* <FlatList
+      <FlatList
         ref={listRef}
         data={data}
-        keyExtractor={item => item.courseId}
+        keyExtractor={item => item.courseLessonId}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 8 }}
-      /> */}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }}
+      />
     </View>
   );
 };

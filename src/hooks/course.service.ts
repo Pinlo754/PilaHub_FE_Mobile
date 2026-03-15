@@ -1,5 +1,5 @@
 import { ApiResponse } from '../utils/ApiResType';
-import { CourseType } from '../utils/CourseType';
+import { CourseDetailType, CourseType } from '../utils/CourseType';
 import api from './axiosInstance';
 
 export const courseService = {
@@ -15,12 +15,27 @@ export const courseService = {
       };
     }
 
-    return res.data.data;
+     return res.data.data.filter(course => course.totalLesson > 0);
   },
 
   // GET BY ID
   getById: async (courseId: string): Promise<CourseType> => {
     const res = await api.get<ApiResponse<CourseType>>(`/courses/${courseId}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET FULL DETAIL
+  getFullDetail: async (courseId: string): Promise<CourseDetailType> => {
+    const res = await api.get<ApiResponse<CourseDetailType>>(`/courses/${courseId}/details`);
 
     if (!res.data.success) {
       throw {

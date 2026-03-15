@@ -8,7 +8,7 @@ import WelcomeScreen from '../screens/Welcome/WelcomeScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
 import SearchScreen from '../screens/Search/SearchScreen';
 import ExerciseDetail from '../screens/ExerciseDetail/ExerciseDetail';
-import TabNavigator from './TabNavigator';
+import TabNavigator, { RootTabParamList } from './TabNavigator';
 import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
 import RoadmapSummary from '../screens/RoadmapSummary/RoadmapSummary';
 import ProgramDetail from '../screens/ProgramDetail/ProgramDetail';
@@ -23,9 +23,10 @@ import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
 import TraineeBooking from '../screens/TraineeBooking/TraineeBooking';
 import VideoCall from '../screens/VideoCall/VideoCall';
+import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<RootTabParamList>;
   Home: undefined;
   Login: undefined;
   Welcome: undefined;
@@ -34,7 +35,7 @@ export type RootStackParamList = {
   ExerciseDetail: { exercise_id: string };
   Roadmap: undefined;
   RoadmapSummary: undefined;
-  ProgramDetail: { program_id: string };
+  ProgramDetail: { program_id: string; traineeCourseId?: string };
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;

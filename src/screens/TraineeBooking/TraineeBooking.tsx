@@ -48,9 +48,9 @@ const TraineeBooking = (props: Props) => {
         />
 
         {/* Detail Modal */}
-        {showDetailModal && (
+        {showDetailModal && liveSessionDetail && (
           <View className="absolute inset-0 bg-black/40">
-            <DetailModal visible={showDetailModal} onClose={closeDetailModal} />
+            <DetailModal visible={showDetailModal} onClose={closeDetailModal} liveSessionDetail={liveSessionDetail}/>
           </View>
         )}
 

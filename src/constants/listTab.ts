@@ -1,6 +1,6 @@
 import { RootStackParamList } from '../navigation/AppNavigator';
-import CardCourse from '../screens/Search/components/CardCourse';
-import CardExercise from '../screens/Search/components/CardExercise';
+import CardCourse from '../screens/List/components/CardCourse';
+import CardExercise from '../screens/List/components/CardExercise';
 import { TabTypeMap } from '../utils/ListType';
 
 export enum ListTab {
@@ -14,7 +14,7 @@ type TabConfigItem<K extends ListTab> = {
     onPress?: () => void;
   }>;
   screen: keyof RootStackParamList;
-  paramKey: string;
+  getParams: (item: TabTypeMap[K]) => object;
   idKey: string;
 };
 
@@ -22,13 +22,19 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
   [ListTab.Exercise]: {
     Card: CardExercise,
     screen: 'ExerciseDetail',
-    paramKey: 'exercise_id',
     idKey: 'exercise_id',
+    getParams: item => ({
+      exercise_id: item.exerciseId,
+    }),
   },
+
   [ListTab.Course]: {
     Card: CardCourse,
     screen: 'ProgramDetail',
-    paramKey: 'program_id',
-    idKey: 'course_id',
+    idKey: 'traineeCourseId',
+    getParams: item => ({
+      traineeCourseId: item.traineeCourseId,
+      program_id: item.course.courseId,
+    }),
   },
 };

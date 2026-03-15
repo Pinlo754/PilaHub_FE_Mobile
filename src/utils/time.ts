@@ -54,12 +54,17 @@ export const formatTime = (
 
   // Text style: 1h 2p 3s
   if (hours > 0) {
-    return showSeconds
+  return showSeconds
+    ? seconds > 0
       ? `${hours}h ${minutes}p ${seconds}s`
       : minutes > 0
         ? `${hours}h ${minutes}p`
-        : `${hours}h`;
-  }
+        : `${hours}h`
+    : minutes > 0
+      ? `${hours}h ${minutes}p`
+      : `${hours}h`;
+}
+
 
   if (minutes > 0) {
     return showSeconds ? `${minutes}p ${seconds}s` : `${minutes}p`;

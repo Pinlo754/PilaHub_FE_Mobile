@@ -14,7 +14,7 @@ const CardExercise = ({ item, onPress }: Props) => {
       <View className="w-32 h-20 rounded-lg overflow-hidden">
         <Image
           source={{
-            uri: item.image_url,
+            uri: item.imageUrl,
           }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
@@ -29,7 +29,7 @@ const CardExercise = ({ item, onPress }: Props) => {
         </Text>
         {/* Duration */}
         <Text className="color-secondaryText font-medium text-lg">
-          {secondsToTime(item.default_duration_sec)}
+          {secondsToTime(item.duration)}
         </Text>
       </View>
     </Pressable>

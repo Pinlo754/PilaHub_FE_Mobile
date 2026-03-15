@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
@@ -28,6 +28,10 @@ export default function VideoPlayer({
     isVideoPlay,
     setIsShowControls: setIsShowFlag,
   });
+
+  useEffect(() => {
+  player.reset();
+}, [source]);
 
   return (
     <View

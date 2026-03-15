@@ -28,6 +28,7 @@ export function VideoSurface({
         onLoad={onLoad}
         onProgress={onProgress}
         pointerEvents="none"
+         progressUpdateInterval={500}
       />
     </View>
   );

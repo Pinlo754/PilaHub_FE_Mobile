@@ -26,13 +26,18 @@ class AgoraService {
   async joinChannel(token: string, channelName: string, uid: number) {
     const engine = this.getEngine();
 
-    await engine.joinChannel(token, channelName, uid, {});
     engine.startPreview();
+    await engine.joinChannel(token, channelName, uid, {});
   }
 
   async leaveChannel() {
     const engine = this.getEngine();
     await engine.leaveChannel();
+
+    engine.stopPreview();
+    engine.release();
+
+    this.engine = null;
   }
 
   muteAudio(muted: boolean) {
