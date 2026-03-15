@@ -84,7 +84,7 @@ const MyCalendar = () => {
   }, [scheduleData]);
 
   useEffect(() => {
-    setSelectedDate(moment());
+    // no-op on mount: keep initial selected date stable to avoid CalendarStrip auto-scroll
   }, []);
 
   const renderItem = ({ item }: { item: ScheduleItem }) => {
@@ -125,12 +125,14 @@ const MyCalendar = () => {
       </View>
 
       <CalendarStrip
-        scrollable
-        calendarAnimation={{ type: 'sequence', duration: 30 }}
+        // disable horizontal scrolling to prevent the strip from jumping on updates
+        scrollable={false}
+        // minimal animation to avoid repeated motion
         daySelectionAnimation={{ type: 'background', duration: 200, highlightColor: '#8B4513' }}
         style={{ height: 80, paddingTop: 2, paddingBottom: 2 }}
         calendarColor={'#F5DEB3'}
-        scrollToOnSetSelectedDate={true}
+        // do not auto-scroll when selectedDate changes
+        scrollToOnSetSelectedDate={false}
         useIsoWeekday={false}
         dateNumberStyle={{ color: '#8B5E3C', fontSize: 12, fontWeight: '600' }}
         dateNameStyle={{ color: '#8B5E3C', fontSize: 10, textTransform: 'uppercase' }}

@@ -154,7 +154,7 @@ const AppNavigator: React.FC = () => {
     <BleProvider>
       <AppLayout>
         <Stack.Navigator
-          initialRouteName="TestNavigateScreen"
+          initialRouteName="Startup"
           screenOptions={{
             headerShown: false,
           }}

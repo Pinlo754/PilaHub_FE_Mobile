@@ -5,10 +5,11 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
 import { login } from '../../services/auth';
-import { postLoginRouting } from '../../utils/afterAuth';
 import { configureGoogleSignIn, signInWithGoogle } from '../../utils/google';
 import { googleAuth } from '../../services/googleAuth';
 import { WEB_CLIENT_ID } from '../../config/key';
+
+import { handlePostLogin } from '../../utils/postLoginHandler';
 
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -66,9 +67,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      // success
-      await postLoginRouting(navigation, data);
+      // delegate post-login routing
+      await handlePostLogin(data, navigation);
       setLoading(false);
+      return;
     } catch (e: any) {
       setLoading(false);
       setError(e?.message ?? String(e));
@@ -76,7 +78,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   }
 
    return (
-    <SafeAreaView  className="flex-1 bg-background">
+<SafeAreaView  className="flex-1 bg-background">
       
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
@@ -155,26 +157,23 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity
+          <TouchableOpacity
           className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
-          onPress={async () => {
+onPress={async () => {
             setError(null);
             setLoading(true);
             try {
-              //const emailMock = 'nvmthoai14738837@gmail.com';
-              //const passwordMock = 'Thoai12345@';
-              // const emailMock = 'pinlo752004@gmail.com';
-              // const passwordMock = 'Phongpinlo123@';
-              //const res = await login({ email: emailMock, password: passwordMock });
-              const res = await login({ email, password});
+              const res = await login({ email, password });
               if (!res.ok) {
                 setLoading(false);
                 setError(res.error?.message ?? JSON.stringify(res.error));
                 return;
               }
 
-              await postLoginRouting(navigation, res.data ?? {});
-
+              // success: delegate remaining flow to handler
+              const loginPayload = res.data ?? {};
+              await handlePostLogin(loginPayload, navigation);
+              setLoading(false);
             } catch (e: any) {
               setLoading(false);
               setError(e?.message ?? String(e));
@@ -186,6 +185,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
+
 
         {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
 
