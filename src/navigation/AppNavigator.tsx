@@ -24,6 +24,7 @@ import AIPractice from '../screens/AIPractice/AIPractice';
 import TraineeBooking from '../screens/TraineeBooking/TraineeBooking';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { PracticePayload } from '../utils/CourseLessonProgressType';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -32,7 +33,11 @@ export type RootStackParamList = {
   Welcome: undefined;
   Onboarding: undefined;
   Search: undefined;
-  ExerciseDetail: { exercise_id: string };
+  ExerciseDetail: {
+    exercise_id: string;
+    allowedPractice?: boolean;
+    practicePayload?: PracticePayload;
+  };
   Roadmap: undefined;
   RoadmapSummary: undefined;
   ProgramDetail: { program_id: string; traineeCourseId?: string };
@@ -41,9 +46,18 @@ export type RootStackParamList = {
   DailyTask: undefined;
   RegisterCalendar: { coach_id?: string | null; pricePerHour?: number };
   TraineeFeedback: { liveSessionId?: string };
-  TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
+  TraineeReport: {
+    coach_id?: string | null;
+    exercise_id?: string | null;
+    liveSessionId?: string | null;
+  };
   AISummary: undefined;
-  AIPractice: { exercise_id: string; imgUrl: string; videoUrl: string };
+  AIPractice: {
+    exercise_id: string;
+    imgUrl: string;
+    videoUrl: string;
+    workoutSessionId: string;
+  };
   TraineeBooking: undefined;
   VideoCall: { bookingId: string };
   TestNavigateScreen: undefined;
@@ -55,7 +69,7 @@ const AppNavigator: React.FC = () => {
   return (
     <AppLayout>
       <Stack.Navigator
-        initialRouteName="MainTabs"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
         }}

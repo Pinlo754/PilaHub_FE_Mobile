@@ -32,6 +32,7 @@ const VideoCall = (props: Props) => {
     showConfirmModal,
     confirmMsg,
     localUid,
+    isTrainee,
   } = useVideoCall({ navigation: props.navigation, route: props.route });
   return (
     <>
@@ -50,12 +51,16 @@ const VideoCall = (props: Props) => {
             }}
           />
         ) : (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.foreground} />
-            <Text className="mt-4 color-foreground font-medium text-lg">
-              Đang chờ HLV tham gia...
-            </Text>
-          </View>
+          !isLoading && (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="large" color={colors.foreground} />
+              <Text className="mt-4 color-foreground font-medium text-lg">
+                {isTrainee
+                  ? 'Đang chờ HLV tham gia...'
+                  : 'Đang chờ học viên tham gia...'}
+              </Text>
+            </View>
+          )
         )}
 
         {/* Local video */}

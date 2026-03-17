@@ -9,9 +9,16 @@ import { CourseLessonDetailType } from '../../../utils/CourseType';
 type Props = {
   data: CourseLessonDetailType[];
   navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
+  isEnrolled: boolean;
+  getProgressOfCourseLesson: (courseLessonId: string) => void;
 };
 
-const ProgrameContent = ({ data, navigation }: Props) => {
+const ProgrameContent = ({
+  data,
+  navigation,
+  isEnrolled,
+  getProgressOfCourseLesson,
+}: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
 
@@ -27,7 +34,9 @@ const ProgrameContent = ({ data, navigation }: Props) => {
       <ExerciseItem
         item={item}
         index={index}
-       navigation={navigation}
+        navigation={navigation}
+        isEnrolled={isEnrolled}
+        getProgressOfCourseLesson={getProgressOfCourseLesson}
       />
     );
   };

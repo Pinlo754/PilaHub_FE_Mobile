@@ -6,55 +6,52 @@ import { colors } from '../../../../theme/colors';
 import { formatTime } from '../../../../utils/time';
 
 type Props = {
+  paused: boolean;
   duration: number;
   currentTime: number;
+  onPlay: () => void;
   onSeek: (v: number) => void;
   onSeekBy: (v: number) => void;
-  onFullscreen: () => void;
+  onFullscreen?: () => void;
   isFullscreen: boolean;
-  isPracticeTab: boolean;
+  hideFullscreen?: boolean;
+  onBack?: () => void;
+  reset?: () => void;
 };
 
 export function VideoControls({
+  paused,
   duration,
   currentTime,
+  onPlay,
   onSeek,
   onSeekBy,
   onFullscreen,
   isFullscreen,
-  isPracticeTab,
+  hideFullscreen,
+  onBack,
+  reset,
 }: Props) {
-  const safeCurrentTime = Math.min(currentTime, duration);
+  // HANDLERS
+  const onPressBack = () => {
+    onBack?.();
+    reset?.();
+  };
 
   return (
-    <View className={`px-4  ${isFullscreen ? 'pb-20 mb-2' : 'pb-14'}`}>
-      {/* Arrows */}
-      {isPracticeTab && (
-        <View className="flex-row justify-around items-center gap-10 mb-3">
-          {/* Back */}
-          <Pressable className="flex-row items-center gap-1">
-            <Ionicons
-              name="chevron-back-outline"
-              size={18}
-              color={colors.background.DEFAULT}
-            />
-            <Text className="color-background text-sm font-medium">
-              Động tác trước
-            </Text>
-          </Pressable>
-
-          {/* Forward */}
-          <Pressable className="flex-row items-center gap-1">
-            <Text className="color-background text-sm font-medium">
-              Động tác sau
-            </Text>
-            <Ionicons
-              name="chevron-forward-outline"
-              size={18}
-              color={colors.background.DEFAULT}
-            />
-          </Pressable>
-        </View>
+    <View className={`px-4 ${isFullscreen ? 'pb-8' : 'pb-2'}`}>
+      {/* Back */}
+      {onBack && (
+        <Pressable
+          onPress={onPressBack}
+          className="absolute left-4 -top-[760px] z-10"
+        >
+          <Ionicons
+            name="chevron-back-outline"
+            size={24}
+            color={colors.background.DEFAULT}
+          />
+        </Pressable>
       )}
 
       {/* Progress Bar */}
@@ -69,16 +66,24 @@ export function VideoControls({
         <View className="flex-row absolute top-0 left-4">
           <Text className="color-background text-xs font-medium">
             {formatTime(currentTime, { pad: true })} /{' '}
-            {formatTime(safeCurrentTime, { pad: true })}
+            {formatTime(duration, { pad: true })}
           </Text>
         </View>
 
         {/* Control */}
-        <View className="flex-row items-center gap-32 pt-3 self-center">
+        <View className="flex-row items-center gap-10 self-center">
           <Pressable onPress={() => onSeekBy(-10)}>
             <Ionicons
               name="play-back"
-              size={26}
+              size={24}
+              color={colors.background.DEFAULT}
+            />
+          </Pressable>
+
+          <Pressable onPress={onPlay}>
+            <Ionicons
+              name={paused ? 'play-circle-outline' : 'pause-circle-outline'}
+              size={45}
               color={colors.background.DEFAULT}
             />
           </Pressable>
@@ -86,18 +91,18 @@ export function VideoControls({
           <Pressable onPress={() => onSeekBy(10)}>
             <Ionicons
               name="play-forward"
-              size={26}
+              size={24}
               color={colors.background.DEFAULT}
             />
           </Pressable>
         </View>
 
         {/* Expand / Shrink */}
-        {!isPracticeTab && (
+        {!hideFullscreen && (
           <Pressable onPress={onFullscreen} className="absolute top-3 right-4">
             <Ionicons
               name={isFullscreen ? 'contract' : 'expand'}
-              size={24}
+              size={22}
               color={colors.background.DEFAULT}
             />
           </Pressable>

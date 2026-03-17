@@ -156,7 +156,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
         openSuccessModal('Đã đăng ký lịch thành công!');
 
         setTimeout(() => {
-          navigation.navigate('MainTabs');
+          navigation.navigate('MainTabs', { screen: 'Home' });
         }, TIMEOUT);
       }
     } catch (err: any) {

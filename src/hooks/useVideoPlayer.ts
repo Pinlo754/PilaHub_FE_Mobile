@@ -17,6 +17,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // CHECK
   const isPlaying = isVideoPlay ?? !paused;
@@ -71,6 +72,8 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
     setPaused(true);
     setCurrentTime(0);
     setDuration(0);
+    setIsLoaded(false);
+    videoRef.current?.seek(0);
   };
 
   // USE EFFECT
@@ -107,5 +110,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
     seek,
     seekBy,
     reset,
+    isLoaded,
+    setIsLoaded,
   };
 };

@@ -11,6 +11,7 @@ import Header from './components/Header';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import Button from '../../components/Button';
 import ModalPopup from '../../components/ModalPopup';
+import ScheduleModal from './components/ScheduleModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProgramDetail'>;
 
@@ -31,6 +32,14 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     showErrorModal,
     showSuccessModal,
     onPress,
+    showSchedule,
+    closeSchedule,
+    handleSelectDay,
+    handleSelectSession,
+    selectedDays,
+    sessionPerWeek,
+    onPressRegister,
+    getProgressOfCourseLesson,
   } = useProgramDetail({
     route,
     navigation,
@@ -60,7 +69,12 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         goal={programDetail.description}
         level={programDetail.level}
       />
-      <ProgrameContent data={lessons} navigation={navigation} />
+      <ProgrameContent
+        data={lessons}
+        navigation={navigation}
+        isEnrolled={isEnrolled}
+        getProgressOfCourseLesson={getProgressOfCourseLesson}
+      />
 
       {!isEnrolled && (
         <View className="pt-2 mx-4 pb-6">
@@ -74,6 +88,17 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
           />
         </View>
       )}
+
+      {/* Schedule Modal */}
+      <ScheduleModal
+        visible={showSchedule}
+        onClose={closeSchedule}
+        handleSelectDay={handleSelectDay}
+        handleSelectSession={handleSelectSession}
+        selectedDays={selectedDays}
+        sessionPerWeek={sessionPerWeek}
+        onPressRegister={onPressRegister}
+      />
 
       {/* Confirm Modal */}
       <ModalPopup

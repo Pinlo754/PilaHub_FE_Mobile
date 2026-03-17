@@ -1,21 +1,92 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput,  TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
+import { login } from '../../services/auth';
+import { configureGoogleSignIn, signInWithGoogle } from '../../utils/google';
+import { googleAuth } from '../../services/googleAuth';
+import { WEB_CLIENT_ID } from '../../config/key';
+
+import { handlePostLogin } from '../../utils/postLoginHandler';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
-   return (
-    <SafeAreaView  className="flex-1 bg-background">
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    configureGoogleSignIn({
+      webClientId: WEB_CLIENT_ID,
+    });
+  }, []);
+
+  async function handleGoogle() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await signInWithGoogle();
+      console.log('Google Sign-In Response:', res);
+      if (!res.ok) {
+        setError(String(res.error));
+        setLoading(false);
+        return;
+      }
+      const idToken = res.idToken;
+      const googleEmail = res.email;
+      if (!idToken) {
+        setError('Không lấy được idToken từ Google');
+        setLoading(false);
+        return;
+      }
+
+      const backendRes = await googleAuth({
+        email: googleEmail,
+        googleIdToken: idToken,
+      });
+      // Log backend response for debugging
+      console.log('Google Sign-In Backend Response:', backendRes);
+
+      if (!backendRes.ok) {
+        setError(JSON.stringify(backendRes.error));
+        setLoading(false);
+        return;
+      }
+
+      const data = backendRes.data ?? {};
+      // Log backend data payload
+      console.log('Google Sign-In Backend Data:', data);
+
+      // if (data.requiresRegistration) {
+      //   // open register screen with prefilled email and idToken stored in route params for later
+      //   navigation.navigate('Register', {
+      //     googleIdToken: idToken,
+      //     email: googleEmail,
+      //   } as any);
+      //   setLoading(false);
+      //   return;
+      // }
+
+      // delegate post-login routing
+      await handlePostLogin(data, navigation);
+      setLoading(false);
+      return;
+    } catch (e: any) {
+      setLoading(false);
+      setError(e?.message ?? String(e));
+    }
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
-        <Text className="text-lg">←</Text>
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
-          
           Đăng Nhập
         </Text>
       </View>
@@ -39,6 +110,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <TextInput
               value={email}
               onChangeText={setEmail}
+              autoCapitalize="none"
               placeholder="Nhập Email"
               className="flex-1 text-base"
               keyboardType="email-address"
@@ -55,10 +127,22 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               value={password}
               onChangeText={setPassword}
               placeholder="Nhập Mật Khẩu"
-              secureTextEntry
+              autoCapitalize="none"
+              secureTextEntry={!showPassword}
+              autoCorrect={false}
+              textContentType="password"
               className="flex-1 text-base"
             />
-            <Feather name="lock" size={20} color="#CD853F" />
+            <TouchableOpacity
+              onPress={() => setShowPassword(s => !s)}
+              className="p-2 ml-4"
+            >
+              <Feather
+                name={showPassword ? 'eye' : 'eye-off'}
+                size={20}
+                color="#CD853F"
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -70,21 +154,48 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           >
             <View
               className={`w-4 h-4 border mr-2 ${
-                remember ? "bg-secondaryText" : "bg-white"
+                remember ? 'bg-secondaryText' : 'bg-white'
               }`}
             />
             <Text>Nhớ tài khoản</Text>
           </TouchableOpacity>
 
-          <Text className="text-secondaryText">Quên mật khẩu?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text className="text-secondaryText">Quên mật khẩu?</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center" onPress={() => navigation.navigate('Welcome')}>
+        <TouchableOpacity
+          className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
+          onPress={async () => {
+            setError(null);
+            setLoading(true);
+            try {
+              const res = await login({ email, password });
+              if (!res.ok) {
+                setLoading(false);
+                setError(res.error?.message ?? JSON.stringify(res.error));
+                return;
+              }
+
+              // success: delegate remaining flow to handler
+              const loginPayload = res.data ?? {};
+              await handlePostLogin(loginPayload, navigation);
+              setLoading(false);
+            } catch (e: any) {
+              setLoading(false);
+              setError(e?.message ?? String(e));
+            }
+          }}
+          disabled={loading}
+        >
           <Text className="text-white text-lg font-semibold">
-            Đăng nhập
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
+
+        {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
 
         {/* Divider */}
         <View className="flex-row items-center my-6">
@@ -94,7 +205,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Google */}
-        <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3">
+        <TouchableOpacity
+          className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3"
+          onPress={handleGoogle}
+        >
           <Text className="text-base">G</Text>
           <Text className="ml-2 text-base">Tiếp tục với Google</Text>
         </TouchableOpacity>
@@ -106,17 +220,22 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* Footer */}
-        <View className="mt-6 items-center">
+        <TouchableOpacity
+          className="mt-6 items-center"
+          onPress={() => navigation.navigate('Login')}
+        >
           <Text>
-            Bạn chưa có tài khoản?{" "}
+            Bạn chưa có tài khoản?{' '}
             <Text className="text-foreground font-family">Đăng Ký</Text>
           </Text>
 
           <View className="flex-row mt-3">
-            <Text className="text-xs text-gray-500 mr-3">Chính Sách Bảo Mật</Text>
+            <Text className="text-xs text-gray-500 mr-3">
+              Chính Sách Bảo Mật
+            </Text>
             <Text className="text-xs text-gray-500">Điều Khoản Dịch Vụ</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

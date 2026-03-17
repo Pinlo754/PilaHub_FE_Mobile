@@ -1,5 +1,6 @@
 import { colors } from '../theme/colors';
 import { BookingStatus } from './CoachBookingType';
+import { TrainingDay } from './CourseLessonProgressType';
 import { LevelType } from './CourseType';
 
 // RULES
@@ -95,6 +96,16 @@ export const BOOKING_STATUS_MAP: Record<
     textColor: colors.orange.DEFAULT,
     label: 'Đã hoàn tiền',
   },
+};
+
+export const TRAINING_DAYS: Record<TrainingDay, string> = {
+  1: 'T2',
+  2: 'T3',
+  3: 'T4',
+  4: 'T5',
+  5: 'T6',
+  6: 'T7',
+  7: 'CN',
 };
 
 // FUNCTIONS

@@ -5,6 +5,11 @@ import { courseService } from '../../hooks/course.service';
 import { CourseDetailType } from '../../utils/CourseType';
 import { traineeCourseService } from '../../hooks/traineeCourse.service';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { courseLessonProgressService } from '../../hooks/courseLessonProgress.service';
+import {
+  CreateScheduleReq,
+  TrainingDay,
+} from '../../utils/CourseLessonProgressType';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
@@ -29,6 +34,9 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [showSchedule, setShowSchedule] = useState<boolean>(false);
+  const [sessionPerWeek, setSessionPerWeek] = useState<number | null>(null);
+  const [selectedDays, setSelectedDays] = useState<TrainingDay[]>([]);
 
   // FETCH
   const fetchById = async () => {
@@ -58,24 +66,51 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   };
 
   const enrollCourse = async () => {
-    if (!program_id) return;
+    if (!program_id || selectedDays.length === 0) return;
 
     setIsLoading(true);
     try {
-      const res = await traineeCourseService.enrollCourse(
+      const resEnroll = await traineeCourseService.enrollCourse(
         'e764ce59-c100-46d9-a17e-146082eae166',
         program_id,
       );
 
-      if (res) {
-        openSuccessModal('Đăng ký khóa học thành công!');
+      const payload: CreateScheduleReq = {
+        traineeCourseId: resEnroll.traineeCourseId,
+        trainingDays: selectedDays,
+      };
 
-        setTimeout(() => {
-          navigation.navigate('MainTabs', {
-            screen: 'List',
-          });
-        }, TIMEOUT);
+      await courseLessonProgressService.createSchedule(payload);
+
+      openSuccessModal('Đăng ký khóa học thành công!');
+
+      setTimeout(() => {
+        navigation.navigate('MainTabs', {
+          screen: 'List',
+        });
+      }, TIMEOUT);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getProgressOfCourseLesson = async (courseLessonId: string) => {
+    if (!traineeCourseId) return;
+
+    setIsLoading(true);
+    try {
+      const res = await courseLessonProgressService.getProgressOfCourseLesson(
+        traineeCourseId,
+        courseLessonId,
+      );
+
+      return res.progressId;
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         openErrorModal(err.message);
@@ -89,7 +124,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
   // HANDLERS
   const onPress = () => {
-    openConfirmModal('Bạn có chắc muốn đăng ký khóa học này không?');
+    setShowSchedule(true);
   };
   const openSuccessModal = (msg: string) => {
     setSuccessMsg(msg);
@@ -123,7 +158,36 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
   const onConfirmModal = () => {
     closeConfirmModal();
+    closeSchedule();
     enrollCourse();
+  };
+
+  const closeSchedule = () => {
+    setShowSchedule(false);
+    setSessionPerWeek(null);
+    setSelectedDays([]);
+  };
+
+  const handleSelectSession = (value: number) => {
+    setSessionPerWeek(value);
+    setSelectedDays([]);
+  };
+
+  const handleSelectDay = (day: TrainingDay) => {
+    if (!sessionPerWeek) return;
+
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter(d => d !== day));
+      return;
+    }
+
+    if (selectedDays.length >= sessionPerWeek) return;
+
+    setSelectedDays([...selectedDays, day]);
+  };
+
+  const onPressRegister = () => {
+    openConfirmModal('Bạn có chắc muốn đăng ký lịch học này không?');
   };
 
   // USE EFFECT
@@ -150,5 +214,13 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     showErrorModal,
     showSuccessModal,
     onPress,
+    showSchedule,
+    closeSchedule,
+    handleSelectDay,
+    handleSelectSession,
+    sessionPerWeek,
+    selectedDays,
+    onPressRegister,
+    getProgressOfCourseLesson,
   };
 };

@@ -8,6 +8,8 @@ import Header from './components/Header';
 import OverviewSection from './components/OverviewSection';
 import StatsSection from './components/StatsSection';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
+import LoadingOverlay from '../../components/LoadingOverlay';
+import ModalPopup from '../../components/ModalPopup';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 
@@ -28,6 +30,14 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     navigatePracticeTab,
     setIsShowFlag,
     onPressAIPractice,
+    canPractice,
+    isLoading,
+    onPressPractice,
+    currentExerciseIndex,
+    handleVideoEnd,
+    closeSuccessModal,
+    showSuccessModal,
+    successMsg,
   } = useExerciseDetail({
     route,
     navigation,
@@ -38,6 +48,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View className="w-full flex-1 relative">
+      {isLoading && <LoadingOverlay />}
+
       {/* Header */}
       <Header
         activeTab={activeTab}
@@ -62,6 +74,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
           toggleVideoExpand={toggleVideoExpand}
           isPracticeTab={isPracticeTab}
           setIsShowFlag={setIsShowFlag}
+          currentExerciseIndex={currentExerciseIndex}
+          onVideoEnd={handleVideoEnd}
         />
       ) : (
         <ImageExercise imgUrl={exerciseDetail?.imageUrl} />
@@ -82,11 +96,24 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
           onChangeTab={onChangeTab}
           isVideoPlay={isPlaying}
           togglePlayButton={togglePlayButton}
-          toggleVideoExpand={toggleVideoExpand}
           isPracticeTab={isPracticeTab}
           onPressAIPractice={onPressAIPractice}
+          canPractice={canPractice}
+          onPressPractice={onPressPractice}
         />
       )}
+
+      {/* Success Modal */}
+      <ModalPopup
+        visible={showSuccessModal}
+        mode="toast"
+        contentText={successMsg}
+        iconName="checkmark"
+        iconSize={35}
+        iconBgColor="green"
+        onClose={closeSuccessModal}
+        modalWidth={355}
+      />
     </View>
   );
 };

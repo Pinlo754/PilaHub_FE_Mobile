@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
@@ -13,6 +13,8 @@ type Props = {
   toggleVideoExpand: () => void;
   isPracticeTab: boolean;
   setIsShowFlag: (v: boolean) => void;
+  currentExerciseIndex: number;
+  onVideoEnd: () => void;
 };
 
 export default function VideoPlayer({
@@ -22,6 +24,8 @@ export default function VideoPlayer({
   toggleVideoExpand,
   isPracticeTab,
   setIsShowFlag,
+  currentExerciseIndex,
+  onVideoEnd,
 }: Props) {
   // HOOOK
   const player = useVideoPlayer({
@@ -29,9 +33,11 @@ export default function VideoPlayer({
     setIsShowControls: setIsShowFlag,
   });
 
+  const [resetCount, setResetCount] = useState(0);
+
   useEffect(() => {
-  player.reset();
-}, [source]);
+    setResetCount(prev => prev + 1);
+  }, [source]);
 
   return (
     <View
@@ -39,11 +45,20 @@ export default function VideoPlayer({
       style={{ height: isVideoExpand ? height * 0.95 : height * 0.5 }}
     >
       <VideoSurface
+        key={`${source}-${currentExerciseIndex}-${resetCount}`}
         videoRef={player.videoRef}
         source={source}
         paused={!isVideoPlay}
-        onLoad={d => player.setDuration(d.duration)}
-        onProgress={p => player.setCurrentTime(p.currentTime)}
+        onLoad={d => {
+          player.setDuration(d.duration);
+          player.setCurrentTime(0);
+          player.setIsLoaded(true);
+        }}
+        onProgress={p => {
+          if (!player.isLoaded) return;
+          player.setCurrentTime(p.currentTime);
+        }}
+        onEnd={onVideoEnd}
       />
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">

@@ -12,8 +12,8 @@ export function VideoProgress({ duration, currentTime, onSeek }: Props) {
   return (
     <Slider
       minimumValue={0}
-      maximumValue={duration || 1}
-      value={Math.min(currentTime, duration)}
+      maximumValue={duration}
+      value={currentTime}
       onSlidingComplete={onSeek}
       minimumTrackTintColor={colors.foreground}
       maximumTrackTintColor={colors.inactive.lighter}

@@ -12,9 +12,10 @@ type Props = {
   onChangeTab: (tab: ExerciseTab) => void;
   isVideoPlay: boolean;
   togglePlayButton: () => void;
-  toggleVideoExpand: () => void;
   isPracticeTab: boolean;
   onPressAIPractice: () => void;
+  canPractice: boolean;
+  onPressPractice: () => void;
 };
 
 const OverviewSection = ({
@@ -23,16 +24,17 @@ const OverviewSection = ({
   onChangeTab,
   isVideoPlay,
   togglePlayButton,
-  toggleVideoExpand,
   isPracticeTab,
   onPressAIPractice,
+  canPractice,
+  onPressPractice,
 }: Props) => {
   return (
     <View
       className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
-      {!isPracticeTab && (
+      {!isPracticeTab && canPractice && (
         <PlayButton
           isVideoPlay={isVideoPlay}
           togglePlayButton={togglePlayButton}
@@ -41,17 +43,19 @@ const OverviewSection = ({
 
       {/* Name */}
       <Text
-        className={`text-center text-2xl font-bold color-foreground ${isPracticeTab ? 'mt-5' : 'mt-2'}`}
+        className={`text-center text-2xl font-bold color-foreground ${!canPractice || isPracticeTab ? 'mt-5' : 'mt-2'}`}
       >
         {exerciseDetail.name}
       </Text>
 
       {/* Tabs */}
-      <Tabs
-        tabId={activeTab}
-        onChange={onChangeTab}
-        isVideoPlay={isVideoPlay}
-      />
+      {canPractice && (
+        <Tabs
+          tabId={activeTab}
+          onChange={onChangeTab}
+          isVideoPlay={isVideoPlay}
+        />
+      )}
 
       {/* Description */}
       <Description
@@ -60,9 +64,9 @@ const OverviewSection = ({
       />
 
       {/* Btn */}
-      {isPracticeTab && (
+      {isPracticeTab && canPractice && (
         <Footer
-          onPress={toggleVideoExpand}
+          onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
         />
       )}

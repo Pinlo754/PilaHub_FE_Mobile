@@ -7,6 +7,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PermissionsAndroid, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'VideoCall'>;
@@ -30,6 +31,10 @@ export const useVideoCall = ({ navigation, route }: Props) => {
   const [showInstruct, setShowInstruct] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [role, setRole] = useState<string | null>(null);
+
+  // VARIABLE
+  const isTrainee = role === 'TRAINEE';
 
   // PERMISSION
   const requestPermissions = async () => {
@@ -224,6 +229,10 @@ export const useVideoCall = ({ navigation, route }: Props) => {
   const onConfirmModal = () => {
     closeConfirmModal();
     leave();
+    // navigation.navigate('TraineeFeedback', {
+    //   liveSessionId: liveSessionDetail?.liveSessionId,
+    //   // liveSessionId: '5132a3f4-243a-44d0-b442-0ec618d4e838',
+    // });
   };
 
   // USE EFFECT
@@ -235,6 +244,15 @@ export const useVideoCall = ({ navigation, route }: Props) => {
       agoraService.leaveChannel();
     };
   }, [bookingIdParam]);
+
+  useEffect(() => {
+    const loadRole = async () => {
+      const storedRole = await AsyncStorage.getItem('role');
+      setRole(storedRole);
+    };
+
+    loadRole();
+  }, []);
 
   return {
     engine,
@@ -257,5 +275,6 @@ export const useVideoCall = ({ navigation, route }: Props) => {
     closeConfirmModal,
     onConfirmModal,
     confirmMsg,
+    isTrainee,
   };
 };
