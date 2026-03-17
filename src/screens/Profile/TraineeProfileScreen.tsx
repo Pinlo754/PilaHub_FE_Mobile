@@ -186,10 +186,12 @@ const TraineeProfileScreen: React.FC = () => {
 
           </View>
 
-          <View className="mt-3 bg-white rounded-xl p-4 shadow">
-            <Text className="font-semibold text-lg">Đơn hàng của tôi</Text>
-            <Text className="text-gray-500 mt-1">Chưa có đơn hàng</Text>
-          </View>
+          <Pressable className="mt-3" onPress={() => (navigation as any).navigate('Orders')}>
+            <View className="bg-white rounded-xl p-4 shadow">
+              <Text className="font-semibold text-lg">Đơn hàng của tôi</Text>
+              <Text className="text-gray-500 mt-1">Xem và theo dõi đơn hàng của bạn</Text>
+            </View>
+          </Pressable>
 
           <View className="mt-3 bg-white rounded-xl p-4 shadow">
             <Text className="font-semibold text-lg">Sản phẩm yêu thích</Text>

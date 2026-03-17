@@ -41,6 +41,25 @@ export default function StartupScreen({ navigation }: Props) {
         const d: any = me.data;
         userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
 
+        // if persisted flag says user is coach, go straight to Coach screen
+        try {
+          const savedIsCoach = await AsyncStorage.getItem('account:isCoach');
+          if (savedIsCoach === '1') {
+            navigation.reset({ index: 0, routes: [{ name: 'CoachScreen' }] });
+            return;
+          }
+        } catch {}
+
+        // also check profile role from /me and short-circuit for coach accounts
+        try {
+          const profileRole = String(d?.account?.role ?? d?.role ?? '').toUpperCase();
+          if (profileRole === 'COACH') {
+            try { await AsyncStorage.setItem('account:isCoach', '1'); } catch {}
+            navigation.reset({ index: 0, routes: [{ name: 'CoachScreen' }] });
+            return;
+          }
+        } catch {}
+
         // check server-side trainee profile first for authenticated users
         let traineeExists = false;
         try {

@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Dimensions, Text, View } from "react-native";
+import { Dimensions, Text } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,

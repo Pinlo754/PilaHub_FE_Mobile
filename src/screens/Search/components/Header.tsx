@@ -13,6 +13,12 @@ const Header = () => {
 
   // STATE
   const [focused, setFocused] = useState(false);
+  const [query, setQuery] = useState('');
+
+  function doSearch() {
+    const q = (query || '').trim();
+    navigation.navigate('SearchResult' as any, { q });
+  }
 
   return (
     <View className="flex-row justify-between items-center px-4">
@@ -38,16 +44,20 @@ const Header = () => {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           style={{ width: 230 }}
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType="search"
+          onSubmitEditing={doSearch}
         />
 
-        <Pressable className="px-3" onPress={() => navigation.goBack()}>
+        <Pressable className="px-3" onPress={doSearch}>
           <Ionicons name="search" size={24} color={colors.foreground} />
         </Pressable>
       </View>
 
       {/* Filter */}
       <View className="">
-        <Pressable onPress={() => navigation.goBack()}>
+        <Pressable onPress={() => navigation.navigate('SearchResult' as any, { q: '', showFilter: true })}>
           <Ionicons
             name="options-outline"
             size={24}
