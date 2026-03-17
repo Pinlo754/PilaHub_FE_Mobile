@@ -3648,7 +3648,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/slider"
   react-native-vector-icons-feather:
     :path: "../node_modules/@react-native-vector-icons/feather"
-  react-native-vector-icons-ionicons:
+  react-native-vector-icons-ons:
     :path: "../node_modules/@react-native-vector-icons/ionicons"
   react-native-video:
     :path: "../node_modules/react-native-video"

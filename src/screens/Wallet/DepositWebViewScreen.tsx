@@ -38,15 +38,15 @@ export default function DepositWebViewScreen() {
       } catch {
         // ignore errors while logging
       }
-
-      // Navigate back to Wallet so it refreshes (WalletScreen reloads wallet on focus)
-      // small delay so logs appear in console before navigation
-      setTimeout(() => {
-        try {
-          navigation.navigate('Wallet');
-        } catch {}
-      }, 800);
     }
+
+    // Navigate to a dedicated result screen so user sees explicit result (success or failure)
+    // small delay so logs appear in console before navigation
+    setTimeout(() => {
+      try {
+        navigation.navigate('DepositResult', { success, transactionId, orderCode, params });
+      } catch {}
+    }, 400);
 
     // NOTE: we intentionally keep WebView open until we navigate back above.
   }, [navigation, transactionId, orderCode]);
@@ -103,7 +103,31 @@ export default function DepositWebViewScreen() {
       <WebView
         source={{ uri: paymentUrl }}
         onLoadEnd={() => setLoading(false)}
-        onNavigationStateChange={onNavStateChange}
+        onNavigationStateChange={(navState) => {
+          console.log('[DepositWebView] navState URL:', navState?.url);
+          onNavStateChange(navState);
+        }}
+        // Intercept navigation requests so we can handle VNPay callback before WebView loads any external error page
+        onShouldStartLoadWithRequest={(request) => {
+          const url = request?.url || '';
+          console.log('[DepositWebView] shouldStartLoad:', url);
+          if (url.includes('vnp_ResponseCode=') || url.includes('vnp_TransactionStatus=')) {
+            const params = parseQuery(url);
+            handleCallbackData(params);
+            // prevent WebView from navigating to the callback URL (avoids showing error page)
+            return false;
+          }
+          return true;
+        }}
+        onError={(e) => {
+          console.warn('[DepositWebView] webview error', e.nativeEvent);
+          try {
+            Alert.alert('Lỗi', 'Không thể tải trang thanh toán. Vui lòng thử lại.');
+          } catch {}
+        }}
+        onHttpError={(e) => {
+          console.warn('[DepositWebView] http error', e.nativeEvent);
+        }}
         injectedJavaScript={injectedJS}
         onMessage={onMessage}
         startInLoadingState

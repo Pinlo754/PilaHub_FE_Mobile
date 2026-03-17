@@ -5,10 +5,16 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 export default function DepositResultScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { success = false, data = null } = route.params ?? {};
+  const routeParams = route.params ?? {};
+  const success: boolean = routeParams.success ?? false;
+  // Accept either a wrapped `data` object or direct params passed from DepositWebView
+  const data = routeParams.data ?? routeParams ?? null;
 
   // helper to safely read VNPay params or returned data
-  const params = React.useMemo(() => (data && (data.params ?? data)) || {}, [data]);
+  const params = React.useMemo(() => {
+    if (!data) return {};
+    return (data.params ?? data) || {};
+  }, [data]);
 
   const txnId = useMemo(() => {
     return data?.transactionId ?? data?.transaction_id ?? params.vnp_TxnRef ?? params.vnp_TxnRef ?? params.transactionId ?? params.orderCode ?? '-';

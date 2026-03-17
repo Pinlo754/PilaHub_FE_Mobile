@@ -14,9 +14,6 @@ import { getBleManager } from '../services/bleManager';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../theme/colors';
 
-const HEART_RATE_SERVICE = '180D';
-const HEART_RATE_MEASUREMENT = '2A37';
-
 export default function PolarHeartRate({ compact = false, onHeartRate, autoStart = false, onStatusChange }: { compact?: boolean; onHeartRate?: (bpm: number) => void; autoStart?: boolean; onStatusChange?: (status: string) => void }) {
   const manager = getBleManager();
   const [scanning, setScanning] = useState(false);
@@ -29,6 +26,9 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
   const [servicesList, setServicesList] = useState<
     { uuid: string; characteristics: { uuid: string; isNotifiable?: boolean }[] }[]
   >([]);
+  const reconnectTimer = useRef<number | null>(null);
+  const lastDeviceId = useRef<string | null>(null);
+  const isReconnecting = useRef<boolean>(false);
 
   // notify parent when status changes
   useEffect(() => {
@@ -41,6 +41,10 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
     return () => {
       stopScan();
       stopMonitor();
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current as unknown as number);
+        reconnectTimer.current = null;
+      }
       if (device) {
         try {
           manager.cancelDeviceConnection(device.id);
@@ -112,6 +116,13 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
   }
 
   async function startScan() {
+    // Stop any existing scan first
+    try {
+      manager.stopDeviceScan();
+    } catch {
+      // ignore
+    }
+
     const ok = await ensurePermissions();
     if (!ok) {
       setStatus('permission_denied');
@@ -122,31 +133,37 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
     setStatus('scanning');
     console.log('[PolarHeartRate] startScan');
 
-    // scan all devices (some Polar H10 may not advertise HR service in advertisement)
-    manager.startDeviceScan(null, null, (err, d) => {
-      if (err) {
-        console.log('[PolarHeartRate] scan error', err);
-        setStatus('scan_error');
-        setScanning(false);
-        return;
-      }
-      if (!d) return;
-      console.log('[PolarHeartRate] found device', d.id, d.name, d.localName, d.serviceUUIDs);
-      const name = (d.name || d.localName || '').toLowerCase();
-      if (name.includes('polar') || name.includes('h10')) {
-        // found presumed Polar H10
-        stopScan();
-        connectToDevice(d);
-      }
-    });
+    try {
+      // scan all devices (some Polar H10 may not advertise HR service in advertisement)
+      manager.startDeviceScan(null, null, (err, d) => {
+        if (err) {
+          console.log('[PolarHeartRate] scan error', err);
+          setStatus('scan_error');
+          setScanning(false);
+          return;
+        }
+        if (!d) return;
+        console.log('[PolarHeartRate] found device', d.id, d.name, d.localName, d.serviceUUIDs);
+        const name = (d.name || d.localName || '').toLowerCase();
+        if (name.includes('polar') || name.includes('h10')) {
+          // found presumed Polar H10
+          stopScan();
+          connectToDevice(d);
+        }
+      });
 
-    // fallback stop after 15s
-    stopTimer.current = setTimeout(() => {
-      if (scanning) {
-        stopScan();
-        setStatus('not_found');
-      }
-    }, 15000);
+      // fallback stop after 15s
+      stopTimer.current = setTimeout(() => {
+        if (scanning) {
+          stopScan();
+          setStatus('not_found');
+        }
+      }, 15000);
+    } catch (e) {
+      console.log('[PolarHeartRate] startDeviceScan error:', e);
+      setStatus('scan_error');
+      setScanning(false);
+    }
   }
 
   function stopScan() {
@@ -171,6 +188,50 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
     }
   }
 
+  // Auto-reconnect when device disconnects unexpectedly
+  const scheduleReconnect = (deviceId: string) => {
+    // Prevent reconnect loop - only reconnect once
+    if (isReconnecting.current) {
+      console.log('[PolarHeartRate] already reconnecting, skipping duplicate reconnect');
+      return;
+    }
+    
+    isReconnecting.current = true;
+    
+    // Clear any pending reconnect
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current as unknown as number);
+    }
+    
+    console.log('[PolarHeartRate] 🔄 scheduling reconnect for device:', deviceId);
+    reconnectTimer.current = setTimeout(async () => {
+      try {
+        console.log('[PolarHeartRate] 🔄 attempting reconnect for device:', deviceId);
+        
+        // First, make sure we're disconnected
+        try {
+          await manager.cancelDeviceConnection(deviceId);
+          console.log('[PolarHeartRate] cancelled previous connection');
+        } catch (cancelErr) {
+          console.log('[PolarHeartRate] cancelDeviceConnection:', cancelErr);
+        }
+        
+        // Small delay to ensure disconnect completes
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
+        
+        const d = await manager.connectToDevice(deviceId, { timeout: 10000 });
+        console.log('[PolarHeartRate] ✅ reconnected to', d.id);
+        isReconnecting.current = false;
+        await connectToDevice(d);
+      } catch (err) {
+        console.log('[PolarHeartRate] ❌ reconnect failed:', err);
+        isReconnecting.current = false;
+        setStatus('reconnect_failed');
+        // Don't retry automatically - let user manually reconnect
+      }
+    }, 2000) as unknown as number; // wait 2s before reconnect to let device stabilize
+  };
+
   async function connectToDevice(d: Device) {
     setConnecting(true);
     setStatus('connecting');
@@ -186,7 +247,7 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
       // enumerate services & characteristics and pick proper HR characteristic dynamically
       try {
         const services = await manager.servicesForDevice(connected.id);
-        console.log('[PolarHeartRate] services', services.map(s => s.uuid));
+        console.log('[PolarHeartRate] 📋 services found:', services.length, services.map(s => s.uuid).join(', '));
         let found = false;
         // collect services + characteristics for UI
         const collected: { uuid: string; characteristics: { uuid: string; isNotifiable?: boolean }[] }[] = [];
@@ -195,25 +256,49 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
             const chars = await manager.characteristicsForDevice(connected.id, s.uuid);
             // push service + its characteristics into collected for later UI display
             collected.push({ uuid: s.uuid, characteristics: chars.map(c => ({ uuid: c.uuid, isNotifiable: !!(c as any).isNotifiable })) });
-            console.log('[PolarHeartRate] chars for', s.uuid, chars.map(c => c.uuid));
+            console.log('[PolarHeartRate] 📋 service:', s.uuid, '| characteristics:', chars.map(c => c.uuid).join(', '));
             const hrChar = chars.find(c => c.uuid.toLowerCase().includes('2a37'));
             if (hrChar) {
               found = true;
               try {
+                // Enable notifications on the characteristic first
+                console.log('[PolarHeartRate] enabling notifications for characteristic:', hrChar.uuid);
+                try {
+                  await manager.writeCharacteristicWithoutResponseForDevice(
+                    connected.id,
+                    s.uuid,
+                    hrChar.uuid,
+                    Buffer.from([0x01, 0x00]).toString('base64')
+                  );
+                } catch {
+                  // Some devices don't need manual enable, continue
+                  console.log('[PolarHeartRate] notification enable attempt completed (may not be needed)');
+                }
+
+                // Now setup monitor with delay to ensure device is ready
+                console.log('[PolarHeartRate] setting up monitor for characteristic:', hrChar.uuid);
+                
+                // Delay monitor setup to ensure device is ready
+                await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
+                
                 monitorSub.current = manager.monitorCharacteristicForDevice(
                   connected.id,
                   s.uuid,
                   hrChar.uuid,
                   (error, characteristic) => {
                     if (error) {
-                      console.log('[PolarHeartRate] monitor callback error', error);
-                      setStatus('monitor_error');
+                      console.log('[PolarHeartRate] ❌ monitor callback error:', error.message || error);
+                      console.log('[PolarHeartRate] ⚠️ device disconnected, scheduling reconnect');
+                      setStatus('disconnected');
+                      stopMonitor();
+                      lastDeviceId.current = connected.id;
+                      scheduleReconnect(connected.id);
                       return;
                     }
-                    console.log('[PolarHeartRate] characteristic update', characteristic?.uuid, characteristic?.value);
+                    console.log('[PolarHeartRate] ✅ characteristic update', characteristic?.uuid, characteristic?.value);
                     const bpm = parseHeartRate(characteristic?.value ?? null);
                     if (bpm !== null) {
-                      console.log('[PolarHeartRate] parsed bpm', bpm);
+                      console.log('[PolarHeartRate] ✅ parsed bpm', bpm);
                       setHr(bpm);
                       try {
                         onHeartRate?.(bpm);
@@ -222,9 +307,9 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
                     }
                   },
                 );
+                console.log('[PolarHeartRate] ✅ monitor setup complete');
               } catch (monitorErr) {
-                console.log('[PolarHeartRate] monitor setup threw', monitorErr);
-                // try a small reconnect and fallback to scanning characteristics for a notifiable one
+                console.log('[PolarHeartRate] ❌ monitor setup error:', monitorErr);
                 setStatus('monitor_setup_failed');
                 // attempt a short retry
                 setTimeout(async () => {
@@ -275,7 +360,7 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
                 chars.forEach((c: any) => {
                   allChars.push({ service: s.uuid, uuid: c.uuid, notifiable: !!c.isNotifiable });
                 });
-              } catch (e) {
+              } catch {
                 // ignore per-service errors
               }
             }
@@ -340,6 +425,11 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
 
   async function disconnect() {
     stopMonitor();
+    isReconnecting.current = false;
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current as unknown as number);
+      reconnectTimer.current = null;
+    }
     if (device) {
       try {
         await manager.cancelDeviceConnection(device.id);
@@ -424,7 +514,7 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
         {servicesList.length === 0 ? (
           <Text style={styles.noServicesText}>No services found</Text>
         ) : (
-          servicesList.map((service, index) => (
+          servicesList.map((service) => (
             <View key={service.uuid} style={styles.serviceItem}>
               <Text style={styles.serviceUuid}>{service.uuid}</Text>
               <View style={styles.characteristicsList}>

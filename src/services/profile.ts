@@ -335,6 +335,30 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
        } else {
          results.trainee = t.data;
        }
+
+       // AFTER trainee creation (or skip), attach personal injuries if provided in onboarding
+       try {
+         const injuriesInput = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? null;
+         if (injuriesInput && Array.isArray(injuriesInput) && injuriesInput.length > 0) {
+           const injuryResults: any[] = [];
+           for (const inj of injuriesInput) {
+             // normalize to { injuryId, notes }
+             const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injuryId ?? inj?.injury?.id ?? null;
+             const notes = inj?.notes ?? inj?.note ?? null;
+             if (!injuryId) continue;
+             try {
+               const p = await createPersonalInjury({ injuryId, notes });
+               if (p.ok) injuryResults.push(p.data ?? p.data?.data ?? p.data);
+               else injuryResults.push({ error: p.error });
+             } catch (e) {
+               injuryResults.push({ error: e });
+             }
+           }
+           results.personalInjuries = injuryResults;
+         }
+       } catch (e) {
+         console.warn('Failed to attach personal injuries after trainee creation', e);
+       }
      }
 
      // create health profile from bodyGram

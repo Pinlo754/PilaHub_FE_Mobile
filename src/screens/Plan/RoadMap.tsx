@@ -18,7 +18,7 @@ import ScheduleDetail from "./components/ScheduleDetail";
 import BottomActionBar from "./components/BottomActionBar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import StageCarousel from "./components/StageCarousel";
-import axios from "../../hooks/axiosInstance";
+import RoadmapApi from "../../hooks/roadmap.api";
 import { getProfile } from "../../services/auth";
 import StageRendererApi from "./components/StageRendererApi";
 
@@ -52,29 +52,13 @@ const RoadMap = () => {
   const [lastResponse, setLastResponse] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  const fetchRoadmapSupplements = useCallback(async (roadmapId: string) => {
-    try {
-      // Nếu axiosInstance đã có baseURL chứa /api thì giữ như dưới là đúng
-      const res = await axios.get(
-        `/personal-stage-supplements/roadmap/${roadmapId}`
-      );
-      const data = res.data?.data ?? res.data ?? [];
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn("Không lấy được supplements cho roadmap", roadmapId, err);
-      return [];
-    }
-  }, []);
-
   // fetch helper reused by focus effect
   const fetchNewest = useCallback(async () => {
     try {
       setSaving(true);
 
-      const newestRes = await axios.get("/roadmaps/newest");
-      console.log("roadmap newest response", newestRes?.data ?? newestRes);
-
-      const newestData = newestRes.data?.data ?? newestRes.data ?? newestRes;
+      const newestData = await RoadmapApi.getNewest();
+      console.log("roadmap newest response", newestData);
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -102,19 +86,17 @@ const RoadMap = () => {
       if (roadmapId) {
         try {
           const [eqRes, supplementsRes] = await Promise.allSettled([
-            axios.get(`/equipment/roadmap/${roadmapId}`),
-            fetchRoadmapSupplements(roadmapId),
+            RoadmapApi.getEquipment(roadmapId),
+            RoadmapApi.getSupplements(roadmapId),
           ]);
 
           if (eqRes.status === "fulfilled") {
-            const eqData =
-              eqRes.value.data?.data ?? eqRes.value.data ?? eqRes.value;
-            roadmapFromServer.equipment = eqData;
+            roadmapFromServer.equipment = eqRes.value ?? [];
           }
 
           if (supplementsRes.status === "fulfilled") {
-            roadmapFromServer.supplements = supplementsRes.value;
-            setDisplaySupplements(supplementsRes.value);
+            roadmapFromServer.supplements = supplementsRes.value ?? [];
+            setDisplaySupplements(supplementsRes.value ?? []);
           } else {
             roadmapFromServer.supplements = [];
             setDisplaySupplements([]);
@@ -137,7 +119,7 @@ const RoadMap = () => {
     } finally {
       setSaving(false);
     }
-  }, [fetchRoadmapSupplements]);
+  }, []);
 
   // When screen is focused (e.g., tab pressed), fetch newest roadmap+equipment automatically
   useFocusEffect(
@@ -190,10 +172,8 @@ const RoadMap = () => {
       }
 
       // 1) get newest roadmap for trainee
-      const newestRes = await axios.get("/roadmaps/newest");
-      console.log("handleSave newest response", newestRes?.data ?? newestRes);
-
-      const newestData = newestRes.data?.data ?? newestRes.data ?? newestRes;
+      const newestData = await RoadmapApi.getNewest();
+      console.log("handleSave newest response", newestData);
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -221,19 +201,17 @@ const RoadMap = () => {
       if (roadmapId) {
         try {
           const [eqRes, supplementsRes] = await Promise.allSettled([
-            axios.get(`/equipment/roadmap/${roadmapId}`),
-            fetchRoadmapSupplements(roadmapId),
+            RoadmapApi.getEquipment(roadmapId),
+            RoadmapApi.getSupplements(roadmapId),
           ]);
 
           if (eqRes.status === "fulfilled") {
-            const eqData =
-              eqRes.value.data?.data ?? eqRes.value.data ?? eqRes.value;
-            roadmapFromServer.equipment = eqData;
+            roadmapFromServer.equipment = eqRes.value ?? [];
           }
 
           if (supplementsRes.status === "fulfilled") {
-            roadmapFromServer.supplements = supplementsRes.value;
-            setDisplaySupplements(supplementsRes.value);
+            roadmapFromServer.supplements = supplementsRes.value ?? [];
+            setDisplaySupplements(supplementsRes.value ?? []);
           } else {
             roadmapFromServer.supplements = [];
             setDisplaySupplements([]);
@@ -271,39 +249,34 @@ const RoadMap = () => {
   if (!currentRoadmap || !currentStages?.length) {
     if (saving) {
       return (
-        <SafeAreaView className="flex-1 items-center justify-center p-4">
+        <SafeAreaView style={styles.centeredContainer}>
           <ActivityIndicator size="large" color="#8B4513" />
-          <Text className="mt-3">Đang tải lộ trình...</Text>
+          <Text style={styles.loadingText}>Đang tải lộ trình...</Text>
         </SafeAreaView>
       );
     }
 
     return (
-      <SafeAreaView className="flex-1 items-center justify-center p-4">
-        <Text className="text-lg font-semibold mb-3">
-          Không có dữ liệu lộ trình
-        </Text>
+      <SafeAreaView style={styles.centeredContainer}>
+        <Text style={styles.emptyTitle}>Không có dữ liệu lộ trình</Text>
 
-        <TouchableOpacity
-          onPress={() => fetchNewest()}
-          className="bg-foreground px-4 py-3 rounded-lg mb-3"
-        >
-          <Text className="text-white">Tải lộ trình mới nhất</Text>
+        <TouchableOpacity onPress={() => fetchNewest()} style={styles.buttonPrimary}>
+          <Text style={styles.buttonPrimaryText}>Tải lộ trình mới nhất</Text>
         </TouchableOpacity>
 
         {lastResponse ? (
-          <View className="mt-3 w-full">
-            <Text className="font-semibold mb-1">Raw response:</Text>
-            <View className="bg-white p-3 rounded-lg border border-gray-200">
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionTitle}>Raw response:</Text>
+            <View style={styles.codeBox}>
               <Text style={styles.mono}>{lastResponse}</Text>
             </View>
           </View>
         ) : null}
 
         {lastError ? (
-          <View className="mt-3 w-full">
-            <Text className="font-semibold mb-1">Last error:</Text>
-            <View className="bg-white p-3 rounded-lg border border-gray-200">
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionTitle}>Last error:</Text>
+            <View style={styles.codeBox}>
               <Text style={styles.errorText}>{lastError}</Text>
             </View>
           </View>
@@ -332,23 +305,47 @@ const RoadMap = () => {
     : currentSupplements;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F3EDE3]">
+    <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View className="px-5 mt-4">
-          <Text className="text-2xl font-bold text-[#8B4513]">
-            {currentRoadmap.title}
-          </Text>
+        {/* Header: compact card with title, description and progress bar (polished) */}
+        <View style={styles.sectionWrap}>
+          <View style={styles.card}>
+            <View style={styles.headerRow}>
+              <View style={styles.headerTextWrap}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {currentRoadmap.title}
+                </Text>
+                {currentRoadmap.description ? (
+                  <Text style={styles.cardSubtitle} numberOfLines={2}>
+                    {currentRoadmap.description}
+                  </Text>
+                ) : null}
+              </View>
 
-          {currentRoadmap.description && (
-            <Text className="text-gray-600 mt-2">
-              {currentRoadmap.description}
-            </Text>
-          )}
+              {/* small stat: percent */}
+              <View style={styles.statBox}>
+                <Text style={styles.statText}>
+                  {`${Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)}%`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Progress bar */}
+            <View style={styles.progressWrap}>
+              <View style={styles.progressBarBg}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${Math.max(0, Math.min(100, Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)))}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* Stage selector */}
-        <View className="mt-6">
+        <View style={styles.stageSelector}>
           {isApiShaped ? (
             <StageRendererApi apiStages={currentStages} roadmap={currentRoadmap} />
           ) : (
@@ -377,162 +374,102 @@ const RoadMap = () => {
 
         {/* Equipment fetched for current roadmap (if any) */}
         {currentRoadmap?.equipment ? (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-[#8B4513] mb-2">
+          <View style={styles.sectionWrap}>
+            <Text style={styles.equipmentTitle}>
               Thiết bị
             </Text>
 
             {Array.isArray(currentRoadmap.equipment) ? (
               currentRoadmap.equipment.map((eq: any, idx: number) => (
-                <View
-                  key={idx}
-                  className="bg-white rounded-lg p-3 mb-2 border border-gray-200"
-                >
-                  <Text className="font-semibold">
-                    {eq.equipmentName ?? eq.name ?? "Thiết bị"}
-                  </Text>
-                  {eq.description ? (
-                    <Text className="text-sm text-gray-600">
-                      {eq.description}
-                    </Text>
-                  ) : null}
+                <View key={idx} style={styles.itemCard}>
+                  <View style={styles.itemRow}>
+                    {/* Left: image */}
+                    {(
+                      eq.imageUrl || eq.image || eq.thumbnailUrl || eq.equipmentImageUrl || eq.photo
+                    ) ? (
+                      <Image
+                        source={{ uri: eq.imageUrl || eq.image || eq.thumbnailUrl || eq.equipmentImageUrl || eq.photo }}
+                        style={styles.itemImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.itemImage} />
+                    )}
+
+                    {/* Right: info */}
+                    <View style={styles.itemContent}>
+                      <Text style={styles.itemTitle}>{eq.equipmentName ?? eq.name ?? "Thiết bị"}</Text>
+                      {eq.description ? <Text style={styles.itemSubtitle}>{eq.description}</Text> : null}
+                    </View>
+                  </View>
                 </View>
               ))
             ) : (
-              <View className="bg-white rounded-lg p-3 mb-2 border border-gray-200">
-                <Text className="text-sm">
-                  {JSON.stringify(currentRoadmap.equipment)}
-                </Text>
+              <View style={[styles.itemCard, styles.itemCardPadding]}>
+                <Text style={styles.itemSubtitle}>{JSON.stringify(currentRoadmap.equipment)}</Text>
               </View>
             )}
           </View>
         ) : null}
 
         {/* New supplement block from roadmap API */}
-        {Array.isArray(selectedStageSupplements) &&
-        selectedStageSupplements.length > 0 ? (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-[#8B4513] mb-2">
+        {Array.isArray(selectedStageSupplements) && selectedStageSupplements.length > 0 ? (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.supplementTitle}>
               Supplements
             </Text>
 
             {selectedStageSupplements.map((sp: any, idx: number) => (
-              <View
-                key={sp.personalStageSupplementId ?? idx}
-                className="bg-white rounded-xl p-4 mb-3 border border-gray-200"
-              >
-                <View className="flex-row items-start justify-between">
-                  <Text className="font-semibold text-base text-[#3A2A1A] flex-1 pr-3">
-                    {sp.supplementName ?? "Supplement"}
-                  </Text>
+              <View key={sp.personalStageSupplementId ?? idx} style={styles.itemCard}>
+                <View style={styles.itemRow}>
+                  {sp.supplementImageUrl ? (
+                    <Image source={{ uri: sp.supplementImageUrl }} style={styles.itemImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.itemImage} />
+                  )}
 
-                  {sp.priority ? (
-                    <View className="px-2 py-1 rounded-full bg-[#F3EDE3]">
-                      <Text className="text-xs font-semibold text-[#8B4513]">
-                        {sp.priority}
-                      </Text>
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemHeaderRow}>
+                      <Text style={styles.itemTitle}>{sp.supplementName ?? "Supplement"}</Text>
+                      {sp.priority ? <View style={styles.badge}><Text style={styles.badgeText}>{sp.priority}</Text></View> : null}
                     </View>
-                  ) : null}
+                    {sp.recommendedTiming ? <Text style={styles.itemSubtitle}>Thời điểm: {sp.recommendedTiming}</Text> : null}
+                    {sp.dosage ? <Text style={styles.itemSubtitle}>Liều dùng: {sp.dosage}</Text> : null}
+                    {sp.reason ? <Text style={styles.itemSubtitle}>Lý do: {sp.reason}</Text> : null}
+                    {sp.notes ? <Text style={styles.itemSubtitle}>Ghi chú: {sp.notes}</Text> : null}
+                    <Text style={styles.smallText}>Optional: {sp.optional ? "Yes" : "No"}</Text>
+                  </View>
                 </View>
-
-                {sp.supplementImageUrl ? (
-                  <Image
-                    source={{ uri: sp.supplementImageUrl }}
-                    style={styles.supplementImage}
-                    resizeMode="cover"
-                  />
-                ) : null}
-
-                {sp.recommendedTiming ? (
-                  <Text className="text-sm text-gray-600 mt-2">
-                    Thời điểm: {sp.recommendedTiming}
-                  </Text>
-                ) : null}
-
-                {sp.dosage ? (
-                  <Text className="text-sm text-gray-600 mt-1">
-                    Liều dùng: {sp.dosage}
-                  </Text>
-                ) : null}
-
-                {sp.reason ? (
-                  <Text className="text-sm text-gray-700 mt-2">
-                    Lý do: {sp.reason}
-                  </Text>
-                ) : null}
-
-                {sp.notes ? (
-                  <Text className="text-sm text-gray-500 mt-1">
-                    Ghi chú: {sp.notes}
-                  </Text>
-                ) : null}
-
-                <Text className="text-xs text-gray-400 mt-2">
-                  Optional: {sp.optional ? "Yes" : "No"}
-                </Text>
               </View>
             ))}
           </View>
         ) : Array.isArray(currentSupplements) && currentSupplements.length > 0 ? (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-[#8B4513] mb-2">
+          <View style={styles.sectionWrap}>
+            <Text style={styles.supplementTitle}>
               Supplements
             </Text>
 
             {currentSupplements.map((sp: any, idx: number) => (
-              <View
-                key={sp.personalStageSupplementId ?? idx}
-                className="bg-white rounded-xl p-4 mb-3 border border-gray-200"
-              >
-                <View className="flex-row items-start justify-between">
-                  <Text className="font-semibold text-base text-[#3A2A1A] flex-1 pr-3">
-                    {sp.supplementName ?? "Supplement"}
-                  </Text>
+              <View key={sp.personalStageSupplementId ?? idx} style={styles.itemCard}>
+                <View style={styles.itemRow}>
+                  {sp.supplementImageUrl ? (
+                    <Image source={{ uri: sp.supplementImageUrl }} style={styles.itemImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.itemImage} />
+                  )}
 
-                  {sp.priority ? (
-                    <View className="px-2 py-1 rounded-full bg-[#F3EDE3]">
-                      <Text className="text-xs font-semibold text-[#8B4513]">
-                        {sp.priority}
-                      </Text>
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemHeaderRow}>
+                      <Text style={styles.itemTitle}>{sp.supplementName ?? "Supplement"}</Text>
+                      {sp.priority ? <View style={styles.badge}><Text style={styles.badgeText}>{sp.priority}</Text></View> : null}
                     </View>
-                  ) : null}
+                    {sp.recommendedTiming ? <Text style={styles.itemSubtitle}>Thời điểm: {sp.recommendedTiming}</Text> : null}
+                    {sp.dosage ? <Text style={styles.itemSubtitle}>Liều dùng: {sp.dosage}</Text> : null}
+                    {sp.reason ? <Text style={styles.itemSubtitle}>Lý do: {sp.reason}</Text> : null}
+                    {sp.notes ? <Text style={styles.itemSubtitle}>Ghi chú: {sp.notes}</Text> : null}
+                    <Text style={styles.smallText}>Optional: {sp.optional ? "Yes" : "No"}</Text>
+                  </View>
                 </View>
-
-                {sp.supplementImageUrl ? (
-                  <Image
-                    source={{ uri: sp.supplementImageUrl }}
-                    style={styles.supplementImage}
-                    resizeMode="cover"
-                  />
-                ) : null}
-
-                {sp.recommendedTiming ? (
-                  <Text className="text-sm text-gray-600 mt-2">
-                    Thời điểm: {sp.recommendedTiming}
-                  </Text>
-                ) : null}
-
-                {sp.dosage ? (
-                  <Text className="text-sm text-gray-600 mt-1">
-                    Liều dùng: {sp.dosage}
-                  </Text>
-                ) : null}
-
-                {sp.reason ? (
-                  <Text className="text-sm text-gray-700 mt-2">
-                    Lý do: {sp.reason}
-                  </Text>
-                ) : null}
-
-                {sp.notes ? (
-                  <Text className="text-sm text-gray-500 mt-1">
-                    Ghi chú: {sp.notes}
-                  </Text>
-                ) : null}
-
-                <Text className="text-xs text-gray-400 mt-2">
-                  Optional: {sp.optional ? "Yes" : "No"}
-                </Text>
               </View>
             ))}
           </View>
@@ -547,14 +484,60 @@ const RoadMap = () => {
 export default RoadMap;
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F3EDE3' },
   scrollContent: { paddingBottom: 140 },
-  mono: { fontFamily: "monospace", fontSize: 12 },
-  errorText: { color: "red" },
-  supplementImage: {
-    width: "100%",
-    height: 160,
+  mono: { fontFamily: 'monospace', fontSize: 12 },
+  errorText: { color: 'red' },
+
+  // header / card
+  card: {
+    backgroundColor: '#fff',
     borderRadius: 12,
-    marginTop: 12,
-    backgroundColor: "#f3f4f6",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTextWrap: { flex: 1, paddingRight: 8 },
+  cardTitle: { color: '#3A2A1A', fontSize: 18, fontWeight: '700' },
+  cardSubtitle: { color: '#6B6B6B', marginTop: 4, fontSize: 13 },
+  statBox: { minWidth: 48, height: 32, borderRadius: 8, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center' },
+  statText: { color: '#8B4513', fontWeight: '700' },
+  progressWrap: { marginTop: 10 },
+  stageSelector: { marginTop: 12 },
+  sectionWrap: { paddingHorizontal: 16, marginTop: 24 },
+  sectionTitle: { fontWeight: '700', marginBottom: 8 },
+  equipmentTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#8B4513' },
+  supplementTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#8B4513' },
+
+  // items
+  itemCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#eee', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  itemCardPadding: { paddingVertical: 12 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemImage: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#f3f4f6' },
+  itemContent: { flex: 1 },
+  itemHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  itemTitle: { fontSize: 16, color: '#3A2A1A', fontWeight: '700' },
+  itemSubtitle: { fontSize: 13, color: '#6B6B6B', marginTop: 6 },
+  badge: { backgroundColor: '#F3EDE3', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  badgeText: { color: '#8B4513', fontWeight: '700', fontSize: 11 },
+  smallText: { fontSize: 12, color: '#8B8B8B', marginTop: 6 },
+
+  // buttons / empty state
+  centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  loadingText: { marginTop: 12, fontSize: 16, color: '#8B4513' },
+  emptyTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16, textAlign: 'center', color: '#3A2A1A' },
+  buttonPrimary: { backgroundColor: '#8B4513', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  buttonPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 16 },
+
+  // code / debug box
+  codeBox: { backgroundColor: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', marginTop: 8 },
+  // progress bar styles (used in header card)
+  progressBarBg: { width: '100%', height: 10, backgroundColor: '#F3EDE3', borderRadius: 6, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
 });

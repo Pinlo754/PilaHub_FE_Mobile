@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput } from 
 import { useInjuryLogic } from './Injury.logic';
 
 export default function InjuryUI() {
-  const { injuries, selected, setSelected, notes, setNotes, loading, onBack, onSkip, onNext } = useInjuryLogic();
+  const { filteredInjuries, selected, selectInjury, notes, setNotes, loading, searchText, setSearchText, onBack, onSkip, onNext } = useInjuryLogic();
 
   return (
     <View className="flex-1 bg-background w-full">
@@ -19,8 +19,19 @@ export default function InjuryUI() {
           <View className="flex-1 items-center justify-center"><ActivityIndicator /></View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
-            {injuries.map((inj: any) => (
-              <Pressable key={inj.injuryId ?? inj.id} onPress={() => setSelected(inj)} className={`p-4 rounded-xl mb-3 border ${selected && (selected.injuryId ?? selected.id) === (inj.injuryId ?? inj.id) ? 'bg-foreground/10 border-foreground' : 'bg-white border-background-sub2'}`}>
+            {/* Search input */}
+            <TextInput
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Tìm chấn thương"
+              className="h-12 px-4 mb-4 rounded-xl bg-white text-foreground"
+            />
+
+            {(filteredInjuries || []).map((inj: any) => (
+              <Pressable
+                key={inj.injuryId ?? inj.id}
+                onPress={() => selectInjury(inj)}
+                className={`p-4 rounded-xl mb-3 border ${selected && (selected.injuryId ?? selected.id) === (inj.injuryId ?? inj.id) ? 'bg-foreground/10 border-foreground' : 'bg-white border-background-sub2'}`}>
                 <Text className="text-base text-foreground font-medium">{inj.name}</Text>
                 <Text className="text-sm text-secondaryText mt-1">{inj.description}</Text>
               </Pressable>
