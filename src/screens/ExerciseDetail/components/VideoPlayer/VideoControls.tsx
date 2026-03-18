@@ -13,6 +13,7 @@ type Props = {
   onFullscreen: () => void;
   isFullscreen: boolean;
   isPracticeTab: boolean;
+  onCompleteReached?: () => void;
 };
 
 export function VideoControls({
@@ -23,7 +24,14 @@ export function VideoControls({
   onFullscreen,
   isFullscreen,
   isPracticeTab,
+  onCompleteReached,
 }: Props) {
+  React.useEffect(() => {
+    if (duration > 0 && currentTime >= duration - 0.5) {
+      onCompleteReached?.();
+    }
+  }, [currentTime, duration, onCompleteReached]);
+
   return (
     <View className={`px-4  ${isFullscreen ? 'pb-20 mb-2' : 'pb-14'}`}>
       {/* Arrows */}

@@ -7,8 +7,8 @@ import CategoryList from './components/CategoryList';
 import CardProduct from '../Home/components/CardProduct';
 import ProductSkeleton from './components/ProductSkeleton';
 import { getCategories, ProductItem, getProducts } from '../../services/products';
-import debounce from 'lodash/debounce';
 import bannerImg from '../../assets/banner.png';
+import { debounce } from 'lodash';
 
 
 
@@ -45,6 +45,7 @@ const ShopScreen = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
+  // query is handled by the main header component
 
   useEffect(() => {
     loadInitial();
@@ -123,6 +124,8 @@ const ShopScreen = () => {
   function onSearch(q: string) {
     doSearch(q);
   }
+
+  // search handled by Header; no local onSearch required
 
   if (loading) {
     return (

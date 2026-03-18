@@ -62,6 +62,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
           toggleVideoExpand={toggleVideoExpand}
           isPracticeTab={isPracticeTab}
           setIsShowFlag={setIsShowFlag}
+          personalExerciseId={exerciseDetail?.exerciseId}
+          personalScheduleId={(exerciseDetail as any)?.personalScheduleId}
         />
       ) : (
         <ImageExercise imgUrl={exerciseDetail?.imageUrl} />

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, View, Dimensions } from 'react-native';
+import { Pressable, View, Dimensions, Alert } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
 import { useVideoPlayer } from '../../../../hooks/useVideoPlayer';
+import { exerciseRoadmapService } from '../../../../hooks/exerciseRoadmap.service';
 
 const { height } = Dimensions.get('window');
 
@@ -13,6 +14,8 @@ type Props = {
   toggleVideoExpand: () => void;
   isPracticeTab: boolean;
   setIsShowFlag: (v: boolean) => void;
+  personalExerciseId?: string; // optional id passed from parent
+  personalScheduleId?: string; // optional schedule id
 };
 
 export default function VideoPlayer({
@@ -22,12 +25,39 @@ export default function VideoPlayer({
   toggleVideoExpand,
   isPracticeTab,
   setIsShowFlag,
+  personalExerciseId,
+  personalScheduleId,
 }: Props) {
   // HOOOK
   const player = useVideoPlayer({
     isVideoPlay,
     setIsShowControls: setIsShowFlag,
   });
+
+  const onVideoComplete = async () => {
+    try {
+      if (!personalExerciseId) return;
+      console.log('[VideoPlayer] marking exercise complete', personalExerciseId);
+      await exerciseRoadmapService.completePersonalExercise(personalExerciseId);
+      console.log('[VideoPlayer] exercise marked complete');
+
+      if (personalScheduleId) {
+        const exercises = await exerciseRoadmapService.getExercisesBySchedule(personalScheduleId);
+        const allDone = Array.isArray(exercises) && exercises.every((e: any) => e.completed === true || e.isCompleted === true || e.is_completed === true);
+        if (allDone) {
+          console.log('[VideoPlayer] all exercises done for schedule, marking schedule complete', personalScheduleId);
+          await exerciseRoadmapService.completePersonalSchedule(personalScheduleId);
+          console.log('[VideoPlayer] schedule marked complete');
+        }
+      }
+
+      // basic user feedback
+      Alert.alert('Hoàn thành', 'Bài tập được đánh dấu hoàn thành');
+    } catch (err: any) {
+      console.error('[VideoPlayer] complete error', err);
+      Alert.alert('Lỗi', 'Không thể đánh dấu hoàn thành. Vui lòng thử lại.');
+    }
+  };
 
   return (
     <View
@@ -40,6 +70,7 @@ export default function VideoPlayer({
         paused={!isVideoPlay}
         onLoad={d => player.setDuration(d.duration)}
         onProgress={p => player.setCurrentTime(p.currentTime)}
+        onEnd={onVideoComplete}
       />
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">
@@ -54,6 +85,7 @@ export default function VideoPlayer({
               onFullscreen={toggleVideoExpand}
               isFullscreen={isVideoExpand}
               isPracticeTab={isPracticeTab}
+              onCompleteReached={onVideoComplete}
             />
           </View>
         )}

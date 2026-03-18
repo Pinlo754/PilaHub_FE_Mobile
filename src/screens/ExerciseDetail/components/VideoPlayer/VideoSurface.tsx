@@ -8,6 +8,7 @@ type Props = {
   paused: boolean;
   onLoad: (d: any) => void;
   onProgress: (p: any) => void;
+  onEnd?: () => void;
 };
 
 export function VideoSurface({
@@ -16,6 +17,7 @@ export function VideoSurface({
   paused,
   onLoad,
   onProgress,
+  onEnd,
 }: Props) {
   return (
     <View className="w-full h-full">
@@ -27,6 +29,7 @@ export function VideoSurface({
         style={{ width: '100%', height: '100%' }}
         onLoad={onLoad}
         onProgress={onProgress}
+        onEnd={onEnd}
         pointerEvents="none"
       />
     </View>

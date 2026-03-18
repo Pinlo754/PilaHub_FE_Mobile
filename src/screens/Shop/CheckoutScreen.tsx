@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useCart } from '../../context/CartContext';
 import { formatVND } from '../../utils/number';
 import { createOrder } from '../../services/order';
@@ -30,7 +30,7 @@ function AddressCard({ address, onPress }: { address?: any; onPress?: () => void
   );
 }
 
-function ShippingOption({ id, title, subtitle, price, selected, onSelect }: { id: ShippingId; title: string; subtitle?: string; price?: number | 'free'; selected: ShippingId; onSelect: (id: ShippingId) => void }) {
+function ShippingOption({ id, title, subtitle, price, selected, onSelect }: { id: ShippingId; title: string; subtitle?: string; price?: number | 'free' | undefined; selected: ShippingId; onSelect: (id: ShippingId) => void }) {
   return (
     <TouchableOpacity onPress={() => onSelect(id)} style={[styles.option, selected === id && styles.optionSelected]}>
       <View style={styles.optionLeft}>
@@ -42,7 +42,7 @@ function ShippingOption({ id, title, subtitle, price, selected, onSelect }: { id
           {subtitle ? <Text style={styles.optionSub}>{subtitle}</Text> : null}
         </View>
       </View>
-      <Text style={styles.optionPrice}>{price === 'free' ? 'Miễn phí' : (price ? formatVND(price) : '')}</Text>
+      <Text style={styles.optionPrice}>{price === 'free' ? 'Miễn phí' : (price === undefined ? 'Đang tính...' : formatVND(price as number))}</Text>
     </TouchableOpacity>
   );
 }
@@ -56,7 +56,7 @@ function PaymentOption({ id, title, icon, selected, onSelect }: { id: PaymentId;
         </View>
         <View style={styles.optionTextWrap}>
           <View style={styles.payRow}>
-            {icon ? <Ionicons name={icon as string} size={18} color="#111" style={styles.payIcon} /> : null}
+            {icon ? <Ionicons name={icon as any} size={18} color="#111" style={styles.payIcon} /> : null}
             <Text style={styles.optionTitle}>{title}</Text>
           </View>
         </View>
@@ -65,7 +65,7 @@ function PaymentOption({ id, title, icon, selected, onSelect }: { id: PaymentId;
   );
 }
 
-function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPayment, setSelectedPayment, onUpdateQuantity, address, onAddressPress }: { lines: any[]; selectedShipping: ShippingId; setSelectedShipping: (s: ShippingId) => void; selectedPayment: PaymentId; setSelectedPayment: (p: PaymentId) => void; onUpdateQuantity: (productId: string, qty: number) => void; address?: any; onAddressPress?: () => void }) {
+function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPayment, setSelectedPayment, onUpdateQuantity, address, onAddressPress, isCalcShipping, computedShippingCharge }: { lines: any[]; selectedShipping: ShippingId; setSelectedShipping: (s: ShippingId) => void; selectedPayment: PaymentId; setSelectedPayment: (p: PaymentId) => void; onUpdateQuantity: (productId: string, qty: number) => void; address?: any; onAddressPress?: () => void; isCalcShipping: boolean; computedShippingCharge: number | null }) {
   return (
     <View>
       <View style={styles.section}>
@@ -107,7 +107,8 @@ function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPay
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Phương thức giao hàng</Text>
         <View style={styles.card}>
-          <ShippingOption id="fast" title="Giao hàng nhanh" subtitle="Nhận trong 1-2 ngày" price={30000} selected={selectedShipping} onSelect={setSelectedShipping} />
+          {/* fast price shown regardless of selection */}
+          <ShippingOption id="fast" title="Giao hàng nhanh" subtitle="Nhận trong 1-2 ngày" price={isCalcShipping ? undefined : (computedShippingCharge === null ? undefined : (computedShippingCharge === 0 ? 'free' : computedShippingCharge))} selected={selectedShipping} onSelect={setSelectedShipping} />
           <ShippingOption id="standard" title="Giao hàng tiêu chuẩn" subtitle="Nhận trong 3-5 ngày" price={'free'} selected={selectedShipping} onSelect={setSelectedShipping} />
         </View>
       </View>
@@ -170,7 +171,9 @@ export default function CheckoutScreen() {
   const [selectedAddress, setSelectedAddress] = useState<any | undefined>(undefined);
   const [isPlacing, setIsPlacing] = useState(false);
   const [wallet, setWallet] = useState<any | null>(null);
-  const [shippingCharge, setShippingCharge] = useState<number>(30000);
+  const [shippingCharge, setShippingCharge] = useState<number>(0);
+  // computedShippingCharge stores the last GHN-calculated fee (or null if not computed yet)
+  const [computedShippingCharge, setComputedShippingCharge] = useState<number | null>(null);
   const [isCalcShipping, setIsCalcShipping] = useState(false);
 
   // fetch wallet on mount
@@ -181,18 +184,17 @@ export default function CheckoutScreen() {
     })();
   }, []);
 
-  // calculate shipping when address or shipping method changes
+  // calculate shipping once when address or cart lines change (not on shipping method toggle)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     (async () => {
       if (!selectedAddress) return;
-      const serviceTypeId = selectedShipping === 'fast' ? 5 : 2;
-      // choose a vendorId for GHN calc — try product raw vendorId if available
       const vendorId = (lines && lines.length > 0) ? (lines[0]?.raw?.vendorId ?? '') : '';
       const defaultDims = { height: 10, length: 20, width: 15, weight: 500 };
       const totalQuantity = lines.reduce((s: number, l: any) => s + (l.quantity || 1), 0);
 
       const req = {
-        serviceTypeId,
+        serviceTypeId: 2,
         vendorId,
         addressId: selectedAddress.addressId,
         height: defaultDims.height,
@@ -202,18 +204,28 @@ export default function CheckoutScreen() {
         quantity: totalQuantity,
       };
 
+      console.log('[Checkout] calculateShippingFee (compute once) req', { req, linesCount: lines.length, totalQuantity });
+
       try {
         setIsCalcShipping(true);
         const res = await calculateShippingFee(req as any);
-        setShippingCharge(res.total ?? 0);
+        const fee = res.total ?? 0;
+        setComputedShippingCharge(fee);
+        // set shippingCharge to computed value if current selection is 'fast'
+        if (selectedShipping === 'fast') setShippingCharge(fee);
       } catch (e) {
-        console.warn('Calc shipping failed', e);
-        setShippingCharge(selectedShipping === 'fast' ? 30000 : 0);
+        const errAny: any = e;
+        console.warn('[Checkout] Calc shipping failed (compute)', errAny, errAny?.response?.data ?? null);
+        setComputedShippingCharge(0);
+        if (selectedShipping === 'fast') setShippingCharge(0);
       } finally {
         setIsCalcShipping(false);
       }
     })();
-  }, [selectedAddress, selectedShipping, lines]);
+  }, [selectedAddress, lines]);
+
+  // displayShippingCharge: computed value used for UI and order payload
+  const displayShippingCharge = selectedShipping === 'standard' ? 0 : (computedShippingCharge ?? 0);
 
   const onConfirm = async () => {
     if (!selectedAddress) {
@@ -241,10 +253,13 @@ export default function CheckoutScreen() {
       shippingAddress: selectedAddress.addressLine,
       items: lines.map((l: any) => ({ productId: l.product_id, quantity: l.quantity })),
       discountAmount: 0,
-      shippingFee: shippingCharge,
+      shippingFee: displayShippingCharge,
       paymentMethod: selectedPayment === 'pilapay' ? 'WALLET' : (selectedPayment === 'card' ? 'CARD' : 'COD'),
       notes: ''
     };
+
+    // debug log: order create payload
+    console.log('[Checkout] createOrder payload', payload);
 
     try {
       setIsPlacing(true);
@@ -281,16 +296,16 @@ export default function CheckoutScreen() {
       <FlatList
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={<>
-          <HeaderBlock lines={lines} selectedShipping={selectedShipping} setSelectedShipping={setSelectedShipping} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} onUpdateQuantity={updateQuantity} address={selectedAddress} onAddressPress={() => navigation.navigate('AddressList', { onSelect: (a: any) => setSelectedAddress(a) })} />
+          <HeaderBlock lines={lines} selectedShipping={selectedShipping} setSelectedShipping={setSelectedShipping} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} onUpdateQuantity={updateQuantity} address={selectedAddress} onAddressPress={() => navigation.navigate('AddressList', { onSelect: (a: any) => setSelectedAddress(a) })} isCalcShipping={isCalcShipping} computedShippingCharge={computedShippingCharge} />
           <WalletRowComponent wallet={wallet} />
         </>}
         data={[]}
         keyExtractor={(i: any) => i.product_id}
         renderItem={null}
-        ListFooterComponent={<FooterList total={totalPrice} shippingCharge={shippingCharge} />}
+        ListFooterComponent={<FooterList total={totalPrice} shippingCharge={displayShippingCharge} />}
       />
 
-      <FooterContent total={totalPrice} shippingCharge={shippingCharge} onConfirm={onConfirm} busy={isPlacing || isCalcShipping} />
+      <FooterContent total={totalPrice} shippingCharge={displayShippingCharge} onConfirm={onConfirm} busy={isPlacing || isCalcShipping} />
     </SafeAreaView>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, FlatList, Keyboard, StyleSheet, DeviceEventEmitter } from 'react-native';
+import { View, Text, TextInput, Pressable, FlatList, Keyboard, StyleSheet, DeviceEventEmitter, Image } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +12,10 @@ const stylesHeader = StyleSheet.create({
   cartWrap: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
   badgeWrap: { position: 'absolute', right: -2, top: -4, backgroundColor: '#F59E0B', minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+});
+
+const stylesAvatar = StyleSheet.create({
+  img: { width: '100%', height: '100%' },
 });
 
 // reference to avoid unused variable lint in this edit block
@@ -141,6 +145,16 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
           <Pressable className="p-2">
             <Ionicons name="notifications-outline" size={22} color={colors.foreground} />
           </Pressable>
+
+          {/* Profile button with avatar image: navigate to TraineeProfile */}
+          <Pressable className="w-10 h-10 rounded-full overflow-hidden p-0" onPress={() => (navigation as any).navigate('TraineeProfile')}>
+            <Image
+              source={{ uri: 'https://www.toponseek.com/wp-content/uploads/2024/07/celeb-la-gi-6.jpg' }}
+              style={stylesAvatar.img}
+              resizeMode="cover"
+            />
+          </Pressable>
+
           <Pressable className="p-2" onPress={() => (navigation as any).navigate('Cart')}>
             <View style={stylesHeader.cartWrap}>
               <Ionicons name="cart-outline" size={22} color={colors.foreground} />

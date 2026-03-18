@@ -161,7 +161,8 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const category = product?.raw?.categoryName ?? null;
   const stock = product?.raw?.stockQuantity ?? null;
 
-  const { addToCart } = useCart();
+  const { addToCart, clearCart } = useCart();
+  const [buying, setBuying] = useState(false);
 
   // image animation refs (unchanging order)
   const imageOpacityRef = React.useRef(new Animated.Value(0));
@@ -172,6 +173,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const onAddToCart = async () => {
     try {
+      console.log('[ProductDetail] addToCart payload', { productId: product?.product_id, quantity, price: product?.price });
       const item = {
         product_id: product!.product_id,
         product_name: product!.product_name,
@@ -197,8 +199,29 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.navigate('Cart' as any);
   };
 
-  const onBuyNow = () => {
-    Alert.alert('Mua ngay', 'Chức năng mua ngay chưa được triển khai.');
+  const onBuyNow = async () => {
+    if (!product) return;
+    setBuying(true);
+    try {
+      console.log('[ProductDetail] buyNow start', { productId: product.product_id, quantity, unitPrice: product.price, total: product.price * quantity });
+      // Clear existing cart, add only this product, then go to Checkout
+      await clearCart();
+      const item = {
+        product_id: product.product_id,
+        product_name: product.product_name,
+        thumnail_url: product.thumnail_url,
+        price: product.price,
+        raw: product.raw,
+      };
+      console.log('[ProductDetail] buyNow add item', { item, quantity });
+      await addToCart(item, quantity);
+      navigation.navigate('Checkout' as any);
+    } catch (e) {
+      console.warn('buy now failed', e);
+      Alert.alert('Lỗi', 'Không thể thực hiện mua ngay.');
+    } finally {
+      setBuying(false);
+    }
   };
 
   if (loading) return (
@@ -321,8 +344,8 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <TouchableOpacity onPress={onAddToCart} style={[styles.addBtn, styles.addOutlineBtn]}>
             <Text style={[styles.addBtnText, styles.addOutlineText]}>Thêm</Text>
           </TouchableOpacity>
-            <TouchableOpacity onPress={onBuyNow} style={styles.buyBtn}>
-              <Text style={styles.buyBtnText}>Mua ngay</Text>
+            <TouchableOpacity onPress={onBuyNow} style={styles.buyBtn} disabled={buying}>
+              {buying ? <ActivityIndicator color="#fff" /> : <Text style={styles.buyBtnText}>Mua ngay</Text>}
             </TouchableOpacity>
           </View>
        </View>

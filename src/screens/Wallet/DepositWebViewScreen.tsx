@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { fetchMyWallet } from '../../services/wallet';
+import api from '../../hooks/axiosInstance';
 
 export default function DepositWebViewScreen() {
   const navigation = useNavigation<any>();
@@ -11,37 +12,53 @@ export default function DepositWebViewScreen() {
   const [loading, setLoading] = useState(true);
 
   const parseQuery = useCallback((url: string) => {
-    const q: Record<string, string> = {};
-    const idx = url.indexOf('?');
-    if (idx === -1) return q;
-    const qs = url.slice(idx + 1).split('#')[0];
-    qs.split('&').forEach(pair => {
-      const [k, v] = pair.split('=');
-      if (k) q[decodeURIComponent(k)] = decodeURIComponent(v || '');
-    });
-    return q;
-  }, []);
+  const q: Record<string, string> = {};
+  const idx = url.indexOf('?');
+  if (idx === -1) return q;
 
+  const qs = url.slice(idx + 1).split('#')[0];
+
+  qs.split('&').forEach(pair => {
+    const [k, v = ''] = pair.split('=');
+
+    if (k) {
+      const key = decodeURIComponent(k.replace(/\+/g, ' '));
+      const value = decodeURIComponent(v.replace(/\+/g, ' '));
+      q[key] = value;
+    }
+  });
+
+  return q;
+}, []);
   const handleCallbackData = useCallback(async (payload: any) => {
     // normalize possible shapes
     const params = payload?.params ?? payload ?? {};
+    // Try to call backend callback endpoint so server processes the deposit (IPN may not reach local dev)
+    let backendSuccess = false;
+    try {
+      // backend endpoint is unauthenticated for VNPay callback (/api/wallet/deposit/callback)
+      const resp = await api.get('/wallet/deposit/callback', { params });
+      const rspCode = resp?.data?.RspCode ?? resp?.data?.RspCode ?? resp?.data?.RspCode;
+      backendSuccess = rspCode === '00' || rspCode === '0' || String(rspCode).toLowerCase() === 'success';
+    } catch (e) {
+      console.warn('[DepositWebView] backend callback error', e);
+    }
+
     const code = params.vnp_ResponseCode ?? params.vnp_TransactionStatus ?? params.RspCode ?? params.rspCode ?? params.respCode ?? params.respCode;
-    const success = code === '00' || code === '0' || String(code).toLowerCase() === 'success';
+    const clientSuccess = code === '00' || code === '0' || String(code).toLowerCase() === 'success';
+    const success = backendSuccess || clientSuccess;
 
     // For debugging: log results
     console.log('[DepositWebView] VNPay callback received:', { params, success, transactionId, orderCode });
 
-    if (success) {
-      try {
-        const res = await fetchMyWallet();
-        if (res.ok) console.log('[DepositWebView] Wallet after deposit:', res.data);
-      } catch {
-        // ignore errors while logging
-      }
+    try {
+      const res = await fetchMyWallet();
+      if (res.ok) console.log('[DepositWebView] Wallet after deposit:', res.data);
+    } catch {
+      // ignore
     }
 
-    // Navigate to a dedicated result screen so user sees explicit result (success or failure)
-    // small delay so logs appear in console before navigation
+    // Navigate to result screen with backend result if available
     setTimeout(() => {
       try {
         navigation.navigate('DepositResult', { success, transactionId, orderCode, params });
