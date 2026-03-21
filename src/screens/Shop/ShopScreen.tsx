@@ -143,11 +143,11 @@ const ShopScreen = () => {
       <FlatList
         data={products}
         ListHeaderComponent={<ListHeader categories={categories} />}
-        keyExtractor={item => item.product_id}
+        keyExtractor={(item, index) => String(item.productId ?? `${item.raw?.product_id ?? item.raw?.id ?? index}`)}
         numColumns={2}
         renderItem={({ item }) => (
           <View style={styles.itemContainer} className="px-3 pb-4">
-            <CardProduct item={item as any} onPress={() => navigation.navigate('ProductDetail' as any, { productId: item.product_id })} />
+            <CardProduct item={item as any} onPress={() => navigation.navigate('ProductDetail' as any, { productId: item.productId ?? item.raw?.product_id ?? item.raw?.id })} />
           </View>
         )}
         columnWrapperStyle={styles.columnWrapper}

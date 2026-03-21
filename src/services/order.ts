@@ -1,6 +1,6 @@
 import axios from '../hooks/axiosInstance';
 
-export type OrderItem = { productId: string; quantity: number; discountAmount?: number };
+export type OrderItem = { productId: string; quantity: number; discountAmount?: number; installationRequest?: boolean };
 
 export type CreateOrderPayload = {
   recipientName: string;

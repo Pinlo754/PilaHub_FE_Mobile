@@ -15,6 +15,7 @@ import ManualInputScreen from '../screens/BodyGram/screens/ManualInputScreen';
 import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
 import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
 import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
+import BodyMetricDetails from '../screens/BodyGram/screens/BodyMetricDetails';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
@@ -97,6 +98,7 @@ export type RootStackParamList = {
   BodyScanFlow: undefined;
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
   BodyGramResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
+  BodyMetricDetails: undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
   ResetPasswordConfirm: { email?: string } | undefined;
@@ -196,6 +198,7 @@ const AppNavigator: React.FC = () => {
               component={BodyGramResult}
               options={{ title: 'Kết quả Bodygram' }}
             />
+            <Stack.Screen name="BodyMetricDetails" component={BodyMetricDetails} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="VerifyEmail" component={OtpScreen} />
             <Stack.Screen name="MainTabs" component={TabNavigator} />

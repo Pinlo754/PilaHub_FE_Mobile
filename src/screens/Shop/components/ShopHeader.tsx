@@ -177,7 +177,15 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
             className="ml-2 flex-1 text-sm"
             value={query}
             onChangeText={setQuery}
-            onFocus={() => setFocused(true)}
+            onFocus={() => {
+              // attempt to navigate to root Search screen; fall back to local focus
+              const parentNav: any = (navigation as any).getParent && (navigation as any).getParent();
+              if (parentNav && typeof parentNav.navigate === 'function') {
+                parentNav.navigate('Search');
+                return;
+              }
+              try { (navigation as any).navigate('Search'); } catch { setFocused(true); }
+            }}
             onBlur={() => setTimeout(() => setFocused(false), 150)}
             returnKeyType="search"
             onSubmitEditing={handleSubmit}
@@ -188,7 +196,14 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
               <Ionicons name="close-circle" size={18} color={colors.secondaryText} />
             </Pressable>
           ) : (
-            <Pressable onPress={handleSubmit} className="p-2">
+            <Pressable onPress={() => {
+              const parentNav: any = (navigation as any).getParent && (navigation as any).getParent();
+              if (parentNav && typeof parentNav.navigate === 'function') {
+                parentNav.navigate('Search');
+                return;
+              }
+              (navigation as any).navigate('Search');
+            }} className="p-2">
               <Ionicons name="search" size={18} color={'#E07A4D'} />
             </Pressable>
           )}

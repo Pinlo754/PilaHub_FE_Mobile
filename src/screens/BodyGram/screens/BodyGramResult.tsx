@@ -1,15 +1,12 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Text, ScrollView, View, Image, Pressable, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
-import { useOnboardingStore } from '../../../store/onboarding.store';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { fetchMyHealthProfiles } from '../../../services/profile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyGramResult'>;
 
@@ -28,8 +25,6 @@ function gToKg(g?: number | null) {
 
 export default function BodyGramResult({ route, navigation: _navigation }: Props) {
   const nav = useNavigation();
-  const _onboarding = useOnboardingStore((s) => s.data);
-  const _setData = useOnboardingStore((s) => s.setData);
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
 
   const parseProfile = useCallback((entry: any) => {
@@ -141,97 +136,24 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
   const [toastMsg, _setToastMsg] = useState('');
   const [toastType, _setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  // previous profile state for automatic comparison
-  const [previousDisplay, setPreviousDisplay] = useState<any | null>(null);
-  const [prevLoading, setPrevLoading] = useState(false);
-  const [parsedProfilesList, setParsedProfilesList] = useState<any[]>([]);
-  const [selectedProfileIndex, setSelectedProfileIndex] = useState<number | null>(null);
-  const didLoadPrevRef = React.useRef(false);
-
-  // normalize a parsed profile into the same shape as `display` used for current
-  function normalizeParsedToDisplay(parsedProfile: any) {
-    if (!parsedProfile) return null;
-    const out: any = {};
-    // prefer explicit measurement fields if present
-    out.weight_est = parsedProfile.weight ?? parsedProfile.measurements?.weight_est ?? null;
-    out.height_est = parsedProfile.height ?? parsedProfile.measurements?.height_est ?? null;
-    out.bust = parsedProfile.measurements?.chest ?? parsedProfile.measurements?.bust ?? parsedProfile.measurements?.bust ?? parsedProfile.measurements?.chest ?? null;
-    out.waist = parsedProfile.waist ?? parsedProfile.measurements?.waist ?? null;
-    out.hip = parsedProfile.hip ?? parsedProfile.measurements?.hip ?? null;
-    out.thigh = parsedProfile.measurements?.thigh ?? null;
-    out.bicep = parsedProfile.muscle ?? parsedProfile.measurements?.bicep ?? null;
-    out.calf = parsedProfile.measurements?.calf ?? null;
-    return out;
+  // helper: map measurement keys to friendly Vietnamese labels
+  function formatMeasurementName(rawName: string) {
+    if (!rawName) return '';
+    const name = rawName.toString().toLowerCase();
+    if (name.includes('bust') || name.includes('chest') || name.includes('bustgirth') || name.includes('bust_girth')) return 'Ngực';
+    if (name.includes('waist') || name.includes('belly') || name.includes('waistgirth') || name.includes('bellywaist')) return 'Eo';
+    if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip')) return 'Hông';
+    if (name.includes('thigh') || name.includes('midthigh') || name.includes('thighgirth')) return 'Đùi';
+    if (name.includes('calf') || name.includes('calfgirth')) return 'Bắp chân';
+    if (name.includes('forearm') || name.includes('forearmgirth')) return 'Cẳng tay';
+    if (name.includes('wrist')) return 'Cổ tay';
+    if (name.includes('neck')) return 'Cổ';
+    if (name.includes('shoulder')) return 'Vai';
+    if (name.includes('underbust')) return 'Dưới ngực';
+    if (name.includes('upperarm') || name.includes('bicep')) return 'Bắp tay trên';
+    // default: prettify
+    return rawName.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
   }
-
-  // fetch user's health profiles and pick the most recent one before current parsed.createdAt
-  // load previous profiles once per source timestamp (avoid reruns)
-  useEffect(() => {
-    // run previous-profile load only once per mount
-    if (didLoadPrevRef.current) return;
-    let mounted = true;
-    async function loadPrevious() {
-      didLoadPrevRef.current = true;
-      setPrevLoading(true);
-      try {
-        const res = await fetchMyHealthProfiles();
-        if (!mounted) return;
-        if (!res.ok) return setPreviousDisplay(null);
-        const profiles: any[] = res.data ?? [];
-        if (!Array.isArray(profiles) || profiles.length === 0) return setPreviousDisplay(null);
-
-        // parse entries into normalized parsed objects using existing parseProfile
-        const parsedProfiles = profiles.map((p: any, idx: number) => ({ raw: p, parsed: parseProfile(p.entry ?? p ?? {}), idx })).filter((p: any) => p && (p.parsed.createdAt || p.parsed.metadata?.createdAt));
-        console.log('[BodyGramResult] fetched profiles count:', parsedProfiles.length);
-        setParsedProfilesList(parsedProfiles.map(p => p.parsed));
-
-        // sort by createdAt descending (operate on parsed)
-        parsedProfiles.sort((a: any, b: any) => {
-          const ta = new Date(a.parsed.createdAt || a.parsed.metadata?.createdAt || 0).getTime();
-          const tb = new Date(b.parsed.createdAt || b.parsed.metadata?.createdAt || 0).getTime();
-          return tb - ta;
-        });
-
-        // find the first profile that is older than current parsed (if parsed.createdAt exists)
-        let candidateWrapper: any = null;
-        const currentTime = parsed?.createdAt ? new Date(parsed.createdAt).getTime() : null;
-        if (currentTime != null) {
-          candidateWrapper = parsedProfiles.find((p: any) => {
-            const t = new Date(p.parsed.createdAt || p.parsed.metadata?.createdAt || 0).getTime();
-            return t < currentTime;
-          });
-        }
-        // if none found, pick the second-most-recent (i.e., parsedProfiles[1]) or the most recent if list has at least one and current is not in list
-        if (!candidateWrapper) {
-          candidateWrapper = parsedProfiles.find(p => {
-            const curId = parsed?.metadata?.profileId ?? parsed?.metadata?.id ?? parsed?.createdAt;
-            const pid = p.parsed?.metadata?.profileId ?? p.parsed?.metadata?.id ?? p.parsed?.createdAt;
-            return curId !== pid;
-          }) || parsedProfiles[1] || parsedProfiles[0];
-        }
-
-        if (candidateWrapper) {
-          const candidate = candidateWrapper.parsed;
-          const norm = normalizeParsedToDisplay(candidate);
-          setPreviousDisplay(norm);
-          // set selectedProfileIndex to first candidate index in parsedProfilesList
-          const foundIndex = parsedProfiles.findIndex((pp: any) => pp.parsed === candidate);
-          setSelectedProfileIndex(foundIndex >= 0 ? foundIndex : 0);
-        } else {
-          setPreviousDisplay(null);
-        }
-      } catch (e) {
-        console.warn('Could not load previous profiles', e);
-        setPreviousDisplay(null);
-      } finally {
-        if (mounted) setPrevLoading(false);
-      }
-    }
-    // derive a stable key from rawResponse timestamps so effect doesn't re-run every render
-    loadPrevious();
-    return () => { mounted = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawResponse?.entry?.createdAt, rawResponse?.createdAt]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -240,7 +162,7 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
         <Pressable onPress={() => (nav as any).goBack()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={22} color="#333" />
         </Pressable>
-        <Text style={[styles.headerTitle, styles.headerTitleCenter]}>{'Kết quả'}</Text>
+        <Text style={[styles.headerTitle, styles.headerTitleCenter]}>{'Thông tin cơ thể'}</Text>
         <View style={styles.headerButton} />
       </View>
 
@@ -307,31 +229,6 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
           </View>
         </View>
 
-        {/* PROFILE SELECTOR (previous profiles) */}
-        {parsedProfilesList.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
-            {parsedProfilesList.map((p, i) => {
-              const label = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : `#${i+1}`;
-              const active = selectedProfileIndex === i;
-              const brief = normalizeParsedToDisplay(p);
-              return (
-                <Pressable
-                  key={i}
-                  onPress={() => { setSelectedProfileIndex(i); setPreviousDisplay(normalizeParsedToDisplay(p)); }}
-                  className={`mr-3 p-3 rounded-lg ${active ? 'bg-amber-200' : 'bg-white'}`}
-                  style={{ minWidth: 140 }}
-                >
-                  <Text className="text-sm font-semibold mb-1">{label}</Text>
-                  <Text className="text-xs text-gray-600">Cân nặng: {brief?.weight_est ?? '-'} kg</Text>
-                  <Text className="text-xs text-gray-600">Ngực: {brief?.bust ?? '-'} cm</Text>
-                  <Text className="text-xs text-gray-600">Eo: {brief?.waist ?? '-'} cm</Text>
-                  <Text className="text-xs text-gray-600">Hông: {brief?.hip ?? '-'} cm</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        ) : null}
-
         {/* DETAIL TILES */}
         <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
         <View className="flex-row flex-wrap -m-2">
@@ -344,26 +241,13 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
             { key: 'calf', label: 'Bắp chân' },
           ].map((t) => {
             const cur = display[t.key] ?? null;
-            const prev = previousDisplay ? previousDisplay[t.key] ?? null : null;
-            const delta = (cur != null && prev != null) ? cur - prev : null;
-            const pct = (delta != null && prev) ? (delta / prev * 100) : null;
-            const isIncrease = delta != null ? delta > 0 : false;
-            const changeColor = delta == null ? 'text-gray-500' : isIncrease ? 'text-green-600' : 'text-red-600';
-
             return (
               <View key={t.key} className="w-1/2 p-2">
                 <View className="bg-background-sub2 rounded-xl p-4 shadow">
                   <Text className="text-sm text-gray-700">{t.label}</Text>
                   <View className="flex-row items-baseline justify-between mt-2">
                     <Text className="text-2xl font-extrabold">{cur ?? '-'}cm</Text>
-                    {delta != null ? (
-                      <View className="items-end">
-                        <Text className={`${changeColor} text-lg font-semibold`}>{delta > 0 ? `+${delta}` : `${delta}`}{t.key === 'weight' || t.key === 'weight_est' ? ' kg' : ' cm'}</Text>
-                        {pct != null ? <Text className="text-xs text-gray-500">{pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}</Text> : null}
-                      </View>
-                    ) : (
-                      <Text className="text-sm text-gray-500">Không có dữ liệu trước</Text>
-                    )}
+                    <Text className="text-sm text-gray-500">&nbsp;</Text>
                   </View>
                 </View>
               </View>
@@ -371,10 +255,66 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
           })}
         </View>
 
-        {/* Compare with previous profile if available (auto-loaded most recent) */}
-        {/* detailed per-tile deltas rendered above */}
+        {/* BODYGRAM METADATA: show only bodyComposition (Vietnamese labels). If none, do not render. */}
+        
 
-         {prevLoading ? <LoadingOverlay message="Đang tải hồ sơ trước..." /> : null}
+        {/* MEASUREMENTS: improved card grid for metadata.measurements */}
+        {Array.isArray(parsed?.metadata?.measurements) && parsed.metadata.measurements.length > 0 ? (
+          <View className="bg-white rounded-xl p-4 my-4">
+            <Text className="text-base font-semibold mb-3">Tất cả số đo (BodyGram)</Text>
+
+            {/* prepare measurements for display */}
+            {(() => {
+              const list: any[] = parsed.metadata.measurements || [];
+              const formatted = list.map((m: any, i: number) => {
+                const rawName = m.name ?? m.key ?? `#${i+1}`;
+                const unit = (m.unit ?? '').toString().toLowerCase();
+                const rawVal = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? m.g ?? m.value_g ?? m.value_kg ?? null;
+                let displayVal = '-';
+                if (rawVal != null) {
+                  const num = Number(rawVal);
+                  if (!isNaN(num)) {
+                    // compact unit formatting (no space) to match design: e.g. 77cm
+                    if (unit === 'mm') displayVal = `${Math.round(num / 10)}cm`;
+                    else if (unit === 'cm') displayVal = `${Math.round(num)}cm`;
+                    else if (unit === 'g') displayVal = `${(num / 1000).toFixed(2)}kg`;
+                    else if (unit === 'kg') displayVal = `${num}kg`;
+                    else displayVal = `${rawVal}${m.unit ? ` ${m.unit}` : ''}`;
+                  } else {
+                    displayVal = String(rawVal);
+                  }
+                }
+                return { rawName, label: formatMeasurementName(rawName), displayVal };
+              });
+
+              // prioritize common measurements first
+              const priority = ['Ngực', 'Eo', 'Hông', 'Đùi', 'Bắp tay', 'Bắp chân', 'Vai', 'Cổ', 'Cẳng tay', 'Cổ tay'];
+              formatted.sort((a, b) => {
+                const ia = priority.indexOf(a.label);
+                const ib = priority.indexOf(b.label);
+                if (ia === -1 && ib === -1) return 0;
+                if (ia === -1) return 1;
+                if (ib === -1) return -1;
+                return ia - ib;
+              });
+
+              return (
+                <View style={styles.measurementsGrid}>
+                  {formatted.map((it, idx) => (
+                    <View key={idx} style={styles.measurementCard}>
+                      <View style={styles.measurementInner}>
+                        <Text style={styles.measurementLabel}>{it.label}</Text>
+                        <Text style={styles.measurementValue}>{it.displayVal}</Text>
+                        <Text style={styles.measurementRaw}>{it.rawName}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              );
+            })()}
+          </View>
+        ) : null}
+
          <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
        </ScrollView>
@@ -392,5 +332,47 @@ const styles = StyleSheet.create({
   headerTitleCenter: { textAlign: 'center', flex: 1 },
   scrollContent: { paddingBottom: 140 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: 'transparent' },
- 
+  metaAvatar: { width: 120, height: 120, borderRadius: 8, marginBottom: 8 },
+  metaRawBox: { maxHeight: 120, backgroundColor: '#f8fafc', padding: 8, borderRadius: 6 },
+  metaRawText: { fontSize: 12, color: '#374151' },
+  measurementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  measurementCard: {
+    backgroundColor: '#FDEFD8', // warm peach
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 12,
+    width: '48%',
+    shadowColor: '#f1e7dc',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  measurementInner: {
+    alignItems: 'flex-start',
+    minHeight: 72,
+  },
+  measurementLabel: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 6,
+    textTransform: 'none',
+  },
+  measurementValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 6,
+  },
+  measurementRaw: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 6,
+  },
 });

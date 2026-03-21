@@ -477,3 +477,14 @@ export async function fetchHealthProfileAssessment(id: string): Promise<ServiceR
     return { ok: false, error };
   }
 }
+
+// Fetch health profile metrics for the authenticated trainee (for charts/comparisons)
+export async function fetchMyHealthProfileMetrics(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/health-profiles/my-profiles/metrics');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}

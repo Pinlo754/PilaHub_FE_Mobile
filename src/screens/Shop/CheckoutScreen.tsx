@@ -65,12 +65,24 @@ function PaymentOption({ id, title, icon, selected, onSelect }: { id: PaymentId;
   );
 }
 
-function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPayment, setSelectedPayment, onUpdateQuantity, address, onAddressPress, isCalcShipping, computedShippingCharge }: { lines: any[]; selectedShipping: ShippingId; setSelectedShipping: (s: ShippingId) => void; selectedPayment: PaymentId; setSelectedPayment: (p: PaymentId) => void; onUpdateQuantity: (productId: string, qty: number) => void; address?: any; onAddressPress?: () => void; isCalcShipping: boolean; computedShippingCharge: number | null }) {
+function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPayment, setSelectedPayment, onUpdateQuantity, address, onAddressPress, isCalcShipping, computedShippingCharge, onToggleInstallation, allInstallation, onToggleAllInstallation }: { lines: any[]; selectedShipping: ShippingId; setSelectedShipping: (s: ShippingId) => void; selectedPayment: PaymentId; setSelectedPayment: (p: PaymentId) => void; onUpdateQuantity: (productId: string, qty: number) => void; address?: any; onAddressPress?: () => void; isCalcShipping: boolean; computedShippingCharge: number | null; onToggleInstallation?: (productId: string, value: boolean) => void; allInstallation?: boolean; onToggleAllInstallation?: (v: boolean) => void }) {
   return (
     <View>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Thông tin giao hàng</Text>
         <AddressCard address={address} onPress={onAddressPress} />
+      </View>
+
+      {/* Global installation toggle for all items */}
+      <View style={styles.section}>
+        <TouchableOpacity onPress={() => onToggleAllInstallation && onToggleAllInstallation(!allInstallation)} style={styles.allInstallRow}>
+          <View style={styles.allInstallLeft}>
+            <View style={[styles.allInstallBox, allInstallation ? styles.allInstallBoxOn : null]}>
+              {allInstallation ? <Text style={styles.allInstallTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.allInstallLabel}>Yêu cầu lắp đặt cho tất cả sản phẩm</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -79,12 +91,15 @@ function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPay
           {lines.length === 0 ? (
             <Text style={styles.emptyText}>Chưa có sản phẩm</Text>
           ) : (
-            lines.map((item) => (
-              <View key={item.product_id} style={styles.itemRowInline}>
+             lines.map((item) => (
+               <View key={item.product_id} style={styles.itemRowInline}>
                 <Image source={ item.thumnail_url ? { uri: item.thumnail_url } : require('../../assets/placeholderAvatar.png') } style={styles.thumbSmall} />
                 <View style={styles.itemInfoInline}>
                   <Text style={styles.itemName}>{item.product_name}</Text>
-                  <Text style={styles.itemMetaInline}>Màu: -  | Size: -</Text>
+                  {/* installation toggle */}
+                  <TouchableOpacity onPress={() => onToggleInstallation && onToggleInstallation(item.product_id, !item.installationRequest)} style={styles.installToggle}>
+                    <Text style={[styles.installToggleText, item.installationRequest ? styles.installOn : styles.installOff]}>{item.installationRequest ? 'Yêu cầu lắp đặt: Có' : 'Yêu cầu lắp đặt: Không'}</Text>
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.itemRightInline}>
                   <View style={styles.qtyRowInline}>
@@ -165,7 +180,7 @@ function WalletRowComponent({ wallet }: { wallet: any | null }) {
 
 export default function CheckoutScreen() {
   const navigation: any = useNavigation();
-  const { lines, totalPrice, clearCart, updateQuantity } = useCart();
+  const { lines, totalPrice, clearCart, updateQuantity, setInstallationRequest } = useCart();
   const [selectedShipping, setSelectedShipping] = useState<ShippingId>('fast');
   const [selectedPayment, setSelectedPayment] = useState<PaymentId>('pilapay');
   const [selectedAddress, setSelectedAddress] = useState<any | undefined>(undefined);
@@ -185,7 +200,6 @@ export default function CheckoutScreen() {
   }, []);
 
   // calculate shipping once when address or cart lines change (not on shipping method toggle)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     (async () => {
       if (!selectedAddress) return;
@@ -222,7 +236,7 @@ export default function CheckoutScreen() {
         setIsCalcShipping(false);
       }
     })();
-  }, [selectedAddress, lines]);
+  }, [selectedAddress, lines, selectedShipping]);
 
   // displayShippingCharge: computed value used for UI and order payload
   const displayShippingCharge = selectedShipping === 'standard' ? 0 : (computedShippingCharge ?? 0);
@@ -251,7 +265,7 @@ export default function CheckoutScreen() {
       recipientName: selectedAddress.receiverName,
       recipientPhone: selectedAddress.receiverPhone,
       shippingAddress: selectedAddress.addressLine,
-      items: lines.map((l: any) => ({ productId: l.product_id, quantity: l.quantity })),
+      items: lines.map((l: any) => ({ productId: l.product_id, quantity: l.quantity, installationRequest: !!l.installationRequest })),
       discountAmount: 0,
       shippingFee: displayShippingCharge,
       paymentMethod: selectedPayment === 'pilapay' ? 'WALLET' : (selectedPayment === 'card' ? 'CARD' : 'COD'),
@@ -296,7 +310,7 @@ export default function CheckoutScreen() {
       <FlatList
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={<>
-          <HeaderBlock lines={lines} selectedShipping={selectedShipping} setSelectedShipping={setSelectedShipping} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} onUpdateQuantity={updateQuantity} address={selectedAddress} onAddressPress={() => navigation.navigate('AddressList', { onSelect: (a: any) => setSelectedAddress(a) })} isCalcShipping={isCalcShipping} computedShippingCharge={computedShippingCharge} />
+          <HeaderBlock lines={lines} selectedShipping={selectedShipping} setSelectedShipping={setSelectedShipping} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} onUpdateQuantity={updateQuantity} address={selectedAddress} onAddressPress={() => navigation.navigate('AddressList', { onSelect: (a: any) => setSelectedAddress(a) })} isCalcShipping={isCalcShipping} computedShippingCharge={computedShippingCharge} onToggleInstallation={(productId: string, value: boolean) => setInstallationRequest(productId, value)} allInstallation={lines.every(item => item.installationRequest)} onToggleAllInstallation={(value: boolean) => lines.forEach(item => setInstallationRequest(item.product_id, value))} />
           <WalletRowComponent wallet={wallet} />
         </>}
         data={[]}
@@ -372,7 +386,7 @@ const styles = StyleSheet.create({
   footerBar: { position: 'absolute', left: 12, right: 12, bottom: 16, backgroundColor: '#F6E6CF', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 6 },
   footerLabel: { color: '#6B7280' },
   footerTotal: { fontSize: 18, fontWeight: '800' },
-  orderBtn: { backgroundColor: '#8B3F2F', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 10 },
+  orderBtn: { backgroundColor: '#8B3F2D', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 10 },
   orderBtnText: { color: '#fff', fontWeight: '800' },
   orderBtnBusy: { opacity: 0.6 },
 
@@ -380,6 +394,17 @@ const styles = StyleSheet.create({
   footerSpacing: { paddingHorizontal: 16 },
   spacer24: { height: 24 },
   emptyText: { color: '#6B7280' },
+
+  installToggle: { marginTop: 8 },
+  installToggleText: {},
+  installOn: { color: '#0B8F3B' },
+  installOff: { color: '#6B7280' },
+  allInstallRow: { paddingVertical: 8 },
+  allInstallLeft: { flexDirection: 'row', alignItems: 'center' },
+  allInstallBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  allInstallBoxOn: { backgroundColor: '#0B8F3B', borderColor: '#0B8F3B' },
+  allInstallTick: { color: '#fff', fontWeight: '700' },
+  allInstallLabel: { marginLeft: 10, fontWeight: '700' },
 });
 
 const walletStyles = StyleSheet.create({
