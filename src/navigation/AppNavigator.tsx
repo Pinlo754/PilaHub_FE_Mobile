@@ -11,7 +11,6 @@ import TabNavigator from './TabNavigator';
 import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
 import RoadmapSummary from '../screens/RoadmapSummary/RoadmapSummary';
 import { Measurements } from '../screens/BodyGram/types/measurement';
-import ManualInputScreen from '../screens/BodyGram/screens/ManualInputScreen';
 import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
 import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
 import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
@@ -69,6 +68,7 @@ import AddressListScreen from '../screens/Shop/AddressListScreen';
 import AddressFormScreen from '../screens/Shop/AddressFormScreen';
 import OrdersScreen from '../screens/Profile/OrdersScreen';
 import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
+import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -97,7 +97,7 @@ export type RootStackParamList = {
   ExerciseDetail: { exercise_id: string };
   ProductDetail: { productId: string };
   Cart: undefined;
-  ManualInput: undefined;
+  InputBody: undefined;
   BodyScanFlow: undefined;
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
   BodyGramResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
@@ -182,8 +182,8 @@ const AppNavigator: React.FC = () => {
           >
             <Stack.Screen name="Startup" component={StartupScreen} />
             <Stack.Screen
-              name="ManualInput"
-              component={ManualInputScreen}
+              name="InputBody"
+              component={InputBodyScreen}
               options={{ title: 'Nhập số đo' }}
             />
             <Stack.Screen
