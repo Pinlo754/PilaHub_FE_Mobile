@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import Tabs from './Tabs';
 import { ExerciseTab } from '../../../constants/exerciseTab';
 import Description from './Description';
-import { ExerciseType } from '../../../utils/ExerciseType';
+import { ExerciseType, PackageType } from '../../../utils/ExerciseType';
 import Footer from './Footer';
 import PlayButton from './PlayButton';
 
@@ -16,6 +16,7 @@ type Props = {
   onPressAIPractice: () => void;
   canPractice: boolean;
   onPressPractice: () => void;
+  activePackage: PackageType | null;
 };
 
 const OverviewSection = ({
@@ -28,13 +29,14 @@ const OverviewSection = ({
   onPressAIPractice,
   canPractice,
   onPressPractice,
+  activePackage,
 }: Props) => {
   return (
     <View
-      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
+      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${!canPractice || isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
-      {!isPracticeTab && canPractice && (
+      {!isPracticeTab && (
         <PlayButton
           isVideoPlay={isVideoPlay}
           togglePlayButton={togglePlayButton}
@@ -49,13 +51,11 @@ const OverviewSection = ({
       </Text>
 
       {/* Tabs */}
-      {canPractice && (
-        <Tabs
-          tabId={activeTab}
-          onChange={onChangeTab}
-          isVideoPlay={isVideoPlay}
-        />
-      )}
+      <Tabs
+        tabId={activeTab}
+        onChange={onChangeTab}
+        isVideoPlay={isVideoPlay}
+      />
 
       {/* Description */}
       <Description
@@ -68,6 +68,7 @@ const OverviewSection = ({
         <Footer
           onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
+          activePackage={activePackage}
         />
       )}
     </View>

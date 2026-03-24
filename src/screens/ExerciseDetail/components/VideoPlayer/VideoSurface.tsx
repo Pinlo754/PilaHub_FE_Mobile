@@ -27,7 +27,12 @@ export function VideoSurface({
         paused={paused}
         resizeMode="cover"
         style={{ width: '100%', height: '100%' }}
-        onLoad={onLoad}
+        onLoad={d => {
+          onLoad(d);
+        }}
+        onError={e => {
+          console.log('VIDEO ERROR', e);
+        }}
         onProgress={onProgress}
         onEnd={onEnd}
         pointerEvents="none"

@@ -40,7 +40,11 @@ export type RootStackParamList = {
   };
   Roadmap: undefined;
   RoadmapSummary: undefined;
-  ProgramDetail: { program_id: string; traineeCourseId?: string };
+  ProgramDetail: {
+    program_id: string;
+    traineeCourseId?: string;
+    traineeId?: string;
+  };
   CoachDetail: { coach_id: string; selectedCoachId?: string | null };
   List: undefined;
   DailyTask: undefined;

@@ -1,21 +1,15 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { View, Text, Modal, Pressable, ScrollView } from 'react-native';
+import { View, Text, Modal, Pressable } from 'react-native';
 import { colors } from '../../../theme/colors';
-import {
-  SESSION_OPTIONS,
-  TRAINING_DAY_OPTIONS,
-} from '../../../constants/trainingDayOption';
+import { TRAINING_DAY_OPTIONS } from '../../../constants/trainingDayOption';
 import Button from '../../../components/Button';
-import { useState } from 'react';
 import { TrainingDay } from '../../../utils/CourseLessonProgressType';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   handleSelectDay: (day: TrainingDay) => void;
-  handleSelectSession: (value: number) => void;
   selectedDays: TrainingDay[];
-  sessionPerWeek: number | null;
   onPressRegister: () => void;
 };
 
@@ -23,23 +17,11 @@ const ScheduleModal = ({
   visible,
   onClose,
   handleSelectDay,
-  handleSelectSession,
   selectedDays,
-  sessionPerWeek,
   onPressRegister,
 }: Props) => {
-  // STATE
-  const [openSelect, setOpenSelect] = useState(false);
-
   // VARIABLE
-  const isValid =
-    sessionPerWeek !== null && selectedDays.length === sessionPerWeek;
-
-  // HANDLERS
-  const handleSelectPress = (value: number) => {
-    handleSelectSession(value);
-    setOpenSelect(false);
-  };
+  const isValid = selectedDays.length > 0;
 
   return (
     <Modal
@@ -73,7 +55,7 @@ const ScheduleModal = ({
           </View>
 
           {/* Số buổi */}
-          <View className=" mx-4 mt-4 flex-row items-center gap-3 w-[160px] relative">
+          {/* <View className=" mx-4 mt-4 flex-row items-center gap-3 w-[160px] relative">
             <Text className="color-foreground font-semibold text-lg">
               Số buổi tập
             </Text>
@@ -115,7 +97,7 @@ const ScheduleModal = ({
                 ))}
               </ScrollView>
             )}
-          </View>
+          </View> */}
 
           {/* Chọn ngày */}
           <View className="flex-row justify-between mx-4 mt-6">
@@ -124,8 +106,6 @@ const ScheduleModal = ({
                 <Pressable
                   key={day.value}
                   onPress={() => handleSelectDay(day.value)}
-                  disabled={!sessionPerWeek}
-                  style={{ opacity: sessionPerWeek ? 1 : 0.4 }}
                   className={`p-2 flex-col items-center rounded-lg relative border border-foreground  ${
                     selectedDays.includes(day.value) ? 'bg-background-sub1' : ''
                   }`}

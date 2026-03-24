@@ -11,11 +11,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'List'>;
 
 const ListScreen = (props: Props) => {
   // HOOK
-  const { activeTab, onChangeTab, dataByTab, loading } = useListScreen();
+  const { activeTab, onChangeTab, dataByTab, loading, isLoading, traineeId } =
+    useListScreen();
 
   return (
     <>
-      {loading && <LoadingOverlay />}
+      {(loading || isLoading) && <LoadingOverlay />}
 
       <View className="flex-1 bg-background pt-14">
         {/* Header */}
@@ -25,11 +26,14 @@ const ListScreen = (props: Props) => {
         <Tabs tabId={activeTab} onChange={onChangeTab} />
 
         {/* List */}
-        <List
-          activeTab={activeTab}
-          data={dataByTab[activeTab]}
-          navigation={props.navigation}
-        />
+        {traineeId && (
+          <List
+            activeTab={activeTab}
+            data={dataByTab[activeTab]}
+            navigation={props.navigation}
+            traineeId={traineeId}
+          />
+        )}
       </View>
     </>
   );

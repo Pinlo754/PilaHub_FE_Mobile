@@ -14,7 +14,7 @@ type TabConfigItem<K extends ListTab> = {
     onPress?: () => void;
   }>;
   screen: keyof RootStackParamList;
-  getParams: (item: TabTypeMap[K]) => object;
+  getParams: (item: TabTypeMap[K], extra?: { traineeId?: string }) => object;
   idKey: string;
 };
 
@@ -22,7 +22,7 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
   [ListTab.Exercise]: {
     Card: CardExercise,
     screen: 'ExerciseDetail',
-    idKey: 'exercise_id',
+    idKey: 'exerciseId',
     getParams: item => ({
       exercise_id: item.exerciseId,
     }),
@@ -32,9 +32,10 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
     Card: CardCourse,
     screen: 'ProgramDetail',
     idKey: 'traineeCourseId',
-    getParams: item => ({
+    getParams: (item, extra) => ({
       traineeCourseId: item.traineeCourseId,
       program_id: item.course.courseId,
+      traineeId: extra?.traineeId,
     }),
   },
 };

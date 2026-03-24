@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { ExerciseTab } from '../../constants/exerciseTab';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
-import { ExerciseType, TutorialType } from '../../utils/ExerciseType';
+import {
+  ExerciseType,
+  PackageType,
+  TutorialType,
+} from '../../utils/ExerciseType';
 import { exerciseService } from '../../hooks/exercise.service';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { tutorialService } from '../../hooks/tutorial.service';
@@ -13,6 +17,7 @@ import {
   WorkoutSessionType,
 } from '../../utils/WorkoutSessionType';
 import { courseLessonProgressService } from '../../hooks/courseLessonProgress.service';
+import { getProfile } from '../../services/auth';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -21,7 +26,8 @@ type Props = {
 
 export const useExerciseDetail = ({ route, navigation }: Props) => {
   // PARAM
-  const { exercise_id, allowedPractice, practicePayload } = route.params;
+  const { exercise_id, allowedPractice } = route.params;
+  const practicePayload = route.params.practicePayload ?? null;
 
   // CONSTANT
   const TIMEOUT = 3010;
@@ -29,7 +35,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   // STATE
   const [activeTab, setActiveTab] = useState<ExerciseTab>(ExerciseTab.Theory);
   const [exerciseDetail, setExerciseDetail] = useState<ExerciseType>();
+  const [currentExercise, setCurrentExercise] = useState<ExerciseType>();
   const [tutorial, setTutorial] = useState<TutorialType>();
+  const [currentTutorial, setCurrentTutorial] = useState<TutorialType>();
   const [isShowFlag, setIsShowFlag] = useState<boolean>(false);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,9 +49,11 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     useState<boolean>(false);
   const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType>();
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
-  const currentExerciseId = practicePayload?.exerciseIds[currentExerciseIndex];
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [confirmMsg, setConfirmMsg] = useState<string>('');
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [activePackage, setActivePackage] = useState<PackageType | null>(null);
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
@@ -51,25 +61,38 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const canPractice = allowedPractice ?? true;
 
   // FETCH
-  const fetchById = async () => {
-    if (!exercise_id) return;
-
-    setIsLoading(true);
-    setError(null);
+  const fetchInformation = async () => {
     try {
-      const resExercise = await exerciseService.getById(exercise_id);
-      const resTutorial = await tutorialService.getById(exercise_id);
-
-      setExerciseDetail(resExercise);
-      setTutorial(resTutorial);
+      const res = await getProfile();
+      if (!res.ok) return;
+      setActivePackage(res.data.activePackageType);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
       } else {
         setError('Có lỗi xảy ra. Vui lòng thử lại.');
       }
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const fetchById = async () => {
+    if (!exercise_id) return;
+    try {
+      const [resExercise, resTutorial] = await Promise.all([
+        exerciseService.getById(exercise_id),
+        tutorialService.getById(exercise_id),
+      ]);
+
+      setExerciseDetail(resExercise);
+      setCurrentExercise(resExercise);
+      setTutorial(resTutorial);
+      setCurrentTutorial(resTutorial);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
+      } else {
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -177,6 +200,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setIsVideoVisible(false);
     setIsPlaying(false);
     setIsVideoExpand(false);
+    setCurrentExercise(exerciseDetail);
+    setCurrentTutorial(tutorial);
+    setCurrentExerciseIndex(0);
   };
 
   const onPressStartCourseLesson = async () => {
@@ -225,36 +251,63 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     });
   };
 
+  const onPressBack = () => {
+    if (isVideoExpand) {
+      openConfirmModal('Nếu thoát ra, bạn sẽ phải tập lại từ đầu!');
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const handleVideoEnd = async () => {
     try {
+      if (!isPracticeTab) {
+        openSuccessModal('Bạn đã xem xong lý thuyết.');
+
+        if (isVideoExpand) {
+          setTimeout(() => {
+            toggleVideoExpand();
+          }, TIMEOUT);
+        }
+        return;
+      }
       // await endWorkout();
 
-      if (!practicePayload) return;
-
-      const isLast =
-        currentExerciseIndex === practicePayload.exerciseIds.length - 1;
-
-      if (!isLast) {
-        const nextIndex = currentExerciseIndex + 1;
-        const nextExerciseId = practicePayload.exerciseIds[nextIndex];
-
-        setCurrentExerciseIndex(nextIndex);
-
-        // Fetch tutorial mới
-        const nextTutorial = await tutorialService.getById(nextExerciseId);
-        setTutorial(nextTutorial);
-
-        // Start workout mới
-        const newWorkout = await startWorkoutForLessonExercise();
-        setWorkoutSession(newWorkout);
-      } else {
-        // Hoàn thành lesson
-        await endCourseLessonProgress();
-
-        openSuccessModal('Bạn đã hoàn thành buổi tập.');
+      if (!practicePayload) {
+        openSuccessModal('Bạn đã hoàn thành bài tập.');
         setTimeout(() => {
-          navigation.navigate('MainTabs', { screen: 'Home' });
+          navigatePracticeTab();
         }, TIMEOUT);
+      } else {
+        const isLast =
+          currentExerciseIndex === practicePayload.exerciseIds.length - 1;
+
+        if (!isLast) {
+          const nextIndex = currentExerciseIndex + 1;
+          const nextExerciseId = practicePayload.exerciseIds[nextIndex];
+
+          setCurrentExerciseIndex(nextIndex);
+
+          // Fetch tutorial mới
+          const [nextExercise, nextTutorial] = await Promise.all([
+            exerciseService.getById(nextExerciseId),
+            tutorialService.getById(nextExerciseId),
+          ]);
+          setCurrentExercise(nextExercise);
+          setCurrentTutorial(nextTutorial);
+
+          // Start workout mới
+          const newWorkout = await startWorkoutForLessonExercise();
+          setWorkoutSession(newWorkout);
+        } else {
+          // Hoàn thành lesson
+          await endCourseLessonProgress();
+
+          openSuccessModal('Bạn đã hoàn thành buổi tập.');
+          setTimeout(() => {
+            navigation.navigate('MainTabs', { screen: 'Home' });
+          }, TIMEOUT);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -272,16 +325,42 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setShowSuccessModal(false);
   };
 
+  const openConfirmModal = (msg: string) => {
+    setConfirmMsg(msg);
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmMsg('');
+    setShowConfirmModal(false);
+  };
+
+  const onConfirmModal = () => {
+    closeConfirmModal();
+    navigatePracticeTab();
+  };
+
   // USE EFFECT
   useEffect(() => {
     if (!exercise_id) return;
 
-    fetchById();
+    const fetchAll = async () => {
+      setIsLoading(true);
+      try {
+        await fetchInformation();
+        await fetchById();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAll();
   }, [exercise_id]);
 
   return {
     activeTab,
     exerciseDetail,
+    currentExercise,
     tutorial,
     onChangeTab,
     isVideoVisible,
@@ -306,5 +385,13 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     showSuccessModal,
     closeSuccessModal,
     successMsg,
+    activePackage,
+    currentTutorial,
+    confirmMsg,
+    showConfirmModal,
+    closeConfirmModal,
+    onConfirmModal,
+    onPressBack,
+    practicePayload,
   };
 };

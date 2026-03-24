@@ -35,11 +35,12 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     showSchedule,
     closeSchedule,
     handleSelectDay,
-    handleSelectSession,
     selectedDays,
-    sessionPerWeek,
     onPressRegister,
     getProgressOfCourseLesson,
+    traineeCourseId,
+    progressOfCourse,
+    completedLessonIds,
   } = useProgramDetail({
     route,
     navigation,
@@ -62,8 +63,10 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         programName={programDetail.name}
       />
       <ProgressConsume
-        progress={10}
+        traineeCourseId={traineeCourseId}
+        progress={progressOfCourse}
         number_of_programs={programDetail.totalLesson}
+        price={programDetail.price}
       />
       <ProgramInformation
         goal={programDetail.description}
@@ -74,9 +77,11 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         navigation={navigation}
         isEnrolled={isEnrolled}
         getProgressOfCourseLesson={getProgressOfCourseLesson}
+        traineeCourseId={traineeCourseId}
+        completedLessonIds={completedLessonIds}
       />
 
-      {!isEnrolled && (
+      {!isEnrolled ? (
         <View className="pt-2 mx-4 pb-6">
           <Button
             text="Đăng ký khóa học"
@@ -87,6 +92,17 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
             iconSize={26}
           />
         </View>
+      ) : (
+        !traineeCourseId && (
+          <View className="pt-2 mx-4 pb-6">
+            <Button
+              text="Khóa học đã được đăng ký"
+              onPress={() => {}}
+              colorType="green"
+              rounded="full"
+            />
+          </View>
+        )
       )}
 
       {/* Schedule Modal */}
@@ -94,9 +110,7 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         visible={showSchedule}
         onClose={closeSchedule}
         handleSelectDay={handleSelectDay}
-        handleSelectSession={handleSelectSession}
         selectedDays={selectedDays}
-        sessionPerWeek={sessionPerWeek}
         onPressRegister={onPressRegister}
       />
 

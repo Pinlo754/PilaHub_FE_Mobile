@@ -61,4 +61,21 @@ export const traineeCourseService = {
 
     return res.data.data;
   },
+
+  // GET BY ID
+  getById: async (traineeCourseId: string): Promise<TraineeCourseType> => {
+    const res = await api.get<ApiResponse<TraineeCourseType>>(
+      `/trainee-courses/${traineeCourseId}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

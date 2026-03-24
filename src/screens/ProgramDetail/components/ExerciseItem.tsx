@@ -17,6 +17,8 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
   isEnrolled: boolean;
   getProgressOfCourseLesson: (courseLessonId: string) => void;
+  traineeCourseId: string | null;
+  completedLessonIds: string[];
 };
 
 const ExerciseItem = ({
@@ -25,9 +27,12 @@ const ExerciseItem = ({
   navigation,
   isEnrolled,
   getProgressOfCourseLesson,
+  traineeCourseId,
+  completedLessonIds,
 }: Props) => {
   // VARIABLE
   const isFirst = index === 0;
+  const isCompleted = completedLessonIds.includes(item.courseLessonId);
 
   // STATE
   const [isExpand, setIsExpand] = useState<boolean>(false);
@@ -87,8 +92,14 @@ const ExerciseItem = ({
       >
         {/* Icon */}
         {/* <Ionicons name="checkmark-circle" size={24} color={colors.foreground} /> */}
-        <View className="rounded-full border border-foreground w-8 h-8 flex items-center justify-center">
-          <Text className="color-foreground font-semibold">{index + 1}</Text>
+        <View
+          className={`rounded-full border border-foreground w-8 h-8 flex items-center justify-center ${isCompleted && 'bg-foreground'}`}
+        >
+          <Text
+            className={` font-semibold ${isCompleted ? 'color-background' : 'color-foreground'}`}
+          >
+            {index + 1}
+          </Text>
         </View>
         {/* Name */}
         <Text className="flex-grow color-foreground text-xl font-bold line-clamp-1 max-w-[320px]">
@@ -106,7 +117,8 @@ const ExerciseItem = ({
       {isExpand &&
         item.exercises.map(ex => {
           const isFirstExercise = ex.displayOrder === 1;
-          const allowedPractice = isEnrolled && isFirstExercise;
+          const allowedPractice =
+            isEnrolled && isFirstExercise && !!traineeCourseId;
 
           return (
             <Pressable
@@ -138,7 +150,7 @@ const ExerciseItem = ({
               </View>
 
               {/* Icon */}
-              {isEnrolled ? (
+              {isEnrolled && traineeCourseId ? (
                 <View
                   className={`rounded-full w-10 h-10 flex items-center justify-center pl-0.5 ${isFirstExercise ? 'bg-background-sub1' : 'bg-inactive-lighter'}`}
                 >

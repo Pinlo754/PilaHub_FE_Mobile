@@ -11,6 +11,8 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
   isEnrolled: boolean;
   getProgressOfCourseLesson: (courseLessonId: string) => void;
+  traineeCourseId: string | null;
+  completedLessonIds: string[];
 };
 
 const ProgrameContent = ({
@@ -18,6 +20,8 @@ const ProgrameContent = ({
   navigation,
   isEnrolled,
   getProgressOfCourseLesson,
+  traineeCourseId,
+  completedLessonIds,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
@@ -37,6 +41,8 @@ const ProgrameContent = ({
         navigation={navigation}
         isEnrolled={isEnrolled}
         getProgressOfCourseLesson={getProgressOfCourseLesson}
+        traineeCourseId={traineeCourseId}
+        completedLessonIds={completedLessonIds}
       />
     );
   };

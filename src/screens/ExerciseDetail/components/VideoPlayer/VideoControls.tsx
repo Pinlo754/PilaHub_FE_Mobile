@@ -24,8 +24,6 @@ export function VideoControls({
   isFullscreen,
   isPracticeTab,
 }: Props) {
-  const safeCurrentTime = Math.min(currentTime, duration);
-
   return (
     <View className={`px-4  ${isFullscreen ? 'pb-20 mb-2' : 'pb-14'}`}>
       {/* Arrows */}
@@ -69,7 +67,7 @@ export function VideoControls({
         <View className="flex-row absolute top-0 left-4">
           <Text className="color-background text-xs font-medium">
             {formatTime(currentTime, { pad: true })} /{' '}
-            {formatTime(safeCurrentTime, { pad: true })}
+            {formatTime(duration, { pad: true })}
           </Text>
         </View>
 

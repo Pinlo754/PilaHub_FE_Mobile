@@ -33,7 +33,7 @@ const ChooseDaySection = ({
   weekStart,
 }: Props) => {
   return (
-    <View className="mt-6">
+    <View className="">
       {/* Header */}
       <View className="mx-4 rounded-full px-3 py-2 bg-background-sub1 flex-row gap-1 items-center">
         {/* Title */}

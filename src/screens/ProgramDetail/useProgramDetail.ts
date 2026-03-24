@@ -10,6 +10,8 @@ import {
   CreateScheduleReq,
   TrainingDay,
 } from '../../utils/CourseLessonProgressType';
+import { fetchTraineeProfile } from '../../services/profile';
+import { formatVND } from '../../utils/number';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
@@ -18,7 +20,8 @@ type Props = {
 
 export const useProgramDetail = ({ route, navigation }: Props) => {
   // PARAM
-  const { program_id, traineeCourseId } = route.params;
+  const { program_id } = route.params;
+  const traineeCourseId = route.params.traineeCourseId ?? null;
 
   // CONSTANT
   const TIMEOUT = 3010;
@@ -26,6 +29,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   // STATE
   const [programFullDetail, setProgramFullDetail] =
     useState<CourseDetailType>();
+  const [progressOfCourse, setProgressOfCourse] = useState<number>(0);
   const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, openErrorModalMsg] = useState<string | null>(null);
@@ -35,8 +39,9 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [showSchedule, setShowSchedule] = useState<boolean>(false);
-  const [sessionPerWeek, setSessionPerWeek] = useState<number | null>(null);
   const [selectedDays, setSelectedDays] = useState<TrainingDay[]>([]);
+  const [traineeId, setTraineeId] = useState<string | null>(null);
+  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
 
   // FETCH
   const fetchById = async () => {
@@ -44,13 +49,48 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
     setIsLoading(true);
     try {
-      const [programDetail, enrolled] = await Promise.all([
-        courseService.getFullDetail(program_id),
-        traineeCourseService.checkEnrollment(
-          'e764ce59-c100-46d9-a17e-146082eae166',
-          program_id,
-        ),
-      ]);
+      let programDetail;
+      let enrolled = false;
+
+      if (traineeCourseId) {
+        const [resProgram, resCompletedLesson] = await Promise.all([
+          courseService.getFullDetail(program_id),
+          courseLessonProgressService.getCompletedLesson(traineeCourseId),
+        ]);
+
+        programDetail = resProgram;
+        enrolled = true;
+
+        if (resCompletedLesson.length > 0) {
+          setProgressOfCourse(
+            resCompletedLesson[0].traineeCourse.progressPercentage,
+          );
+
+          const completedIds = resCompletedLesson.map(
+            item => item.courseLesson.courseLessonId,
+          );
+
+          setCompletedLessonIds(completedIds);
+        } else {
+          setProgressOfCourse(0);
+          setCompletedLessonIds([]);
+        }
+      } else {
+        const resTrainee = await fetchTraineeProfile();
+
+        if (!resTrainee.ok) return;
+
+        const currentTraineeId = resTrainee.data.traineeId;
+        setTraineeId(currentTraineeId);
+
+        const [resProgram, resEnrolled] = await Promise.all([
+          courseService.getFullDetail(program_id),
+          traineeCourseService.checkEnrollment(currentTraineeId, program_id),
+        ]);
+
+        programDetail = resProgram;
+        enrolled = resEnrolled;
+      }
 
       setProgramFullDetail(programDetail);
       setIsEnrolled(enrolled);
@@ -66,12 +106,12 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   };
 
   const enrollCourse = async () => {
-    if (!program_id || selectedDays.length === 0) return;
+    if (!program_id || selectedDays.length === 0 || !traineeId) return;
 
     setIsLoading(true);
     try {
       const resEnroll = await traineeCourseService.enrollCourse(
-        'e764ce59-c100-46d9-a17e-146082eae166',
+        traineeId,
         program_id,
       );
 
@@ -164,30 +204,23 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
   const closeSchedule = () => {
     setShowSchedule(false);
-    setSessionPerWeek(null);
-    setSelectedDays([]);
-  };
-
-  const handleSelectSession = (value: number) => {
-    setSessionPerWeek(value);
     setSelectedDays([]);
   };
 
   const handleSelectDay = (day: TrainingDay) => {
-    if (!sessionPerWeek) return;
-
     if (selectedDays.includes(day)) {
       setSelectedDays(selectedDays.filter(d => d !== day));
       return;
+    } else {
+      setSelectedDays([...selectedDays, day]);
     }
-
-    if (selectedDays.length >= sessionPerWeek) return;
-
-    setSelectedDays([...selectedDays, day]);
   };
 
   const onPressRegister = () => {
-    openConfirmModal('Bạn có chắc muốn đăng ký lịch học này không?');
+    if (!programFullDetail) return;
+    openConfirmModal(
+      `Bạn có chắc muốn đăng ký khóa học với giá ${formatVND(programFullDetail.course.price)}?`,
+    );
   };
 
   // USE EFFECT
@@ -217,10 +250,11 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     showSchedule,
     closeSchedule,
     handleSelectDay,
-    handleSelectSession,
-    sessionPerWeek,
     selectedDays,
     onPressRegister,
     getProgressOfCourseLesson,
+    traineeCourseId,
+    progressOfCourse,
+    completedLessonIds,
   };
 };

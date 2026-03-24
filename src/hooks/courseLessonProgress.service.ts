@@ -9,8 +9,8 @@ export const courseLessonProgressService = {
   // GET PROGRESS OF TRAINEECOURSE
   getProgressOfTraineeCourse: async (
     traineeCourseId: string,
-  ): Promise<CourseLessonProgressType> => {
-    const res = await api.get<ApiResponse<CourseLessonProgressType>>(
+  ): Promise<CourseLessonProgressType[]> => {
+    const res = await api.get<ApiResponse<CourseLessonProgressType[]>>(
       `/course-lesson-progress/trainee-course/${traineeCourseId}`,
     );
 
@@ -88,6 +88,25 @@ export const courseLessonProgressService = {
   ): Promise<CourseLessonProgressType> => {
     const res = await api.get<ApiResponse<CourseLessonProgressType>>(
       `/course-lesson-progress/trainee-course/${traineeCourseId}/course-lesson/${courseLessonId}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET COMPLETED LESSON
+  getCompletedLesson: async (
+    traineeCourseId: string,
+  ): Promise<CourseLessonProgressType[]> => {
+    const res = await api.get<ApiResponse<CourseLessonProgressType[]>>(
+      `/course-lesson-progress/trainee-course/${traineeCourseId}/completed`,
     );
 
     if (!res.data.success) {
