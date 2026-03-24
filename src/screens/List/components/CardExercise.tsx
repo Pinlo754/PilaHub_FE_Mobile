@@ -29,7 +29,7 @@ const CardExercise = ({ item, onPress }: Props) => {
         </Text>
         {/* Duration */}
         <Text className="color-secondaryText font-medium text-lg">
-          {secondsToTime(item.default_duration_sec)}
+          {secondsToTime(item.duration)}
         </Text>
       </View>
     </Pressable>

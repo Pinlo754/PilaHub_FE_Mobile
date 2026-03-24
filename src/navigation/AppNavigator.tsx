@@ -7,7 +7,7 @@ import WelcomeScreen from '../screens/Welcome/WelcomeScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
 import SearchScreen from '../screens/Search/SearchScreen';
 import ExerciseDetail from '../screens/ExerciseDetail/ExerciseDetail';
-import TabNavigator from './TabNavigator';
+import TabNavigator, { RootTabParamList } from './TabNavigator';
 import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
 import RoadmapSummary from '../screens/RoadmapSummary/RoadmapSummary';
 import { Measurements } from '../screens/BodyGram/types/measurement';
@@ -39,6 +39,10 @@ import TraineeReport from '../screens/TraineeReport/TraineeReport';
 import AISummary from '../screens/AISummary/AISummary';
 import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
+import TraineeBooking from '../screens/TraineeBooking/TraineeBooking';
+import VideoCall from '../screens/VideoCall/VideoCall';
+import { NavigatorScreenParams } from '@react-navigation/native';
+import { PracticePayload } from '../utils/CourseLessonProgressType';
 import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
 import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
 import RoadMap from '../screens/Plan/RoadMap';
@@ -69,7 +73,7 @@ import AddressFormScreen from '../screens/Shop/AddressFormScreen';
 import OrdersScreen from '../screens/Profile/OrdersScreen';
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<RootTabParamList>;
   Home: undefined;
   Login: undefined;
   Welcome: undefined;
@@ -82,7 +86,11 @@ export type RootStackParamList = {
   AddressForm: { onSaved?: () => void } | undefined;
   TraineeProfile: undefined;
   Orders: undefined;
-  OrderDetail: { orderId: string };
+  OrderDetail: {
+    orderId: string;
+    allowedPractice?: boolean;
+    practicePayload?: PracticePayload;
+  };
   Roadmap: undefined;
   RoadmapSummary: undefined;
   Plan: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
@@ -96,11 +104,17 @@ export type RootStackParamList = {
   ManualInput: undefined;
   BodyScanFlow: undefined;
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
-  BodyGramResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
+  BodyGramResult:
+    | { measurements: Measurements; avatar?: string; rawResponse?: any }
+    | undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
   ResetPasswordConfirm: { email?: string } | undefined;
-  ProgramDetail: { program_id: string };
+  ProgramDetail: {
+    program_id: string;
+    traineeCourseId?: string;
+    traineeId?: string;
+  };
   TestNavigateScreen: undefined;
   CoachScreen: undefined;
   CoachRegisterSchedule: undefined;
@@ -119,13 +133,20 @@ export type RootStackParamList = {
   HealthProfiles: undefined;
   HealthProfileAssessment: { healthProfileId: string } | undefined;
 
-
-  CoachDetail: { coachId: string; selectedCoachId?: string | null; pricePerHour: number };
+  CoachDetail: {
+    coachId: string;
+    selectedCoachId?: string | null;
+    pricePerHour: number;
+  };
   List: undefined;
   DailyTask: undefined;
   RegisterCalendar: { coach_id?: string | null; pricePerHour?: number };
   TraineeFeedback: { liveSessionId?: string };
-  TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
+  TraineeReport: {
+    coach_id?: string | null;
+    exercise_id?: string | null;
+    liveSessionId?: string | null;
+  };
   AISummary: {
     feedback: any;
     videoUrl: string;
@@ -147,12 +168,16 @@ export type RootStackParamList = {
   TraineeProfileCoachScreen: undefined;
   VideoCall: { bookingId: string };
   UploadImageScreen: undefined;
-  SendRequestScreen: { coach_id: string, pricePerHour: number | undefined };
+  SendRequestScreen: { coach_id: string; pricePerHour: number | undefined };
   ListRequest: undefined;
-  TraineeHealthProfileResult: { measurements: Measurements; avatar?: string; rawResponse?: any } | undefined;
+  TraineeHealthProfileResult:
+    | { measurements: Measurements; avatar?: string; rawResponse?: any }
+    | undefined;
   ForgotPassword: undefined;
   Wallet: { transactionId?: string } | undefined;
-  DepositWebView: { paymentUrl: string; transactionId?: string; orderCode?: string } | undefined;
+  DepositWebView:
+    | { paymentUrl: string; transactionId?: string; orderCode?: string }
+    | undefined;
   DepositResult: { success: boolean; data?: any } | undefined;
   Deposit: undefined;
   Withdraw: undefined;

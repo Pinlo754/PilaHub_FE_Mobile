@@ -1,14 +1,13 @@
 import React from 'react';
 import { View } from 'react-native';
-import Video, { OnLoadData, OnProgressData } from 'react-native-video';
+import Video from 'react-native-video';
 
 type Props = {
   videoRef: any;
   source: string;
   paused: boolean;
-  onLoad: (data: OnLoadData) => void;
-  onProgress: (data: OnProgressData) => void;
-  onEnd?: () => void;
+  onLoad: (d: any) => void;
+  onProgress: (p: any) => void;
 };
 
 export function VideoSurface({
@@ -17,7 +16,6 @@ export function VideoSurface({
   paused,
   onLoad,
   onProgress,
-  onEnd,
 }: Props) {
   return (
     <View className="w-full h-full">
@@ -27,16 +25,9 @@ export function VideoSurface({
         paused={paused}
         resizeMode="cover"
         style={{ width: '100%', height: '100%' }}
-        onLoad={d => {
-          onLoad(d);
-        }}
-        onError={e => {
-          console.log('VIDEO ERROR', e);
-        }}
+        onLoad={onLoad}
         onProgress={onProgress}
-        onEnd={onEnd}
         pointerEvents="none"
-        progressUpdateInterval={250}
       />
     </View>
   );

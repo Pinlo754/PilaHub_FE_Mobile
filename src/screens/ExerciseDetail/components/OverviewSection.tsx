@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import Tabs from './Tabs';
 import { ExerciseTab } from '../../../constants/exerciseTab';
 import Description from './Description';
-import { ExerciseType } from '../../../utils/ExerciseType';
+import { ExerciseType, PackageType } from '../../../utils/ExerciseType';
 import Footer from './Footer';
 import PlayButton from './PlayButton';
 
@@ -12,9 +12,14 @@ type Props = {
   onChangeTab: (tab: ExerciseTab) => void;
   isVideoPlay: boolean;
   togglePlayButton: () => void;
-  toggleVideoExpand: () => void;
   isPracticeTab: boolean;
   onPressAIPractice: () => void;
+<<<<<<< HEAD
+=======
+  canPractice: boolean;
+  onPressPractice: () => void;
+  activePackage: PackageType | null;
+>>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 };
 
 const OverviewSection = ({
@@ -23,13 +28,18 @@ const OverviewSection = ({
   onChangeTab,
   isVideoPlay,
   togglePlayButton,
-  toggleVideoExpand,
   isPracticeTab,
   onPressAIPractice,
+<<<<<<< HEAD
+=======
+  canPractice,
+  onPressPractice,
+  activePackage,
+>>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 }: Props) => {
   return (
     <View
-      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
+      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${!canPractice || isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
       {!isPracticeTab && (
@@ -41,7 +51,7 @@ const OverviewSection = ({
 
       {/* Name */}
       <Text
-        className={`text-center text-2xl font-bold color-foreground ${isPracticeTab ? 'mt-5' : 'mt-2'}`}
+        className={`text-center text-2xl font-bold color-foreground ${!canPractice || isPracticeTab ? 'mt-5' : 'mt-2'}`}
       >
         {exerciseDetail.name}
       </Text>
@@ -60,10 +70,18 @@ const OverviewSection = ({
       />
 
       {/* Btn */}
+<<<<<<< HEAD
       {isPracticeTab && (
         <Footer
           onPress={toggleVideoExpand}
           onPressAIPractice={onPressAIPractice}
+=======
+      {isPracticeTab && canPractice && (
+        <Footer
+          onPress={onPressPractice}
+          onPressAIPractice={onPressAIPractice}
+          activePackage={activePackage}
+>>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
         />
       )}
     </View>

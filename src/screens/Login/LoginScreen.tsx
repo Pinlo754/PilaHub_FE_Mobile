@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -84,7 +86,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       <View className="flex-row items-center px-4 py-3">
    
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
-          
           Đăng Nhập
         </Text>
       </View>
@@ -145,7 +146,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           >
             <View
               className={`w-4 h-4 border mr-2 ${
-                remember ? "bg-secondaryText" : "bg-white"
+                remember ? 'bg-secondaryText' : 'bg-white'
               }`}
             />
             <Text>Nhớ tài khoản</Text>
@@ -183,6 +184,7 @@ onPress={async () => {
         >
           <Text className="text-white text-lg font-semibold">
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
 
@@ -211,14 +213,17 @@ onPress={async () => {
         {/* Footer */}
         <TouchableOpacity className="mt-6 items-center" onPress={() => navigation.navigate('Register')}>
           <Text>
-            Bạn chưa có tài khoản?{" "}
+            Bạn chưa có tài khoản?{' '}
             <Text className="text-foreground font-family">Đăng Ký</Text>
           </Text>
 
           <View className="flex-row mt-3">
-            <Text className="text-xs text-gray-500 mr-3">Chính Sách Bảo Mật</Text>
+            <Text className="text-xs text-gray-500 mr-3">
+              Chính Sách Bảo Mật
+            </Text>
             <Text className="text-xs text-gray-500">Điều Khoản Dịch Vụ</Text>
           </View>
+        </TouchableOpacity>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

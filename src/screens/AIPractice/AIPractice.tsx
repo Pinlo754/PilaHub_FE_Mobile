@@ -79,11 +79,13 @@ const AIPractice = (props: Props) => {
       {isVideoVisible ? (
         <VideoPlayer
           source={videoUrl}
+          source={videoUrl}
           isVideoPlay={isVideoPlay}
           togglePlayButton={togglePlayButton}
         />
       ) : (
         <ImageExercise
+          img_url={imgUrl}
           img_url={imgUrl}
           setIsVideoVisible={setIsVideoVisible}
           togglePlayButton={togglePlayButton}

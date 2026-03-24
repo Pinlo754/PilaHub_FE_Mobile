@@ -34,8 +34,11 @@ export const useTraineeBooking = () => {
     useState<LiveSessionType | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [showRecord, setShowRecord] = useState<boolean>(false);
+  const [recordUrl, setRecordUrl] = useState<string | null>(null);
 
   // API
   const fetchData = async () => {
@@ -71,6 +74,24 @@ export const useTraineeBooking = () => {
     }
   };
 
+  const getRecordUrl = async (bookingId: string) => {
+    setIsLoading(true);
+    try {
+      const res = await LiveSessionService.getRecordUrl(bookingId);
+      setRecordUrl(res);
+      return true;
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Hiện chưa có video record!');
+      }
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // HANDLERS
   const filterBookings = (
     data: CoachBookingType[],
@@ -99,6 +120,29 @@ export const useTraineeBooking = () => {
     setLiveSessionDetail(null);
   };
 
+  const openVideoRecord = async (bookingId: string) => {
+    const success = await getRecordUrl(bookingId);
+
+    if (!success) return;
+
+    setShowRecord(true);
+  };
+
+  const closeVideoRecord = () => {
+    setShowRecord(false);
+    setRecordUrl(null);
+  };
+
+  const openErrorModal = (msg: string) => {
+    setErrorMsg(msg);
+    setShowErrorModal(true);
+  };
+
+  const closeErrorModal = () => {
+    setErrorMsg('');
+    setShowErrorModal(false);
+  };
+
   // EFFECT
   useEffect(() => {
     fetchData();
@@ -118,5 +162,11 @@ export const useTraineeBooking = () => {
     showDetailModal,
     showFeedbackModal,
     liveSessionDetail,
+    showRecord,
+    openVideoRecord,
+    closeVideoRecord,
+    showErrorModal,
+    closeErrorModal,
+    recordUrl,
   };
 };

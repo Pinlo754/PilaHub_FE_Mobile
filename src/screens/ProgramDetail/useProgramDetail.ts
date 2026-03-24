@@ -1,71 +1,226 @@
 import { useEffect, useState } from 'react';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
-import { CourseLessonType } from '../../utils/CourseLessonType';
-import { courseLessonService } from '../../hooks/courseLesson.service';
 import { courseService } from '../../hooks/course.service';
-import { CourseType } from '../../utils/CourseType';
-import { LessonExerciseType } from '../../utils/LessonExerciseType';
-import { lessonExerciseService } from '../../hooks/lessonExercise.service';
+import { CourseDetailType } from '../../utils/CourseType';
+import { traineeCourseService } from '../../hooks/traineeCourse.service';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { courseLessonProgressService } from '../../hooks/courseLessonProgress.service';
+import {
+  CreateScheduleReq,
+  TrainingDay,
+} from '../../utils/CourseLessonProgressType';
+import { fetchTraineeProfile } from '../../services/profile';
+import { formatVND } from '../../utils/number';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
 };
 
-export const useProgramDetail = ({ route }: Props) => {
+export const useProgramDetail = ({ route, navigation }: Props) => {
   // PARAM
   const { program_id } = route.params;
+  const traineeCourseId = route.params.traineeCourseId ?? null;
+
+  // CONSTANT
+  const TIMEOUT = 3010;
 
   // STATE
-  const [programDetail, setProgramDetail] = useState<CourseType>();
-  const [courseLessons, setCourseLessons] = useState<CourseLessonType[]>();
-  const [lessonExercises, setLessonExercises] = useState<
-    Record<string, LessonExerciseType[]>
-  >({});
+  const [programFullDetail, setProgramFullDetail] =
+    useState<CourseDetailType>();
+  const [progressOfCourse, setProgressOfCourse] = useState<number>(0);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, openErrorModalMsg] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+  const [successMsg, setSuccessMsg] = useState<string>('');
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [confirmMsg, setConfirmMsg] = useState<string>('');
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [showSchedule, setShowSchedule] = useState<boolean>(false);
+  const [selectedDays, setSelectedDays] = useState<TrainingDay[]>([]);
+  const [traineeId, setTraineeId] = useState<string | null>(null);
+  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
 
   // FETCH
   const fetchById = async () => {
     if (!program_id) return;
 
     setIsLoading(true);
-    setError(null);
     try {
-      // 1. Fetch course + course lesson
-      const [resCourse, resCourseLesson] = await Promise.all([
-        courseService.getById(program_id),
-        courseLessonService.getCourseLessonById(program_id),
-      ]);
+      let programDetail;
+      let enrolled = false;
 
-      setProgramDetail(resCourse);
-      setCourseLessons(resCourseLesson);
+      if (traineeCourseId) {
+        const [resProgram, resCompletedLesson] = await Promise.all([
+          courseService.getFullDetail(program_id),
+          courseLessonProgressService.getCompletedLesson(traineeCourseId),
+        ]);
 
-      // 2. Lấy tất cả lessonId
-      const lessonIds = resCourseLesson.map(l => l.lessonId);
+        programDetail = resProgram;
+        enrolled = true;
 
-      // 3. Fetch lesson exercise
-      const resLessonExercise = await Promise.all(
-        lessonIds.map(id => lessonExerciseService.getLessonExerciseById(id)),
-      );
+        if (resCompletedLesson.length > 0) {
+          setProgressOfCourse(
+            resCompletedLesson[0].traineeCourse.progressPercentage,
+          );
 
-      // 4. Convert thành object theo lessonId
-      const exerciseMap: Record<string, LessonExerciseType[]> = {};
+          const completedIds = resCompletedLesson.map(
+            item => item.courseLesson.courseLessonId,
+          );
 
-      lessonIds.forEach((id, index) => {
-        exerciseMap[id] = resLessonExercise[index];
-      });
+          setCompletedLessonIds(completedIds);
+        } else {
+          setProgressOfCourse(0);
+          setCompletedLessonIds([]);
+        }
+      } else {
+        const resTrainee = await fetchTraineeProfile();
 
-      setLessonExercises(exerciseMap);
+        if (!resTrainee.ok) return;
+
+        const currentTraineeId = resTrainee.data.traineeId;
+        setTraineeId(currentTraineeId);
+
+        const [resProgram, resEnrolled] = await Promise.all([
+          courseService.getFullDetail(program_id),
+          traineeCourseService.checkEnrollment(currentTraineeId, program_id),
+        ]);
+
+        programDetail = resProgram;
+        enrolled = resEnrolled;
+      }
+
+      setProgramFullDetail(programDetail);
+      setIsEnrolled(enrolled);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
+        openErrorModal(err.message);
       } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const enrollCourse = async () => {
+    if (!program_id || selectedDays.length === 0 || !traineeId) return;
+
+    setIsLoading(true);
+    try {
+      const resEnroll = await traineeCourseService.enrollCourse(
+        traineeId,
+        program_id,
+      );
+
+      const payload: CreateScheduleReq = {
+        traineeCourseId: resEnroll.traineeCourseId,
+        trainingDays: selectedDays,
+      };
+
+      await courseLessonProgressService.createSchedule(payload);
+
+      openSuccessModal('Đăng ký khóa học thành công!');
+
+      setTimeout(() => {
+        navigation.navigate('MainTabs', {
+          screen: 'List',
+        });
+      }, TIMEOUT);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getProgressOfCourseLesson = async (courseLessonId: string) => {
+    if (!traineeCourseId) return;
+
+    setIsLoading(true);
+    try {
+      const res = await courseLessonProgressService.getProgressOfCourseLesson(
+        traineeCourseId,
+        courseLessonId,
+      );
+
+      return res.progressId;
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // HANDLERS
+  const onPress = () => {
+    setShowSchedule(true);
+  };
+  const openSuccessModal = (msg: string) => {
+    setSuccessMsg(msg);
+    setShowSuccessModal(true);
+  };
+
+  const closeSuccessModal = () => {
+    setSuccessMsg('');
+    setShowSuccessModal(false);
+  };
+
+  const openErrorModal = (msg: string) => {
+    openErrorModalMsg(msg);
+    setShowErrorModal(true);
+  };
+
+  const closeErrorModal = () => {
+    openErrorModalMsg('');
+    setShowErrorModal(false);
+  };
+
+  const openConfirmModal = (msg: string) => {
+    setConfirmMsg(msg);
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmMsg('');
+    setShowConfirmModal(false);
+  };
+
+  const onConfirmModal = () => {
+    closeConfirmModal();
+    closeSchedule();
+    enrollCourse();
+  };
+
+  const closeSchedule = () => {
+    setShowSchedule(false);
+    setSelectedDays([]);
+  };
+
+  const handleSelectDay = (day: TrainingDay) => {
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter(d => d !== day));
+      return;
+    } else {
+      setSelectedDays([...selectedDays, day]);
+    }
+  };
+
+  const onPressRegister = () => {
+    if (!programFullDetail) return;
+    openConfirmModal(
+      `Bạn có chắc muốn đăng ký khóa học với giá ${formatVND(programFullDetail.course.price)}?`,
+    );
   };
 
   // USE EFFECT
@@ -76,10 +231,30 @@ export const useProgramDetail = ({ route }: Props) => {
   }, [program_id]);
 
   return {
-    programDetail,
-    courseLessons,
-    lessonExercises,
+    programFullDetail,
+    programDetail: programFullDetail?.course,
+    lessons: programFullDetail?.lessons ?? [],
     isLoading,
-    error,
+    isEnrolled,
+    closeConfirmModal,
+    closeErrorModal,
+    closeSuccessModal,
+    confirmMsg,
+    errorMsg,
+    successMsg,
+    onConfirmModal,
+    showConfirmModal,
+    showErrorModal,
+    showSuccessModal,
+    onPress,
+    showSchedule,
+    closeSchedule,
+    handleSelectDay,
+    selectedDays,
+    onPressRegister,
+    getProgressOfCourseLesson,
+    traineeCourseId,
+    progressOfCourse,
+    completedLessonIds,
   };
 };

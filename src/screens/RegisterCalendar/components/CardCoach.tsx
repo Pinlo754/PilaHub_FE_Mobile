@@ -2,6 +2,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { CoachType } from '../../../utils/CoachType';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
+import { formatShortVND } from '../../../utils/number';
 
 type Props = {
   item: CoachType;
@@ -46,6 +47,13 @@ const CardCoach = ({ item, isLast, onPressCard, onPressBtn }: Props) => {
             <Ionicons name="ribbon" size={18} color={colors.info.darker} />
             <Text className="color-secondaryText font-medium">
               {item.yearsOfExperience} năm
+            </Text>
+          </View>
+          {/* Price */}
+          <View className="flex-row gap-2 items-center">
+            <Ionicons name="card" size={18} color={colors.success.DEFAULT} />
+            <Text className="color-secondaryText font-medium">
+              {formatShortVND(item.pricePerHour)}/1h
             </Text>
           </View>
         </View>

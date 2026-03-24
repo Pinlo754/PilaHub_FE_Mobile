@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { LiveSessionService } from '../../hooks/liveSession.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'TraineeFeedback'>;
@@ -33,7 +34,6 @@ const mockInfo: infoType = {
 export const useTraineeFeedback = ({ route, navigation }: Props) => {
   // CONSTANTS
   const TIMEOUT = 3010;
-  const ROLE = 'TRAINEE';
 
   // PARAM
   const liveSessionIdParam = route.params?.liveSessionId;
@@ -46,11 +46,12 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
   const [comment, setComment] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
 
   // VARIABLE
   const mode: ModeType | undefined = (() => {
     if (liveSessionIdParam) {
-      return ROLE === 'TRAINEE' ? 'feedbackForCoach' : 'feedbackForTrainee';
+      return role === 'TRAINEE' ? 'feedbackForCoach' : 'feedbackForTrainee';
     }
 
     // if (courseIdParam) {
@@ -62,6 +63,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
 
   const modeConfig = {
     feedbackForCoach: {
+      title: 'Bạn thấy HLV dạy như thế nào?',
       showInfo: false,
       showRating: true,
       showComment: false,
@@ -72,6 +74,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     },
 
     feedbackForTrainee: {
+      title: 'Bạn thấy học viên tập như thế nào?',
       showInfo: false,
       showRating: false,
       showComment: true,
@@ -82,6 +85,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     },
 
     feedbackForCourse: {
+      title: 'Bạn thấy khóa học này như thế nào?',
       showInfo: true,
       showRating: true,
       showComment: true,
@@ -105,7 +109,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
       openSuccessModal('Đã đánh giá thành công!');
 
       setTimeout(() => {
-        navigation.navigate('MainTabs');
+        navigation.navigate('MainTabs', { screen: 'Home' });
       }, TIMEOUT);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
@@ -128,7 +132,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
       openSuccessModal('Đã đánh giá thành công!');
 
       setTimeout(() => {
-        navigation.navigate('MainTabs');
+        navigation.navigate('MainTabs', { screen: 'Home' });
       }, TIMEOUT);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
@@ -161,6 +165,17 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
   const showInfo = config?.showInfo ?? false;
   const showRating = config?.showRating ?? false;
   const showComment = config?.showComment ?? false;
+  const title = config?.title || 'Bạn cảm thấy thế nào?';
+
+  // USE EFFECT
+  useEffect(() => {
+    const loadRole = async () => {
+      const storedRole = await AsyncStorage.getItem('role');
+      setRole(storedRole);
+    };
+
+    loadRole();
+  }, []);
 
   return {
     info,
@@ -178,5 +193,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     showInfo,
     showRating,
     isLoading,
+    title,
+    liveSessionIdParam,
   };
 };

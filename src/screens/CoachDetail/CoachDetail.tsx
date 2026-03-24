@@ -21,6 +21,9 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   // CALC
   const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
 
+  // CALC
+  const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
+
   // LOADING
   if (!coachDetail) return null;
 
@@ -31,10 +34,11 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
         navigation={navigation}
         scrollY={scrollY}
         coachId={coachDetail.coachId}
+        coachId={coachDetail.coachId}
       />
 
       <Animated.ScrollView
-        contentContainerStyle={{ paddingBottom: 320 }}
+        contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -55,6 +59,10 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
         />
 
         {/* Overview Section */}
+        <OverviewSection
+          coachDetail={coachDetail}
+          coachFeedbacks={coachFeedbacks}
+        />
         <OverviewSection
           coachDetail={coachDetail}
           coachFeedbacks={coachFeedbacks}

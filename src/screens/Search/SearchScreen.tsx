@@ -6,14 +6,18 @@ import Header from './components/Header';
 import List from './components/List';
 import Tabs from './components/Tabs';
 import { useSearchScreen } from './useSearchScreen';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
 const SearchScreen: React.FC<Props> = ({ navigation }) => {
   // HOOK
-  const { activeTab, onChangeTab, dataByTab } = useSearchScreen();
+  const { activeTab, onChangeTab, dataByTab, loading } = useSearchScreen();
 
   return (
+    <>
+      {loading && <LoadingOverlay />}
+
     <View className="w-full flex-1 bg-background pt-14">
       {/* Header */}
       <Header />
@@ -27,7 +31,8 @@ const SearchScreen: React.FC<Props> = ({ navigation }) => {
         data={dataByTab[activeTab]}
         navigation={navigation}
       />
-    </View>
+      </View>
+      </>
   );
 };
 
