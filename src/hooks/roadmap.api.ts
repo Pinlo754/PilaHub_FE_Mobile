@@ -16,6 +16,23 @@ export const RoadmapApi = {
     const data = res.data?.data ?? res.data ?? [];
     return Array.isArray(data) ? data : [];
   },
+
+  // New: product endpoints for shop-ready ProductDto lists (paginated)
+  getProductEquipments: async (roadmapId: string): Promise<any[]> => {
+    const res = await axios.get(`/products/roadmaps/${roadmapId}/equipments`);
+    const apiResp = res.data ?? {};
+    const pageObj = apiResp.data ?? apiResp;
+    const items = pageObj?.content ?? pageObj?.items ?? [];
+    return Array.isArray(items) ? items : [];
+  },
+
+  getProductSupplements: async (roadmapId: string): Promise<any[]> => {
+    const res = await axios.get(`/products/roadmaps/${roadmapId}/supplements`);
+    const apiResp = res.data ?? {};
+    const pageObj = apiResp.data ?? apiResp;
+    const items = pageObj?.content ?? pageObj?.items ?? [];
+    return Array.isArray(items) ? items : [];
+  },
 };
 
 export default RoadmapApi;

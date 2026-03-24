@@ -4,8 +4,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import api from '../../../hooks/axiosInstance';
 import VideoPlayer from '../../AIPractice/components/VideoPlayer/VideoPlayer';
 import { markPersonalExerciseCompleted } from '../../../services/personalExercise.service';
-import { markPersonalScheduleCompleted } from '../../../services/personalSchedule.service';
 import Toast from '../../../components/Toast';
+import { markPersonalScheduleCompleted } from '../../../services/personalSchedule.service';
 
 // Helper: resolve possibly-relative video URL to absolute using axios baseURL
 function resolveVideoSrc(raw?: string | null) {

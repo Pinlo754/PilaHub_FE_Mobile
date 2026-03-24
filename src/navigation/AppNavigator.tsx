@@ -68,6 +68,7 @@ import CheckoutScreen from '../screens/Shop/CheckoutScreen';
 import AddressListScreen from '../screens/Shop/AddressListScreen';
 import AddressFormScreen from '../screens/Shop/AddressFormScreen';
 import OrdersScreen from '../screens/Profile/OrdersScreen';
+import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -91,6 +92,7 @@ export type RootStackParamList = {
   RoadMap: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
   PlanDetail: { roadmap?: any; stages?: any[] } | undefined;
   CreateRoadmap: undefined;
+  RoadmapProducts: undefined;
   UpgradePlan: undefined;
   ExerciseDetail: { exercise_id: string };
   ProductDetail: { productId: string };
@@ -215,6 +217,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
             <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
             <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="RoadmapProducts" component={RoadmapProductsScreen} />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="AddressList" component={AddressListScreen} />
             <Stack.Screen name="AddressForm" component={AddressFormScreen} />
