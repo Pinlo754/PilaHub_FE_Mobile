@@ -28,12 +28,12 @@ const IMAGE_HEIGHT = Math.round(width * 0.85 * 0.6);
 
 // app palette used across this screen
 const COLORS = {
-  primary: '#0ea5a4', // teal
+  primary: '#CD853F', // teal
   accent: '#7c3aed', // violet
   warm: '#F59E0B', // amber
   text: '#0F172A',
   muted: '#6B7280',
-  bg: '#F5FEFB', // very light teal background
+  bg: '#FFFAF0', // very light teal background
   card: '#FFFFFF',
 };
 

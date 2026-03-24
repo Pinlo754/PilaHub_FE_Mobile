@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
-import { useRoute, useFocusEffect } from "@react-navigation/native";
+import { useRoute, useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useRoadmapStore } from "../../store/roadmap.store";
 
 import SupplementSection from "./components/SupplementSection";
@@ -23,8 +23,10 @@ import { getProfile } from "../../services/auth";
 import StageRendererApi from "./components/StageRendererApi";
 
 const RoadMap = () => {
-  const route: any = useRoute();
+  // ensure hooks are called in a stable order: store hook first, then route/navigation
   const storeList = useRoadmapStore((s) => s.list);
+  const route: any = useRoute();
+  const navigation: any = useNavigation();
 
   // prefer addedRoadmap param when present (from CreateRoadmap flow)
   const paramAdded = route.params?.addedRoadmap ?? null;
@@ -381,7 +383,15 @@ const RoadMap = () => {
 
             {Array.isArray(currentRoadmap.equipment) ? (
               currentRoadmap.equipment.map((eq: any, idx: number) => (
-                <View key={idx} style={styles.itemCard}>
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.itemCard}
+                  onPress={() => {
+                    const q = eq.equipmentName ?? eq.name ?? '';
+                    // suggest products by equipment name/category
+                    navigation.navigate('ShopSearchResult' as any, { q, roadmapFilter: { category: 'Thiết bị', equipmentName: q } });
+                  }}
+                >
                   <View style={styles.itemRow}>
                     {/* Left: image */}
                     {(
@@ -402,7 +412,7 @@ const RoadMap = () => {
                       {eq.description ? <Text style={styles.itemSubtitle}>{eq.description}</Text> : null}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <View style={[styles.itemCard, styles.itemCardPadding]}>
@@ -420,7 +430,14 @@ const RoadMap = () => {
             </Text>
 
             {selectedStageSupplements.map((sp: any, idx: number) => (
-              <View key={sp.personalStageSupplementId ?? idx} style={styles.itemCard}>
+              <TouchableOpacity
+                key={sp.personalStageSupplementId ?? idx}
+                style={styles.itemCard}
+                onPress={() => {
+                  const q = sp.supplementName ?? 'Supplement';
+                  navigation.navigate('ShopSearchResult' as any, { q, roadmapFilter: { category: 'Thực phẩm chức năng', supplementName: q } });
+                }}
+              >
                 <View style={styles.itemRow}>
                   {sp.supplementImageUrl ? (
                     <Image source={{ uri: sp.supplementImageUrl }} style={styles.itemImage} resizeMode="cover" />
@@ -440,7 +457,7 @@ const RoadMap = () => {
                     <Text style={styles.smallText}>Optional: {sp.optional ? "Yes" : "No"}</Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         ) : Array.isArray(currentSupplements) && currentSupplements.length > 0 ? (

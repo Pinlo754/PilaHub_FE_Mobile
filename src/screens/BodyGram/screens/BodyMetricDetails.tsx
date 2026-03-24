@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, SafeAreaView, ScrollView, Pressable, StyleSheet, Dimensions, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image } from 'react-native';
 import { fetchMyHealthProfileMetrics, fetchHealthProfileById } from '../../../services/profile';
 import { LineChart } from 'react-native-chart-kit';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 

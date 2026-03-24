@@ -127,6 +127,7 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
     onSearch?.(q);
     Keyboard.dismiss();
     setFocused(false);
+    try { (navigation as any).navigate('ShopSearchResult', { q }); } catch { }
   }
 
   function handleSelectRecent(item: string) {
@@ -135,6 +136,7 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
     addToRecent(item);
     setFocused(false);
     Keyboard.dismiss();
+    try { (navigation as any).navigate('ShopSearchResult', { q: item }); } catch { }
   }
 
   return (
@@ -178,13 +180,8 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
             value={query}
             onChangeText={setQuery}
             onFocus={() => {
-              // attempt to navigate to root Search screen; fall back to local focus
-              const parentNav: any = (navigation as any).getParent && (navigation as any).getParent();
-              if (parentNav && typeof parentNav.navigate === 'function') {
-                parentNav.navigate('Search');
-                return;
-              }
-              try { (navigation as any).navigate('Search'); } catch { setFocused(true); }
+              // stay within Shop: show recent dropdown instead of navigating away
+              setFocused(true);
             }}
             onBlur={() => setTimeout(() => setFocused(false), 150)}
             returnKeyType="search"
@@ -196,14 +193,7 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
               <Ionicons name="close-circle" size={18} color={colors.secondaryText} />
             </Pressable>
           ) : (
-            <Pressable onPress={() => {
-              const parentNav: any = (navigation as any).getParent && (navigation as any).getParent();
-              if (parentNav && typeof parentNav.navigate === 'function') {
-                parentNav.navigate('Search');
-                return;
-              }
-              (navigation as any).navigate('Search');
-            }} className="p-2">
+            <Pressable onPress={() => { inputRef.current?.focus(); }} className="p-2">
               <Ionicons name="search" size={18} color={'#E07A4D'} />
             </Pressable>
           )}

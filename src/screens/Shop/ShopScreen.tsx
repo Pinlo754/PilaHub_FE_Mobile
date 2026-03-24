@@ -12,11 +12,11 @@ import { debounce } from 'lodash';
 
 
 
-function ListHeader({ categories }: { categories: any[] }) {
+function ListHeader({ categories, onPressCategory }: { categories: any[]; onPressCategory?: (c: any) => void }) {
   return (
     <>
       <BannerCarousel data={[{ id: 'b1', image: bannerImg }]} />
-      <CategoryList data={categories} />
+      <CategoryList data={categories} onPressCategory={onPressCategory} />
       <View className="px-4 mt-4 mb-2">
         <Text className="color-foreground font-semibold text-lg">Sản phẩm mới</Text>
       </View>
@@ -142,7 +142,7 @@ const ShopScreen = () => {
 
       <FlatList
         data={products}
-        ListHeaderComponent={<ListHeader categories={categories} />}
+        ListHeaderComponent={<ListHeader categories={categories} onPressCategory={(c:any) => navigation.navigate('ShopSearchResult' as any, { q: '', category: c.name, categoryId: c.id })} />}
         keyExtractor={(item, index) => String(item.productId ?? `${item.raw?.product_id ?? item.raw?.id ?? index}`)}
         numColumns={2}
         renderItem={({ item }) => (

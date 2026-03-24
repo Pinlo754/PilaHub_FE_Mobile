@@ -78,6 +78,7 @@ export type RootStackParamList = {
   Startup: undefined;
   Search: undefined;
   SearchResult: { q?: string; showFilter?: boolean } | undefined;
+  ShopSearchResult: { q?: string } | undefined;
   Checkout: undefined;
   AddressList: undefined;
   AddressForm: { onSaved?: () => void } | undefined;
@@ -210,6 +211,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="SearchResult" component={require('../screens/Search/SearchResult').default} />
+            <Stack.Screen name="ShopSearchResult" component={require('../screens/Shop/ShopSearchResult').default} />
             <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
             <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
             <Stack.Screen name="Cart" component={CartScreen} />
