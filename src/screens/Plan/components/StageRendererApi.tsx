@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import StageCarousel from './StageCarousel';
 import StageCalendar from './StageCalendar';
 import ScheduleDetail from './ScheduleDetail';
@@ -58,6 +58,12 @@ export default function StageRendererApi({ apiStages, _roadmap, loading }: any) 
   const normalized = useMemo(() => normalizeApiStages(apiStages), [apiStages]);
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  const handleSelectDate = (date: string | null) => {
+    setSelectedDate(date);
+    setShowScheduleModal(true);
+  };
 
   if (loading) {
     return (
@@ -90,11 +96,26 @@ export default function StageRendererApi({ apiStages, _roadmap, loading }: any) 
       <StageCalendar
         stage={selectedStage}
         selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
+        onSelectDate={handleSelectDate}
       />
 
-      {/* Schedule detail */}
-      <ScheduleDetail schedule={selectedSchedule} />
+      {/* Show schedule detail in a modal when user picks a date */}
+      <Modal
+        visible={showScheduleModal}
+        animationType="slide"
+        onRequestClose={() => setShowScheduleModal(false)}
+      >
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => setShowScheduleModal(false)}>
+              <Text style={styles.closeText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.content}>
+            <ScheduleDetail schedule={selectedSchedule} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Supplement */}
       <SupplementSection stage={selectedStage} />
@@ -108,3 +129,10 @@ export default function StageRendererApi({ apiStages, _roadmap, loading }: any) 
 }
 
 export { normalizeApiStages };
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F3EDE3' },
+  header: { height: 56, paddingHorizontal: 16, alignItems: 'flex-end', justifyContent: 'center' },
+  closeText: { color: '#8B4513', fontWeight: '600' },
+  content: { paddingHorizontal: 16, paddingBottom: 40 },
+});

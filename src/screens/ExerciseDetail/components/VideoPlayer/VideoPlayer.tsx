@@ -8,7 +8,7 @@ import { exerciseRoadmapService } from '../../../../hooks/exerciseRoadmap.servic
 const { height } = Dimensions.get('window');
 
 type Props = {
-  source: string;
+  source?: string | null;
   isVideoPlay: boolean;
   isVideoExpand: boolean;
   toggleVideoExpand: () => void;
@@ -16,6 +16,10 @@ type Props = {
   setIsShowFlag: (v: boolean) => void;
   personalExerciseId?: string; // optional id passed from parent
   personalScheduleId?: string; // optional schedule id
+  onEnd?: () => Promise<void> | void;
+  onLoad?: (duration: number) => void;
+  onProgress?: (currentTime: number, duration: number) => void;
+  hideControls?: boolean;
 };
 
 export default function VideoPlayer({
@@ -27,6 +31,10 @@ export default function VideoPlayer({
   setIsShowFlag,
   personalExerciseId,
   personalScheduleId,
+  onEnd,
+  onLoad,
+  onProgress,
+  hideControls,
 }: Props) {
   // HOOOK
   const player = useVideoPlayer({
@@ -36,6 +44,11 @@ export default function VideoPlayer({
 
   const onVideoComplete = async () => {
     try {
+      // if parent provided onEnd, delegate completion handling to parent
+      if (typeof onEnd === 'function') {
+        await onEnd();
+        return;
+      }
       if (!personalExerciseId) return;
       console.log('[VideoPlayer] marking exercise complete', personalExerciseId);
       await exerciseRoadmapService.completePersonalExercise(personalExerciseId);
@@ -66,16 +79,22 @@ export default function VideoPlayer({
     >
       <VideoSurface
         videoRef={player.videoRef}
-        source={source}
+        source={String(source ?? '')}
         paused={!isVideoPlay}
-        onLoad={d => player.setDuration(d.duration)}
-        onProgress={p => player.setCurrentTime(p.currentTime)}
+        onLoad={d => {
+          player.setDuration(d.duration);
+          if (typeof onLoad === 'function') onLoad(d.duration);
+        }}
+        onProgress={p => {
+          player.setCurrentTime(p.currentTime);
+          if (typeof onProgress === 'function') onProgress(p.currentTime, player.duration);
+        }}
         onEnd={onVideoComplete}
       />
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">
         {/* CONTROLS */}
-        {player.showControls && (
+        {player.showControls && !hideControls && (
           <View className="absolute inset-0 justify-end bg-black/20">
             <VideoControls
               duration={player.duration}

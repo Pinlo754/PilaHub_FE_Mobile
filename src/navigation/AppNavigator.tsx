@@ -22,6 +22,7 @@ import OtpScreen from '../screens/Register/OtpScreen';
 import StartupScreen from '../screens/StartupScreen';
 import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
 import PlanDetailScreen from '../screens/Plan/PlanDetailScreen';
+import SchedulePlayer from '../screens/Plan/SchedulePlayer';
 
 import CoachScreen from '../screens/Coach/CoachScreen';
 import CoachRegisterSchedule from '../screens/Coach/Schedule/CoachRegisterSchedule';
@@ -128,15 +129,15 @@ export type RootStackParamList = {
   CoachDetail: { coachId: string; selectedCoachId?: string | null; pricePerHour: number };
   List: undefined;
   DailyTask: undefined;
-  RegisterCalendar: { coach_id?: string | null; pricePerHour?: number };
-  TraineeFeedback: { liveSessionId?: string };
-  TraineeReport: { coach_id?: string | null; exercise_id?: string | null };
+  RegisterCalendar: { coach_id?: string | null; pricePerHour?: number } | undefined;
+  TraineeFeedback: { liveSessionId?: string } | undefined;
+  TraineeReport: { coach_id?: string | null; exercise_id?: string | null } | undefined;
   AISummary: {
     feedback: any;
     videoUrl: string;
     mistakeLog: any;
     heartRateLogs?: { heartRate: number; recordedAt: number }[];
-  };
+  } | undefined;
 
   AIPractice: {
     exercise_id: string;
@@ -165,6 +166,7 @@ export type RootStackParamList = {
   DeviceScan: undefined;
   MyDevices: undefined;
   TraineeBooking: undefined;
+  SchedulePlayer: { queue: { ex: any; videoSrc?: string | null }[]; startIndex?: number; scheduleId?: string; title?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -231,6 +233,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="Plan" component={PlanScreen} />
             <Stack.Screen name="RoadMap" component={RoadMap} />
             <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
+            <Stack.Screen name="SchedulePlayer" component={SchedulePlayer} />
             <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
             <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
             <Stack.Screen name="MyDevices" component={MyDevicesScreen} />

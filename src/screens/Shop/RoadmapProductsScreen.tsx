@@ -33,8 +33,6 @@ export default function RoadmapProductsScreen() {
   const [loading, setLoading] = useState(true);
   const [equipmentByStage, setEquipmentByStage] = useState<Record<string, any>>({});
   const [supplementsByStage, setSupplementsByStage] = useState<Record<string, any>>({});
-  const [stageKeys, setStageKeys] = useState<{ key: string; title: string }[]>([]);
-  const [selectedStageKey, setSelectedStageKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { addToCart } = useCart();
   const navigation = useNavigation<any>();
@@ -138,8 +136,6 @@ export default function RoadmapProductsScreen() {
         if (mounted) {
           setEquipmentByStage(equipmentMap);
           setSupplementsByStage(supplementMap);
-          setStageKeys(keys);
-          setSelectedStageKey(keys[0]?.key ?? 'all');
           setError(null);
         }
       } catch (e: any) {
@@ -203,52 +199,9 @@ export default function RoadmapProductsScreen() {
         <View className="flex-1 justify-center items-center"><Text>{error}</Text></View>
       ) : (
         <View className="p-3">
-          {/* Stage selector */}
-          <FlatList
-            data={stageKeys}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(s) => s.key}
-            renderItem={({ item: s }) => (
-              <TouchableOpacity onPress={() => setSelectedStageKey(s.key)} className={`mr-3 px-3 py-2 rounded-full ${selectedStageKey === s.key ? 'bg-amber-500' : 'bg-white'}`}>
-                <Text className={`${selectedStageKey === s.key ? 'text-white' : 'text-[#0F172A]'} font-semibold text-sm`}>{s.title}</Text>
-              </TouchableOpacity>
-            )}
-            className="mb-4"
-          />
-
-          {/* Equipment carousel for selected stage */}
-          <Text className="text-base font-extrabold mb-2">Dụng cụ hỗ trợ</Text>
-          {(equipmentByStage[selectedStageKey ?? 'all'] ?? []).length === 0 ? (
-            <Text className="text-[#6B7280] mb-3">Không có dụng cụ hỗ trợ cho giai đoạn này.</Text>
-          ) : (
-            <FlatList
-              data={equipmentByStage[selectedStageKey ?? 'all']}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(i) => i.id}
-              renderItem={({ item }) => <SmallCard item={item} onPress={openDetail} onBuy={handleBuy} />}
-            />
-          )}
-
-          {/* Supplements carousel for selected stage */}
-          <Text className="text-base font-extrabold mt-4 mb-2">Sản phẩm bổ sung</Text>
-          {(supplementsByStage[selectedStageKey ?? 'all'] ?? []).length === 0 ? (
-            <Text className="text-[#6B7280]">Không có sản phẩm bổ sung cho giai đoạn này.</Text>
-          ) : (
-            <FlatList
-              data={supplementsByStage[selectedStageKey ?? 'all']}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(i) => i.id}
-              renderItem={({ item }) => <SmallCard item={item} onPress={openDetail} onBuy={handleBuy} />}
-            />
-          )}
-
           {/* Unassigned items */}
           {((equipmentByStage.unassigned ?? []).length > 0 || (supplementsByStage.unassigned ?? []).length > 0) ? (
             <View className="mt-6">
-              <Text className="text-base font-extrabold mb-2">Sản phẩm chưa phân giai đoạn</Text>
               {(equipmentByStage.unassigned ?? []).length > 0 ? (
                 <>
                   <Text className="text-sm font-semibold text-[#374151] mb-2">Dụng cụ hỗ trợ</Text>

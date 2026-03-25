@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Modal,
 } from "react-native";
 import { useRoute, useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useRoadmapStore } from "../../store/roadmap.store";
@@ -45,6 +46,7 @@ const RoadMap = () => {
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // local display state: when user fetches newest roadmap we show it here
@@ -306,6 +308,11 @@ const RoadMap = () => {
       )
     : currentSupplements;
 
+  const handleSelectDate = (date: string | null) => {
+    setSelectedDate(date);
+    setShowScheduleModal(true);
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -364,10 +371,33 @@ const RoadMap = () => {
             <StageCalendar
               stage={selectedStage}
               selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
+              onSelectDate={handleSelectDate}
             />
 
-            <ScheduleDetail schedule={selectedSchedule} />
+            {/* Show schedule detail in a modal when user picks a date */}
+            <Modal
+              visible={showScheduleModal}
+              animationType="slide"
+              onRequestClose={() => setShowScheduleModal(false)}
+            >
+              <SafeAreaView style={styles.modalContainer as any}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity onPress={() => setShowScheduleModal(false)}>
+                    <Text style={styles.closeText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                  {selectedSchedule ? (
+                    <ScheduleDetail schedule={selectedSchedule} />
+                  ) : (
+                    <View style={{ padding: 20 }}>
+                      <Text style={{ color: '#3A2A1A', fontSize: 16 }}>Không có lịch cho ngày này.</Text>
+                      <Text style={{ color: '#6B6B6B', marginTop: 8 }}>Vui lòng chọn ngày có lịch để xem bài tập.</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </SafeAreaView>
+            </Modal>
 
             {/* Giữ lại nếu stage cũ vẫn có supplementRecommendations */}
             <SupplementSection stage={selectedStage} />
@@ -557,4 +587,9 @@ const styles = StyleSheet.create({
   // progress bar styles (used in header card)
   progressBarBg: { width: '100%', height: 10, backgroundColor: '#F3EDE3', borderRadius: 6, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
+
+  // modal styles
+  modalContainer: { flex: 1, backgroundColor: '#F3EDE3' },
+  modalHeader: { height: 56, paddingHorizontal: 16, alignItems: 'flex-end', justifyContent: 'center' },
+  closeText: { color: '#8B4513', fontWeight: '600' },
 });
