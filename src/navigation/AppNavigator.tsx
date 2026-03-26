@@ -39,7 +39,6 @@ import TraineeReport from '../screens/TraineeReport/TraineeReport';
 import AISummary from '../screens/AISummary/AISummary';
 import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
-import TraineeBooking from '../screens/TraineeBooking/TraineeBooking';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { PracticePayload } from '../utils/CourseLessonProgressType';
@@ -49,7 +48,6 @@ import RoadMap from '../screens/Plan/RoadMap';
 import HealthProfileAssessmentScreen from '../screens/Profile/HealthProfileAssessmentScreen';
 import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
 import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
-import VideoCall from '../screens/VideoCall/VideoCall';
 import UploadImageScreen from '../screens/UploadImage/UploadImage';
 import SendRequestScreen from '../screens/RegisterCoachRoadmap/SendRequest';
 import ListRequest from '../screens/Coach/ViewRequest/ListRequest';
@@ -98,7 +96,11 @@ export type RootStackParamList = {
   PlanDetail: { roadmap?: any; stages?: any[] } | undefined;
   CreateRoadmap: undefined;
   UpgradePlan: undefined;
-  ExerciseDetail: { exercise_id: string };
+  ExerciseDetail: {
+    exercise_id: string;
+    allowedPractice?: boolean;
+    practicePayload?: PracticePayload;
+  };
   ProductDetail: { productId: string };
   Cart: undefined;
   ManualInput: undefined;
@@ -226,25 +228,51 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="MainTabs" component={TabNavigator} />
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="ResetPasswordConfirm" component={ResetPasswordConfirmScreen} />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
+            <Stack.Screen
+              name="ResetPasswordConfirm"
+              component={ResetPasswordConfirmScreen}
+            />
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Search" component={SearchScreen} />
-            <Stack.Screen name="SearchResult" component={require('../screens/Search/SearchResult').default} />
+            <Stack.Screen
+              name="SearchResult"
+              component={require('../screens/Search/SearchResult').default}
+            />
             <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
-            <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+            <Stack.Screen
+              name="ProductDetail"
+              component={ProductDetailScreen}
+            />
             <Stack.Screen name="Cart" component={CartScreen} />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="AddressList" component={AddressListScreen} />
             <Stack.Screen name="AddressForm" component={AddressFormScreen} />
             <Stack.Screen name="Roadmap" component={RoadmapScreen} />
             <Stack.Screen name="RoadmapSummary" component={RoadmapSummary} />
-            <Stack.Screen name="CreateRoadmap" component={CreateRoadmapScreen} />
-            <Stack.Screen name="TraineeProfile" component={TraineeProfileScreen} />
-            <Stack.Screen name="HealthProfiles" component={HealthProfilesScreen} />
+            <Stack.Screen
+              name="CreateRoadmap"
+              component={CreateRoadmapScreen}
+            />
+            <Stack.Screen
+              name="TraineeProfile"
+              component={TraineeProfileScreen}
+            />
+            <Stack.Screen
+              name="HealthProfiles"
+              component={HealthProfilesScreen}
+            />
             <Stack.Screen name="Orders" component={OrdersScreen} />
-            <Stack.Screen name="OrderDetail" component={require('../screens/Profile/OrderDetailScreen').default} />
+            <Stack.Screen
+              name="OrderDetail"
+              component={
+                require('../screens/Profile/OrderDetailScreen').default
+              }
+            />
             <Stack.Screen name="Plan" component={PlanScreen} />
             <Stack.Screen name="RoadMap" component={RoadMap} />
             <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
@@ -252,32 +280,42 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
             <Stack.Screen name="MyDevices" component={MyDevicesScreen} />
 
-           
             <Stack.Screen
               name="TestNavigateScreen"
               component={TestNavigateScreen}
             />
             <Stack.Screen name="CoachScreen" component={CoachScreen} />
-            
+
             <Stack.Screen
               name="CoachRegisterSchedule"
               component={CoachRegisterSchedule}
             />
-            <Stack.Screen name="TraineeListScreen" component={TraineeListScreen} />
-            <Stack.Screen name="CommingsoonClass" component={CommingsoonClass} />
-            <Stack.Screen name="EndSessionScreen" component={EndSessionScreen} />
+            <Stack.Screen
+              name="TraineeListScreen"
+              component={TraineeListScreen}
+            />
+            <Stack.Screen
+              name="CommingsoonClass"
+              component={CommingsoonClass}
+            />
+            <Stack.Screen
+              name="EndSessionScreen"
+              component={EndSessionScreen}
+            />
             <Stack.Screen name="FeedbackScreen" component={FeedbackScreen} />
             <Stack.Screen name="ProgramDetail" component={ProgramDetail} />
             <Stack.Screen name="CoachDetail" component={CoachDetail} />
             <Stack.Screen name="List" component={ListScreen} />
             <Stack.Screen name="DailyTask" component={DailyTask} />
-            <Stack.Screen name="RegisterCalendar" component={RegisterCalendar} />
+            <Stack.Screen
+              name="RegisterCalendar"
+              component={RegisterCalendar}
+            />
             <Stack.Screen name="TraineeFeedback" component={TraineeFeedback} />
             <Stack.Screen name="TraineeReport" component={TraineeReport} />
             <Stack.Screen name="AISummary" component={AISummary} />
             <Stack.Screen name="AIPractice" component={AIPractice} />
-           
-         
+
             <Stack.Screen
               name="CoachProfileScreen"
               component={CoachProfileScreen}
@@ -287,20 +325,44 @@ const AppNavigator: React.FC = () => {
               component={TraineeProfileCoachScreen}
             />
             <Stack.Screen name="VideoCall" component={VideoCall} />
-            <Stack.Screen name="UploadImageScreen" component={UploadImageScreen} />
-            <Stack.Screen name="SendRequestScreen" component={SendRequestScreen} />
+            <Stack.Screen
+              name="UploadImageScreen"
+              component={UploadImageScreen}
+            />
+            <Stack.Screen
+              name="SendRequestScreen"
+              component={SendRequestScreen}
+            />
             <Stack.Screen name="ListRequest" component={ListRequest} />
-            <Stack.Screen name="TraineeHealthProfileResult" component={TraineeHealthProfileResult} />
+            <Stack.Screen
+              name="TraineeHealthProfileResult"
+              component={TraineeHealthProfileResult}
+            />
             <Stack.Screen
               name="HealthProfileAssessment"
               component={HealthProfileAssessmentScreen}
             />
             <Stack.Screen name="Wallet" component={WalletScreen} />
-            <Stack.Screen name="Deposit" component={require('../screens/Wallet/DepositScreen').default} />
-            <Stack.Screen name="Withdraw" component={require('../screens/Wallet/WithdrawScreen').default} />
-            <Stack.Screen name="DepositWebView" component={DepositWebViewScreen} />
-            <Stack.Screen name="DepositResult" component={DepositResultScreen} />
-            <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+            <Stack.Screen
+              name="Deposit"
+              component={require('../screens/Wallet/DepositScreen').default}
+            />
+            <Stack.Screen
+              name="Withdraw"
+              component={require('../screens/Wallet/WithdrawScreen').default}
+            />
+            <Stack.Screen
+              name="DepositWebView"
+              component={DepositWebViewScreen}
+            />
+            <Stack.Screen
+              name="DepositResult"
+              component={DepositResultScreen}
+            />
+            <Stack.Screen
+              name="TransactionDetail"
+              component={TransactionDetailScreen}
+            />
             <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
           </Stack.Navigator>
         </AppLayout>

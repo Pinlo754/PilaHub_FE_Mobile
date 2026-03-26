@@ -21,9 +21,6 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   // CALC
   const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
 
-  // CALC
-  const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
-
   // LOADING
   if (!coachDetail) return null;
 
@@ -33,7 +30,6 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       <Header
         navigation={navigation}
         scrollY={scrollY}
-        coachId={coachDetail.coachId}
         coachId={coachDetail.coachId}
       />
 

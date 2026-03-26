@@ -18,7 +18,6 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
   const {
     activeTab,
     exerciseDetail,
-    tutorial,
     onChangeTab,
     isVideoVisible,
     isPlaying,
@@ -29,8 +28,6 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     isVideoExpand,
     setIsShowFlag,
     onPressAIPractice,
-<<<<<<< HEAD
-=======
     canPractice,
     isLoading,
     onPressPractice,
@@ -46,67 +43,11 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     showConfirmModal,
     onPressBack,
     currentExercise,
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
   } = useExerciseDetail({
     route,
     navigation,
   });
 
-<<<<<<< HEAD
-  // LOADING
-  if (!exerciseDetail || !tutorial) return null;
-
-  return (
-    <View className="w-full flex-1 relative">
-      {/* Header */}
-      <Header
-        activeTab={activeTab}
-        isVideoExpand={isVideoExpand}
-        isVideoPlay={isPlaying}
-        isShowFlag={isShowFlag}
-        navigation={navigation}
-        navigatePracticeTab={navigatePracticeTab}
-        exerciseId={exerciseDetail.exerciseId}
-      />
-
-      {/* Image / Video */}
-      {isVideoVisible ? (
-        <VideoPlayer
-          source={
-            isPracticeTab
-              ? tutorial?.practiceVideoUrl
-              : tutorial?.theoryVideoUrl
-          }
-          isVideoPlay={isPlaying}
-          isVideoExpand={isVideoExpand}
-          toggleVideoExpand={toggleVideoExpand}
-          isPracticeTab={isPracticeTab}
-          setIsShowFlag={setIsShowFlag}
-        />
-      ) : (
-        <ImageExercise imgUrl={exerciseDetail?.imageUrl} />
-      )}
-
-      {/* Overview / Stats */}
-      {isVideoExpand ? (
-        <StatsSection
-          isPracticeTab={isPracticeTab}
-          exerciseName={exerciseDetail.name}
-          isVideoPlay={isPlaying}
-          togglePlayButton={togglePlayButton}
-        />
-      ) : (
-        <OverviewSection
-          activeTab={activeTab}
-          exerciseDetail={exerciseDetail}
-          onChangeTab={onChangeTab}
-          isVideoPlay={isPlaying}
-          togglePlayButton={togglePlayButton}
-          toggleVideoExpand={toggleVideoExpand}
-          isPracticeTab={isPracticeTab}
-          onPressAIPractice={onPressAIPractice}
-        />
-=======
   return (
     <View className="w-full flex-1 relative bg-background">
       {isLoading && <LoadingOverlay />}
@@ -198,7 +139,6 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             modalWidth={355}
           />
         </>
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
       )}
     </View>
   );

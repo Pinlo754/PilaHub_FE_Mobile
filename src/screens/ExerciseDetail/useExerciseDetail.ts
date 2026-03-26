@@ -2,32 +2,22 @@ import { useEffect, useState } from 'react';
 import { ExerciseTab } from '../../constants/exerciseTab';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
-<<<<<<< HEAD
-import { ExerciseType, TutorialType } from '../../utils/ExerciseType';
-=======
 import {
   ExerciseType,
   PackageType,
   TutorialType,
 } from '../../utils/ExerciseType';
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 import { exerciseService } from '../../hooks/exercise.service';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { tutorialService } from '../../hooks/tutorial.service';
 import { workoutSessionService } from '../../hooks/workoutSession.service';
 import {
   WorkoutExerciseReq,
-<<<<<<< HEAD
-  WorkoutSessionType,
-} from '../../utils/WorkoutSessionType';
-import { useBle } from '../../services/BleProvider';
-=======
   WorkoutLessonExerciseReq,
   WorkoutSessionType,
 } from '../../utils/WorkoutSessionType';
 import { courseLessonProgressService } from '../../hooks/courseLessonProgress.service';
 import { getProfile } from '../../services/auth';
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -45,13 +35,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   // STATE
   const [activeTab, setActiveTab] = useState<ExerciseTab>(ExerciseTab.Theory);
   const [exerciseDetail, setExerciseDetail] = useState<ExerciseType>();
-<<<<<<< HEAD
-  const [tutorial, setTutorial] = useState<TutorialType>();
-=======
   const [currentExercise, setCurrentExercise] = useState<ExerciseType>();
   const [tutorial, setTutorial] = useState<TutorialType>();
   const [currentTutorial, setCurrentTutorial] = useState<TutorialType>();
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
   const [isShowFlag, setIsShowFlag] = useState<boolean>(false);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -62,41 +48,16 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [haveIOTDeviceTracking, setHaveIOTDeviceTracking] =
     useState<boolean>(false);
   const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType>();
-<<<<<<< HEAD
-
-  // read BLE connection state to decide whether IoT device tracking is available
-  const { connectedDevice } = useBle();
-
-  useEffect(() => {
-    setHaveIOTDeviceTracking(Boolean(connectedDevice));
-  }, [connectedDevice]);
-=======
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [activePackage, setActivePackage] = useState<PackageType | null>(null);
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
   const id = route.params.exercise_id;
-<<<<<<< HEAD
-  // API
-  const fetchById = async () => {
-
-    if (!exercise_id) return;
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const resExercise = await exerciseService.getById(id);
-      const resTutorial = await tutorialService.getById('188aaa74-19f3-4475-8fdc-fb626d760126');
-
-      setExerciseDetail(resExercise);
-      setTutorial(resTutorial);
-=======
   const canPractice = allowedPractice ?? true;
 
   // FETCH
@@ -105,16 +66,33 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const res = await getProfile();
       if (!res.ok) return;
       setActivePackage(res.data.activePackageType);
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
       } else {
         setError('Có lỗi xảy ra. Vui lòng thử lại.');
       }
-<<<<<<< HEAD
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const fetchById = async () => {
+    if (!exercise_id) return;
+    try {
+      const [resExercise, resTutorial] = await Promise.all([
+        exerciseService.getById(exercise_id),
+        tutorialService.getById(exercise_id),
+      ]);
+
+      setExerciseDetail(resExercise);
+      setCurrentExercise(resExercise);
+      setTutorial(resTutorial);
+      setCurrentTutorial(resTutorial);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
+      } else {
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -133,34 +111,14 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const res = await workoutSessionService.startFreeWorkout(payload);
 
       setWorkoutSession(res);
-=======
-    }
-  };
-
-  const fetchById = async () => {
-    if (!exercise_id) return;
-    try {
-      const [resExercise, resTutorial] = await Promise.all([
-        exerciseService.getById(exercise_id),
-        tutorialService.getById(exercise_id),
-      ]);
-
-      setExerciseDetail(resExercise);
-      setCurrentExercise(resExercise);
-      setTutorial(resTutorial);
-      setCurrentTutorial(resTutorial);
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
       } else {
         setError('Có lỗi xảy ra. Vui lòng thử lại.');
       }
-<<<<<<< HEAD
     } finally {
       setIsLoading(false);
-=======
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
     }
   };
 
@@ -174,12 +132,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const payload: WorkoutExerciseReq = {
         exerciseId: id,
         haveAITracking: true,
-<<<<<<< HEAD
-        haveIOTDeviceTracking: Boolean(connectedDevice) || haveIOTDeviceTracking,
-=======
         // haveIOTDeviceTracking: Boolean(connectedDevice) || haveIOTDeviceTracking,
         haveIOTDeviceTracking,
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
       };
 
       const res = await workoutSessionService.startFreeWorkout(payload);
@@ -196,8 +150,6 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     } finally {
       setIsLoading(false);
     }
-<<<<<<< HEAD
-=======
   };
 
   const startWorkoutForLessonExercise = async () => {
@@ -235,7 +187,6 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     return courseLessonProgressService.completeLesson(
       practicePayload.progressId,
     );
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
   };
 
   // HANDLERS
@@ -416,23 +367,6 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     navigatePracticeTab();
   };
 
-  const onPressAIPractice = async () => {
-    if (!exerciseDetail || !tutorial) return;
-
-    setHaveAITracking(true);
-
-    const session = await startWorkoutExerciseAI();
-
-    if (!session) return;
-
-    navigation.navigate('AIPractice', {
-      exercise_id: id,
-      imgUrl: exerciseDetail.imageUrl,
-      videoUrl: tutorial.practiceVideoUrl,
-      workoutSessionId: session.workoutSessionId,
-    });
-  };
-
   // USE EFFECT
   useEffect(() => {
     if (!exercise_id) return;
@@ -453,10 +387,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   return {
     activeTab,
     exerciseDetail,
-<<<<<<< HEAD
-=======
     currentExercise,
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
     tutorial,
     onChangeTab,
     isVideoVisible,
@@ -472,9 +403,6 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setIsShowFlag,
     isLoading,
     error,
-<<<<<<< HEAD
-    onPressAIPractice,
-=======
     canPractice,
     onPressStartCourseLesson,
     onPressAIPractice,
@@ -492,6 +420,5 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     onConfirmModal,
     onPressBack,
     practicePayload,
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
   };
 };

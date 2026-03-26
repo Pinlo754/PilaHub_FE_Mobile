@@ -14,12 +14,9 @@ type Props = {
   togglePlayButton: () => void;
   isPracticeTab: boolean;
   onPressAIPractice: () => void;
-<<<<<<< HEAD
-=======
   canPractice: boolean;
   onPressPractice: () => void;
   activePackage: PackageType | null;
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 };
 
 const OverviewSection = ({
@@ -30,12 +27,9 @@ const OverviewSection = ({
   togglePlayButton,
   isPracticeTab,
   onPressAIPractice,
-<<<<<<< HEAD
-=======
   canPractice,
   onPressPractice,
   activePackage,
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
 }: Props) => {
   return (
     <View
@@ -70,18 +64,11 @@ const OverviewSection = ({
       />
 
       {/* Btn */}
-<<<<<<< HEAD
-      {isPracticeTab && (
-        <Footer
-          onPress={toggleVideoExpand}
-          onPressAIPractice={onPressAIPractice}
-=======
       {isPracticeTab && canPractice && (
         <Footer
           onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
           activePackage={activePackage}
->>>>>>> 12d4234c81ffd99881bdc36b75b812f7f020e8d4
         />
       )}
     </View>

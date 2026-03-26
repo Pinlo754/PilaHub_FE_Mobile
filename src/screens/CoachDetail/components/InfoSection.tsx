@@ -5,13 +5,11 @@ import { colors } from '../../../theme/colors';
 type InfoSectionProps = {
   icon: string;
   title: string;
-  data: string | string[];
+  data: string[];
 };
 
 const InfoSection = ({ icon, title, data }: InfoSectionProps) => {
   if (!data?.length) return null;
-
-  const list = Array.isArray(data) ? data : [data];
 
   return (
     <View className="mt-2">

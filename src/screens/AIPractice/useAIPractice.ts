@@ -1,18 +1,11 @@
 import { RouteProp } from '@react-navigation/native';
-import { RouteProp } from '@react-navigation/native';
 import { useState } from 'react';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'AIPractice'>;
 };
-import { RootStackParamList } from '../../navigation/AppNavigator';
 
-type Props = {
-  route: RouteProp<RootStackParamList, 'AIPractice'>;
-};
-
-export const useAIPractice = ({ route }: Props) => {
 export const useAIPractice = ({ route }: Props) => {
   // CONSTANTS
   const TIMEOUT = 3000;
