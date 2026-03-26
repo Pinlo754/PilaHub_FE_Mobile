@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Image, Pressable, Text, View, StyleSheet } from 'react-native';
 import { ProductType } from '../../../utils/ProductType';
@@ -10,6 +11,7 @@ import Toast from '../../../components/Toast';
 
 type Props = {
   item: ProductType | any;
+  
   onPress: () => void;
 };
 

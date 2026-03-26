@@ -12,16 +12,24 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // STATE
-  const [paused, setPaused] = useState(false);
-  const [duration, setDuration] = useState(0);
+  const [internalPaused, setInternalPaused] = useState(false);
+  const [duration, setDurationState] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // CHECK
-  const isPlaying = isVideoPlay ?? !paused;
+  const isControlled = isVideoPlay !== undefined;
+  const paused = isControlled ? !isVideoPlay : internalPaused;
+  const isPlaying = !paused;
 
   // HANDLERS
+  const setDuration = (d: number) => {
+    if (!isFinite(d) || d <= 0 || d > 100000) return;
+    setDurationState(d); 
+  };
+
   const clearHideTimer = () => {
     if (hideTimer.current) {
       clearTimeout(hideTimer.current);
@@ -48,13 +56,19 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
   };
 
   const togglePlay = () => {
-    setPaused(p => !p);
+    if (isControlled) return;
 
-    if (!isPlaying) {
-      startHideTimer();
-    } else {
-      clearHideTimer();
-    }
+    setInternalPaused(prev => {
+      const next = !prev;
+
+      if (!next) {
+        startHideTimer();
+      } else {
+        clearHideTimer();
+      }
+
+      return next;
+    });
   };
 
   const seek = (time: number) => {
@@ -68,9 +82,13 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
   };
 
   const reset = () => {
-    setPaused(true);
+    if (!isControlled) {
+      setInternalPaused(true);
+    }
     setCurrentTime(0);
-    setDuration(0);
+    setDurationState(0);
+    setIsLoaded(false);
+    videoRef.current?.seek(0);
   };
 
   // USE EFFECT
@@ -107,5 +125,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
     seek,
     seekBy,
     reset,
+    isLoaded,
+    setIsLoaded,
   };
 };

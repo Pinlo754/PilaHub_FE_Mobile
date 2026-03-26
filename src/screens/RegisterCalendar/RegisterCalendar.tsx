@@ -9,6 +9,7 @@ import ChooseDaySection from './components/ChooseDaySection';
 import ModalPopup from '../../components/ModalPopup';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import Footer from './components/Footer';
+import CoachDetail from './components/CoachDetail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RegisterCalendar'>;
 
@@ -50,6 +51,7 @@ const RegisterCalendar = (props: Props) => {
     closeConfirmModal,
     onConfirmModal,
     weekStart,
+    coachDetail,
   } = useRegisterCalendar({
     route: props.route,
     navigation: props.navigation,
@@ -88,6 +90,9 @@ const RegisterCalendar = (props: Props) => {
                 selectedPurpose={selectedPurpose}
                 onPressPurpose={onPressPurpose}
               /> */}
+
+              {/* Coach Detail */}
+              {coachDetail && <CoachDetail coach={coachDetail} />}
 
               {/* Choose Day Section */}
               <ChooseDaySection

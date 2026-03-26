@@ -11,9 +11,15 @@ type Props = {
   item: CoachBookingType;
   onPressBtn: () => void;
   onPressCard: () => void;
+  onPressRecord: () => void;
 };
 
-const CardBooking = ({ item, onPressBtn, onPressCard }: Props) => {
+const CardBooking = ({
+  item,
+  onPressBtn,
+  onPressCard,
+  onPressRecord,
+}: Props) => {
   // VARIABLE
   const config = BOOKING_UI_CONFIG[item.status];
   const { bgColor, textColor, label } = getBookingStatusConfig(item.status);
@@ -112,23 +118,50 @@ const CardBooking = ({ item, onPressBtn, onPressCard }: Props) => {
         </View>
       </View>
 
+      {/* Button */}
       {config.showButton && (
         <>
           {/* Border */}
-          <View className="border-t border-background-sub1 absolute left-0 right-0 top-[155px]" />
+          <View
+            pointerEvents="none"
+            className="border-t border-background-sub1 absolute left-0 right-0 top-[155px]"
+          />
 
-          {/* Button */}
-          <View className="flex self-end mt-6 -mr-2">
-            <Button
-              text={config.buttonText ?? 'Xem'}
-              onPress={onPressBtn}
-              colorType="sub1"
-              rounded="xl"
-              showArrow={true}
-              width={config.buttonWidth}
-              height={40}
-            />
-          </View>
+          {item.status === 'COMPLETED' ? (
+            <View className="flex-row justify-between mt-6 -mx-2">
+              <Button
+                text="Video record"
+                onPress={onPressRecord}
+                colorType="sub1"
+                rounded="xl"
+                showArrow={true}
+                width={config.buttonWidth}
+                height={40}
+              />
+
+              <Button
+                text={config.buttonText ?? 'Xem'}
+                onPress={onPressBtn}
+                colorType="sub1"
+                rounded="xl"
+                showArrow={true}
+                width={config.buttonWidth}
+                height={40}
+              />
+            </View>
+          ) : (
+            <View className="flex items-end mt-6 -mx-2">
+              <Button
+                text={config.buttonText ?? 'Xem'}
+                onPress={onPressBtn}
+                colorType="sub1"
+                rounded="xl"
+                showArrow={true}
+                width={config.buttonWidth}
+                height={40}
+              />
+            </View>
+          )}
         </>
       )}
     </Pressable>

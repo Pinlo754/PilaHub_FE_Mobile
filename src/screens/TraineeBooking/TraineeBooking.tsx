@@ -8,6 +8,8 @@ import List from './components/List';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import DetailModal from './components/DetailModal';
 import FeedbackModal from './components/FeedbackModal';
+import VideoPlayer from './components/VideoPlayer/VideoPlayer';
+import ModalPopup from '../../components/ModalPopup';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TraineeBooking'>;
 
@@ -25,6 +27,13 @@ const TraineeBooking = (props: Props) => {
     showDetailModal,
     showFeedbackModal,
     liveSessionDetail,
+    showRecord,
+    openVideoRecord,
+    closeVideoRecord,
+    errorMsg,
+    showErrorModal,
+    closeErrorModal,
+    recordUrl,
   } = useTraineeBooking();
 
   return (
@@ -45,12 +54,24 @@ const TraineeBooking = (props: Props) => {
           navigation={props.navigation}
           openDetailModal={openDetailModal}
           openFeedbackModal={openFeedbackModal}
+          openVideoRecord={openVideoRecord}
         />
 
         {/* Detail Modal */}
-        {showDetailModal && (
+        {showDetailModal && liveSessionDetail && (
           <View className="absolute inset-0 bg-black/40">
-            <DetailModal visible={showDetailModal} onClose={closeDetailModal} />
+            <DetailModal
+              visible={showDetailModal}
+              onClose={closeDetailModal}
+              liveSessionDetail={liveSessionDetail}
+            />
+          </View>
+        )}
+
+        {/* Video Record */}
+        {showRecord && recordUrl && (
+          <View className="absolute inset-0 z-50 bg-black">
+            <VideoPlayer source={recordUrl} onBack={closeVideoRecord} />
           </View>
         )}
 
@@ -61,6 +82,20 @@ const TraineeBooking = (props: Props) => {
           comment={
             liveSessionDetail?.commentByCoach || 'Chưa có đánh giá từ HLV!'
           }
+        />
+
+        {/* Error Modal */}
+        <ModalPopup
+          visible={showErrorModal}
+          mode="noti"
+          contentText={errorMsg || ''}
+          iconName="alert"
+          iconSize={35}
+          iconBgColor="red"
+          confirmBtnText="Đóng"
+          confirmBtnColor="grey"
+          onClose={closeErrorModal}
+          modalWidth={355}
         />
       </View>
     </>

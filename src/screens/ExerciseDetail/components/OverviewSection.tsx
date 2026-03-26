@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import Tabs from './Tabs';
 import { ExerciseTab } from '../../../constants/exerciseTab';
 import Description from './Description';
-import { ExerciseType } from '../../../utils/ExerciseType';
+import { ExerciseType, PackageType } from '../../../utils/ExerciseType';
 import Footer from './Footer';
 import PlayButton from './PlayButton';
 
@@ -12,9 +12,11 @@ type Props = {
   onChangeTab: (tab: ExerciseTab) => void;
   isVideoPlay: boolean;
   togglePlayButton: () => void;
-  toggleVideoExpand: () => void;
   isPracticeTab: boolean;
   onPressAIPractice: () => void;
+  canPractice: boolean;
+  onPressPractice: () => void;
+  activePackage: PackageType | null;
 };
 
 const OverviewSection = ({
@@ -23,13 +25,15 @@ const OverviewSection = ({
   onChangeTab,
   isVideoPlay,
   togglePlayButton,
-  toggleVideoExpand,
   isPracticeTab,
   onPressAIPractice,
+  canPractice,
+  onPressPractice,
+  activePackage,
 }: Props) => {
   return (
     <View
-      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
+      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${!canPractice || isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
       {!isPracticeTab && (
@@ -41,7 +45,7 @@ const OverviewSection = ({
 
       {/* Name */}
       <Text
-        className={`text-center text-2xl font-bold color-foreground ${isPracticeTab ? 'mt-5' : 'mt-2'}`}
+        className={`text-center text-2xl font-bold color-foreground ${!canPractice || isPracticeTab ? 'mt-5' : 'mt-2'}`}
       >
         {exerciseDetail.name}
       </Text>
@@ -60,10 +64,11 @@ const OverviewSection = ({
       />
 
       {/* Btn */}
-      {isPracticeTab && (
+      {isPracticeTab && canPractice && (
         <Footer
-          onPress={toggleVideoExpand}
+          onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
+          activePackage={activePackage}
         />
       )}
     </View>

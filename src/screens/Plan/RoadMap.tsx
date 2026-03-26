@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   Text,
@@ -9,23 +9,27 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-} from "react-native";
-import { useRoute, useFocusEffect, useNavigation } from "@react-navigation/native";
-import { useRoadmapStore } from "../../store/roadmap.store";
+} from 'react-native';
+import {
+  useRoute,
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
+import { useRoadmapStore } from '../../store/roadmap.store';
 
-import SupplementSection from "./components/SupplementSection";
-import StageCalendar from "./components/StageCalendar";
-import ScheduleDetail from "./components/ScheduleDetail";
-import BottomActionBar from "./components/BottomActionBar";
-import { SafeAreaView } from "react-native-safe-area-context";
-import StageCarousel from "./components/StageCarousel";
-import RoadmapApi from "../../hooks/roadmap.api";
-import { getProfile } from "../../services/auth";
-import StageRendererApi from "./components/StageRendererApi";
+import SupplementSection from './components/SupplementSection';
+import StageCalendar from './components/StageCalendar';
+import ScheduleDetail from './components/ScheduleDetail';
+import BottomActionBar from './components/BottomActionBar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import StageCarousel from './components/StageCarousel';
+import RoadmapApi from '../../hooks/roadmap.api';
+import { getProfile } from '../../services/auth';
+import StageRendererApi from './components/StageRendererApi';
 
 const RoadMap = () => {
   // ensure hooks are called in a stable order: store hook first, then route/navigation
-  const storeList = useRoadmapStore((s) => s.list);
+  const storeList = useRoadmapStore(s => s.list);
   const route: any = useRoute();
   const navigation: any = useNavigation();
 
@@ -39,10 +43,7 @@ const RoadMap = () => {
     null;
 
   const stages =
-    paramAdded?.stages ??
-    route.params?.stages ??
-    storeList?.[0]?.stages ??
-    [];
+    paramAdded?.stages ?? route.params?.stages ?? storeList?.[0]?.stages ?? [];
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -62,7 +63,7 @@ const RoadMap = () => {
       setSaving(true);
 
       const newestData = await RoadmapApi.getNewest();
-      console.log("roadmap newest response", newestData);
+      console.log('roadmap newest response', newestData);
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -72,10 +73,10 @@ const RoadMap = () => {
         [];
 
       if (!roadmapFromServer) {
-        console.log("fetchNewest: no roadmap in response", newestData);
+        console.log('fetchNewest: no roadmap in response', newestData);
         Alert.alert(
-          "Không có lộ trình mới",
-          "Server trả về không có lộ trình mới nhất. Kiểm tra log để biết chi tiết."
+          'Không có lộ trình mới',
+          'Server trả về không có lộ trình mới nhất. Kiểm tra log để biết chi tiết.',
         );
         setSaving(false);
         return;
@@ -94,11 +95,11 @@ const RoadMap = () => {
             RoadmapApi.getSupplements(roadmapId),
           ]);
 
-          if (eqRes.status === "fulfilled") {
+          if (eqRes.status === 'fulfilled') {
             roadmapFromServer.equipment = eqRes.value ?? [];
           }
 
-          if (supplementsRes.status === "fulfilled") {
+          if (supplementsRes.status === 'fulfilled') {
             roadmapFromServer.supplements = supplementsRes.value ?? [];
             setDisplaySupplements(supplementsRes.value ?? []);
           } else {
@@ -106,7 +107,7 @@ const RoadMap = () => {
             setDisplaySupplements([]);
           }
         } catch (err) {
-          console.warn("Lỗi khi lấy equipment/supplements", err);
+          console.warn('Lỗi khi lấy equipment/supplements', err);
           roadmapFromServer.supplements = [];
           setDisplaySupplements([]);
         }
@@ -118,7 +119,7 @@ const RoadMap = () => {
       setDisplayRoadmap(roadmapFromServer);
       setDisplayStages(Array.isArray(stagesFromServer) ? stagesFromServer : []);
     } catch (err: any) {
-      console.warn("fetchNewest error", err);
+      console.warn('fetchNewest error', err);
       setLastError(String(err?.message ?? err));
     } finally {
       setSaving(false);
@@ -138,16 +139,15 @@ const RoadMap = () => {
       }
 
       return () => {};
-    }, [displayRoadmap, fetchNewest])
+    }, [displayRoadmap, fetchNewest]),
   );
 
   // canonical objects used by the UI (prefer fetched display values)
   const currentRoadmap = displayRoadmap ?? roadmap;
   const currentStages = displayStages?.length ? displayStages : stages;
-  const currentSupplements =
-    displaySupplements?.length
-      ? displaySupplements
-      : currentRoadmap?.supplements ?? [];
+  const currentSupplements = displaySupplements?.length
+    ? displaySupplements
+    : (currentRoadmap?.supplements ?? []);
 
   // detect API-shaped stages: entries with .stage property
   const isApiShaped =
@@ -163,13 +163,13 @@ const RoadMap = () => {
 
       const me = await getProfile();
       const role = me.ok
-        ? String(me.data?.account?.role ?? me.data?.role ?? "").toUpperCase()
-        : "";
+        ? String(me.data?.account?.role ?? me.data?.role ?? '').toUpperCase()
+        : '';
 
-      if (role === "COACH") {
+      if (role === 'COACH') {
         Alert.alert(
-          "Chú ý",
-          "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi tải lộ trình mới nhất."
+          'Chú ý',
+          'Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi tải lộ trình mới nhất.',
         );
         setSaving(false);
         return;
@@ -177,7 +177,7 @@ const RoadMap = () => {
 
       // 1) get newest roadmap for trainee
       const newestData = await RoadmapApi.getNewest();
-      console.log("handleSave newest response", newestData);
+      console.log('handleSave newest response', newestData);
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -188,8 +188,8 @@ const RoadMap = () => {
 
       if (!roadmapFromServer) {
         Alert.alert(
-          "Không có lộ trình mới",
-          "Không tìm thấy lộ trình mới nhất cho học viên."
+          'Không có lộ trình mới',
+          'Không tìm thấy lộ trình mới nhất cho học viên.',
         );
         setSaving(false);
         return;
@@ -209,11 +209,11 @@ const RoadMap = () => {
             RoadmapApi.getSupplements(roadmapId),
           ]);
 
-          if (eqRes.status === "fulfilled") {
+          if (eqRes.status === 'fulfilled') {
             roadmapFromServer.equipment = eqRes.value ?? [];
           }
 
-          if (supplementsRes.status === "fulfilled") {
+          if (supplementsRes.status === 'fulfilled') {
             roadmapFromServer.supplements = supplementsRes.value ?? [];
             setDisplaySupplements(supplementsRes.value ?? []);
           } else {
@@ -221,7 +221,7 @@ const RoadMap = () => {
             setDisplaySupplements([]);
           }
         } catch (err) {
-          console.warn("Lỗi khi lấy equipment/supplements", err);
+          console.warn('Lỗi khi lấy equipment/supplements', err);
           roadmapFromServer.supplements = [];
           setDisplaySupplements([]);
         }
@@ -234,17 +234,20 @@ const RoadMap = () => {
       setDisplayRoadmap(roadmapFromServer);
       setDisplayStages(Array.isArray(stagesFromServer) ? stagesFromServer : []);
 
-      Alert.alert("Đã tải", "Đã tải lộ trình mới nhất, thiết bị và supplements.");
+      Alert.alert(
+        'Đã tải',
+        'Đã tải lộ trình mới nhất, thiết bị và supplements.',
+      );
     } catch (err: any) {
-      console.error("Fetch newest roadmap error", err);
+      console.error('Fetch newest roadmap error', err);
       setLastError(String(err?.message ?? err));
 
       const message =
         err?.response?.data?.message ??
         err?.message ??
-        "Không thể tải lộ trình mới nhất";
+        'Không thể tải lộ trình mới nhất';
 
-      Alert.alert("Lỗi", message);
+      Alert.alert('Lỗi', message);
     } finally {
       setSaving(false);
     }
@@ -264,7 +267,10 @@ const RoadMap = () => {
       <SafeAreaView style={styles.centeredContainer}>
         <Text style={styles.emptyTitle}>Không có dữ liệu lộ trình</Text>
 
-        <TouchableOpacity onPress={() => fetchNewest()} style={styles.buttonPrimary}>
+        <TouchableOpacity
+          onPress={() => fetchNewest()}
+          style={styles.buttonPrimary}
+        >
           <Text style={styles.buttonPrimaryText}>Tải lộ trình mới nhất</Text>
         </TouchableOpacity>
 
@@ -293,7 +299,7 @@ const RoadMap = () => {
 
   const selectedSchedule =
     selectedStage?.schedules?.find((s: any) =>
-      selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false
+      selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false,
     ) ?? null;
 
   const selectedStageId =
@@ -304,7 +310,7 @@ const RoadMap = () => {
 
   const selectedStageSupplements = selectedStageId
     ? currentSupplements.filter(
-        (sp: any) => sp.personalStageId === selectedStageId
+        (sp: any) => sp.personalStageId === selectedStageId,
       )
     : currentSupplements;
 
@@ -345,7 +351,9 @@ const RoadMap = () => {
                 <View
                   style={[
                     styles.progressBarFill,
-                    { width: `${Math.max(0, Math.min(100, Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)))}%` },
+                    {
+                      width: `${Math.max(0, Math.min(100, Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)))}%`,
+                    },
                   ]}
                 />
               </View>
@@ -356,7 +364,10 @@ const RoadMap = () => {
         {/* Stage selector */}
         <View style={styles.stageSelector}>
           {isApiShaped ? (
-            <StageRendererApi apiStages={currentStages} roadmap={currentRoadmap} />
+            <StageRendererApi
+              apiStages={currentStages}
+              roadmap={currentRoadmap}
+            />
           ) : (
             <StageCarousel
               stages={currentStages}
@@ -391,8 +402,12 @@ const RoadMap = () => {
                     <ScheduleDetail schedule={selectedSchedule} />
                   ) : (
                     <View style={{ padding: 20 }}>
-                      <Text style={{ color: '#3A2A1A', fontSize: 16 }}>Không có lịch cho ngày này.</Text>
-                      <Text style={{ color: '#6B6B6B', marginTop: 8 }}>Vui lòng chọn ngày có lịch để xem bài tập.</Text>
+                      <Text style={{ color: '#3A2A1A', fontSize: 16 }}>
+                        Không có lịch cho ngày này.
+                      </Text>
+                      <Text style={{ color: '#6B6B6B', marginTop: 8 }}>
+                        Vui lòng chọn ngày có lịch để xem bài tập.
+                      </Text>
                     </View>
                   )}
                 </ScrollView>
@@ -407,9 +422,7 @@ const RoadMap = () => {
         {/* Equipment fetched for current roadmap (if any) */}
         {currentRoadmap?.equipment ? (
           <View style={styles.sectionWrap}>
-            <Text style={styles.equipmentTitle}>
-              Thiết bị
-            </Text>
+            <Text style={styles.equipmentTitle}>Thiết bị</Text>
 
             {Array.isArray(currentRoadmap.equipment) ? (
               currentRoadmap.equipment.map((eq: any, idx: number) => (
@@ -419,16 +432,28 @@ const RoadMap = () => {
                   onPress={() => {
                     const q = eq.equipmentName ?? eq.name ?? '';
                     // suggest products by equipment name/category
-                    navigation.navigate('ShopSearchResult' as any, { q, roadmapFilter: { category: 'Thiết bị', equipmentName: q } });
+                    navigation.navigate('ShopSearchResult' as any, {
+                      q,
+                      roadmapFilter: { category: 'Thiết bị', equipmentName: q },
+                    });
                   }}
                 >
                   <View style={styles.itemRow}>
                     {/* Left: image */}
-                    {(
-                      eq.imageUrl || eq.image || eq.thumbnailUrl || eq.equipmentImageUrl || eq.photo
-                    ) ? (
+                    {eq.imageUrl ||
+                    eq.image ||
+                    eq.thumbnailUrl ||
+                    eq.equipmentImageUrl ||
+                    eq.photo ? (
                       <Image
-                        source={{ uri: eq.imageUrl || eq.image || eq.thumbnailUrl || eq.equipmentImageUrl || eq.photo }}
+                        source={{
+                          uri:
+                            eq.imageUrl ||
+                            eq.image ||
+                            eq.thumbnailUrl ||
+                            eq.equipmentImageUrl ||
+                            eq.photo,
+                        }}
                         style={styles.itemImage}
                         resizeMode="cover"
                       />
@@ -438,26 +463,33 @@ const RoadMap = () => {
 
                     {/* Right: info */}
                     <View style={styles.itemContent}>
-                      <Text style={styles.itemTitle}>{eq.equipmentName ?? eq.name ?? "Thiết bị"}</Text>
-                      {eq.description ? <Text style={styles.itemSubtitle}>{eq.description}</Text> : null}
+                      <Text style={styles.itemTitle}>
+                        {eq.equipmentName ?? eq.name ?? 'Thiết bị'}
+                      </Text>
+                      {eq.description ? (
+                        <Text style={styles.itemSubtitle}>
+                          {eq.description}
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
               <View style={[styles.itemCard, styles.itemCardPadding]}>
-                <Text style={styles.itemSubtitle}>{JSON.stringify(currentRoadmap.equipment)}</Text>
+                <Text style={styles.itemSubtitle}>
+                  {JSON.stringify(currentRoadmap.equipment)}
+                </Text>
               </View>
             )}
           </View>
         ) : null}
 
         {/* New supplement block from roadmap API */}
-        {Array.isArray(selectedStageSupplements) && selectedStageSupplements.length > 0 ? (
+        {Array.isArray(selectedStageSupplements) &&
+        selectedStageSupplements.length > 0 ? (
           <View style={styles.sectionWrap}>
-            <Text style={styles.supplementTitle}>
-              Supplements
-            </Text>
+            <Text style={styles.supplementTitle}>Supplements</Text>
 
             {selectedStageSupplements.map((sp: any, idx: number) => (
               <TouchableOpacity
@@ -465,56 +497,120 @@ const RoadMap = () => {
                 style={styles.itemCard}
                 onPress={() => {
                   const q = sp.supplementName ?? 'Supplement';
-                  navigation.navigate('ShopSearchResult' as any, { q, roadmapFilter: { category: 'Thực phẩm chức năng', supplementName: q } });
+                  navigation.navigate('ShopSearchResult' as any, {
+                    q,
+                    roadmapFilter: {
+                      category: 'Thực phẩm chức năng',
+                      supplementName: q,
+                    },
+                  });
                 }}
               >
                 <View style={styles.itemRow}>
                   {sp.supplementImageUrl ? (
-                    <Image source={{ uri: sp.supplementImageUrl }} style={styles.itemImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: sp.supplementImageUrl }}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={styles.itemImage} />
                   )}
 
                   <View style={styles.itemContent}>
                     <View style={styles.itemHeaderRow}>
-                      <Text style={styles.itemTitle}>{sp.supplementName ?? "Supplement"}</Text>
-                      {sp.priority ? <View style={styles.badge}><Text style={styles.badgeText}>{sp.priority}</Text></View> : null}
+                      <Text style={styles.itemTitle}>
+                        {sp.supplementName ?? 'Supplement'}
+                      </Text>
+                      {sp.priority ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{sp.priority}</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    {sp.recommendedTiming ? <Text style={styles.itemSubtitle}>Thời điểm: {sp.recommendedTiming}</Text> : null}
-                    {sp.dosage ? <Text style={styles.itemSubtitle}>Liều dùng: {sp.dosage}</Text> : null}
-                    {sp.reason ? <Text style={styles.itemSubtitle}>Lý do: {sp.reason}</Text> : null}
-                    {sp.notes ? <Text style={styles.itemSubtitle}>Ghi chú: {sp.notes}</Text> : null}
-                    <Text style={styles.smallText}>Optional: {sp.optional ? "Yes" : "No"}</Text>
+                    {sp.recommendedTiming ? (
+                      <Text style={styles.itemSubtitle}>
+                        Thời điểm: {sp.recommendedTiming}
+                      </Text>
+                    ) : null}
+                    {sp.dosage ? (
+                      <Text style={styles.itemSubtitle}>
+                        Liều dùng: {sp.dosage}
+                      </Text>
+                    ) : null}
+                    {sp.reason ? (
+                      <Text style={styles.itemSubtitle}>
+                        Lý do: {sp.reason}
+                      </Text>
+                    ) : null}
+                    {sp.notes ? (
+                      <Text style={styles.itemSubtitle}>
+                        Ghi chú: {sp.notes}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.smallText}>
+                      Optional: {sp.optional ? 'Yes' : 'No'}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
             ))}
           </View>
-        ) : Array.isArray(currentSupplements) && currentSupplements.length > 0 ? (
+        ) : Array.isArray(currentSupplements) &&
+          currentSupplements.length > 0 ? (
           <View style={styles.sectionWrap}>
-            <Text style={styles.supplementTitle}>
-              Supplements
-            </Text>
+            <Text style={styles.supplementTitle}>Supplements</Text>
 
             {currentSupplements.map((sp: any, idx: number) => (
-              <View key={sp.personalStageSupplementId ?? idx} style={styles.itemCard}>
+              <View
+                key={sp.personalStageSupplementId ?? idx}
+                style={styles.itemCard}
+              >
                 <View style={styles.itemRow}>
                   {sp.supplementImageUrl ? (
-                    <Image source={{ uri: sp.supplementImageUrl }} style={styles.itemImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: sp.supplementImageUrl }}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={styles.itemImage} />
                   )}
 
                   <View style={styles.itemContent}>
                     <View style={styles.itemHeaderRow}>
-                      <Text style={styles.itemTitle}>{sp.supplementName ?? "Supplement"}</Text>
-                      {sp.priority ? <View style={styles.badge}><Text style={styles.badgeText}>{sp.priority}</Text></View> : null}
+                      <Text style={styles.itemTitle}>
+                        {sp.supplementName ?? 'Supplement'}
+                      </Text>
+                      {sp.priority ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{sp.priority}</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    {sp.recommendedTiming ? <Text style={styles.itemSubtitle}>Thời điểm: {sp.recommendedTiming}</Text> : null}
-                    {sp.dosage ? <Text style={styles.itemSubtitle}>Liều dùng: {sp.dosage}</Text> : null}
-                    {sp.reason ? <Text style={styles.itemSubtitle}>Lý do: {sp.reason}</Text> : null}
-                    {sp.notes ? <Text style={styles.itemSubtitle}>Ghi chú: {sp.notes}</Text> : null}
-                    <Text style={styles.smallText}>Optional: {sp.optional ? "Yes" : "No"}</Text>
+                    {sp.recommendedTiming ? (
+                      <Text style={styles.itemSubtitle}>
+                        Thời điểm: {sp.recommendedTiming}
+                      </Text>
+                    ) : null}
+                    {sp.dosage ? (
+                      <Text style={styles.itemSubtitle}>
+                        Liều dùng: {sp.dosage}
+                      </Text>
+                    ) : null}
+                    {sp.reason ? (
+                      <Text style={styles.itemSubtitle}>
+                        Lý do: {sp.reason}
+                      </Text>
+                    ) : null}
+                    {sp.notes ? (
+                      <Text style={styles.itemSubtitle}>
+                        Ghi chú: {sp.notes}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.smallText}>
+                      Optional: {sp.optional ? 'Yes' : 'No'}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -549,47 +645,131 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerTextWrap: { flex: 1, paddingRight: 8 },
   cardTitle: { color: '#3A2A1A', fontSize: 18, fontWeight: '700' },
   cardSubtitle: { color: '#6B6B6B', marginTop: 4, fontSize: 13 },
-  statBox: { minWidth: 48, height: 32, borderRadius: 8, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center' },
+  statBox: {
+    minWidth: 48,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F3EDE3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statText: { color: '#8B4513', fontWeight: '700' },
   progressWrap: { marginTop: 10 },
   stageSelector: { marginTop: 12 },
   sectionWrap: { paddingHorizontal: 16, marginTop: 24 },
   sectionTitle: { fontWeight: '700', marginBottom: 8 },
-  equipmentTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#8B4513' },
-  supplementTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#8B4513' },
+  equipmentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#8B4513',
+  },
+  supplementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#8B4513',
+  },
 
   // items
-  itemCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#eee', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  itemCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
   itemCardPadding: { paddingVertical: 12 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  itemImage: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#f3f4f6' },
+  itemImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
   itemContent: { flex: 1 },
-  itemHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  itemHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   itemTitle: { fontSize: 16, color: '#3A2A1A', fontWeight: '700' },
   itemSubtitle: { fontSize: 13, color: '#6B6B6B', marginTop: 6 },
-  badge: { backgroundColor: '#F3EDE3', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  badge: {
+    backgroundColor: '#F3EDE3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
   badgeText: { color: '#8B4513', fontWeight: '700', fontSize: 11 },
   smallText: { fontSize: 12, color: '#8B8B8B', marginTop: 6 },
 
   // buttons / empty state
-  centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  centeredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
   loadingText: { marginTop: 12, fontSize: 16, color: '#8B4513' },
-  emptyTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16, textAlign: 'center', color: '#3A2A1A' },
-  buttonPrimary: { backgroundColor: '#8B4513', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#3A2A1A',
+  },
+  buttonPrimary: {
+    backgroundColor: '#8B4513',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
   buttonPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 16 },
 
   // code / debug box
-  codeBox: { backgroundColor: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', marginTop: 8 },
+  codeBox: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginTop: 8,
+  },
   // progress bar styles (used in header card)
-  progressBarBg: { width: '100%', height: 10, backgroundColor: '#F3EDE3', borderRadius: 6, overflow: 'hidden' },
+  progressBarBg: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#F3EDE3',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
   progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
 
   // modal styles
   modalContainer: { flex: 1, backgroundColor: '#F3EDE3' },
-  modalHeader: { height: 56, paddingHorizontal: 16, alignItems: 'flex-end', justifyContent: 'center' },
+  modalHeader: {
+    height: 56,
+    paddingHorizontal: 16,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
   closeText: { color: '#8B4513', fontWeight: '600' },
 });

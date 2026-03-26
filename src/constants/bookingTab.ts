@@ -34,7 +34,7 @@ export const BOOKING_UI_CONFIG: Record<BookingStatus, ConfigItem> = {
   },
 
   COMPLETED: {
-    disablePressCard: true,
+    disablePressCard: false,
     showButton: true,
     buttonText: 'Xem đánh giá',
     buttonWidth: 150,

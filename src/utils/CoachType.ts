@@ -9,8 +9,8 @@ export type CoachType = {
   avgRating: number | null;
   yearsOfExperience: number;
   bio: string;
-  specialization: string[];
-  certificationsUrl: string[];
+  specialization: string;
+  certificationsUrl: string;
   pricePerHour: number;
   active: boolean;
 };

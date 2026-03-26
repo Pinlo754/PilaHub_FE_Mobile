@@ -16,6 +16,7 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'TraineeBooking'>;
   openDetailModal: (bookingId: string) => void;
   openFeedbackModal: (bookingId: string) => void;
+  openVideoRecord: (bookingId: string) => void;
 };
 
 const List = ({
@@ -24,6 +25,7 @@ const List = ({
   navigation,
   openDetailModal,
   openFeedbackModal,
+  openVideoRecord,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
@@ -79,6 +81,7 @@ const List = ({
         item={item}
         onPressBtn={() => handlePress(item.status)}
         onPressCard={() => handlePressCard(item.status)}
+        onPressRecord={() => openVideoRecord(item.id)}
       />
     );
   };

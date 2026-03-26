@@ -34,7 +34,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       />
 
       <Animated.ScrollView
-        contentContainerStyle={{ paddingBottom: 320 }}
+        contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -55,6 +55,10 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
         />
 
         {/* Overview Section */}
+        <OverviewSection
+          coachDetail={coachDetail}
+          coachFeedbacks={coachFeedbacks}
+        />
         <OverviewSection
           coachDetail={coachDetail}
           coachFeedbacks={coachFeedbacks}

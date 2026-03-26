@@ -31,7 +31,7 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
           </View>
 
           <Text className="text-secondaryText font-medium">
-            {secondsToTime(exerciseDetail.default_duration_sec)}
+            {secondsToTime(exerciseDetail.duration)}
           </Text>
         </View>
 

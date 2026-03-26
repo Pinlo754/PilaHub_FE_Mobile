@@ -1,8 +1,8 @@
 import { ListTab } from '../constants/listTab';
-import { CourseType } from './CourseType';
 import { ExerciseType } from './ExerciseType';
+import { TraineeCourseType } from './TraineeCourseType';
 
 export type TabTypeMap = {
   [ListTab.Exercise]: ExerciseType;
-  [ListTab.Course]: CourseType;
+  [ListTab.Course]: TraineeCourseType;
 };

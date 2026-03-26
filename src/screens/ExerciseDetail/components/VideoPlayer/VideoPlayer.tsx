@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, View, Dimensions, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
 import { useVideoPlayer } from '../../../../hooks/useVideoPlayer';
@@ -14,12 +14,7 @@ type Props = {
   toggleVideoExpand: () => void;
   isPracticeTab: boolean;
   setIsShowFlag: (v: boolean) => void;
-  personalExerciseId?: string; // optional id passed from parent
-  personalScheduleId?: string; // optional schedule id
-  onEnd?: () => Promise<void> | void;
-  onLoad?: (duration: number) => void;
-  onProgress?: (currentTime: number, duration: number) => void;
-  hideControls?: boolean;
+  onVideoEnd: () => void;
 };
 
 export default function VideoPlayer({
@@ -29,12 +24,7 @@ export default function VideoPlayer({
   toggleVideoExpand,
   isPracticeTab,
   setIsShowFlag,
-  personalExerciseId,
-  personalScheduleId,
-  onEnd,
-  onLoad,
-  onProgress,
-  hideControls,
+  onVideoEnd,
 }: Props) {
   // HOOOK
   const player = useVideoPlayer({
@@ -42,55 +32,58 @@ export default function VideoPlayer({
     setIsShowControls: setIsShowFlag,
   });
 
-  const onVideoComplete = async () => {
-    try {
-      // if parent provided onEnd, delegate completion handling to parent
-      if (typeof onEnd === 'function') {
-        await onEnd();
-        return;
-      }
-      if (!personalExerciseId) return;
-      console.log('[VideoPlayer] marking exercise complete', personalExerciseId);
-      await exerciseRoadmapService.completePersonalExercise(personalExerciseId);
-      console.log('[VideoPlayer] exercise marked complete');
+  const [ready, setReady] = useState(false);
 
-      if (personalScheduleId) {
-        const exercises = await exerciseRoadmapService.getExercisesBySchedule(personalScheduleId);
-        const allDone = Array.isArray(exercises) && exercises.every((e: any) => e.completed === true || e.isCompleted === true || e.is_completed === true);
-        if (allDone) {
-          console.log('[VideoPlayer] all exercises done for schedule, marking schedule complete', personalScheduleId);
-          await exerciseRoadmapService.completePersonalSchedule(personalScheduleId);
-          console.log('[VideoPlayer] schedule marked complete');
-        }
-      }
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 100); 
+    return () => clearTimeout(t);
+  }, [source]);
 
-      // basic user feedback
-      Alert.alert('Hoàn thành', 'Bài tập được đánh dấu hoàn thành');
-    } catch (err: any) {
-      console.error('[VideoPlayer] complete error', err);
-      Alert.alert('Lỗi', 'Không thể đánh dấu hoàn thành. Vui lòng thử lại.');
-    }
-  };
+  useEffect(() => {
+    player.reset(); 
+  }, [source]);
 
   return (
     <View
       className="w-full"
       style={{ height: isVideoExpand ? height * 0.95 : height * 0.5 }}
     >
-      <VideoSurface
-        videoRef={player.videoRef}
-        source={String(source ?? '')}
-        paused={!isVideoPlay}
-        onLoad={d => {
-          player.setDuration(d.duration);
-          if (typeof onLoad === 'function') onLoad(d.duration);
-        }}
-        onProgress={p => {
-          player.setCurrentTime(p.currentTime);
-          if (typeof onProgress === 'function') onProgress(p.currentTime, player.duration);
-        }}
-        onEnd={onVideoComplete}
-      />
+      {ready && (
+        <VideoSurface
+          key={`${source}`}
+          videoRef={player.videoRef}
+          source={source}
+          paused={player.paused}
+          onLoad={d => {
+            const duration = d.duration;
+            if (!isFinite(duration) || duration <= 0 || duration > 100000)
+              return;
+
+            player.setDuration(duration);
+            player.setIsLoaded(true);
+          }}
+          onProgress={p => {
+            if (!player.isLoaded) {
+              // Vẫn chưa load xong nhưng progress đã có → dùng làm fallback
+              if (p.seekableDuration > 0 && p.seekableDuration < 100000) {
+                player.setDuration(p.seekableDuration);
+                player.setIsLoaded(true); // mark loaded từ progress
+              }
+              return;
+            }
+
+            if (p.currentTime >= 0) {
+              player.setCurrentTime(p.currentTime);
+            }
+
+            // Luôn cập nhật duration nếu seekableDuration hợp lệ hơn
+            if (p.seekableDuration > 0 && p.seekableDuration < 100000) {
+              player.setDuration(p.seekableDuration);
+            }
+          }}
+          onEnd={onVideoEnd}
+        />
+      )}
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">
         {/* CONTROLS */}

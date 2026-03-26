@@ -8,6 +8,8 @@ import Header from './components/Header';
 import OverviewSection from './components/OverviewSection';
 import StatsSection from './components/StatsSection';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
+import LoadingOverlay from '../../components/LoadingOverlay';
+import ModalPopup from '../../components/ModalPopup';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 
@@ -16,7 +18,6 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
   const {
     activeTab,
     exerciseDetail,
-    tutorial,
     onChangeTab,
     isVideoVisible,
     isPlaying,
@@ -25,69 +26,119 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     isShowFlag,
     toggleVideoExpand,
     isVideoExpand,
-    navigatePracticeTab,
     setIsShowFlag,
     onPressAIPractice,
+    canPractice,
+    isLoading,
+    onPressPractice,
+    handleVideoEnd,
+    closeSuccessModal,
+    showSuccessModal,
+    successMsg,
+    activePackage,
+    currentTutorial,
+    closeConfirmModal,
+    confirmMsg,
+    onConfirmModal,
+    showConfirmModal,
+    onPressBack,
+    currentExercise,
   } = useExerciseDetail({
     route,
     navigation,
   });
 
-  // LOADING
-  if (!exerciseDetail || !tutorial) return null;
-
   return (
-    <View className="w-full flex-1 relative">
-      {/* Header */}
-      <Header
-        activeTab={activeTab}
-        isVideoExpand={isVideoExpand}
-        isVideoPlay={isPlaying}
-        isShowFlag={isShowFlag}
-        navigation={navigation}
-        navigatePracticeTab={navigatePracticeTab}
-        exerciseId={exerciseDetail.exerciseId}
-      />
+    <View className="w-full flex-1 relative bg-background">
+      {isLoading && <LoadingOverlay />}
 
-      {/* Image / Video */}
-      {isVideoVisible ? (
-        <VideoPlayer
-          source={
-            isPracticeTab
-              ? tutorial?.practiceVideoUrl
-              : tutorial?.theoryVideoUrl
-          }
-          isVideoPlay={isPlaying}
-          isVideoExpand={isVideoExpand}
-          toggleVideoExpand={toggleVideoExpand}
-          isPracticeTab={isPracticeTab}
-          setIsShowFlag={setIsShowFlag}
-          personalExerciseId={exerciseDetail?.exerciseId}
-          personalScheduleId={(exerciseDetail as any)?.personalScheduleId}
-        />
+      {!exerciseDetail || !currentTutorial || !currentExercise ? (
+        <></>
       ) : (
-        <ImageExercise imgUrl={exerciseDetail?.imageUrl} />
-      )}
+        <>
+          {/* Header */}
+          <Header
+            activeTab={activeTab}
+            isVideoExpand={isVideoExpand}
+            isVideoPlay={isPlaying}
+            isShowFlag={isShowFlag}
+            navigation={navigation}
+            exerciseId={currentExercise.exerciseId}
+            onPressBack={onPressBack}
+          />
 
-      {/* Overview / Stats */}
-      {isVideoExpand ? (
-        <StatsSection
-          isPracticeTab={isPracticeTab}
-          exerciseName={exerciseDetail.name}
-          isVideoPlay={isPlaying}
-          togglePlayButton={togglePlayButton}
-        />
-      ) : (
-        <OverviewSection
-          activeTab={activeTab}
-          exerciseDetail={exerciseDetail}
-          onChangeTab={onChangeTab}
-          isVideoPlay={isPlaying}
-          togglePlayButton={togglePlayButton}
-          toggleVideoExpand={toggleVideoExpand}
-          isPracticeTab={isPracticeTab}
-          onPressAIPractice={onPressAIPractice}
-        />
+          {/* Image / Video */}
+          {isVideoVisible ? (
+            <VideoPlayer
+              source={
+                isPracticeTab
+                  ? currentTutorial?.practiceVideoUrl
+                  : currentTutorial?.theoryVideoUrl
+              }
+              isVideoPlay={isPlaying}
+              isVideoExpand={isVideoExpand}
+              toggleVideoExpand={toggleVideoExpand}
+              isPracticeTab={isPracticeTab}
+              setIsShowFlag={setIsShowFlag}
+              onVideoEnd={handleVideoEnd}
+            />
+          ) : (
+            <ImageExercise imgUrl={currentExercise?.imageUrl} />
+          )}
+
+          {/* Overview / Stats */}
+          {isVideoExpand ? (
+            <StatsSection
+              isPracticeTab={isPracticeTab}
+              exerciseName={currentExercise.name}
+              isVideoPlay={isPlaying}
+              togglePlayButton={togglePlayButton}
+              exerciseDuration={currentExercise.duration}
+            />
+          ) : (
+            <OverviewSection
+              activeTab={activeTab}
+              exerciseDetail={currentExercise}
+              onChangeTab={onChangeTab}
+              isVideoPlay={isPlaying}
+              togglePlayButton={togglePlayButton}
+              isPracticeTab={isPracticeTab}
+              onPressAIPractice={onPressAIPractice}
+              canPractice={canPractice}
+              onPressPractice={onPressPractice}
+              activePackage={activePackage}
+            />
+          )}
+
+          {/* Success Modal */}
+          <ModalPopup
+            visible={showSuccessModal}
+            mode="toast"
+            contentText={successMsg}
+            iconName="checkmark"
+            iconSize={35}
+            iconBgColor="green"
+            onClose={closeSuccessModal}
+            modalWidth={355}
+          />
+
+          {/* Confirm Modal */}
+          <ModalPopup
+            visible={showConfirmModal}
+            mode="confirm"
+            contentText={confirmMsg}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="yellow"
+            confirmBtnText="Xác nhận"
+            confirmBtnColor="green"
+            cancelBtnText="Đóng"
+            cancelBtnColor="grey"
+            onConfirm={onConfirmModal}
+            onClose={closeConfirmModal}
+            modalWidth={355}
+          />
+        </>
       )}
     </View>
   );

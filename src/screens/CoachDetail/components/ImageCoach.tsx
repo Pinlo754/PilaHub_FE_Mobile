@@ -10,14 +10,12 @@ type Props = {
 const ImageCoach = ({ avatarUrl, coachName }: Props) => {
 
   return (
-    <View className="w-full h-[40%] overflow-hidden relative">
-      {avatarUrl && (
-        <Image
-          source={{ uri: avatarUrl }}
-          style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
-        />
-      )}
+    <View className="w-full h-[320px] overflow-hidden relative">
+      <Image
+        source={{ uri: avatarUrl }}
+        style={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+      />
 
       <LinearGradient
         colors={[

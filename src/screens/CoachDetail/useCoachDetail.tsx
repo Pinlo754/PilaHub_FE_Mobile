@@ -29,18 +29,28 @@ export const useCoachDetail = ({ route, navigation }: Props) => {
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // FETCH
-  const fetchById = () => {
-    api.get(`/coaches/${coachId}`).then((res) => {
-      if (res.data.success) {
-        setCoachDetail(res.data.data);
+  const fetchById = async () => {
+    if (!coachId) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [resCoach, resCoachFeedback] = await Promise.all([
+        CoachService.getById(coachId),
+        coachFeedbackService.getById(coachId),
+      ]);
+
+      setCoachDetail(resCoach);
+      setCoachFeedbacks(resCoachFeedback);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
       } else {
-        throw {
-          type: 'BUSINESS_ERROR',
-          message: res.data.message,
-          errorCode: res.data.errorCode,
-        };
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
       }
-    });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // HANDLERS

@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
-import { IRtcEngine, RtcStats, UserOfflineReasonType } from 'react-native-agora';
+import {
+  IRtcEngine,
+  RtcStats,
+  UserOfflineReasonType,
+} from 'react-native-agora';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -30,7 +34,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
   const [cameraOn, setCameraOn] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // UI State
   const [showInstruct, setShowInstruct] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
@@ -44,8 +48,10 @@ export const useVideoCall = ({ navigation, route }: Props) => {
         PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
       ]);
       return (
-        granted['android.permission.CAMERA'] === PermissionsAndroid.RESULTS.GRANTED &&
-        granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED
+        granted['android.permission.CAMERA'] ===
+          PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.RECORD_AUDIO'] ===
+          PermissionsAndroid.RESULTS.GRANTED
       );
     } catch (err) {
       console.warn('Permission error:', err);
@@ -65,7 +71,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
       // 1. Lấy Config & Session Data
       const [resConfig, resLiveSession] = await Promise.all([
         PublicConfigService.getAgoraConfig(),
-        LiveSessionService.getByBookingId(bookingIdParam)
+        LiveSessionService.getByBookingId(bookingIdParam),
       ]);
       console.log('[VideoCall] PublicConfig:', resConfig);
       console.log('[VideoCall] LiveSession fetched:', resLiveSession);
@@ -88,7 +94,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
 
       // 3. Đăng ký Event Handler (Quan trọng để nhận Remote UID)
       engineInstance.registerEventHandler({
-        onJoinChannelSuccess: (connection) => {
+        onJoinChannelSuccess: connection => {
           console.log('✅ Local joined:', connection.localUid);
           setConnected(true);
           setDebugInfo(prev => ({ ...(prev ?? {}), uid: connection.localUid }));
@@ -107,7 +113,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
         onLeaveChannel: () => {
           setConnected(false);
           setRemoteUid(null);
-        }
+        },
       });
 
       // 4. Join Channel
@@ -131,7 +137,6 @@ export const useVideoCall = ({ navigation, route }: Props) => {
       } catch (mErr) {
         console.error('[VideoCall] markJoined failed', mErr);
       }
-
     } catch (err: any) {
       console.error('Init Error:', err);
       setError(err?.message || 'Không thể kết nối cuộc gọi video.');
