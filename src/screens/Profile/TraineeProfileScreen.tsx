@@ -147,7 +147,7 @@ const TraineeProfileScreen: React.FC = () => {
   return (
     <SafeAreaView className="flex-1 bg-amber-50">
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <Pressable onPress={() => navigation.goBack()} className="p-2"><Text className="text-xl">‹</Text></Pressable>
+        <Pressable onPress={() => (navigation as any).navigate('MainTabs')} className="p-2"><Text className="text-xl">‹</Text></Pressable>
         <Text className="text-lg font-semibold">Hồ sơ</Text>
         <View className="w-8" />
       </View>
@@ -172,7 +172,7 @@ const TraineeProfileScreen: React.FC = () => {
 
             <PlanList plans={[{ title: 'Lộ trình giảm mỡ 8 tuần', subtitle: '3 buổi/tuần — Tập trung core & cardio', sessions: '3 buổi/tuần', duration: '8 tuần', frequency: '3 lần/tuần', coach: 'Coach An' }]} onOpen={(p)=> Alert.alert('Mở kế hoạch', JSON.stringify(p))} />
 
-            <Pressable className="mt-4" onPress={() => (navigation as any).navigate('HealthProfiles')}>
+            <Pressable className="mt-4" onPress={() => (navigation as any).navigate('BodyMetricDetails')}>
                <View className="bg-amber-50 rounded-lg p-4 shadow">
                  <View className="flex-row justify-between items-center">
                    <View>

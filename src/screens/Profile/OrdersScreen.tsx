@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, ActivityIndicator, Alert, Pressable, StyleSheet,  RefreshControl, Image } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, Alert, Pressable, StyleSheet,  RefreshControl, Image, ScrollView } from 'react-native';
 import { Modal, TextInput } from 'react-native';
-import { getMyOrders, cancelOrder, confirmOrderDetail, requestOrderDetailReturn } from '../../services/order';
+import { getMyOrders, cancelOrder, confirmOrderDetail, requestOrderDetailReturn, requestOrderReturn } from '../../services/order';
+import { mapOrderStatusLabel, statusColor, ORDER_STATUS_FILTERS, statusIcon, statusEmoji } from '../../utils/orderStatus';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const placeholderImg = require('../../assets/placeholderAvatar.png');
@@ -44,10 +45,14 @@ const styles = StyleSheet.create({
   iconButton: { padding: 6 },
   emptyContainer: { flex: 1, alignItems: 'center', marginTop: 40 },
   emptyText: { marginTop: 12, color: '#666' },
-  tabsRow: { flexDirection: 'row', backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, margin: 12, alignItems: 'center' },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, marginRight: 8 },
+  tabsWrapper: { backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, margin: 12 },
+  tabsRow: { flexDirection: 'row' },
+  tab: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 999, marginRight: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   tabActive: { backgroundColor: '#FDE68A', shadowColor: '#FDE68A', shadowOpacity: 0.6, shadowRadius: 6, elevation: 2 },
-  tabText: { color: '#333' },
+  tabText: { color: '#333', fontSize: 14 },
+  tabContent: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  tabIcon: { marginRight: 8 },
+  tabEmoji: { marginRight: 6, fontSize: 14 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
   modalCard: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   modalTitle: { fontWeight: '700', fontSize: 16, marginBottom: 8 },
@@ -63,21 +68,12 @@ const styles = StyleSheet.create({
   alignEnd: { alignItems: 'flex-end' },
   ml8: { marginLeft: 8 },
   detailsRowStart: { justifyContent: 'flex-start' },
+  tabsScrollContent: { paddingHorizontal: 12, alignItems: 'center' },
+  tabsScroll: { paddingHorizontal: 12 },
 });
 
-const TABS = [
-  { key: 'ALL', label: 'Tất cả' },
-  { key: 'PROCESSING', label: 'Đang xử lý' },
-  { key: 'COMPLETED', label: 'Hoàn tất' },
-  { key: 'CANCELLED', label: 'Đã huỷ' },
-];
-
-// Map which shipment statuses should be considered matching each order tab
-const SHIPMENT_MATCH_MAP: Record<string, string[]> = {
-  PROCESSING: ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'],
-  COMPLETED: ['DELIVERED'],
-  CANCELLED: ['CANCELLED', 'FAILED_DELIVERY', 'RETURNED', 'REFUNDED'],
-};
+const TABS = ORDER_STATUS_FILTERS;
+// ORDER_STATUS_FILTERS includes 'ALL' plus every backend OrderStatus (PENDING, CONFIRMED, READY, SHIPPED, DELIVERED, FAILED_DELIVERY, COMPLETED, CANCELLED, RETURNED, REFUNDED)
 
 function formatCurrency(amount: any) {
   try {
@@ -88,31 +84,6 @@ function formatCurrency(amount: any) {
   }
 }
 
-const statusColor = (status: string) => {
-  switch (status) {
-    case 'PROCESSING': return { backgroundColor: '#FFEFD5', color: '#B76E00' };
-    case 'COMPLETED': return { backgroundColor: '#E6F9F0', color: '#0B8A54' };
-    case 'CANCELLED': return { backgroundColor: '#F2F2F4', color: '#7A7A80' };
-    default: return { backgroundColor: '#EEF2FF', color: '#334ECA' };
-  }
-};
-
-function mapOrderStatusLabel(status?: string) {
-  switch (String(status)) {
-    case 'PROCESSING': return 'Đang xử lý';
-    case 'COMPLETED': return 'Hoàn tất';
-    case 'CANCELLED': return 'Đã huỷ';
-    default: return String(status ?? 'N/A');
-  }
-}
-
-const EmptyList = () => (
-  <View style={styles.emptyContainer}>
-    <Ionicons name="receipt" size={48} color="#DDD" />
-    <Text style={styles.emptyText}>Không có đơn hàng ở mục này</Text>
-  </View>
-);
-
 const OrdersScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]); // displayed orders after filtering
@@ -122,25 +93,16 @@ const OrdersScreen: React.FC = () => {
   // modal states for cancel/return reason
   const [reasonModalVisible, setReasonModalVisible] = useState(false);
   const [reasonForAction, setReasonForAction] = useState('');
-  const [pendingAction, setPendingAction] = useState<{ type: 'CANCEL' | 'RETURN'; id: string | null }>({ type: 'CANCEL', id: null });
+  const [pendingAction, setPendingAction] = useState<{ type: 'CANCEL' | 'RETURN'; id: string | null; orderId?: string | null }>({ type: 'CANCEL', id: null, orderId: null });
 
   const isFocused = useIsFocused();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const applyFilter = (fullList: any[], tab: string) => {
-    if (tab === 'ALL') return fullList;
-    const byOrder = fullList.filter(o => String(o.status) === tab);
-    const byShipment = fullList.filter(o => {
-      const s = (o.shipments && o.shipments[0] && o.shipments[0].status) ? String(o.shipments[0].status) : null;
-      if (!s) return false;
-      const allowed = SHIPMENT_MATCH_MAP[tab] ?? [];
-      return allowed.includes(s);
-    });
-    // Merge unique
-    const merged = [...byOrder];
-    byShipment.forEach(s => { if (!merged.find(m => String(m.orderId) === String(s.orderId))) merged.push(s); });
-    return merged;
-  };
+  // Tabs filter strictly by order-level status only.
+  if (tab === 'ALL') return fullList;
+  return fullList.filter((o) => String(o.status) === tab);
+};
 
   const load = useCallback(async () => {
     if (!isFocused) return;
@@ -186,18 +148,23 @@ const OrdersScreen: React.FC = () => {
       await load();
     } catch (err: any) {
       console.error('confirmOrderDetail', err);
-      Alert.alert('Lỗi', err?.response?.data?.message || 'Không thể xác nhận');
+      // If backend removed per-order-detail endpoint, inform user / fallback
+      if (err?.response?.status === 404) {
+        Alert.alert('Chưa hỗ trợ', 'Hiện tại backend chưa hỗ trợ xác nhận từng sản phẩm. Vui lòng cập nhật backend.');
+      } else {
+        Alert.alert('Lỗi', err?.response?.data?.message || 'Không thể xác nhận');
+      }
     }
   };
 
-  const handleRequestReturn = (orderDetailId: string) => {
-    setPendingAction({ type: 'RETURN', id: orderDetailId });
+  const handleRequestReturn = (orderId: string, orderDetailId?: string | null) => {
+    // use order-level return per backend design; store both ids for context
+    setPendingAction({ type: 'RETURN', id: orderDetailId ?? null, orderId: orderId });
     setReasonForAction('');
     setReasonModalVisible(true);
   };
 
   const performPendingAction = async () => {
-    if (!pendingAction.id) return;
     const reason = (reasonForAction || '').trim();
     if (!reason) {
       Alert.alert('Lỗi', 'Vui lòng nhập lý do');
@@ -205,14 +172,33 @@ const OrdersScreen: React.FC = () => {
     }
     try {
       if (pendingAction.type === 'CANCEL') {
+        if (!pendingAction.id) throw new Error('Invalid cancel target');
         await cancelOrder(pendingAction.id, reason);
         Alert.alert('Thành công', 'Đơn hàng đã được hủy');
       } else if (pendingAction.type === 'RETURN') {
-        await requestOrderDetailReturn(pendingAction.id, reason);
-        Alert.alert('Đã gửi', 'Yêu cầu trả hàng đã được gửi');
+        // If orderDetailId provided, try per-order-detail return first; otherwise directly call order-level return
+        if (pendingAction.id) {
+          try {
+            await requestOrderDetailReturn(pendingAction.id, reason);
+            Alert.alert('Đã gửi', 'Yêu cầu trả hàng đã được gửi');
+          } catch (e: any) {
+            console.warn('requestOrderDetailReturn failed, falling back to order-level return', e);
+            if (pendingAction.orderId) {
+              await requestOrderReturn(String(pendingAction.orderId), reason);
+              Alert.alert('Đã gửi', 'Yêu cầu trả hàng (toàn bộ đơn) đã được gửi');
+            } else {
+              throw e;
+            }
+          }
+        } else if (pendingAction.orderId) {
+          await requestOrderReturn(String(pendingAction.orderId), reason);
+          Alert.alert('Đã gửi', 'Yêu cầu trả hàng (toàn bộ đơn) đã được gửi');
+        } else {
+          throw new Error('Invalid return target');
+        }
       }
       setReasonModalVisible(false);
-      setPendingAction({ type: 'CANCEL', id: null });
+      setPendingAction({ type: 'CANCEL', id: null, orderId: null });
       await load();
     } catch (err: any) {
       console.error('action', err);
@@ -263,7 +249,7 @@ const OrdersScreen: React.FC = () => {
             <View style={styles.flex1}>
               <Text style={styles.productTitle} numberOfLines={1}>{d.productName}</Text>
               <Text style={styles.productMeta}>{d.quantity} × {formatCurrency(d.unitPrice)}</Text>
-              <Text style={styles.small}>Trạng thái: {String(d.status)}</Text>
+              {/* show per-line status only in OrderDetail screen; card displays order-level status */}
             </View>
 
             <View style={styles.rightAlign}>
@@ -271,9 +257,6 @@ const OrdersScreen: React.FC = () => {
                 <>
                   <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => handleConfirmDetail(d.orderDetailId)}>
                     <Text style={styles.btnPrimaryText}>Đã nhận</Text>
-                  </Pressable>
-                  <Pressable style={[styles.btn, styles.btnWarn]} onPress={() => handleRequestReturn(d.orderDetailId)}>
-                    <Text style={styles.btnWarnText}>Yêu cầu trả</Text>
                   </Pressable>
                 </>
               ) : null}
@@ -287,6 +270,12 @@ const OrdersScreen: React.FC = () => {
             {item.status === 'PROCESSING' && (
               <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCancel(item.orderId)}>
                 <View style={styles.rowCenter}><Ionicons name="close-circle" size={14} color="#C53030" /><Text style={[styles.btnDangerText, styles.ml8]}>Hủy đơn</Text></View>
+              </Pressable>
+            )}
+            {/* Order-level return: allowed when backend permits (DELIVERED or COMPLETED) */}
+            {(item.status === 'DELIVERED' || item.status === 'COMPLETED') && (
+              <Pressable style={[styles.btn, styles.btnWarn]} onPress={() => handleRequestReturn(item.orderId)}>
+                <Text style={styles.btnWarnText}>Yêu cầu trả</Text>
               </Pressable>
             )}
           </View>
@@ -321,19 +310,30 @@ const OrdersScreen: React.FC = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
-          <Text style={styles.headerSub}>{orders.length} đơn hàng</Text>
+          <Text style={styles.headerSub}>{allOrders.length} đơn hàng</Text>
         </View>
         <Pressable onPress={onRefresh} style={styles.iconButton}>
           <Ionicons name="refresh" size={22} color="#444" />
         </Pressable>
       </View>
 
-      <View style={styles.tabsRow}>
-        {TABS.map(t => (
-          <Pressable key={t.key} onPress={() => setActiveTab(t.key)} style={[styles.tab, activeTab === t.key ? styles.tabActive : undefined]}>
-            <Text style={styles.tabText}>{t.label}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.tabsWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScrollContent}
+          style={styles.tabsScroll}
+        >
+          {TABS.map(t => (
+            <Pressable key={t.key} onPress={() => setActiveTab(t.key)} style={[styles.tab, activeTab === t.key ? styles.tabActive : undefined]}>
+              <View style={styles.tabContent}>
+                {/* <Text style={styles.tabEmoji}>{statusEmoji(t.key)}</Text> */}
+                <Ionicons name={statusIcon(t.key)} size={16} color={activeTab === t.key ? '#111' : '#666'} style={styles.tabIcon} />
+                <Text style={styles.tabText}>{t.label}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
       <FlatList
@@ -342,11 +342,18 @@ const OrdersScreen: React.FC = () => {
         keyExtractor={(i: any) => String(i.orderId)}
         renderItem={renderOrder}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={EmptyList}
+        ListEmptyComponent={EmptyListComp}
       />
     </SafeAreaView>
   );
 
 };
+
+const EmptyListComp = () => (
+  <View style={styles.emptyContainer}>
+    <Ionicons name="receipt" size={48} color="#DDD" />
+    <Text style={styles.emptyText}>Không có đơn hàng ở mục này</Text>
+  </View>
+);
 
 export default OrdersScreen;

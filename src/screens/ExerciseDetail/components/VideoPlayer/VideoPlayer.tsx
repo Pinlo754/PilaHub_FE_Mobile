@@ -3,11 +3,12 @@ import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
 import { useVideoPlayer } from '../../../../hooks/useVideoPlayer';
+import { exerciseRoadmapService } from '../../../../hooks/exerciseRoadmap.service';
 
 const { height } = Dimensions.get('window');
 
 type Props = {
-  source: string;
+  source?: string | null;
   isVideoPlay: boolean;
   isVideoExpand: boolean;
   toggleVideoExpand: () => void;
@@ -86,7 +87,7 @@ export default function VideoPlayer({
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">
         {/* CONTROLS */}
-        {player.showControls && (
+        {player.showControls && !hideControls && (
           <View className="absolute inset-0 justify-end bg-black/20">
             <VideoControls
               duration={player.duration}
@@ -96,6 +97,7 @@ export default function VideoPlayer({
               onFullscreen={toggleVideoExpand}
               isFullscreen={isVideoExpand}
               isPracticeTab={isPracticeTab}
+              onCompleteReached={onVideoComplete}
             />
           </View>
         )}

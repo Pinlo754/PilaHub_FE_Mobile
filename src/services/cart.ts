@@ -9,6 +9,7 @@ export type CartLine = {
   price: number;
   quantity: number;
   raw?: any;
+  installationRequest?: boolean;
 };
 
 const CART_KEY_PREFIX = 'CART_';
@@ -110,4 +111,19 @@ export async function getCartSummary(userId: string) {
   const totalItems = lines.reduce((s, l) => s + l.quantity, 0);
   const totalPrice = lines.reduce((s, l) => s + (l.price * l.quantity), 0);
   return { totalItems, totalPrice, lines };
+}
+
+export async function setInstallationRequest(userId: string, productId: string, installationRequest: boolean): Promise<CartLine[]> {
+  try {
+    const uid = userId || 'guest';
+    const lines = await getCart(uid);
+    const idx = lines.findIndex(l => l.product_id === productId);
+    if (idx === -1) return lines;
+    lines[idx].installationRequest = Boolean(installationRequest);
+    await saveCart(uid, lines);
+    return lines;
+  } catch (e) {
+    console.warn('setInstallationRequest error', e);
+    return [];
+  }
 }

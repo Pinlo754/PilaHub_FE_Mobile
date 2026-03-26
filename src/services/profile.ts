@@ -35,6 +35,19 @@ function extractAndMap(obj: BodyGramData, mapping: Record<string, string>) {
       result.heightCm = v;
       return;
     }
+    // treat common "height estimate" variants as raw height values
+    if (
+      lowered === 'height_est' ||
+      lowered === 'height-est' ||
+      lowered.includes('height_est') ||
+      lowered.includes('heightestimate') ||
+      lowered.includes('height_estimate') ||
+      lowered.includes('height_estimated')
+    ) {
+      // map to a generic height value; the health payload builder will normalize to cm
+      result.height = v;
+      return;
+    }
     if (lowered === 'weight' || lowered === 'weightkg') {
       result.weightKg = v;
       return;
@@ -172,6 +185,12 @@ export function buildHealthProfilePayload(bodyGram: BodyGramData, source = 'Body
     musclemasskg: 'muscleMassKg',
     waistcm: 'waistCm',
     hipcm: 'hipCm',
+    // recognize common height-estimate keys
+    height_est: 'height',
+    'height-est': 'height',
+    heightestimate: 'height',
+    height_estimate: 'height',
+    height_estimated: 'height',
   };
 
   const { mapped, extras } = extractAndMap(bodyGram, mapping);
@@ -180,8 +199,29 @@ export function buildHealthProfilePayload(bodyGram: BodyGramData, source = 'Body
   let heightRaw = mapped.heightCm ?? mapped.height;
   let weightRaw = mapped.weightKg ?? mapped.weight;
 
+  // If bodyGram contains a stringified metadata JSON (common when merging payloads), parse it so we can search inside
+  const searchTarget: any = { ...(bodyGram || {}) };
+  if (typeof bodyGram?.metadata === 'string') {
+    try {
+      searchTarget.metadata = JSON.parse(bodyGram.metadata);
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  // Fallback: scan top-level keys for common height-est variants (e.g., height_est)
+  if (heightRaw == null && bodyGram) {
+    for (const k of Object.keys(bodyGram)) {
+      const kl = k.toLowerCase();
+      if (kl === 'height' || kl === 'heightcm' || /height(_|-)?est|heightestimate|height_estimate|height_estimated/.test(kl)) {
+        heightRaw = bodyGram[k];
+        break;
+      }
+    }
+  }
+
   if (heightRaw == null) {
-    heightRaw = findNumericInPaths(bodyGram, [
+    heightRaw = findNumericInPaths(searchTarget, [
       ['height'],
       ['heightCm'],
       ['input', 'photoScan', 'height'],
@@ -190,6 +230,17 @@ export function buildHealthProfilePayload(bodyGram: BodyGramData, source = 'Body
       ['metadata', 'heightCm'],
       ['bodyComposition', 'height'],
     ]);
+  }
+
+  // Similar fallback for weight
+  if (weightRaw == null && bodyGram) {
+    for (const k of Object.keys(bodyGram)) {
+      const kl = k.toLowerCase();
+      if (kl === 'weight' || kl === 'weightkg' || /weight(_|-)?est|weightestimate|weight_estimate|weightkg/.test(kl)) {
+        weightRaw = bodyGram[k];
+        break;
+      }
+    }
   }
 
   if (weightRaw == null) {
@@ -363,9 +414,62 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
 
      // create health profile from bodyGram
      if (bodyGram && Object.keys(bodyGram).length > 0) {
-       const h = await createHealthProfile(bodyGram, source);
-       if (!h.ok) return { ok: false, error: { step: 'health', error: h.error } };
-       results.health = h.data;
+       // merge onboarding-provided height/weight into bodyGram when missing so normalization can pick them up
+       const mergedBodyGram: BodyGramData = { ...bodyGram };
+       if (onboarding) {
+         // copy straightforward numeric fields
+         if ((onboarding as any).weight != null && mergedBodyGram.weight == null && mergedBodyGram.weightKg == null) {
+           mergedBodyGram.weight = (onboarding as any).weight;
+         }
+         if ((onboarding as any).weightKg != null && mergedBodyGram.weightKg == null) {
+           mergedBodyGram.weightKg = (onboarding as any).weightKg;
+         }
+         if ((onboarding as any).height != null && mergedBodyGram.height == null && mergedBodyGram.heightCm == null) {
+           mergedBodyGram.height = (onboarding as any).height;
+         }
+         if ((onboarding as any).heightCm != null && mergedBodyGram.heightCm == null) {
+           mergedBodyGram.heightCm = (onboarding as any).heightCm;
+         }
+
+         // if onboarding carries a metadata JSON string (common), try to parse and extract
+         const md = (onboarding as any).metadata;
+         if (md) {
+           if (typeof md === 'string') {
+             try {
+               const parsed = JSON.parse(md);
+               if (parsed) {
+                 if (mergedBodyGram.height == null && parsed.height != null) mergedBodyGram.height = parsed.height;
+                 if (mergedBodyGram.heightCm == null && (parsed.heightCm != null || parsed.height_cm != null)) mergedBodyGram.heightCm = parsed.heightCm ?? parsed.height_cm;
+                 if (mergedBodyGram.weight == null && parsed.weight != null) mergedBodyGram.weight = parsed.weight;
+                 if (mergedBodyGram.weightKg == null && (parsed.weightKg != null || parsed.weight_kg != null)) mergedBodyGram.weightKg = parsed.weightKg ?? parsed.weight_kg;
+               }
+             } catch {
+               // ignore parse errors
+             }
+           } else if (typeof md === 'object') {
+             if (mergedBodyGram.height == null && md.height != null) mergedBodyGram.height = md.height;
+             if (mergedBodyGram.heightCm == null && (md.heightCm != null || md.height_cm != null)) mergedBodyGram.heightCm = md.heightCm ?? md.height_cm;
+             if (mergedBodyGram.weight == null && md.weight != null) mergedBodyGram.weight = md.weight;
+             if (mergedBodyGram.weightKg == null && (md.weightKg != null || md.weight_kg != null)) mergedBodyGram.weightKg = md.weightKg ?? md.weight_kg;
+           }
+         }
+       }
+
+      // Build health payload to see if normalization yields height/weight; skip API call if missing
+      const healthPayload = buildHealthProfilePayload(mergedBodyGram, source);
+      if (healthPayload.heightCm == null || healthPayload.weightKg == null) {
+        console.warn('Skipping health profile creation due to missing normalized height/weight (merged with onboarding)', {
+          heightCm: healthPayload.heightCm,
+          weightKg: healthPayload.weightKg,
+          sampleOnboardingKeys: Object.keys(onboarding || {}).slice(0, 20),
+          sampleBodyGramKeys: Object.keys(bodyGram || {}).slice(0, 20),
+        });
+        results.health = { skipped: true, reason: 'missing_height_or_weight', payload: healthPayload } as any;
+      } else {
+        const h = await createHealthProfile(mergedBodyGram, source);
+        if (!h.ok) return { ok: false, error: { step: 'health', error: h.error } };
+        results.health = h.data;
+      }
      }
 
      return { ok: true, data: results };
@@ -475,5 +579,16 @@ export async function fetchHealthProfileAssessment(id: string): Promise<ServiceR
   } catch (e: any) {
     const error = e.response?.data ?? e.message ?? e;
     return { ok: false, error };
+  }
+}
+
+// Fetch health profile metrics for the authenticated trainee (for charts/comparisons)
+export async function fetchMyHealthProfileMetrics(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/health-profiles/my-profiles/metrics');
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
   }
 }

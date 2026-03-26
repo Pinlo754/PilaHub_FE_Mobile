@@ -5,6 +5,7 @@ import {
   View,
   Alert,
   StyleSheet,
+  Modal,
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { useRoadmapStore } from "../../store/roadmap.store";
@@ -40,7 +41,13 @@ const PlanScreen = () => {
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const handleSelectDate = (date: string | null) => {
+    setSelectedDate(date);
+    setShowScheduleModal(true);
+  };
 
   if (!roadmap || !stages?.length) {
     return (
@@ -162,11 +169,30 @@ const PlanScreen = () => {
             <StageCalendar
               stage={selectedStage}
               selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
+              onSelectDate={handleSelectDate}
             />
 
-            {/* Schedule detail */}
-            <ScheduleDetail schedule={selectedSchedule} />
+            <Modal
+              visible={showScheduleModal}
+              animationType="slide"
+              onRequestClose={() => setShowScheduleModal(false)}
+            >
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.closeText} onPress={() => setShowScheduleModal(false)}>Đóng</Text>
+                </View>
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                  {selectedSchedule ? (
+                    <ScheduleDetail schedule={selectedSchedule} />
+                  ) : (
+                    <View style={styles.emptyModalContent}>
+                      <Text style={styles.modalEmptyTitle}>Không có lịch cho ngày này.</Text>
+                      <Text style={styles.modalEmptyText}>Vui lòng chọn ngày có lịch để xem bài tập.</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+            </Modal>
 
             {/* Supplement */}
             <SupplementSection stage={selectedStage} />
@@ -183,4 +209,10 @@ export default PlanScreen;
 
 const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 140 },
+  modalContainer: { flex: 1, backgroundColor: '#F3EDE3' },
+  modalHeader: { height: 56, paddingHorizontal: 16, alignItems: 'flex-end', justifyContent: 'center' },
+  closeText: { color: '#8B4513', fontWeight: '600' },
+  emptyModalContent: { padding: 20 },
+  modalEmptyTitle: { color: '#3A2A1A', fontSize: 16 },
+  modalEmptyText: { color: '#6B6B6B', marginTop: 8 },
 });

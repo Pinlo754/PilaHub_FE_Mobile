@@ -1,11 +1,32 @@
 import api from '../hooks/axiosInstance';
 
 export type ProductItem = {
-  product_id: string;
-  product_name: string;
-  thumnail_url: string;
-  price: number;
-  raw?: any;
+	productId: string;
+	vendorId?: string;
+	vendorBusinessName?: string;
+	categoryId?: string;
+	categoryName?: string;
+	name: string;
+	description?: string;
+	imageUrl?: string;
+	thumbnailUrl?: string; // normalized thumbnail (camelCase)
+	thumnail_url?: string; // legacy/typo field used in some mappings
+	price?: number;
+	stockQuantity?: number;
+	brand?: string;
+	specifications?: string;
+	height?: number;
+	length?: number;
+	width?: number;
+	weight?: number;
+	installationSupported?: boolean;
+	regionSupported?: string[];
+	avgRating?: number;
+	reviewCount?: number;
+	active?: boolean;
+	createdAt?: string;
+	updatedAt?: string;
+	raw?: any;
 };
 
 export type CategoryItem = { id: string; name: string; icon?: string };
@@ -105,10 +126,29 @@ export async function getProducts(
       const imageUrl = p.imageUrl ?? p.thumnail_url ?? p.thumbnailUrl ?? '';
       const normalized = normalizeImageUrl(imageUrl) ?? '';
       return ({
-        product_id: p.productId ?? p.product_id ?? (p.id ? String(p.id) : ''),
-        product_name: p.name ?? p.productName ?? p.product_name ?? '',
+        productId: p.productId ?? p.product_id ?? (p.id ? String(p.id) : ''),
+        vendorId: p.vendorId ?? p.vendor_id,
+        vendorBusinessName: p.vendorBusinessName ?? p.vendor_business_name,
+        categoryId: p.categoryId ?? p.category_id,
+        categoryName: p.categoryName ?? p.category_name,
+        name: p.name ?? p.productName ?? p.product_name ?? '',
+        description: p.description,
         thumnail_url: normalized,
         price: typeof p.price === 'number' ? p.price : (p.price ? Number(p.price) : 0),
+        stockQuantity: p.stockQuantity ?? p.stock_quantity,
+        brand: p.brand,
+        specifications: p.specifications,
+        height: p.height,
+        length: p.length,
+        width: p.width,
+        weight: p.weight,
+        installationSupported: Boolean(p.installationSupported ?? p.installation_supported ?? false),
+        regionSupported: p.regionSupported || p.region_supported || [],
+        avgRating: p.avgRating ?? p.avg_rating,
+        reviewCount: p.reviewCount ?? p.review_count,
+        active: p.active ?? true,
+        createdAt: p.createdAt || p.created_at,
+        updatedAt: p.updatedAt || p.updated_at,
         raw: p,
       });
     });
@@ -155,10 +195,29 @@ export async function getProductById(productId: string): Promise<ProductItem | n
     const pNormalized = { ...p, images: normalizedImages };
 
     const mapped: ProductItem = {
-      product_id: p.productId ?? p.product_id ?? (p.id ? String(p.id) : ''),
-      product_name: p.name ?? p.productName ?? p.product_name ?? '',
+      productId: p.productId ?? p.product_id ?? (p.id ? String(p.id) : ''),
+      vendorId: p.vendorId ?? p.vendor_id,
+      vendorBusinessName: p.vendorBusinessName ?? p.vendor_business_name,
+      categoryId: p.categoryId ?? p.category_id,
+      categoryName: p.categoryName ?? p.category_name,
+      name: p.name ?? p.productName ?? p.product_name ?? '',
+      description: p.description,
       thumnail_url: normalizedImages[0] ?? normalizeImageUrl(p.imageUrl) ?? '',
       price: typeof p.price === 'number' ? p.price : (p.price ? Number(p.price) : 0),
+      stockQuantity: p.stockQuantity ?? p.stock_quantity,
+      brand: p.brand,
+      specifications: p.specifications,
+      height: p.height,
+      length: p.length,
+      width: p.width,
+      weight: p.weight,
+      installationSupported: Boolean(p.installationSupported ?? p.installation_supported ?? false),
+      regionSupported: p.regionSupported || p.region_supported || [],
+      avgRating: p.avgRating ?? p.avg_rating,
+      reviewCount: p.reviewCount ?? p.review_count,
+      active: p.active ?? true,
+      createdAt: p.createdAt || p.created_at,
+      updatedAt: p.updatedAt || p.updated_at,
       raw: pNormalized,
     };
 

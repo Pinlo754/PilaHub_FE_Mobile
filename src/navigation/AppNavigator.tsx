@@ -11,10 +11,10 @@ import TabNavigator, { RootTabParamList } from './TabNavigator';
 import RoadmapScreen from '../screens/Roadmap/RoadmapScreen';
 import RoadmapSummary from '../screens/RoadmapSummary/RoadmapSummary';
 import { Measurements } from '../screens/BodyGram/types/measurement';
-import ManualInputScreen from '../screens/BodyGram/screens/ManualInputScreen';
 import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
 import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
 import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
+import BodyMetricDetails from '../screens/BodyGram/screens/BodyMetricDetails';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
@@ -22,6 +22,7 @@ import OtpScreen from '../screens/Register/OtpScreen';
 import StartupScreen from '../screens/StartupScreen';
 import CreateRoadmapScreen from '../screens/Plan/CreateRoadmapScreen';
 import PlanDetailScreen from '../screens/Plan/PlanDetailScreen';
+import SchedulePlayer from '../screens/Plan/SchedulePlayer';
 
 import CoachScreen from '../screens/Coach/CoachScreen';
 import CoachRegisterSchedule from '../screens/Coach/Schedule/CoachRegisterSchedule';
@@ -44,7 +45,6 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { PracticePayload } from '../utils/CourseLessonProgressType';
 import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
 import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
-import RoadMap from '../screens/Plan/RoadMap';
 import HealthProfileAssessmentScreen from '../screens/Profile/HealthProfileAssessmentScreen';
 import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
 import TraineeProfileCoachScreen from '../screens/Coach/TraineeProfile/TraineeProfileCoach';
@@ -69,6 +69,8 @@ import CheckoutScreen from '../screens/Shop/CheckoutScreen';
 import AddressListScreen from '../screens/Shop/AddressListScreen';
 import AddressFormScreen from '../screens/Shop/AddressFormScreen';
 import OrdersScreen from '../screens/Profile/OrdersScreen';
+import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
+import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -79,36 +81,31 @@ export type RootStackParamList = {
   Startup: undefined;
   Search: undefined;
   SearchResult: { q?: string; showFilter?: boolean } | undefined;
+  ShopSearchResult: { q?: string } | undefined;
   Checkout: undefined;
   AddressList: undefined;
   AddressForm: { onSaved?: () => void } | undefined;
   TraineeProfile: undefined;
   Orders: undefined;
-  OrderDetail: {
-    orderId: string;
-    allowedPractice?: boolean;
-    practicePayload?: PracticePayload;
-  };
+  OrderDetail: { orderId: string };
   Roadmap: undefined;
   RoadmapSummary: undefined;
   Plan: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
   RoadMap: { addedRoadmap?: { roadmap: any; stages: any[] } } | undefined;
   PlanDetail: { roadmap?: any; stages?: any[] } | undefined;
   CreateRoadmap: undefined;
+  RoadmapProducts: undefined;
   UpgradePlan: undefined;
-  ExerciseDetail: {
-    exercise_id: string;
-    allowedPractice?: boolean;
-    practicePayload?: PracticePayload;
-  };
+  ExerciseDetail: { exercise_id: string };
   ProductDetail: { productId: string };
   Cart: undefined;
-  ManualInput: undefined;
+  InputBody: undefined;
   BodyScanFlow: undefined;
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
   BodyGramResult:
     | { measurements: Measurements; avatar?: string; rawResponse?: any }
     | undefined;
+  BodyMetricDetails: undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
   ResetPasswordConfirm: { email?: string } | undefined;
@@ -142,19 +139,21 @@ export type RootStackParamList = {
   };
   List: undefined;
   DailyTask: undefined;
-  RegisterCalendar: { coach_id?: string | null; pricePerHour?: number };
-  TraineeFeedback: { liveSessionId?: string };
-  TraineeReport: {
-    coach_id?: string | null;
-    exercise_id?: string | null;
-    liveSessionId?: string | null;
-  };
-  AISummary: {
-    feedback: any;
-    videoUrl: string;
-    mistakeLog: any;
-    heartRateLogs?: { heartRate: number; recordedAt: number }[];
-  };
+  RegisterCalendar:
+    | { coach_id?: string | null; pricePerHour?: number }
+    | undefined;
+  TraineeFeedback: { liveSessionId?: string } | undefined;
+  TraineeReport:
+    | { coach_id?: string | null; exercise_id?: string | null }
+    | undefined;
+  AISummary:
+    | {
+        feedback: any;
+        videoUrl: string;
+        mistakeLog: any;
+        heartRateLogs?: { heartRate: number; recordedAt: number }[];
+      }
+    | undefined;
 
   AIPractice: {
     exercise_id: string;
@@ -187,6 +186,14 @@ export type RootStackParamList = {
   DeviceScan: undefined;
   MyDevices: undefined;
   TraineeBooking: undefined;
+  SchedulePlayer:
+    | {
+        queue: { ex: any; videoSrc?: string | null }[];
+        startIndex?: number;
+        scheduleId?: string;
+        title?: string;
+      }
+    | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -204,8 +211,8 @@ const AppNavigator: React.FC = () => {
           >
             <Stack.Screen name="Startup" component={StartupScreen} />
             <Stack.Screen
-              name="ManualInput"
-              component={ManualInputScreen}
+              name="InputBody"
+              component={InputBodyScreen}
               options={{ title: 'Nhập số đo' }}
             />
             <Stack.Screen
@@ -222,6 +229,10 @@ const AppNavigator: React.FC = () => {
               name="BodyGramResult"
               component={BodyGramResult}
               options={{ title: 'Kết quả Bodygram' }}
+            />
+            <Stack.Screen
+              name="BodyMetricDetails"
+              component={BodyMetricDetails}
             />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="VerifyEmail" component={OtpScreen} />
@@ -243,12 +254,20 @@ const AppNavigator: React.FC = () => {
               name="SearchResult"
               component={require('../screens/Search/SearchResult').default}
             />
+            <Stack.Screen
+              name="ShopSearchResult"
+              component={require('../screens/Shop/ShopSearchResult').default}
+            />
             <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} />
             <Stack.Screen
               name="ProductDetail"
               component={ProductDetailScreen}
             />
             <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen
+              name="RoadmapProducts"
+              component={RoadmapProductsScreen}
+            />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="AddressList" component={AddressListScreen} />
             <Stack.Screen name="AddressForm" component={AddressFormScreen} />
@@ -274,8 +293,8 @@ const AppNavigator: React.FC = () => {
               }
             />
             <Stack.Screen name="Plan" component={PlanScreen} />
-            <Stack.Screen name="RoadMap" component={RoadMap} />
-            <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
+              <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
+            <Stack.Screen name="SchedulePlayer" component={SchedulePlayer} />
             <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
             <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
             <Stack.Screen name="MyDevices" component={MyDevicesScreen} />

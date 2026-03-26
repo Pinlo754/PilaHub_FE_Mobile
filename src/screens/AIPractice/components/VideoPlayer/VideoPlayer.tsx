@@ -9,20 +9,22 @@ const { height } = Dimensions.get('window');
 type Props = {
   source: string;
   isVideoPlay: boolean;
-  togglePlayButton: () => void;
+  togglePlayButton?: () => void;
+  onEnd?: () => void;
 };
 
 export default function VideoPlayer({
   source,
   isVideoPlay,
   togglePlayButton,
+  onEnd,
 }: Props) {
   // HOOOK
   const player = useVideoPlayer({ isVideoPlay });
 
   // HANDLERS
   const onPressPlayBtn = () => {
-    togglePlayButton();
+    if (togglePlayButton) togglePlayButton();
   };
 
   return (
@@ -33,6 +35,10 @@ export default function VideoPlayer({
         paused={!isVideoPlay}
         onLoad={d => player.setDuration(d.duration)}
         onProgress={p => player.setCurrentTime(p.currentTime)}
+        onEnd={() => {
+          player.setCurrentTime(player.duration || 0);
+          if (typeof onEnd === 'function') onEnd();
+        }}
       />
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">

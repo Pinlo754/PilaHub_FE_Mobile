@@ -83,8 +83,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-  return (
-    <SafeAreaView className="flex-1 bg-background">
+   return (
+<SafeAreaView  className="flex-1 bg-background">
+      
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
@@ -169,9 +170,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-        <TouchableOpacity
+          <TouchableOpacity
           className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
-          onPress={async () => {
+onPress={async () => {
             setError(null);
             setLoading(true);
             try {
@@ -197,6 +198,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
+
 
         {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
 

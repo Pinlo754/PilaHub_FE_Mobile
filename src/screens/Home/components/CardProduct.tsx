@@ -10,6 +10,7 @@ import Toast from '../../../components/Toast';
 
 type Props = {
   item: ProductType | any;
+  
   onPress: () => void;
 };
 
@@ -25,10 +26,10 @@ const CardProduct = ({ item, onPress }: Props) => {
   const onBuy = async () => {
     try {
       await addToCart({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        thumnail_url: normalizeImageUrl(item.thumnail_url),
-        price: item.price,
+        product_id: item.productId ?? item.product_id ?? item.raw?.product_id,
+        product_name: item.name ?? item.product_name,
+        thumnail_url: normalizeImageUrl(item.thumbnailUrl ?? item.thumnail_url ?? item.imageUrl),
+        price: item.price ?? 0,
         raw: item.raw,
       }, 1);
       setToastMsg('Đã thêm vào giỏ hàng'); setToastType('success'); setToastVisible(true);
@@ -43,20 +44,25 @@ const CardProduct = ({ item, onPress }: Props) => {
       <Pressable
         className="bg-white rounded-xl overflow-hidden shadow-md"
         onPress={onPress}
-        style={styles.card}
+        style={localStyles.card}
       >
-        <View style={styles.thumbWrap} className="h-[140px] bg-gray-100">
+        {item.installationSupported ? (
+          <View style={localStyles.badgeWrap} className="absolute top-2 left-2 z-10 bg-green-700 rounded-full px-3 py-1">
+            <Text className="text-white text-xs font-bold">Hỗ trợ lắp đặt</Text>
+          </View>
+        ) : null}
+        <View className="h-[140px] bg-gray-100">
           <Image
-            source={item.thumnail_url ? { uri: normalizeImageUrl(item.thumnail_url) } : (placeholderThumb as any)}
-            style={styles.thumb}
+            source={(item.thumbnailUrl || item.thumnail_url || item.imageUrl) ? { uri: normalizeImageUrl(item.thumbnailUrl ?? item.thumnail_url ?? item.imageUrl) } : (placeholderThumb as any)}
+            style={localStyles.thumb}
             resizeMode="cover"
           />
         </View>
         <View className="p-3">
-          <Text className="color-foreground font-medium line-clamp-2">{item.product_name}</Text>
+          <Text className="text-[#0F172A] font-medium line-clamp-2">{item.name ?? item.product_name}</Text>
 
           <View className="flex-row items-center justify-between mt-2">
-            <Text className="color-secondaryText text-lg font-bold">{formatVND(item.price)}</Text>
+            <Text className="text-teal-500 text-lg font-bold">{formatVND(item.price ?? 0)}</Text>
             <View className="flex-row items-center">
               <Ionicons name="star" size={14} color="#F59E0B" />
               <Text className="ml-1 text-sm text-gray-600">{Number(rating).toFixed(1)}</Text>
@@ -65,10 +71,11 @@ const CardProduct = ({ item, onPress }: Props) => {
 
           <View className="flex-row items-center justify-between mt-2">
             <Text className="text-xs text-gray-500">Đã bán: {reviewCount}</Text>
-            <Pressable onPress={onBuy} style={styles.buyBtn}>
-              <Text style={styles.buyBtnText}>Mua</Text>
+            <Pressable onPress={onBuy} className="bg-orange-500 px-3 py-2 rounded-md">
+              <Text className="text-white font-bold">Mua</Text>
             </Pressable>
           </View>
+          {/* installation badge handled via badgeWrap; no extra install note */}
         </View>
       </Pressable>
 
@@ -77,12 +84,10 @@ const CardProduct = ({ item, onPress }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const localStyles = StyleSheet.create({
   card: { width: '100%' },
-  thumbWrap: { height: 140, backgroundColor: '#f8fafc' },
-  thumb: { width: '100%', height: '100%', backgroundColor: '#f1f5f9' },
-  buyBtn: { backgroundColor: '#F97316', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  buyBtnText: { color: '#fff', fontWeight: '700' },
+  thumb: { width: '100%', height: 140, backgroundColor: '#f1f5f9' },
+  badgeWrap: { position: 'absolute', top: 8, left: 8, zIndex: 10 },
 });
 
 export default CardProduct;

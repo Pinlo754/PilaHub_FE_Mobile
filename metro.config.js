@@ -1,5 +1,6 @@
 const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
 const { withNativeWind } = require("nativewind/metro");
+const path = require('path');
 
 /**
  * Metro configuration
@@ -15,6 +16,10 @@ const config = {
     assetExts: [...assetExts, "tflite"],
     sourceExts: [...sourceExts],
   },
+  // include node_modules packages that may be symlinked or resolved outside project root
+  watchFolders: [
+    path.resolve(__dirname, 'node_modules/react-native-calendars'),
+  ],
 };
 
 const mergedConfig = mergeConfig(defaultConfig, config);

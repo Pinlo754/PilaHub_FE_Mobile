@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Image, Pressable, Alert, ScrollView, Linking } from 'react-native';
 import { Modal, TextInput } from 'react-native';
-import { getOrderById, cancelOrder, confirmOrderDetail, requestOrderDetailReturn } from '../../services/order';
+import { getOrderById, cancelOrder, requestOrderReturn } from '../../services/order';
 import { getOrderTracking } from '../../services/order';
 import { mapShipmentStatus } from '../../utils/shipmentStatus';
 import { useRoute } from '@react-navigation/native';
@@ -138,43 +138,35 @@ const OrderDetailScreen: React.FC = () => {
     setReasonModalVisible(true);
   };
 
-  const handleRequestReturn = (orderDetailId: string) => {
-    setPendingReturnDetailId(orderDetailId);
+  const handleRequestReturn = (orderDetailId?: string) => {
+    // we collect reason and call order-level return endpoint
+    setPendingReturnDetailId(orderDetailId ?? null);
     setReasonForAction('');
     setReasonModalVisible(true);
   };
 
   const performReturn = async () => {
-    if (!pendingReturnDetailId) return;
     const reason = (reasonForAction || '').trim();
     if (!reason) { Alert.alert('Lỗi', 'Vui lòng nhập lý do'); return; }
     try {
       setActionLoading(true);
-      await requestOrderDetailReturn(pendingReturnDetailId, reason);
-      Alert.alert('Đã gửi', 'Yêu cầu trả hàng đã được gửi');
+      // call order-level return endpoint as backend handles returns per order
+      await requestOrderReturn(order.orderId, reason);
+      Alert.alert('Đã gửi', 'Yêu cầu trả hàng đã được gửi (theo đơn)');
       setReasonModalVisible(false);
       setPendingReturnDetailId(null);
       await load();
     } catch (err: any) {
-      console.error('requestOrderDetailReturn', err);
+      console.error('requestOrderReturn', err);
       Alert.alert('Lỗi', err?.response?.data?.message || 'Không thể gửi yêu cầu trả hàng');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const performConfirm = async (orderDetailId: string) => {
-    try {
-      setActionLoading(true);
-      await confirmOrderDetail(orderDetailId);
-      Alert.alert('Cảm ơn', 'Đã xác nhận nhận hàng');
-      await load();
-    } catch (err: any) {
-      console.error('confirmOrderDetail', err);
-      Alert.alert('Lỗi', err?.response?.data?.message || 'Không thể xác nhận');
-    } finally {
-      setActionLoading(false);
-    }
+  const performConfirm = async () => {
+    // Backend does not provide per-item confirm endpoint. Show informative message.
+    Alert.alert('Chưa hỗ trợ', 'Xác nhận nhận hàng từng sản phẩm chưa được backend hỗ trợ.');
   };
 
   const performCancelOrder = async () => {
@@ -332,7 +324,7 @@ const OrderDetailScreen: React.FC = () => {
 
                 {d.status === 'DELIVERED' && (
                   <View>
-                    <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => performConfirm(d.orderDetailId)} disabled={actionLoading}>
+                    <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => performConfirm()} disabled={actionLoading}>
                       {actionLoading ? <ActivityIndicator /> : <Text style={styles.btnPrimaryText}>Xác nhận nhận hàng</Text>}
                     </Pressable>
                     <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleRequestReturn(d.orderDetailId)} disabled={actionLoading}>

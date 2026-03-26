@@ -45,7 +45,7 @@ const RoadmapProgress = () => {
       className="m-4 p-4 rounded-xl bg-white border border-background-sub1_30 elevation-md shadow-md flex-row justify-between items-center gap-6"
     >
       {/* Left section */}
-      <View className="flex-grow">
+      <View className="flex-1 pr-2">
         <View className="flex-row gap-2 items-center">
           <Ionicons
             name="barbell-outline"
@@ -57,13 +57,13 @@ const RoadmapProgress = () => {
           </Text>
         </View>
 
-        <Text className="color-foreground font-semibold text-lg mt-1">
+        <Text numberOfLines={1} ellipsizeMode="tail" className="color-foreground font-semibold text-lg mt-1">
           {title}
         </Text>
       </View>
 
       {/* Progress */}
-      <View className="">
+      <View style={{ width: 72, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         <ProgressCircle
           size={50}
           strokeWidth={5}

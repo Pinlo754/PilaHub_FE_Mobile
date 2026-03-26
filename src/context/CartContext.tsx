@@ -15,6 +15,7 @@ type CartContextValue = CartState & {
   updateQuantity: (productId: string, qty: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
+  setInstallationRequest: (productId: string, installationRequest: boolean) => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -25,8 +26,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [totalItems, setTotalItems] = useState<number>(0);
   const [totalPrice, setTotalPrice] = useState<number>(0);
 
-  // load cart helper must be defined before effect to avoid hook dependency warnings
-  const loadCart = async (uid?: string) => {
+  // load cart helper: stable with useCallback so it can be safely used in effects
+  const loadCart = React.useCallback(async (uid?: string) => {
     const id = uid ?? userId ?? 'guest';
     try {
       const s = await getCartSummary(id);
@@ -39,7 +40,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTotalItems(0);
       setTotalPrice(0);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     (async () => {
@@ -52,7 +53,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadCart(final);
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [loadCart]);
 
   const addToCart = async (item: Omit<CartLine, 'quantity'>, qty = 1) => {
     const id = userId ?? 'guest';
@@ -113,6 +114,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const setInstallationRequest = async (productId: string, installationRequest: boolean) => {
+    const id = userId ?? 'guest';
+    try {
+      const updated = await (await import('../services/cart')).setInstallationRequest(id, productId, installationRequest);
+      await saveCart(id, updated);
+      const s = await getCartSummary(id);
+      setLines(s.lines || []);
+      setTotalItems(s.totalItems || 0);
+      setTotalPrice(s.totalPrice || 0);
+    } catch (e) {
+      console.warn('CartProvider.setInstallationRequest error', e);
+      throw e;
+    }
+  };
+
   const value: CartContextValue = {
     userId,
     lines,
@@ -123,6 +139,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateQuantity,
     removeFromCart,
     clearCart,
+    setInstallationRequest,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

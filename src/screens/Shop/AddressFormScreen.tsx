@@ -48,7 +48,7 @@ export default function AddressFormScreen({ route }: any) {
 
   // Auto-fill addressLine from selected ward/district/province if user hasn't typed
   React.useEffect(() => {
-    const provName = provinces.find(p => p.data.provinceId === selectedProvince)?.provinceName ?? '';
+    const provName = provinces.find(p => p.provinceId === selectedProvince)?.provinceName ?? '';
     const distName = districts.find(d => d.districtId === selectedDistrict)?.districtName ?? '';
     const wardName = wards.find(w => w.wardCode === selectedWard)?.wardName ?? '';
     if ((!addressLine || addressLine.trim() === '') && (wardName || distName || provName)) {
