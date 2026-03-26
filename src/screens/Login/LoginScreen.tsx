@@ -195,7 +195,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         >
           <Text className="text-white text-lg font-semibold">
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
 
