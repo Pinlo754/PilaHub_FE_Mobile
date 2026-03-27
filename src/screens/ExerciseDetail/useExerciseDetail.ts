@@ -405,12 +405,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     canPractice,
     onPressStartCourseLesson,
     onPressAIPractice,
-<<<<<<< HEAD
-=======
     // expose ids for video player
     personalExerciseId: exerciseDetail?.exerciseId ?? undefined,
     personalScheduleId: (exerciseDetail as any)?.personalScheduleId ?? undefined,
->>>>>>> feature/progress-roadmap
     onPressPractice,
     currentExerciseIndex,
     handleVideoEnd,

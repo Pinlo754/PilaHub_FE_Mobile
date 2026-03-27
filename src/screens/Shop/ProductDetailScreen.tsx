@@ -5,17 +5,10 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-<<<<<<< HEAD
-  StyleSheet,
-  Dimensions,
-  ScrollView,
-  Animated,
-=======
   Dimensions,
   ScrollView,
   Animated,
   StyleSheet,
->>>>>>> feature/progress-roadmap
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
