@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation } from '@react-navigation/native';
@@ -9,6 +9,9 @@ import { Send } from 'lucide-react-native';
 import GoalPicker from '../Plan/components/GoalPicker';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Picker } from '@react-native-picker/picker';
+import { Modal } from 'react-native'
+import { CoachService } from '../../hooks/coach.service';
 
 const WEEKDAY_LABELS_VN: Record<string, string> = {
   MONDAY: 'Thứ 2',
@@ -29,19 +32,49 @@ const SendRequestScreen = ({ route }: Props) => {
   const nav: any = useNavigation();
   const onboarding = useOnboardingStore(s => s.data);
   const addRoadmap = useRoadmapStore(s => s.addRoadmap);
-  const { coach_id } = route.params;  
+  const { coach_id } = route.params;
   // Do not prefill goals from onboarding — require manual selection here
   const [primaryGoalIdState, setPrimaryGoalIdState] = useState<string | null>(null);
   const [secondaryGoalIdsState, setSecondaryGoalIdsState] = useState<string[]>([]);
   // workout level must come from onboarding (read-only here)
   const workoutLevelFromOnboarding = (onboarding.workoutLevel as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | undefined) ?? 'INTERMEDIATE';
   const [workoutLevel] = useState<typeof workoutLevelFromOnboarding>(workoutLevelFromOnboarding);
-  const [trainingDays, setTrainingDays] = useState<string[]>(['MONDAY','WEDNESDAY','FRIDAY']);
+  const [trainingDaySchedules, setTrainingDayScheduless] = useState<
+    { dayOfWeek: string; startTime: string }[]
+  >([
+    { dayOfWeek: 'MONDAY', startTime: '09:00' },
+    { dayOfWeek: 'WEDNESDAY', startTime: '09:00' },
+    { dayOfWeek: 'FRIDAY', startTime: '09:00' },
+  ]);
   const [durationWeeks, setDurationWeeks] = useState<string>('5');
 
   const [submitting, setSubmitting] = useState(false);
 
-  const toggleDay = (d: string) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d]);
+  const toggleDay = (day: string) => {
+    setTrainingDayScheduless(prev => {
+      const exists = prev.find(d => d.dayOfWeek === day);
+      if (exists) {
+        return prev.filter(d => d.dayOfWeek !== day);
+      }
+      return [...prev, { dayOfWeek: day, startTime: '09:00' }];
+    });
+  };
+
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [showPicker, setShowPicker] = useState(false)
+
+  const openTimePicker = (day: string) => {
+    setSelectedDay(day)
+    setShowPicker(true)
+  }
+
+  const updateTime = (day: string, time: string) => {
+    setTrainingDayScheduless(prev =>
+      prev.map(d =>
+        d.dayOfWeek === day ? { ...d, startTime: time } : d
+      )
+    );
+  };
 
   const submitRequest = async () => {
     console.log('send request invoked, primaryGoalId:', primaryGoalIdState, 'workoutLevel:', workoutLevel);
@@ -49,18 +82,18 @@ const SendRequestScreen = ({ route }: Props) => {
       Alert.alert('Lỗi', 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.');
       return;
     }
-    if (trainingDays.length === 0) {
+    if (trainingDaySchedules.length === 0) {
       Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một ngày trong tuần để tập luyện.');
       return;
     }
     setSubmitting(true);
     try {
       const payload = {
-        coachId : coach_id,
+        coachId: coach_id,
         primaryGoalId: primaryGoalIdState,
         secondaryGoalIds: secondaryGoalIdsState,
         workoutLevel,
-        trainingDays,
+        trainingDaySchedules,
         durationWeeks: parseInt(durationWeeks, 10) || 4,
         traineeMessage: ``,
       };
@@ -122,6 +155,72 @@ const SendRequestScreen = ({ route }: Props) => {
     }
   };
 
+  const TIME_OPTIONS = Array.from({ length: 13 }, (_, i) => {
+    const hour = 6 + i;
+    return `${hour.toString().padStart(2, '0')}:00`;
+  });
+
+
+  //Time-off
+  const [timeOffs, setTimeOffs] = useState<any[]>([])
+
+  const fetchTimeOffs = async () => {
+    const res = await CoachService.getTimeOffById(coach_id)
+
+    if (res) {
+      setTimeOffs(res)
+    }
+  }
+
+  useEffect(() => {
+    fetchTimeOffs()
+  }, [])
+
+  const toLocal = (iso: string) => {
+    return new Date(iso)
+  }
+
+  const getTargetDateTime = (day: string, time: string) => {
+    const today = new Date()
+
+    const weekdayMap = Object.keys(WEEKDAY_LABELS_VN) // đảm bảo đúng thứ tự MON → SUN
+    const targetIndex = weekdayMap.indexOf(day)
+
+    const currentDay = today.getDay() === 0 ? 6 : today.getDay() - 1 // convert về MON=0
+    const diff = targetIndex - currentDay
+
+    const target = new Date(today)
+    target.setDate(today.getDate() + diff)
+
+    const [hour] = time.split(':').map(Number)
+    target.setHours(hour, 0, 0, 0)
+
+    return target
+  }
+
+  const isTimeDisabled = (day: string, time: string) => {
+    const target = getTargetDateTime(day, time)
+
+    return timeOffs.some((off) => {
+      const start = new Date(off.startTime)
+      const end = new Date(off.endTime)
+
+      return target >= start && target < end
+    })
+  }
+
+  const getTimeOffReason = (day: string, time: string) => {
+    const target = getTargetDateTime(day, time)
+
+    const found = timeOffs.find((off) => {
+      const start = new Date(off.startTime)
+      const end = new Date(off.endTime)
+
+      return target >= start && target < end
+    })
+
+    return found?.reason
+  }
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
@@ -131,7 +230,7 @@ const SendRequestScreen = ({ route }: Props) => {
 
       <ScrollView className="px-4" contentContainerStyle={styles.scrollContent}>
         <View className="bg-white rounded-lg p-6 border border-gray-200 mt-4">
-          
+
           <GoalPicker
             initialPrimaryId={primaryGoalIdState ?? undefined}
             initialSecondaryIds={secondaryGoalIdsState}
@@ -143,19 +242,64 @@ const SendRequestScreen = ({ route }: Props) => {
             }}
           />
 
-          
+
           <Text className="font-semibold mt-6">Mức độ (theo onboarding)</Text>
           <View className="mt-2 p-4 bg-gray-100 rounded-lg border border-gray-200">
             <Text className="text-base">{workoutLevel === 'BEGINNER' ? 'Mới' : workoutLevel === 'INTERMEDIATE' ? 'Trung bình' : 'Nâng cao'}</Text>
           </View>
 
           <Text className="font-semibold mt-6">Ngày tập</Text>
-          <View className="flex-row flex-wrap mt-3">
-            {Object.keys(WEEKDAY_LABELS_VN).map(d => (
-              <TouchableOpacity key={d} onPress={() => toggleDay(d)} className={`px-4 py-3 rounded-xl mr-2 mb-2 border ${trainingDays.includes(d) ? 'bg-foreground border-foreground' : 'bg-white border-gray-200'}`}>
-                <Text className={`${trainingDays.includes(d) ? 'text-white' : 'text-black'}`}>{WEEKDAY_LABELS_VN[d]}</Text>
-              </TouchableOpacity>
-            ))}
+          <View className="mt-3 space-y-2">
+            {Object.keys(WEEKDAY_LABELS_VN).map((d) => {
+              const selected = trainingDaySchedules.find(x => x.dayOfWeek === d)
+              const isChecked = !!selected
+
+              return (
+                <View
+                  key={d}
+                  className={`my-2 flex-row items-center justify-between border rounded-xl px-3 py-3 bg-white ${!isChecked ? 'opacity-40' : ''
+                    }`}
+                >
+                  {/* LEFT: checkbox + label */}
+                  <TouchableOpacity
+                    onPress={() => toggleDay(d)}
+                    className="flex-row items-center flex-1"
+                  >
+                    {/* Checkbox tròn */}
+                    <View
+                      className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${isChecked ? 'border-foreground' : 'border-gray-300'
+                        }`}
+                    >
+                      {isChecked && (
+                        <View className="w-2.5 h-2.5 rounded-full bg-foreground" />
+                      )}
+                    </View>
+
+                    {/* Label */}
+                    <Text
+                      className={`font-semibold ${isChecked ? 'text-black' : 'text-gray-400'
+                        }`}
+                    >
+                      {WEEKDAY_LABELS_VN[d]}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* RIGHT: dropdown giờ */}
+                  <View className="w-[50%]">
+                    <TouchableOpacity
+                      disabled={!isChecked}
+                      onPress={() => openTimePicker(d)}
+                      className={`border rounded-xl px-3 py-3 items-center ${isChecked ? 'bg-gray-50 border-gray-300' : 'bg-gray-100 border-gray-200'
+                        }`}
+                    >
+                      <Text className={`font-semibold ${isChecked ? 'text-black' : 'text-gray-400'}`}>
+                        {selected?.startTime || '--:--'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )
+            })}
           </View>
 
           <Text className="font-semibold mt-6">Số tuần</Text>
@@ -167,6 +311,69 @@ const SendRequestScreen = ({ route }: Props) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <Modal visible={showPicker} transparent animationType="slide">
+        <View className="flex-1 bg-black/30 justify-end">
+          <View className="bg-white rounded-t-3xl p-4 max-h-[50%]">
+
+            <Text className="text-center font-bold text-lg mb-3">
+              Chọn giờ tập
+            </Text>
+
+            <ScrollView>
+              {TIME_OPTIONS.map((time) => {
+                const current = trainingDaySchedules.find(x => x.dayOfWeek === selectedDay)
+
+                const active = current?.startTime === time
+                const disabled = isTimeDisabled(selectedDay!, time)
+
+                return (
+                  <TouchableOpacity
+                    key={time}
+                    disabled={disabled}
+                    onPress={() => {
+                      updateTime(selectedDay!, time)
+                      setShowPicker(false)
+                    }}
+                    className={`p-4 rounded-xl mb-2 ${disabled
+                        ? 'bg-gray-200'
+                        : active
+                          ? 'bg-foreground'
+                          : 'bg-gray-100'
+                      }`}
+                  >
+                    <Text
+                      className={`text-center font-semibold ${disabled
+                          ? 'text-gray-400'
+                          : active
+                            ? 'text-white'
+                            : 'text-black'
+                        }`}
+                    >
+                      {time}
+                    </Text>
+
+                    {/* Hiển thị lý do bận */}
+                    {disabled && (
+                      <Text className="text-xs text-center text-red-400 mt-1">
+                        {getTimeOffReason(selectedDay!, time) || 'Bận'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+
+            {/* Close */}
+            <TouchableOpacity
+              onPress={() => setShowPicker(false)}
+              className="mt-3 p-3"
+            >
+              <Text className="text-center text-gray-500">Đóng</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

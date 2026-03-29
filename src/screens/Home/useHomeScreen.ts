@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { courseMock, exerciseMock, productMock } from '../../mocks/searchData';
-import { ScrollView } from 'react-native';
+import { PermissionsAndroid, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+
 
 export const useHomeScreen = () => {
   // STATE

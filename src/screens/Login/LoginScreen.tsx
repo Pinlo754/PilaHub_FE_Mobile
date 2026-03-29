@@ -75,14 +75,14 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-   return (
-    <SafeAreaView  className="flex-1 bg-background">
-      
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
-   
+
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
-          
+
           Đăng Nhập
         </Text>
       </View>
@@ -142,9 +142,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => setRemember(!remember)}
           >
             <View
-              className={`w-4 h-4 border mr-2 ${
-                remember ? "bg-secondaryText" : "bg-white"
-              }`}
+              className={`w-4 h-4 border mr-2 ${remember ? "bg-secondaryText" : "bg-white"
+                }`}
             />
             <Text>Nhớ tài khoản</Text>
           </TouchableOpacity>
@@ -161,12 +160,16 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             setError(null);
             setLoading(true);
             try {
-              //const emailMock = 'nvmthoai14738837@gmail.com';
-              //const passwordMock = 'Thoai12345@';
+               const emailMock = 'nvmthoai14738837@gmail.com';
+               const passwordMock = 'Thoai12345@';
+               const res = await login({ email: emailMock, password: passwordMock });    
+
               // const emailMock = 'pinlo752004@gmail.com';
               // const passwordMock = 'Phongpinlo123@';
-              //const res = await login({ email: emailMock, password: passwordMock });
-              const res = await login({ email, password});
+              // const res = await login({ email: emailMock, password: passwordMock });
+              
+
+              //const res = await login({ email, password});
               if (!res.ok) {
                 setLoading(false);
                 setError(res.error?.message ?? JSON.stringify(res.error));
@@ -203,10 +206,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* Apple */}
-        <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center">
+        {/* <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center">
           <Text className="text-base"></Text>
           <Text className="ml-2 text-base">Tiếp tục với Apple</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Footer */}
         <TouchableOpacity className="mt-6 items-center" onPress={() => navigation.navigate('Register')}>

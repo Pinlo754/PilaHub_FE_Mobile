@@ -32,8 +32,9 @@ const List = ({ data, navigation, onPressCoach }: Props) => {
           isLast={index === data.length - 1}
           onPressCard={() =>
             navigation.navigate('CoachDetail', {
-              coach_id: item.coachId,
+              coachId: item.coachId,
               selectedCoachId: item.coachId,
+              pricePerHour: 200000,
             })
           }
           onPressBtn={() => {
