@@ -44,6 +44,7 @@ const RoadMap = () => {
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // local display state: when user fetches newest roadmap we show it here
   const [displayRoadmap, setDisplayRoadmap] = useState<any | null>(roadmap);
@@ -51,6 +52,43 @@ const RoadMap = () => {
   const [displaySupplements, setDisplaySupplements] = useState<any[]>([]);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'CURRENT' | 'PROCESSING'>('CURRENT')
+  const [coachRequests, setCoachRequests] = useState<any[]>([])
+
+  const fetchCurrentRoadmap = async () => {
+    const res = await axios.get('/roadmaps/newest')
+    return res.data?.data ?? res.data
+  }
+
+  const fetchProcessingRoadmap = async () => {
+    const res = await axios.get('/roadmaps/my-pending')
+    return res.data?.data ?? res.data
+  }
+
+  const acceptRoadmap = async (roadmapId: string) => {
+    return axios.patch(`/roadmaps/${roadmapId}/approve`)
+  }
+
+  const fetchCoachRequests = async () => {
+    try {
+      const res = await axios.get('/coach-roadmap-requests/my-sent')
+      const data = res.data?.data ?? res.data ?? []
+      setCoachRequests(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.warn("Không lấy được coach requests", err)
+      setCoachRequests([])
+    }
+  }
+
+
+  const handleAcceptRoadmap = () => {
+    if (!currentRoadmap) return;
+    setShowConfirmModal(true);
+  };
+
+
+
+
 
   const fetchRoadmapSupplements = useCallback(async (roadmapId: string) => {
     try {
@@ -67,14 +105,16 @@ const RoadMap = () => {
   }, []);
 
   // fetch helper reused by focus effect
-  const fetchNewest = useCallback(async () => {
+  const fetchNewest = useCallback(async (type: 'CURRENT' | 'PROCESSING') => {
     try {
       setSaving(true);
 
-      const newestRes = await axios.get("/roadmaps/newest");
-      console.log("roadmap newest response", newestRes?.data ?? newestRes);
+      const data =
+        type === 'CURRENT'
+          ? await fetchCurrentRoadmap()
+          : await fetchProcessingRoadmap()
 
-      const newestData = newestRes.data?.data ?? newestRes.data ?? newestRes;
+      const newestData = data.data?.data ?? data.data ?? data;
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -148,11 +188,16 @@ const RoadMap = () => {
       );
 
       if (!hasFetched) {
-        fetchNewest();
+        fetchNewest(activeTab);
       }
 
-      return () => {};
-    }, [displayRoadmap, fetchNewest])
+      // Fetch coach requests when tab is PROCESSING
+      if (activeTab === 'PROCESSING') {
+        fetchCoachRequests();
+      }
+
+      return () => { };
+    }, [displayRoadmap, fetchNewest, activeTab])
   );
 
   // canonical objects used by the UI (prefer fetched display values)
@@ -162,6 +207,14 @@ const RoadMap = () => {
     displaySupplements?.length
       ? displaySupplements
       : currentRoadmap?.supplements ?? [];
+
+  // map stages vào currentRoadmap
+  const roadmapWithStages = currentRoadmap
+    ? {
+      ...currentRoadmap,
+      stages: currentStages,
+    }
+    : null;
 
   // detect API-shaped stages: entries with .stage property
   const isApiShaped =
@@ -285,7 +338,7 @@ const RoadMap = () => {
         </Text>
 
         <TouchableOpacity
-          onPress={() => fetchNewest()}
+          onPress={() => fetchNewest(activeTab)}
           className="bg-foreground px-4 py-3 rounded-lg mb-3"
         >
           <Text className="text-white">Tải lộ trình mới nhất</Text>
@@ -327,13 +380,62 @@ const RoadMap = () => {
 
   const selectedStageSupplements = selectedStageId
     ? currentSupplements.filter(
-        (sp: any) => sp.personalStageId === selectedStageId
-      )
+      (sp: any) => sp.personalStageId === selectedStageId
+    )
     : currentSupplements;
+
+  const allSchedules = currentStages.flatMap((st: any) =>
+    st.schedules?.map((s: any) => s.schedule) ?? []
+  );
+
+  const totalSessions = allSchedules.length;
+
+  const firstSchedule = allSchedules[0];
+  const lastSchedule = allSchedules[allSchedules.length - 1];
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("vi-VN");
+  };
+
+  const totalAmount = currentRoadmap?.totalAmount ?? 0;
+
 
   return (
     <SafeAreaView className="flex-1 bg-[#F3EDE3]">
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View className="flex-row px-5 mt-4 rounded-xl p-1 border border-foreground">
+          <TouchableOpacity
+            onPress={() => {
+              setActiveTab('CURRENT')
+              fetchNewest('CURRENT')
+            }}
+            className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'CURRENT' ? 'bg-foreground' : ''
+              }`}
+          >
+            <Text
+              className={`font-semibold ${activeTab === 'CURRENT' ? 'text-white' : 'text-gray-500'
+                }`}
+            >
+              Roadmap hiện tại
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setActiveTab('PROCESSING')
+              fetchNewest('PROCESSING')
+            }}
+            className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'PROCESSING' ? 'bg-foreground' : ''
+              }`}
+          >
+            <Text
+              className={`font-semibold ${activeTab === 'PROCESSING' ? 'text-white' : 'text-gray-500'
+                }`}
+            >
+              Đang xử lý
+            </Text>
+          </TouchableOpacity>
+        </View>
         {/* Header */}
         <View className="px-5 mt-4">
           <Text className="text-2xl font-bold text-[#8B4513]">
@@ -346,6 +448,8 @@ const RoadMap = () => {
             </Text>
           )}
         </View>
+
+
 
         {/* Stage selector */}
         <View className="mt-6">
@@ -410,7 +514,7 @@ const RoadMap = () => {
 
         {/* New supplement block from roadmap API */}
         {Array.isArray(selectedStageSupplements) &&
-        selectedStageSupplements.length > 0 ? (
+          selectedStageSupplements.length > 0 ? (
           <View className="px-5 mt-6">
             <Text className="text-lg font-semibold text-[#8B4513] mb-2">
               Supplements
@@ -538,8 +642,155 @@ const RoadMap = () => {
           </View>
         ) : null}
       </ScrollView>
+      <View className="bottom-20">
+        {activeTab === 'PROCESSING' && (
+          <BottomActionBar
+            showAccept={currentRoadmap?.status === 'PENDING'}
+            showSave={false}
+            onAccept={handleAcceptRoadmap}
+            accepting={saving}
 
-      <BottomActionBar onSave={handleSaveToServer} saving={saving} />
+          />
+        )}
+      </View>
+      {showConfirmModal && (
+        <View className="absolute inset-0 bg-black/50 justify-center items-center px-5">
+          <View className="bg-white w-full rounded-2xl p-5">
+
+            <Text className="text-xl font-bold text-center mb-4">
+              Xác nhận lộ trình
+            </Text>
+
+            {/* Giá tiền */}
+            <Text className="text-base mb-2">
+              💰 Giá: {totalAmount.toLocaleString()} VNĐ
+            </Text>
+
+            {/* Tổng buổi */}
+            <Text className="text-base mb-2">
+              📊 Tổng số buổi: {totalSessions}
+            </Text>
+
+            {/* Thời gian */}
+            {firstSchedule && lastSchedule && (
+              <Text className="text-base mb-2">
+                📅 Thời gian: {formatDate(firstSchedule.scheduledDate)} -{" "}
+                {formatDate(lastSchedule.scheduledDate)}
+              </Text>
+            )}
+
+            {/* Ngày học (ví dụ THỨ 2, THỨ 6) */}
+            <Text className="text-base mb-4">
+              📆 Lịch học:{" "}
+              {[...new Set(allSchedules.map((s: any) => s.dayOfWeek))].join(", ")}
+            </Text>
+
+            {/* Buttons */}
+            <View className="flex-row justify-between">
+              <TouchableOpacity
+                onPress={() => setShowConfirmModal(false)}
+                className="flex-1 mr-2 py-3 rounded-lg bg-gray-200 items-center"
+              >
+                <Text>Huỷ</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    setSaving(true);
+
+                    const roadmapId =
+                      currentRoadmap?.roadmapId ??
+                      currentRoadmap?.id ??
+                      currentRoadmap?._id;
+
+                    // Lấy coachRequest để tìm trainingDaySchedules
+                    const coachRequest = coachRequests.find(
+                      (req: any) => req.coachId === currentRoadmap?.coachId
+                    );
+                    const trainingDaySchedules = coachRequest?.trainingDaySchedules ?? [];
+
+                    // Map bookingSlots từ currentStages + trainingDaySchedules
+                    const bookingSlots = currentStages.flatMap((st: any) =>
+                      st.schedules?.map((scheduleWrapper: any) => {
+                        const schedule = scheduleWrapper.schedule;
+                        const scheduledDate = new Date(schedule.scheduledDate);
+                        
+                        // Lấy ngày tháng năm
+                        const year = scheduledDate.getUTCFullYear();
+                        const month = String(scheduledDate.getUTCMonth() + 1).padStart(2, '0');
+                        const day = String(scheduledDate.getUTCDate()).padStart(2, '0');
+
+                        // Tìm giờ từ trainingDaySchedules dựa vào dayOfWeek
+                        const dayOfWeekMap: any = {
+                          'THỨ HAI': 'MONDAY',
+                          'THỨ BA': 'TUESDAY',
+                          'THỨ TƯ': 'WEDNESDAY',
+                          'THỨ NĂM': 'THURSDAY',
+                          'THỨ SÁU': 'FRIDAY',
+                          'THỨ BẢY': 'SATURDAY',
+                          'CHỦ NHẬT': 'SUNDAY'
+                        };
+                        
+                        const dayOfWeekEng = dayOfWeekMap[schedule.dayOfWeek] || 'MONDAY';
+                        const trainingSchedule = trainingDaySchedules.find(
+                          (tds: any) => tds.dayOfWeek === dayOfWeekEng
+                        );
+                        const startTimeStr = trainingSchedule?.startTime ?? '08:00'; // mặc định 08:00
+
+                        // Parse time HH:mm -> HH:mm:ss
+                        const [hours, minutes] = startTimeStr.split(':');
+                        const startDateTime = `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
+                        
+                        const startDateTimeObj = new Date(startDateTime);
+                        const start = new Date(startDateTimeObj.getTime() -7 * 60 * 60 * 1000); 
+                        const durationMs = 60 * 60 * 1000;
+                        const end = new Date(start.getTime() + durationMs);
+
+                        return {
+                          startTime: start.toISOString(),
+                          endTime: end.toISOString(),
+                        };
+                      }) ?? []
+                    );
+
+                    const payload1 = {
+                      coachId: currentRoadmap?.coachId,
+                      bookingSlots: bookingSlots,
+                      bookingType: "PERSONAL_TRAINING_PACKAGE",
+                      recurringGroupId: roadmapId,
+                    }
+
+                    console.log("Payload for booking", payload1);
+                    await axios.post(`/coach-bookings/batch`, payload1);
+                    await acceptRoadmap(roadmapId);
+
+                    setShowConfirmModal(false);
+
+                    Alert.alert("Thành công", "Đã chấp nhận lộ trình");
+
+                    setActiveTab("CURRENT");
+                    fetchNewest("CURRENT");
+                  } catch (err: any) {
+                    Alert.alert(
+                      "Lỗi",
+                      err?.response?.data?.message ??
+                      "Không thể chấp nhận roadmap"
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="flex-1 ml-2 py-3 rounded-lg bg-foreground items-center"
+              >
+                <Text className="text-white font-semibold">
+                  Xác nhận thanh toán
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };

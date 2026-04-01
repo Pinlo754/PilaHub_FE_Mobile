@@ -308,6 +308,26 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
     }
 
+    const scheduleMap = useMemo(() => {
+        const map: Record<string, string> = {};
+
+        RequestItem.trainingDaySchedules?.forEach((item: any) => {
+            map[item.dayOfWeek] = item.startTime;
+        });
+
+        return map;
+    }, [RequestItem.trainingDaySchedules]);
+
+    const DAY_LABELS: Record<string, string> = {
+        MONDAY: 'Thứ 2',
+        TUESDAY: 'Thứ 3',
+        WEDNESDAY: 'Thứ 4',
+        THURSDAY: 'Thứ 5',
+        FRIDAY: 'Thứ 6',
+        SATURDAY: 'Thứ 7',
+        SUNDAY: 'CN',
+    };
+
     return (
         <SafeAreaView className="flex-1 bg-background">
             {/* HEADER: centered title + back */}
@@ -370,7 +390,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                         <Ionicons name="barbell-outline" size={18} color="#6B7280" />
 
                         <Text className="ml-2 text-gray-700">
-                            Level: <Text className="font-semibold">{RequestItem.workoutLevel}</Text>
+                            Cấp độ: <Text className="font-semibold">{RequestItem.workoutLevel}</Text>
                         </Text>
 
                     </View>
@@ -381,10 +401,14 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                         {RequestItem.trainingDays.map((day: string) => (
                             <View
                                 key={day}
-                                className="bg-emerald-100 px-3 py-1 rounded-full mr-2 mb-2"
+                                className="bg-emerald-100 px-3 py-2 rounded-xl mr-2 mb-2 items-center"
                             >
                                 <Text className="text-emerald-700 text-xs font-semibold">
-                                    {day}
+                                    {DAY_LABELS[day]}
+                                </Text>
+
+                                <Text className="text-emerald-900 text-sm font-bold">
+                                    🕒 {scheduleMap[day] || '--:--'}
                                 </Text>
                             </View>
                         ))}

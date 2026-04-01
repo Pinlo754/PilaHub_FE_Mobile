@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CoachType } from '../../utils/CoachType';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
-import { coachService } from '../../hooks/coach.service';
+import { CoachService } from '../../hooks/coach.service';
 import { coachTimeOffService } from '../../hooks/coachTimeOff.service';
 import {
   DaySchedule,
@@ -94,7 +94,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await coachService.getAll();
+      const res = await CoachService.getAll();
 
       setCoaches(res);
     } catch (err: any) {
