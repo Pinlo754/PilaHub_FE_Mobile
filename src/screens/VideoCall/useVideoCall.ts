@@ -5,10 +5,10 @@ import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { PublicConfigService } from '../../hooks/publicConfig.service';
+import { LiveSessionService } from '../../hooks/liveSession.service';
 import { agoraService } from '../../hooks/agora.service';
 import { LiveSessionType } from '../../utils/LiveSessionType';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { LiveSessionService } from '../../hooks/livesession.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'VideoCall'>;
@@ -23,7 +23,6 @@ export const useVideoCall = ({ navigation, route }: Props) => {
 
   // STATE
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
-  const [debugInfo, setDebugInfo] = useState<{ channelName?: string; uid?: number; token?: string; liveSessionId?: string } | null>(null);
   const [liveSessionDetail, setLiveSessionDetail] = useState<LiveSessionType>();
   const [connected, setConnected] = useState(false);
   const [micOn, setMicOn] = useState<boolean>(true);
@@ -67,20 +66,10 @@ export const useVideoCall = ({ navigation, route }: Props) => {
         PublicConfigService.getAgoraConfig(),
         LiveSessionService.getByBookingId(bookingIdParam)
       ]);
-      console.log('[VideoCall] PublicConfig:', resConfig);
-      console.log('[VideoCall] LiveSession fetched:', resLiveSession);
-       
-       setLiveSessionDetail(resLiveSession);
- 
-       // debug: capture liveSession info
-       setDebugInfo({ liveSessionId: resLiveSession.liveSessionId });
- 
-       const resSession = await LiveSessionService.getAgoraToken(resLiveSession.liveSessionId);
-      console.log('[VideoCall] LiveSession:', resLiveSession.liveSessionId, resLiveSession);
-      console.log('[VideoCall] Agora token response:', resSession);
-      // explicit key fields
-      console.log('[VideoCall] Agora channelName, uid present:', { channelName: resSession.channelName, uid: resSession.uid, tokenPresent: !!resSession.token });
-       setDebugInfo(prev => ({ ...(prev ?? {}), channelName: resSession.channelName, uid: resSession.uid, token: resSession.token, liveSessionId: resLiveSession.liveSessionId }));
+      
+      setLiveSessionDetail(resLiveSession);
+
+      const resSession = await LiveSessionService.getAgoraToken(resLiveSession.liveSessionId);
 
       // 2. Khởi tạo Engine
       const engineInstance = await agoraService.init(resConfig.appId);
@@ -91,7 +80,6 @@ export const useVideoCall = ({ navigation, route }: Props) => {
         onJoinChannelSuccess: (connection) => {
           console.log('✅ Local joined:', connection.localUid);
           setConnected(true);
-          setDebugInfo(prev => ({ ...(prev ?? {}), uid: connection.localUid }));
         },
         onUserJoined: (connection, uid) => {
           console.log('👤 Remote user joined:', uid);
@@ -111,26 +99,14 @@ export const useVideoCall = ({ navigation, route }: Props) => {
       });
 
       // 4. Join Channel
-      console.log('[VideoCall] about to join channel', { channel: resSession.channelName, uid: resSession.uid });
-      try {
-        await agoraService.joinChannel(
-          resSession.token,
-          resSession.channelName,
-          resSession.uid
-        );
-        console.log('[VideoCall] joinChannel call returned successfully');
-      } catch (joinErr) {
-        console.error('[VideoCall] joinChannel failed', joinErr);
-        throw joinErr;
-      }
+      await agoraService.joinChannel(
+        resSession.token,
+        resSession.channelName,
+        resSession.uid
+      );
 
       // 5. Đánh dấu đã tham gia phía server
-      try {
-        const markRes = await LiveSessionService.markJoined(resLiveSession.liveSessionId);
-        console.log('[VideoCall] markJoined response:', markRes);
-      } catch (mErr) {
-        console.error('[VideoCall] markJoined failed', mErr);
-      }
+      await LiveSessionService.markJoined(resLiveSession.liveSessionId);
 
     } catch (err: any) {
       console.error('Init Error:', err);
@@ -144,24 +120,19 @@ export const useVideoCall = ({ navigation, route }: Props) => {
     try {
       setIsLoading(true);
       if (liveSessionDetail) {
-        try {
-          const left = await LiveSessionService.markLeft(liveSessionDetail.liveSessionId);
-          console.log('[VideoCall] markLeft response:', left);
-        } catch (leftErr) {
-          console.error('[VideoCall] markLeft failed', leftErr);
-        }
-       }
-       await agoraService.leaveChannel();
-       navigation.navigate('TraineeFeedback', {
-         liveSessionId: liveSessionDetail?.liveSessionId,
-       });
-     } catch (err) {
-       console.error('Leave error:', err);
-       navigation.goBack();
-     } finally {
-       setIsLoading(false);
-     }
-   };
+        await LiveSessionService.markLeft(liveSessionDetail.liveSessionId);
+      }
+      await agoraService.leaveChannel();
+      navigation.navigate('TraineeFeedback', {
+        liveSessionId: liveSessionDetail?.liveSessionId,
+      });
+    } catch (err) {
+      console.error('Leave error:', err);
+      navigation.goBack();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Toggles
   const toggleCamera = () => {
@@ -194,7 +165,6 @@ export const useVideoCall = ({ navigation, route }: Props) => {
     };
   }, [initAgora]);
 
-  // expose debugInfo so VideoCall UI can display it
   return {
     remoteUid,
     connected,
@@ -217,6 +187,5 @@ export const useVideoCall = ({ navigation, route }: Props) => {
       setShowConfirmModal(false);
       leave();
     },
-    debugInfo,
   };
 };

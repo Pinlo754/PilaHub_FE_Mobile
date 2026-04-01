@@ -17,7 +17,7 @@ import { colors } from '../theme/colors';
 const HEART_RATE_SERVICE = '180D';
 const HEART_RATE_MEASUREMENT = '2A37';
 
-export default function PolarHeartRate({ compact = false, onHeartRate, autoStart = false, onStatusChange }: { compact?: boolean; onHeartRate?: (bpm: number) => void; autoStart?: boolean; onStatusChange?: (status: string) => void }) {
+export default function PolarHeartRate({ compact = false }: { compact?: boolean }) {
   const manager = getBleManager();
   const [scanning, setScanning] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -29,13 +29,6 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
   const [servicesList, setServicesList] = useState<
     { uuid: string; characteristics: { uuid: string; isNotifiable?: boolean }[] }[]
   >([]);
-
-  // notify parent when status changes
-  useEffect(() => {
-    try {
-      if (onStatusChange) onStatusChange(status);
-    } catch {}
-  }, [status, onStatusChange]);
 
   useEffect(() => {
     return () => {
@@ -51,19 +44,6 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device]);
-
-  // Auto-start scanning for compact mode when requested
-  useEffect(() => {
-    if (compact && autoStart) {
-      // small timeout to allow component mount
-      const t = setTimeout(() => {
-        if (!scanning && !device) startScan();
-      }, 300);
-      return () => clearTimeout(t);
-    }
-    return;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compact, autoStart]);
 
   async function ensurePermissions() {
     if (Platform.OS !== 'android') return true;
@@ -199,62 +179,25 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
             const hrChar = chars.find(c => c.uuid.toLowerCase().includes('2a37'));
             if (hrChar) {
               found = true;
-              try {
-                monitorSub.current = manager.monitorCharacteristicForDevice(
-                  connected.id,
-                  s.uuid,
-                  hrChar.uuid,
-                  (error, characteristic) => {
-                    if (error) {
-                      console.log('[PolarHeartRate] monitor callback error', error);
-                      setStatus('monitor_error');
-                      return;
-                    }
-                    console.log('[PolarHeartRate] characteristic update', characteristic?.uuid, characteristic?.value);
-                    const bpm = parseHeartRate(characteristic?.value ?? null);
-                    if (bpm !== null) {
-                      console.log('[PolarHeartRate] parsed bpm', bpm);
-                      setHr(bpm);
-                      try {
-                        onHeartRate?.(bpm);
-                      } catch {}
-                      setStatus('receiving');
-                    }
-                  },
-                );
-              } catch (monitorErr) {
-                console.log('[PolarHeartRate] monitor setup threw', monitorErr);
-                // try a small reconnect and fallback to scanning characteristics for a notifiable one
-                setStatus('monitor_setup_failed');
-                // attempt a short retry
-                setTimeout(async () => {
-                  try {
-                    console.log('[PolarHeartRate] retrying monitor setup for', connected.id, s.uuid, hrChar.uuid);
-                    monitorSub.current = manager.monitorCharacteristicForDevice(
-                      connected.id,
-                      s.uuid,
-                      hrChar.uuid,
-                      (error, characteristic) => {
-                        if (error) {
-                          console.log('[PolarHeartRate] monitor retry callback error', error);
-                          setStatus('monitor_error');
-                          return;
-                        }
-                        const bpm = parseHeartRate(characteristic?.value ?? null);
-                        if (bpm !== null) {
-                          console.log('[PolarHeartRate] parsed bpm (retry)', bpm);
-                          setHr(bpm);
-                          try { onHeartRate?.(bpm); } catch {}
-                          setStatus('receiving');
-                        }
-                      },
-                    );
-                  } catch (e) {
-                    console.log('[PolarHeartRate] monitor retry failed', e);
-                    // continue to fallback logic below if available
+              monitorSub.current = manager.monitorCharacteristicForDevice(
+                connected.id,
+                s.uuid,
+                hrChar.uuid,
+                (error, characteristic) => {
+                  if (error) {
+                    console.log('[PolarHeartRate] monitor error', error);
+                    setStatus('monitor_error');
+                    return;
                   }
-                }, 800);
-              }
+                  console.log('[PolarHeartRate] characteristic update', characteristic?.uuid, characteristic?.value);
+                  const bpm = parseHeartRate(characteristic?.value ?? null);
+                  if (bpm !== null) {
+                    console.log('[PolarHeartRate] parsed bpm', bpm);
+                    setHr(bpm);
+                    setStatus('receiving');
+                  }
+                },
+              );
               break;
             }
           } catch (e) {
@@ -283,33 +226,25 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
             const fallback = allChars.find(c => c.notifiable) || allChars[0];
             if (fallback) {
               console.log('[PolarHeartRate] using fallback char', fallback);
-              try {
-                monitorSub.current = manager.monitorCharacteristicForDevice(
-                  connected.id,
-                  fallback.service,
-                  fallback.uuid,
-                  (error, characteristic) => {
-                    if (error) {
-                      console.log('[PolarHeartRate] fallback monitor error', error);
-                      setStatus('monitor_error');
-                      return;
-                    }
-                    console.log('[PolarHeartRate] fallback characteristic update', characteristic?.uuid, characteristic?.value);
-                    const bpm = parseHeartRate(characteristic?.value ?? null);
-                    if (bpm !== null) {
-                      console.log('[PolarHeartRate] parsed bpm (fallback)', bpm);
-                      setHr(bpm);
-                      try {
-                        onHeartRate?.(bpm);
-                      } catch {}
-                      setStatus('receiving');
-                    }
-                  },
-                );
-              } catch (fbErr) {
-                console.log('[PolarHeartRate] fallback monitor setup threw', fbErr);
-                setStatus('monitor_setup_failed');
-              }
+              monitorSub.current = manager.monitorCharacteristicForDevice(
+                connected.id,
+                fallback.service,
+                fallback.uuid,
+                (error, characteristic) => {
+                  if (error) {
+                    console.log('[PolarHeartRate] fallback monitor error', error);
+                    setStatus('monitor_error');
+                    return;
+                  }
+                  console.log('[PolarHeartRate] fallback characteristic update', characteristic?.uuid, characteristic?.value);
+                  const bpm = parseHeartRate(characteristic?.value ?? null);
+                  if (bpm !== null) {
+                    console.log('[PolarHeartRate] parsed bpm (fallback)', bpm);
+                    setHr(bpm);
+                    setStatus('receiving');
+                  }
+                },
+              );
             } else {
               console.log('[PolarHeartRate] no fallback characteristic available');
             }
@@ -348,10 +283,6 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
       }
       setDevice(null);
       setHr(null);
-      try {
-        // notify listener that HR stream stopped
-        onHeartRate?.(0);
-      } catch {}
       setStatus('idle');
     }
   }
