@@ -160,16 +160,12 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             setError(null);
             setLoading(true);
             try {
-               const emailMock = 'nvmthoai14738837@gmail.com';
-               const passwordMock = 'Thoai12345@';
-               const res = await login({ email: emailMock, password: passwordMock });    
-
+              //const emailMock = 'nvmthoai14738837@gmail.com';
+              //const passwordMock = 'Thoai12345@';
               // const emailMock = 'pinlo752004@gmail.com';
               // const passwordMock = 'Phongpinlo123@';
-              // const res = await login({ email: emailMock, password: passwordMock });
-              
-
-              //const res = await login({ email, password});
+              //const res = await login({ email: emailMock, password: passwordMock });
+              const res = await login({ email, password});
               if (!res.ok) {
                 setLoading(false);
                 setError(res.error?.message ?? JSON.stringify(res.error));
