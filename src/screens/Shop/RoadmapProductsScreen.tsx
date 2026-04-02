@@ -204,7 +204,7 @@ export default function RoadmapProductsScreen() {
             <View className="mt-6">
               {(equipmentByStage.unassigned ?? []).length > 0 ? (
                 <>
-                  <Text className="text-sm font-semibold text-[#374151] mb-2">Dụng cụ hỗ trợ</Text>
+                  <Text className="text-sm font-semibold text-[#374151] mb-2">Thiết bị tập luyện</Text>
                   <FlatList
                     data={equipmentByStage.unassigned}
                     horizontal
@@ -217,7 +217,7 @@ export default function RoadmapProductsScreen() {
 
               {(supplementsByStage.unassigned ?? []).length > 0 ? (
                 <>
-                  <Text className="text-sm font-semibold text-[#374151] mt-3 mb-2">Sản phẩm bổ sung</Text>
+                  <Text className="text-sm font-semibold text-[#374151] mt-3 mb-2">Thực phẩm chức năng</Text>
                   <FlatList
                     data={supplementsByStage.unassigned}
                     horizontal

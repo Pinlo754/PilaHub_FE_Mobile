@@ -422,7 +422,7 @@ const RoadMap = () => {
         {/* Equipment fetched for current roadmap (if any) */}
         {currentRoadmap?.equipment ? (
           <View style={styles.sectionWrap}>
-            <Text style={styles.equipmentTitle}>Thiết bị</Text>
+            <Text style={styles.equipmentTitle}>Thiết bị tập luyện</Text>
 
             {Array.isArray(currentRoadmap.equipment) ? (
               currentRoadmap.equipment.map((eq: any, idx: number) => (
@@ -489,7 +489,7 @@ const RoadMap = () => {
         {Array.isArray(selectedStageSupplements) &&
         selectedStageSupplements.length > 0 ? (
           <View style={styles.sectionWrap}>
-            <Text style={styles.supplementTitle}>Supplements</Text>
+            <Text style={styles.supplementTitle}>Thực phẩm chức năng</Text>
 
             {selectedStageSupplements.map((sp: any, idx: number) => (
               <TouchableOpacity
