@@ -14,6 +14,11 @@ import { fetchTraineeHealthProfiles } from '../../../services/profile';
 import Header from '../components/Header';
 import { useNavigation } from '@react-navigation/native';
 
+type TrainingSchedule = {
+    dayOfWeek: string;
+    startTime: string;
+};
+
 type RequestItem = {
     requestId: string;
     traineeFullName: string;
@@ -24,8 +29,19 @@ type RequestItem = {
     secondaryGoalNames: string[];
     workoutLevel: string;
     trainingDays: string[];
+    trainingDaySchedules?: TrainingSchedule[];
     durationWeeks: number;
     status: string;
+};
+
+const WEEKDAY_LABELS_VN: Record<string, string> = {
+    MONDAY: 'Thứ 2',
+    TUESDAY: 'Thứ 3',
+    WEDNESDAY: 'Thứ 4',
+    THURSDAY: 'Thứ 5',
+    FRIDAY: 'Thứ 6',
+    SATURDAY: 'Thứ 7',
+    SUNDAY: 'Chủ nhật',
 };
 
 const statusColor = {
@@ -152,16 +168,18 @@ const RequestCard = ({ item, navigation }: { item: RequestItem; navigation: any 
             {/* Training Days */}
             <View className="flex-row flex-wrap mb-4">
 
-                {item.trainingDays.map((day) => (
-                    <View
-                        key={day}
-                        className="bg-emerald-100 px-3 py-1 rounded-full mr-2 mb-2"
-                    >
-                        <Text className="text-emerald-700 text-xs font-semibold">
-                            {day}
-                        </Text>
-                    </View>
-                ))}
+                <View className="flex-row flex-wrap mb-4">
+                    {(item.trainingDaySchedules ?? []).map((schedule) => (
+                        <View
+                            key={schedule.dayOfWeek}
+                            className="bg-emerald-100 px-3 py-1 rounded-full mr-2 mb-2 flex-row items-center"
+                        >
+                            <Text className="text-emerald-700 text-xs font-semibold">
+                                {WEEKDAY_LABELS_VN[schedule.dayOfWeek]} • {schedule.startTime}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
 
             </View>
 

@@ -97,7 +97,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const startWorkoutExerciseFree = async () => {
-    if (!exercise_id) return;
+    if (!id) return;
 
     setIsLoading(true);
     setError(null);

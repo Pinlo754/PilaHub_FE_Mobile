@@ -148,3 +148,14 @@ export async function confirmPasswordReset(email: string, otpCode: string, newPa
     return { ok: false, error };
   }
 }
+
+export const saveFcmToken = async (token: string) => {
+  try {
+    const res = await api.put(`/accounts/me/fcm-token?fcmToken=${token}`);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (error) {
+    console.log('Save token error:', error);
+    throw error;
+  }
+};

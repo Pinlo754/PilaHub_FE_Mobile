@@ -6,6 +6,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
 import { login } from '../../services/auth';
+import { postLoginRouting } from '../../utils/afterAuth';
 import { configureGoogleSignIn, signInWithGoogle } from '../../utils/google';
 import { googleAuth } from '../../services/googleAuth';
 import { WEB_CLIENT_ID } from '../../config/key';
@@ -73,19 +74,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      // delegate post-login routing
-      await handlePostLogin(data, navigation);
+      // success
+      await postLoginRouting(navigation, data);
       setLoading(false);
-      return;
     } catch (e: any) {
       setLoading(false);
       setError(e?.message ?? String(e));
     }
   }
 
-   return (
-<SafeAreaView  className="flex-1 bg-background">
-      
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
@@ -170,23 +170,26 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-          <TouchableOpacity
+        <TouchableOpacity
           className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
-onPress={async () => {
+          onPress={async () => {
             setError(null);
             setLoading(true);
             try {
-              const res = await login({ email, password });
+              //const emailMock = 'nvmthoai14738837@gmail.com';
+              //const passwordMock = 'Thoai12345@';
+              // const emailMock = 'pinlo752004@gmail.com';
+              // const passwordMock = 'Phongpinlo123@';
+              //const res = await login({ email: emailMock, password: passwordMock });
+              const res = await login({ email, password});
               if (!res.ok) {
                 setLoading(false);
                 setError(res.error?.message ?? JSON.stringify(res.error));
                 return;
               }
 
-              // success: delegate remaining flow to handler
-              const loginPayload = res.data ?? {};
-              await handlePostLogin(loginPayload, navigation);
-              setLoading(false);
+              await postLoginRouting(navigation, res.data ?? {});
+
             } catch (e: any) {
               setLoading(false);
               setError(e?.message ?? String(e));
@@ -198,7 +201,6 @@ onPress={async () => {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Text>
         </TouchableOpacity>
-
 
         {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
 
@@ -219,10 +221,10 @@ onPress={async () => {
         </TouchableOpacity>
 
         {/* Apple */}
-        <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center">
+        {/* <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center">
           <Text className="text-base"></Text>
           <Text className="ml-2 text-base">Tiếp tục với Apple</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Footer */}
         <TouchableOpacity

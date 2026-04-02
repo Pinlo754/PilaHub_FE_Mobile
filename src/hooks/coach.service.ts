@@ -104,4 +104,18 @@ export const CoachService = {
 
     return res.data.data;
   },
+
+  getTimeOffById: async (id: string) => {
+    const res = await api.get<ApiResponse<[]>>(`/coach-time-offs/coach/${id}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };
