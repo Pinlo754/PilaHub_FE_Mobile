@@ -101,6 +101,21 @@ const OrderDetailScreen: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [expandedShipments, setExpandedShipments] = useState<Record<string, boolean>>({});
 
+  // dedupe order details by orderDetailId (hook must run unconditionally)
+  const uniqueOrderDetails = React.useMemo(() => {
+    const arr = Array.isArray((order as any)?.orderDetails) ? (order as any).orderDetails : [];
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const d of arr) {
+      const id = String(d?.orderDetailId ?? d?.id ?? JSON.stringify(d));
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(d);
+    }
+    if (out.length !== arr.length) console.warn('[OrderDetail] deduped orderDetails', { original: arr.length, deduped: out.length });
+    return out;
+  }, [order]);
+
   // enable LayoutAnimation on Android
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -314,7 +329,7 @@ const OrderDetailScreen: React.FC = () => {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Sản phẩm</Text>
-          {(order.orderDetails || []).map((d: any) => (
+          {uniqueOrderDetails.map((d: any) => (
             <View key={d.orderDetailId} style={styles.itemRow}>
               <Image source={d.productImageUrl ? { uri: d.productImageUrl } : placeholderImg} style={styles.thumb} />
               <View style={styles.flex1}>

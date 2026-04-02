@@ -1,76 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, ActivityIndicator, Alert, Pressable, StyleSheet,  RefreshControl, Image, ScrollView } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, Alert, Pressable, RefreshControl, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Modal, TextInput } from 'react-native';
 import { getMyOrders, cancelOrder, confirmOrderDetail, requestOrderDetailReturn, requestOrderReturn } from '../../services/order';
-import { mapOrderStatusLabel, statusColor, ORDER_STATUS_FILTERS, statusIcon, statusEmoji } from '../../utils/orderStatus';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { mapOrderStatusLabel, statusColor, ORDER_STATUS_FILTERS, statusIcon } from '../../utils/orderStatus';
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const placeholderImg = require('../../assets/placeholderAvatar.png');
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFAF0' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F3' },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
-  headerSub: { color: '#666', fontSize: 13 },
-  list: { padding: 12 },
-  card: { backgroundColor: '#fff', marginBottom: 12, borderRadius: 12, padding: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  orderNumber: { fontSize: 14, fontWeight: '600' },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  badgeText: { fontWeight: '600', fontSize: 12, color: '#fff' },
-  detailsRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
-  thumb: { width: 56, height: 56, borderRadius: 8, marginRight: 12, backgroundColor: '#f0f0f0' },
-  productTitle: { fontSize: 14, fontWeight: '500' },
-  productMeta: { color: '#777', marginTop: 4, fontSize: 12 },
-  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  totalText: { fontWeight: '700' },
-  actionsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  btn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginRight: 8 },
-  btnDanger: { backgroundColor: '#FFEBEB' },
-  btnDangerText: { color: '#C53030', fontWeight: '600' },
-  btnPrimary: { backgroundColor: '#E8F8EF' },
-  btnPrimaryText: { color: '#137547', fontWeight: '600' },
-  btnWarn: { backgroundColor: '#FFF4E6' },
-  btnWarnText: { color: '#B97300', fontWeight: '600' },
-  small: { color: '#666', fontSize: 12 },
-  rightAlign: { alignItems: 'flex-end' },
-  boldWithMarginTop8: { marginTop: 8, fontWeight: '700' },
-  flex1: { flex: 1 },
-  rowCenter: { flexDirection: 'row', alignItems: 'center' },
-  centeredFullInline: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  iconButton: { padding: 6 },
-  emptyContainer: { flex: 1, alignItems: 'center', marginTop: 40 },
-  emptyText: { marginTop: 12, color: '#666' },
-  tabsWrapper: { backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, margin: 12 },
-  tabsRow: { flexDirection: 'row' },
-  tab: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 999, marginRight: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  tabActive: { backgroundColor: '#FDE68A', shadowColor: '#FDE68A', shadowOpacity: 0.6, shadowRadius: 6, elevation: 2 },
-  tabText: { color: '#333', fontSize: 14 },
-  tabContent: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
-  tabIcon: { marginRight: 8 },
-  tabEmoji: { marginRight: 6, fontSize: 14 },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  modalCard: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  modalTitle: { fontWeight: '700', fontSize: 16, marginBottom: 8 },
-  modalInput: { borderWidth: 1, borderColor: '#EEE', borderRadius: 8, padding: 10, height: 100, textAlignVertical: 'top' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
-  modalCancel: { padding: 10, marginRight: 8 },
-  modalSend: { padding: 10, backgroundColor: '#FDE68A', borderRadius: 8 },
-  shipmentBadge: { marginTop: 6 },
-  shipmentBadgeSmall: { marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeTextSmall: { fontSize: 12 },
-  detailButton: { backgroundColor: '#E1F5FE', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 8 },
-  detailButtonText: { color: '#01579B', fontWeight: '500' },
-  alignEnd: { alignItems: 'flex-end' },
-  ml8: { marginLeft: 8 },
-  detailsRowStart: { justifyContent: 'flex-start' },
-  tabsScrollContent: { paddingHorizontal: 12, alignItems: 'center' },
-  tabsScroll: { paddingHorizontal: 12 },
-});
 
 const TABS = ORDER_STATUS_FILTERS;
 // ORDER_STATUS_FILTERS includes 'ALL' plus every backend OrderStatus (PENDING, CONFIRMED, READY, SHIPPED, DELIVERED, FAILED_DELIVERY, COMPLETED, CANCELLED, RETURNED, REFUNDED)
@@ -84,7 +23,7 @@ function formatCurrency(amount: any) {
   }
 }
 
-const OrdersScreen: React.FC = () => {
+const OrdersScreen: React.FC<any> = ({ navigation }: { navigation: NativeStackNavigationProp<RootStackParamList> }) => {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]); // displayed orders after filtering
   const [allOrders, setAllOrders] = useState<any[]>([]); // full list fetched from server
@@ -96,7 +35,6 @@ const OrdersScreen: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<{ type: 'CANCEL' | 'RETURN'; id: string | null; orderId?: string | null }>({ type: 'CANCEL', id: null, orderId: null });
 
   const isFocused = useIsFocused();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const applyFilter = (fullList: any[], tab: string) => {
   // Tabs filter strictly by order-level status only.
@@ -209,73 +147,81 @@ const OrdersScreen: React.FC = () => {
   const renderOrder = ({ item }: { item: any }) => {
     const badgeStyle = statusColor(String(item.status));
     const orderLabel = mapOrderStatusLabel(item.status);
-    const firstDetail = (item.orderDetails && item.orderDetails[0]) || null;
-    const totalItems = (item.orderDetails || []).reduce((s: number, d: any) => s + (d.quantity ?? 0), 0);
+    // normalize and dedupe orderDetails (prevent duplicate product rows from backend)
+    const rawDetails = Array.isArray(item.orderDetails) ? item.orderDetails : [];
+    const details: any[] = [];
+    const seen = new Set<string>();
+    for (const d of rawDetails) {
+      // key by productId + unitPrice + variant/name to catch duplicate rows
+      const key = `${String(d?.productId ?? '')}::${String(d?.unitPrice ?? '')}::${String(d?.productName ?? '')}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      details.push(d);
+    }
+    const firstDetail = details[0] || null;
+    const remainingDetails = details.length > 1 ? details.slice(1) : [];
+    const totalItems = details.reduce((s: number, d: any) => s + (Number(d?.quantity ?? 0)), 0);
 
     return (
-      <View style={styles.card}>
-        <View style={styles.topRow}>
+      <View className="bg-white mb-3 rounded-xl p-3 shadow-md">
+        <View className="flex-row justify-between items-center mb-2">
           <View>
-            <Text style={styles.orderNumber}>{item.orderNumber ?? item.orderId}</Text>
-            <Text style={styles.small}>{new Date(item.createdAt ?? Date.now()).toLocaleString()}</Text>
+            <Text className="text-base font-semibold">{item.orderNumber ?? item.orderId}</Text>
+            <Text className="text-[#666] text-xs">{new Date(item.createdAt ?? Date.now()).toLocaleString()}</Text>
           </View>
 
-          <View style={styles.rightAlign}>
-            <View style={[styles.badge, { backgroundColor: badgeStyle.backgroundColor }]}> 
-              <Text style={[styles.badgeText, { color: badgeStyle.color }]}>{orderLabel}</Text>
+          <View className="items-end">
+            <View className="px-3 py-1 rounded-full" style={{ backgroundColor: badgeStyle.backgroundColor }}>
+              <Text className="font-semibold text-xs" style={{ color: badgeStyle.color }}>{orderLabel}</Text>
             </View>
-            <Text style={styles.boldWithMarginTop8}>{formatCurrency(item.totalAmount)}</Text>
-            <Text style={styles.small}>Ship: {formatCurrency(item.shippingFee)}</Text>
+            <Text className="mt-2 font-bold">{formatCurrency(item.totalAmount)}</Text>
+            <Text className="text-[#666] text-xs">Ship: {formatCurrency(item.shippingFee)}</Text>
           </View>
         </View>
 
-        <View style={[styles.detailsRow, styles.detailsRowStart]}> 
-          <Image source={firstDetail && firstDetail.productImageUrl ? { uri: firstDetail.productImageUrl } : placeholderImg} style={styles.thumb} />
-          <View style={styles.flex1}>
-            <Text style={styles.productTitle} numberOfLines={2}>{firstDetail?.productName ?? 'Sản phẩm'}</Text>
-            <Text style={styles.productMeta}>{totalItems} món • {formatCurrency(item.totalAmount)}</Text>
+        <View className="flex-row items-center my-1.5 justify-start">
+          <Image source={firstDetail && firstDetail.productImageUrl ? { uri: firstDetail.productImageUrl } : placeholderImg} className="w-14 h-14 rounded-lg mr-3 bg-gray-100" />
+          <View className="flex-1">
+            <Text className="text-sm font-medium" numberOfLines={2}>{firstDetail?.productName ?? 'Sản phẩm'}</Text>
+            <Text className="text-[#777] mt-1 text-xs">{totalItems} món • {formatCurrency(item.totalAmount)}</Text>
           </View>
 
-          <View style={styles.alignEnd}>
-            <Pressable style={[styles.btn, styles.detailButton]} onPress={() => navigation.navigate('OrderDetail', { orderId: String(item.orderId) })}>
-              <View style={styles.rowCenter}><Ionicons name="document-text-outline" size={14} color="#055160" /><Text style={[styles.detailButtonText, styles.ml8]}>Chi tiết</Text></View>
+          <View className="items-end">
+            <Pressable className="py-2 px-3 rounded-lg bg-blue-50" onPress={() => navigation.navigate('OrderDetail', { orderId: String(item.orderId) })}>
+              <View className="flex-row items-center"><Ionicons name="document-text-outline" size={14} color="#055160" /><Text className="text-blue-800 font-medium ml-2">Chi tiết</Text></View>
             </Pressable>
           </View>
         </View>
 
-        {(item.orderDetails || []).map((d: any) => (
-          <View key={d.orderDetailId} style={styles.detailsRow}>
-            <Image source={d.productImageUrl ? { uri: d.productImageUrl } : placeholderImg} style={styles.thumb} />
-            <View style={styles.flex1}>
-              <Text style={styles.productTitle} numberOfLines={1}>{d.productName}</Text>
-              <Text style={styles.productMeta}>{d.quantity} × {formatCurrency(d.unitPrice)}</Text>
-              {/* show per-line status only in OrderDetail screen; card displays order-level status */}
+        {remainingDetails.map((d: any) => (
+          <View key={d.orderDetailId} className="flex-row items-center my-1.5">
+            <Image source={d.productImageUrl ? { uri: d.productImageUrl } : placeholderImg} className="w-14 h-14 rounded-lg mr-3 bg-gray-100" />
+            <View className="flex-1">
+              <Text className="text-sm font-medium" numberOfLines={1}>{d.productName}</Text>
+              <Text className="text-[#777] mt-1 text-xs">{d.quantity} × {formatCurrency(d.unitPrice)}</Text>
             </View>
 
-            <View style={styles.rightAlign}>
+            <View className="items-end">
               {d.status === 'DELIVERED' ? (
-                <>
-                  <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => handleConfirmDetail(d.orderDetailId)}>
-                    <Text style={styles.btnPrimaryText}>Đã nhận</Text>
-                  </Pressable>
-                </>
+                <Pressable className="py-2 px-4 rounded-lg bg-green-50" onPress={() => handleConfirmDetail(d.orderDetailId)}>
+                  <Text className="text-green-700 font-semibold">Đã nhận</Text>
+                </Pressable>
               ) : null}
             </View>
           </View>
         ))}
 
-        <View style={styles.totalsRow}>
-          <Text style={styles.small}>Thanh toán: {formatCurrency(item.totalAmount)}</Text>
-          <View style={styles.rowCenter}>
+        <View className="flex-row justify-between items-center mt-2">
+          <Text className="text-[#666] text-xs">Thanh toán: {formatCurrency(item.totalAmount)}</Text>
+          <View className="flex-row items-center">
             {item.status === 'PROCESSING' && (
-              <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCancel(item.orderId)}>
-                <View style={styles.rowCenter}><Ionicons name="close-circle" size={14} color="#C53030" /><Text style={[styles.btnDangerText, styles.ml8]}>Hủy đơn</Text></View>
+              <Pressable className="py-2 px-4 rounded-lg bg-red-50 mr-2" onPress={() => handleCancel(item.orderId)}>
+                <View className="flex-row items-center"><Ionicons name="close-circle" size={14} color="#C53030" /><Text className="text-red-600 font-semibold ml-2">Hủy đơn</Text></View>
               </Pressable>
             )}
-            {/* Order-level return: allowed when backend permits (DELIVERED or COMPLETED) */}
             {(item.status === 'DELIVERED' || item.status === 'COMPLETED') && (
-              <Pressable style={[styles.btn, styles.btnWarn]} onPress={() => handleRequestReturn(item.orderId)}>
-                <Text style={styles.btnWarnText}>Yêu cầu trả</Text>
+              <Pressable className="py-2 px-4 rounded-lg bg-yellow-50" onPress={() => handleRequestReturn(item.orderId)}>
+                <View className="flex-row items-center"><Ionicons name="arrow-undo" size={14} color="#B7791F" /><Text className="text-yellow-700 font-semibold ml-2">Trả hàng</Text></View>
               </Pressable>
             )}
           </View>
@@ -285,21 +231,21 @@ const OrdersScreen: React.FC = () => {
   };
 
   if (loading) return (
-    <SafeAreaView style={styles.safe}><View style={styles.centeredFullInline}><ActivityIndicator /></View></SafeAreaView>
+    <SafeAreaView className="flex-1 bg-[#FFFAF0]"><View className="flex-1 justify-center items-center"><ActivityIndicator /></View></SafeAreaView>
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView className="flex-1 bg-[#FFFAF0]">
       <Modal visible={reasonModalVisible} animationType="slide" transparent={true} onRequestClose={() => setReasonModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{pendingAction.type === 'CANCEL' ? 'Lý do hủy đơn' : 'Lý do trả hàng'}</Text>
-            <TextInput placeholder='Nhập lý do...' value={reasonForAction} onChangeText={setReasonForAction} style={styles.modalInput} multiline />
-            <View style={styles.modalActions}>
-              <Pressable onPress={() => setReasonModalVisible(false)} style={styles.modalCancel}>
+        <View className="flex-1 justify-end bg-black/30">
+          <View className="bg-white p-4 rounded-tl-xl rounded-tr-xl">
+            <Text className="font-bold text-lg mb-2">{pendingAction.type === 'CANCEL' ? 'Lý do hủy đơn' : 'Lý do trả hàng'}</Text>
+            <TextInput placeholder='Nhập lý do...' value={reasonForAction} onChangeText={setReasonForAction} className="border border-[#EEE] rounded-lg p-3 h-24 text-top" multiline />
+            <View className="flex-row justify-end mt-3">
+              <Pressable onPress={() => setReasonModalVisible(false)} className="p-3 mr-2">
                 <Text>Hủy</Text>
               </Pressable>
-              <Pressable onPress={performPendingAction} style={styles.modalSend}>
+              <Pressable onPress={performPendingAction} className="p-3 bg-[#FDE68A] rounded-lg">
                 <Text>Gửi</Text>
               </Pressable>
             </View>
@@ -307,37 +253,36 @@ const OrdersScreen: React.FC = () => {
         </View>
       </Modal>
 
-      <View style={styles.header}>
+      <View className="flex-row justify-between items-center p-4 bg-white border-b border-[#F0F0F3]">
         <View>
-          <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
-          <Text style={styles.headerSub}>{allOrders.length} đơn hàng</Text>
+          <Text className="text-lg font-bold">Đơn hàng của tôi</Text>
+          <Text className="text-[#666] text-sm">{allOrders.length} đơn hàng</Text>
         </View>
-        <Pressable onPress={onRefresh} style={styles.iconButton}>
+        <Pressable onPress={onRefresh} className="p-2">
           <Ionicons name="refresh" size={22} color="#444" />
         </Pressable>
       </View>
 
-      <View style={styles.tabsWrapper}>
+      <View className="bg-white py-2 px-3 rounded-xl m-3">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsScrollContent}
-          style={styles.tabsScroll}
+          contentContainerStyle={localStyles.tabsContent}
+          className="px-3"
         >
           {TABS.map(t => (
-            <Pressable key={t.key} onPress={() => setActiveTab(t.key)} style={[styles.tab, activeTab === t.key ? styles.tabActive : undefined]}>
-              <View style={styles.tabContent}>
-                {/* <Text style={styles.tabEmoji}>{statusEmoji(t.key)}</Text> */}
-                <Ionicons name={statusIcon(t.key)} size={16} color={activeTab === t.key ? '#111' : '#666'} style={styles.tabIcon} />
-                <Text style={styles.tabText}>{t.label}</Text>
+            <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key)} style={[localStyles.tabButton, activeTab === t.key ? localStyles.tabActive : null]}>
+              <View style={localStyles.tabInner}>
+                <Ionicons name={statusIcon(t.key)} size={16} color={activeTab === t.key ? '#111' : '#666'} style={localStyles.iconMargin} />
+                <Text style={localStyles.tabLabel}>{t.label}</Text>
               </View>
-            </Pressable>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
       <FlatList
-        contentContainerStyle={styles.list}
+        contentContainerStyle={localStyles.flatListContent}
         data={orders}
         keyExtractor={(i: any) => String(i.orderId)}
         renderItem={renderOrder}
@@ -350,10 +295,38 @@ const OrdersScreen: React.FC = () => {
 };
 
 const EmptyListComp = () => (
-  <View style={styles.emptyContainer}>
+  <View className="flex-1 items-center mt-10">
     <Ionicons name="receipt" size={48} color="#DDD" />
-    <Text style={styles.emptyText}>Không có đơn hàng ở mục này</Text>
+    <Text className="mt-3 text-[#666]">Không có đơn hàng ở mục này</Text>
   </View>
 );
+
+const localStyles = StyleSheet.create({
+  tabsContent: { paddingHorizontal: 12, alignItems: 'center' },
+  flatListContent: { padding: 12 },
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 9999,
+    marginRight: 8,
+  },
+  tabActive: {
+    backgroundColor: '#FDE68A',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconMargin: { marginRight: 8 },
+  tabLabel: { color: '#333', fontSize: 14 },
+});
 
 export default OrdersScreen;

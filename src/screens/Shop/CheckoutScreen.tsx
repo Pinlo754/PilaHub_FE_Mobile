@@ -65,7 +65,21 @@ function PaymentOption({ id, title, icon, selected, onSelect }: { id: PaymentId;
   );
 }
 
-function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPayment, setSelectedPayment, onUpdateQuantity, address, onAddressPress, isCalcShipping, computedShippingCharge, onToggleInstallation, allInstallation, onToggleAllInstallation }: { lines: any[]; selectedShipping: ShippingId; setSelectedShipping: (s: ShippingId) => void; selectedPayment: PaymentId; setSelectedPayment: (p: PaymentId) => void; onUpdateQuantity: (productId: string, qty: number) => void; address?: any; onAddressPress?: () => void; isCalcShipping: boolean; computedShippingCharge: number | null; onToggleInstallation?: (productId: string, value: boolean) => void; allInstallation?: boolean; onToggleAllInstallation?: (v: boolean) => void }) {
+function HeaderBlock({ lines, selectedPayment, setSelectedPayment, onUpdateQuantity, address, onAddressPress, computedShippingByVendor, onToggleInstallation, allInstallation, onToggleAllInstallation, selectedShippingByItem, setSelectedShippingByItem }: { lines: any[]; selectedPayment: PaymentId; setSelectedPayment: (p: PaymentId) => void; onUpdateQuantity: (productId: string, qty: number) => void; address?: any; onAddressPress?: () => void; computedShippingByVendor?: Record<string, number | null>; onToggleInstallation?: (productId: string, value: boolean) => void; allInstallation?: boolean; onToggleAllInstallation?: (v: boolean) => void; selectedShippingByItem: Record<string, ShippingId>; setSelectedShippingByItem: React.Dispatch<React.SetStateAction<Record<string, ShippingId>>> }) {
+  // group lines by vendor/shop similar to CartScreen
+  const groups = React.useMemo(() => {
+    const map: Record<string, { shopId: string; shopName: string; items: any[] }> = {};
+    for (const l of lines) {
+      const raw = l.raw ?? {};
+      const vendorId = raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.shopId ?? l.vendorId ?? l.shop_id ?? null;
+      const shopId = vendorId ? String(vendorId) : ('unknown_' + String(l.product_id));
+      const shopName = String(raw.vendorBusinessName ?? raw.vendor_business_name ?? raw.businessName ?? raw.shop_name ?? raw.merchant_name ?? raw.shopName ?? l.vendorBusinessName ?? l.shop_name ?? 'Cửa hàng');
+      if (!map[shopId]) map[shopId] = { shopId, shopName, items: [] };
+      map[shopId].items.push(l);
+    }
+    return Object.values(map);
+  }, [lines]);
+
   return (
     <View>
       <View style={styles.section}>
@@ -87,45 +101,63 @@ function HeaderBlock({ lines, selectedShipping, setSelectedShipping, selectedPay
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Sản phẩm đã chọn</Text>
-        <View style={styles.card}>
-          {lines.length === 0 ? (
-            <Text style={styles.emptyText}>Chưa có sản phẩm</Text>
-          ) : (
-             lines.map((item) => (
-               <View key={item.product_id} style={styles.itemRowInline}>
-                <Image source={ item.thumnail_url ? { uri: item.thumnail_url } : require('../../assets/placeholderAvatar.png') } style={styles.thumbSmall} />
-                <View style={styles.itemInfoInline}>
-                  <Text style={styles.itemName}>{item.product_name}</Text>
-                  {/* installation toggle */}
-                  <TouchableOpacity onPress={() => onToggleInstallation && onToggleInstallation(item.product_id, !item.installationRequest)} style={styles.installToggle}>
-                    <Text style={[styles.installToggleText, item.installationRequest ? styles.installOn : styles.installOff]}>{item.installationRequest ? 'Yêu cầu lắp đặt: Có' : 'Yêu cầu lắp đặt: Không'}</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.itemRightInline}>
-                  <View style={styles.qtyRowInline}>
-                    <TouchableOpacity style={styles.qtyBtn} onPress={() => onUpdateQuantity(item.product_id, Math.max(0, item.quantity - 1))}>
-                      <Text style={styles.qtyBtnText}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.qtyTextInline}>{item.quantity}</Text>
-                    <TouchableOpacity style={styles.qtyBtn} onPress={() => onUpdateQuantity(item.product_id, item.quantity + 1)}>
-                      <Text style={styles.qtyBtnText}>+</Text>
-                    </TouchableOpacity>
+        {groups.length === 0 ? (
+          <View style={styles.card}><Text style={styles.emptyText}>Chưa có sản phẩm</Text></View>
+        ) : (
+          groups.map(g => (
+            <View key={g.shopId} style={styles.vendorSection}>
+              <View style={styles.card}>
+                <View style={styles.vendorHeaderRow}>
+                  <View>
+                    <Text style={styles.vendorTitle}>{g.shopName}</Text>
+                    {/* per-vendor shipping fee (computedShippingByVendor keys are vendorId strings) */}
+                    <Text style={styles.vendorShippingText}>{(computedShippingByVendor && computedShippingByVendor[g.shopId] != null)
+                      ? (computedShippingByVendor[g.shopId] === 0 ? 'Phí vận chuyển: Miễn phí' : `Phí vận chuyển: ${formatVND(computedShippingByVendor[g.shopId] as number)}`)
+                      : 'Đang tính phí vận chuyển...'
+                    }</Text>
                   </View>
-                  <Text style={styles.itemPriceInline}>{formatVND(item.price * item.quantity)}</Text>
+                  <Text style={styles.vendorCount}>{g.items.length} sản phẩm</Text>
                 </View>
-              </View>
-            ))
-          )}
-        </View>
-      </View>
+                {g.items.map((item: any) => (
+                  <View key={item.product_id}>
+                    <View style={styles.itemRowInline}>
+                      <Image source={ item.thumnail_url ? { uri: item.thumnail_url } : require('../../assets/placeholderAvatar.png') } style={styles.thumbSmall} />
+                      <View style={styles.itemInfoInline}>
+                        <Text style={styles.itemName}>{item.product_name}</Text>
+                        {/* installation toggle */}
+                        <TouchableOpacity onPress={() => onToggleInstallation && onToggleInstallation(item.product_id, !item.installationRequest)} style={styles.installToggle}>
+                          <Text style={[styles.installToggleText, item.installationRequest ? styles.installOn : styles.installOff]}>{item.installationRequest ? 'Yêu cầu lắp đặt: Có' : 'Yêu cầu lắp đặt: Không'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.itemRightInline}>
+                        <View style={styles.qtyRowInline}>
+                          <TouchableOpacity style={styles.qtyBtn} onPress={() => onUpdateQuantity(item.product_id, Math.max(0, item.quantity - 1))}>
+                            <Text style={styles.qtyBtnText}>−</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.qtyTextInline}>{item.quantity}</Text>
+                          <TouchableOpacity style={styles.qtyBtn} onPress={() => onUpdateQuantity(item.product_id, item.quantity + 1)}>
+                            <Text style={styles.qtyBtnText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.itemPriceInline}>{formatVND(item.price * item.quantity)}</Text>
+                      </View>
+                    </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Phương thức giao hàng</Text>
-        <View style={styles.card}>
-          {/* fast price shown regardless of selection */}
-          <ShippingOption id="fast" title="Giao hàng nhanh" subtitle="Nhận trong 1-2 ngày" price={isCalcShipping ? undefined : (computedShippingCharge === null ? undefined : (computedShippingCharge === 0 ? 'free' : computedShippingCharge))} selected={selectedShipping} onSelect={setSelectedShipping} />
-          <ShippingOption id="standard" title="Giao hàng tiêu chuẩn" subtitle="Nhận trong 3-5 ngày" price={'free'} selected={selectedShipping} onSelect={setSelectedShipping} />
-        </View>
+                    <View style={styles.productShippingContainer}>
+                      <ProductShippingOptions
+                        productId={item.product_id}
+                        vendorId={g.shopId}
+                        selected={selectedShippingByItem[item.product_id]}
+                        computedVendorShipping={computedShippingByVendor?.[g.shopId]}
+                        onSelect={(id) => setSelectedShippingByItem((prev: Record<string, ShippingId>) => ({ ...prev, [item.product_id]: id }))}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))
+        )}
       </View>
 
       <View style={styles.section}>
@@ -178,18 +210,31 @@ function WalletRowComponent({ wallet }: { wallet: any | null }) {
   );
 }
 
+// Product-level shipping options: two stacked ShippingOption rows showing price on the right
+function ProductShippingOptions({ productId: _productId, vendorId: _vendorId, selected, onSelect, computedVendorShipping }: { productId: string; vendorId: string; selected?: ShippingId; onSelect: (id: ShippingId) => void; computedVendorShipping?: number | null }) {
+  const cur = selected ?? 'fast';
+  // price for fast: undefined when calculating, 0 -> 'free', otherwise number
+  const fastPrice: number | 'free' | undefined = computedVendorShipping == null ? undefined : (computedVendorShipping === 0 ? 'free' : computedVendorShipping);
+  return (
+    <View style={styles.productShippingCard}>
+      <ShippingOption id="fast" title="Giao hàng nhanh" subtitle="Nhận trong 1-2 ngày" price={fastPrice} selected={cur} onSelect={(id) => onSelect(id)} />
+      <ShippingOption id="standard" title="Giao hàng tiêu chuẩn" subtitle="Nhận trong 3-5 ngày" price={'free'} selected={cur} onSelect={(id) => onSelect(id)} />
+    </View>
+  );
+}
+
 export default function CheckoutScreen() {
   const navigation: any = useNavigation();
   const { lines, totalPrice, clearCart, updateQuantity, setInstallationRequest } = useCart();
-  const [selectedShipping, setSelectedShipping] = useState<ShippingId>('fast');
+  // per-item shipping selection (fast | standard)
+  const [selectedShippingByItem, setSelectedShippingByItem] = useState<Record<string, ShippingId>>({} as Record<string, ShippingId>);
   const [selectedPayment, setSelectedPayment] = useState<PaymentId>('pilapay');
   const [selectedAddress, setSelectedAddress] = useState<any | undefined>(undefined);
   const [isPlacing, setIsPlacing] = useState(false);
   const [wallet, setWallet] = useState<any | null>(null);
   const [shippingCharge, setShippingCharge] = useState<number>(0);
-  // computedShippingCharge stores the last GHN-calculated fee (or null if not computed yet)
-  const [computedShippingCharge, setComputedShippingCharge] = useState<number | null>(null);
-  const [isCalcShipping, setIsCalcShipping] = useState(false);
+  // Keep per-vendor computed shipping and overall sum
+  const [computedShippingByVendor, setComputedShippingByVendor] = useState<Record<string, number | null>>({});
 
   // fetch wallet on mount
   React.useEffect(() => {
@@ -199,47 +244,105 @@ export default function CheckoutScreen() {
     })();
   }, []);
 
-  // calculate shipping once when address or cart lines change (not on shipping method toggle)
+  // calculate shipping per-vendor when address or cart lines change (not on shipping method toggle)
   React.useEffect(() => {
     (async () => {
       if (!selectedAddress) return;
-      const vendorId = (lines && lines.length > 0) ? (lines[0]?.raw?.vendorId ?? '') : '';
-      const defaultDims = { height: 10, length: 20, width: 15, weight: 500 };
-      const totalQuantity = lines.reduce((s: number, l: any) => s + (l.quantity || 1), 0);
+      if (!lines || lines.length === 0) return;
 
-      const req = {
-        serviceTypeId: 2,
-        vendorId,
-        addressId: selectedAddress.addressId,
-        height: defaultDims.height,
-        length: defaultDims.length,
-        width: defaultDims.width,
-        weight: defaultDims.weight,
-        quantity: totalQuantity,
+      // group lines by vendorId (support multiple possible fields)
+      const groupByVendor: Record<string, any[]> = {};
+      for (const l of lines) {
+        const raw = l.raw ?? {};
+        const vendorId = String(raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.merchantId ?? raw.shopId ?? 'unknown');
+        groupByVendor[vendorId] = groupByVendor[vendorId] || [];
+        groupByVendor[vendorId].push(l);
+      }
+
+      // If vendorId is 'unknown' we still attempt a single fee of 0
+      const vendorIds = Object.keys(groupByVendor).filter(id => id && id !== 'unknown');
+      if (vendorIds.length === 0) {
+        setComputedShippingByVendor({ unknown: 0 });
+        setShippingCharge(0);
+        return;
+      }
+
+      // default fallback package dims (cm / grams)
+      const defaultDims = { height: 10, length: 20, width: 15, weight: 500 };
+      // helper to extract numeric dimension from product raw metadata
+      const getNum = (obj: any, keys: string[], fallback: number) => {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (v === undefined || v === null) continue;
+          const n = Number(v);
+          if (!Number.isNaN(n)) return n;
+        }
+        return fallback;
       };
 
-      console.log('[Checkout] calculateShippingFee (compute once) req', { req, linesCount: lines.length, totalQuantity });
-
+      const next: Record<string, number | null> = {};
       try {
-        setIsCalcShipping(true);
-        const res = await calculateShippingFee(req as any);
-        const fee = res.total ?? 0;
-        setComputedShippingCharge(fee);
-        // set shippingCharge to computed value if current selection is 'fast'
-        if (selectedShipping === 'fast') setShippingCharge(fee);
-      } catch (e) {
-        const errAny: any = e;
-        console.warn('[Checkout] Calc shipping failed (compute)', errAny, errAny?.response?.data ?? null);
-        setComputedShippingCharge(0);
-        if (selectedShipping === 'fast') setShippingCharge(0);
+        await Promise.all(vendorIds.map(async (vid) => {
+          const vendorLines = groupByVendor[vid] || [];
+          // aggregate product-level dimensions for items that request FAST shipping
+          let totalQuantity = 0;
+          let totalWeight = 0; // grams
+          let maxHeight = 0; let maxLength = 0; let maxWidth = 0;
+          for (const it of vendorLines) {
+            const q = Math.max(1, Math.floor(Number(it.quantity) || 1));
+            const chosen = selectedShippingByItem[it.product_id] ?? 'fast';
+            // only include in GHN request if the item selected 'fast'
+            if (chosen !== 'fast') continue;
+            totalQuantity += q;
+
+            const raw = it.raw ?? {};
+            // backend ProductDto exposes: height, length, width, weight (units: cm / grams)
+            const w = getNum(raw, ['weight', 'packageWeight', 'weightInGrams', 'weight_g', 'grams', 'package_weight'], defaultDims.weight);
+            const h = getNum(raw, ['height', 'packageHeight', 'h'], defaultDims.height);
+            const l = getNum(raw, ['length', 'packageLength', 'l'], defaultDims.length);
+            const wd = getNum(raw, ['width', 'packageWidth', 'w'], defaultDims.width);
+
+            totalWeight += w * q;
+            if (h > maxHeight) maxHeight = h;
+            if (l > maxLength) maxLength = l;
+            if (wd > maxWidth) maxWidth = wd;
+          }
+
+          // if no fast-selected items for this vendor, shipping fee is zero
+          if (totalQuantity === 0) {
+            next[vid] = 0;
+            return;
+          }
+
+          const req = {
+            serviceTypeId: 2,
+            vendorId: vid,
+            addressId: selectedAddress.addressId,
+            height: Math.max(1, Math.floor(maxHeight) || defaultDims.height),
+            length: Math.max(1, Math.floor(maxLength) || defaultDims.length),
+            width: Math.max(1, Math.floor(maxWidth) || defaultDims.width),
+            weight: Math.max(1, Math.floor(totalWeight) || defaultDims.weight),
+            quantity: Math.max(1, Math.floor(totalQuantity)),
+          };
+
+          try {
+            const res = await calculateShippingFee(req as any);
+            next[vid] = Number(res.total ?? 0);
+          } catch (err: any) {
+            console.warn('[Checkout] Calc shipping failed for vendor', vid, err?.response?.data ?? (err && err.message) ?? err);
+            next[vid] = 0;
+          }
+        }));
       } finally {
-        setIsCalcShipping(false);
+        setComputedShippingByVendor(next);
+        const sum = Object.values(next).reduce((s: number, v) => s + (v ?? 0), 0);
+        setShippingCharge(sum ?? 0);
       }
     })();
-  }, [selectedAddress, lines, selectedShipping]);
+  }, [selectedAddress, lines, selectedShippingByItem]);
 
   // displayShippingCharge: computed value used for UI and order payload
-  const displayShippingCharge = selectedShipping === 'standard' ? 0 : (computedShippingCharge ?? 0);
+  const displayShippingCharge = sumShippingMap(computedShippingByVendor);
 
   const onConfirm = async () => {
     if (!selectedAddress) {
@@ -261,13 +364,36 @@ export default function CheckoutScreen() {
       }
     }
 
+    // Build payload with per-vendor shipping fees and sanitize installationRequest per product support
+    const groupByVendor: Record<string, any[]> = {};
+    for (const l of lines) {
+      const raw = l.raw ?? {};
+      const vendorId = String(raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.merchantId ?? raw.shopId ?? 'unknown');
+      groupByVendor[vendorId] = groupByVendor[vendorId] || [];
+      groupByVendor[vendorId].push(l);
+    }
+
+    const vendorShippings = Object.keys(groupByVendor).map(vid => ({ vendorId: vid, shippingFee: computedShippingByVendor[vid] ?? 0 }));
+
+    // sanitize installationRequest: only send true when product supports installation (try to detect from raw fields)
+    const sanitizedItems = lines.map((l: any) => {
+      const raw = l.raw ?? {};
+      const supportsInstall = !!(raw.isInstallationSupported ?? raw.installationSupported ?? raw.supportsInstallation ?? raw.support_installation ?? false);
+      const requested = !!l.installationRequest && supportsInstall;
+      if (!!l.installationRequest && !supportsInstall) {
+        // inform user that installation was not available for this product
+        console.warn('[Checkout] installationRequest ignored for product', l.product_id, 'not supported by product metadata');
+      }
+      return { productId: l.product_id, quantity: l.quantity, installationRequest: requested };
+    });
+
     const payload = {
       recipientName: selectedAddress.receiverName,
       recipientPhone: selectedAddress.receiverPhone,
       shippingAddress: selectedAddress.addressLine,
-      items: lines.map((l: any) => ({ productId: l.product_id, quantity: l.quantity, installationRequest: !!l.installationRequest })),
+      items: sanitizedItems,
       discountAmount: 0,
-      shippingFee: displayShippingCharge,
+      vendorShippings,
       paymentMethod: selectedPayment === 'pilapay' ? 'WALLET' : (selectedPayment === 'card' ? 'CARD' : 'COD'),
       notes: ''
     };
@@ -277,10 +403,11 @@ export default function CheckoutScreen() {
 
     try {
       setIsPlacing(true);
-      await createOrder(payload as any);
-      // Backend may return list of orders; if payment URL provided in some response (e.g., for VNPAY), open webview
+      const created = await createOrder(payload as any);
+      console.log('[Checkout] createOrder response', created);
+      // Backend returns list of created orders; navigate to success screen with orders
       await clearCart();
-      Alert.alert('Thành công', 'Đơn hàng đã được tạo', [{ text: 'OK', onPress: () => navigation.navigate('Home') }]);
+      navigation.navigate('OrderSuccess' as never, { orders: created } as never);
     } catch (err: any) {
       console.warn('Order create error', err);
       const apiErr = err?.response?.data;
@@ -310,7 +437,20 @@ export default function CheckoutScreen() {
       <FlatList
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={<>
-          <HeaderBlock lines={lines} selectedShipping={selectedShipping} setSelectedShipping={setSelectedShipping} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} onUpdateQuantity={updateQuantity} address={selectedAddress} onAddressPress={() => navigation.navigate('AddressList', { onSelect: (a: any) => setSelectedAddress(a) })} isCalcShipping={isCalcShipping} computedShippingCharge={computedShippingCharge} onToggleInstallation={(productId: string, value: boolean) => setInstallationRequest(productId, value)} allInstallation={lines.every(item => item.installationRequest)} onToggleAllInstallation={(value: boolean) => lines.forEach(item => setInstallationRequest(item.product_id, value))} />
+          <HeaderBlock
+             lines={lines}
+             selectedPayment={selectedPayment}
+             setSelectedPayment={setSelectedPayment}
+             onUpdateQuantity={updateQuantity}
+             address={selectedAddress}
+             onAddressPress={() => navigation.navigate('AddressList', { onSelect: (a: any) => setSelectedAddress(a) })}
+             computedShippingByVendor={computedShippingByVendor}
+             selectedShippingByItem={selectedShippingByItem}
+             setSelectedShippingByItem={setSelectedShippingByItem}
+             onToggleInstallation={(productId: string, value: boolean) => setInstallationRequest(productId, value)}
+             allInstallation={lines.every(item => item.installationRequest)}
+             onToggleAllInstallation={(value: boolean) => lines.forEach(item => setInstallationRequest(item.product_id, value))}
+           />
           <WalletRowComponent wallet={wallet} />
         </>}
         data={[]}
@@ -319,7 +459,7 @@ export default function CheckoutScreen() {
         ListFooterComponent={<FooterList total={totalPrice} shippingCharge={displayShippingCharge} />}
       />
 
-      <FooterContent total={totalPrice} shippingCharge={displayShippingCharge} onConfirm={onConfirm} busy={isPlacing || isCalcShipping} />
+      <FooterContent total={totalPrice} shippingCharge={displayShippingCharge} onConfirm={onConfirm} busy={isPlacing} />
     </SafeAreaView>
   );
 }
@@ -329,12 +469,15 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingTop: 18 },
   backBtn: { width: 40, alignItems: 'flex-start' },
   backIcon: { fontSize: 18 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '800', color: '#8B3F2F' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '800', color: '#8B3F2D' },
   headerPlaceholder: { width: 40 },
+
+  listContent: { paddingBottom: 140 },
   section: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   sectionTitle: { fontWeight: '800', fontSize: 16, marginBottom: 8 },
+
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, elevation: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8 },
-  cardPadded: { backgroundColor: '#fff', borderRadius: 12, padding: 12, elevation: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, height: 8 },
+
   addressRow: { flexDirection: 'row', alignItems: 'center' },
   locationIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
   locationEmoji: { color: '#fff' },
@@ -343,43 +486,48 @@ const styles = StyleSheet.create({
   addressText: { color: '#6B7280', marginTop: 4 },
   addressBody: { flex: 1, marginLeft: 12 },
 
+  // product row
   itemRowInline: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   thumbSmall: { width: 56, height: 56, borderRadius: 8, resizeMode: 'cover' },
   itemInfoInline: { flex: 1, marginLeft: 12 },
-  itemRightInline: { alignItems: 'flex-end' },
   itemName: { fontWeight: '800' },
-  itemMetaInline: { color: '#9CA3AF', marginTop: 4 },
+  installToggle: { marginTop: 8 },
+  installToggleText: {},
+  installOn: { color: '#0B8F3B' },
+  installOff: { color: '#6B7280' },
+
+  // right-side controls (fixed width so shipping block won't overlap)
+  itemRightInline: { width: 100, alignItems: 'flex-end' },
   qtyRowInline: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   qtyBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
   qtyBtnText: { fontSize: 18, color: '#111' },
   qtyTextInline: { marginHorizontal: 10, minWidth: 20, textAlign: 'center' },
   itemPriceInline: { fontWeight: '800', marginTop: 6 },
 
-  itemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, marginVertical: 8, marginHorizontal: 16, elevation: 2 },
-  thumb: { width: 64, height: 64, borderRadius: 8, resizeMode: 'cover' },
-  itemInfo: { flex: 1, marginLeft: 12 },
-  itemMeta: { color: '#9CA3AF', marginTop: 4 },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  qtyText: { marginHorizontal: 10, minWidth: 20, textAlign: 'center' },
-  itemPrice: { fontWeight: '800', marginLeft: 8 },
+  // product-level shipping placement: align under product info (after thumbnail)
+  productShippingContainer: { marginLeft: 64, marginRight: 12, paddingTop: 6, paddingBottom: 8 },
+  productShippingCard: { marginTop: 6, backgroundColor: '#fff', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#F3F4F6', elevation: 1, overflow: 'hidden' },
 
-  option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-  optionLeft: { flexDirection: 'row', alignItems: 'center' },
-  optionTextWrap: { marginLeft: 12 },
-  optionTitle: { fontWeight: '700' },
-  optionSub: { color: '#6B7280', marginTop: 4 },
-  optionPrice: { color: '#111', fontWeight: '700' },
-  radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
+  // shipping option appearance
+  option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, marginBottom: 6, backgroundColor: '#fff', width: '100%' },
+  optionSelected: { backgroundColor: '#E6F7FF', borderColor: '#D1EFFF', borderWidth: 1 },
+  optionLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  optionTextWrap: { marginLeft: 10, flex: 1 },
+  optionTitle: { fontWeight: '700', fontSize: 14 },
+  optionSub: { color: '#6B7280', marginTop: 2, fontSize: 13 },
+  optionPrice: { color: '#007AFF', fontWeight: '700', minWidth: 56, textAlign: 'right', flexShrink: 0, fontSize: 14 },
+
+  radioOuter: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
+  radioInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB' },
   radioSelected: { borderColor: '#2563EB' },
-  optionSelected: { backgroundColor: '#F3F9FF', borderRadius: 8, paddingHorizontal: 8 },
-  payRow: { flexDirection: 'row', alignItems: 'center' },
-  payIcon: { marginRight: 8 },
 
+  // payment / summary
+  footerSpacing: { paddingHorizontal: 16 },
+  spacer24: { height: 24 },
   summaryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, elevation: 2, marginTop: 8 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  summaryLabel: { color: '#6B7280' },
   summaryRowTop: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, marginTop: 10 },
+  summaryLabel: { color: '#6B7280' },
   summaryLabelBold: { color: '#6B7280', fontWeight: '700' },
   summaryValueBold: { fontWeight: '700', fontSize: 18 },
 
@@ -390,24 +538,32 @@ const styles = StyleSheet.create({
   orderBtnText: { color: '#fff', fontWeight: '800' },
   orderBtnBusy: { opacity: 0.6 },
 
-  listContent: { paddingBottom: 140 },
-  footerSpacing: { paddingHorizontal: 16 },
-  spacer24: { height: 24 },
-  emptyText: { color: '#6B7280' },
-
-  installToggle: { marginTop: 8 },
-  installToggleText: {},
-  installOn: { color: '#0B8F3B' },
-  installOff: { color: '#6B7280' },
+  // install all
   allInstallRow: { paddingVertical: 8 },
   allInstallLeft: { flexDirection: 'row', alignItems: 'center' },
   allInstallBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   allInstallBoxOn: { backgroundColor: '#0B8F3B', borderColor: '#0B8F3B' },
   allInstallTick: { color: '#fff', fontWeight: '700' },
   allInstallLabel: { marginLeft: 10, fontWeight: '700' },
+
+  emptyText: { color: '#6B7280' },
 });
 
 const walletStyles = StyleSheet.create({
-  row: { marginTop: 8, paddingHorizontal: 16 },
-  text: { color: '#374151' }
+  row: {
+    padding: 16,
+    backgroundColor: '#f9f9f9',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  text: {
+    fontSize: 14,
+    color: '#333',
+  },
 });
+
+// helper function to compute sum of shipping fees
+function sumShippingMap(map?: Record<string, number | null>): number {
+  if (!map) return 0;
+  return Object.values(map).reduce((acc: number, v) => acc + (v ?? 0), 0);
+}

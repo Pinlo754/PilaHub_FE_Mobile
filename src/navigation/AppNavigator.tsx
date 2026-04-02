@@ -17,6 +17,7 @@ import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
 import BodyMetricDetails from '../screens/BodyGram/screens/BodyMetricDetails';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
+import SubscriptionSuccessScreen from '../screens/Plan/SubscriptionSuccessScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
 import OtpScreen from '../screens/Register/OtpScreen';
 import StartupScreen from '../screens/StartupScreen';
@@ -42,7 +43,6 @@ import TestNavigateScreen from './testNavigate';
 import AIPractice from '../screens/AIPractice/AIPractice';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { PracticePayload } from '../utils/CourseLessonProgressType';
 import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
 import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
 import HealthProfileAssessmentScreen from '../screens/Profile/HealthProfileAssessmentScreen';
@@ -71,6 +71,7 @@ import AddressFormScreen from '../screens/Shop/AddressFormScreen';
 import OrdersScreen from '../screens/Profile/OrdersScreen';
 import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
+import OrderSuccessScreen from '../screens/Shop/OrderSuccessScreen';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -96,6 +97,8 @@ export type RootStackParamList = {
   CreateRoadmap: undefined;
   RoadmapProducts: undefined;
   UpgradePlan: undefined;
+  SubscriptionSuccess: { subscription?: any } | undefined;
+  OrderSuccess: undefined;
   ExerciseDetail: { exercise_id: string };
   ProductDetail: { productId: string };
   Cart: undefined;
@@ -292,10 +295,12 @@ const AppNavigator: React.FC = () => {
                 require('../screens/Profile/OrderDetailScreen').default
               }
             />
+            <Stack.Screen name="OrderSuccess" component={OrderSuccessScreen} />
             <Stack.Screen name="Plan" component={PlanScreen} />
               <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
             <Stack.Screen name="SchedulePlayer" component={SchedulePlayer} />
             <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
+            <Stack.Screen name="SubscriptionSuccess" component={SubscriptionSuccessScreen} />
             <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
             <Stack.Screen name="MyDevices" component={MyDevicesScreen} />
 

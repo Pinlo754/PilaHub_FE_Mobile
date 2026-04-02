@@ -5,7 +5,6 @@ import { fetchTraineeProfile, updateTraineeProfile } from '../../services/profil
 import { fetchMyWallet } from '../../services/wallet';
 import ProfileHeader from './components/ProfileHeader';
 import StatsGrid from './components/StatsGrid';
-import ActivityChart from './components/ActivityChart';
 import SettingList from './components/SettingList';
 import ProfileEditModal from './components/ProfileEditModal';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -138,11 +137,7 @@ const TraineeProfileScreen: React.FC = () => {
     );
   }
 
-  const exercisesCount = profile?.exercisesCount ?? 42;
-  const kcal = profile?.kcal ?? 3500;
-  const streak = profile?.streak ?? 12;
-  const level = profile?.level ?? 'Trung cấp';
-  const weeklyMinutes = profile?.weeklyMinutes ?? 145;
+  
 
   return (
     <SafeAreaView className="flex-1 bg-amber-50">
@@ -154,9 +149,7 @@ const TraineeProfileScreen: React.FC = () => {
       <ScrollView contentContainerStyle={localStyles.scrollPadding}>
         <ProfileHeader profile={profile} onEdit={openEdit} onAvatarPress={() => Alert.alert('Chi tiết', 'Mở trang chi tiết hồ sơ (hardcoded)')} onAvatarEdit={handleAvatarEdit} wallet={wallet} walletLoading={walletLoading} />
 
-        <StatsGrid stats={{ exercisesCount, kcal, streak, level }} />
 
-        <ActivityChart weeklyMinutes={weeklyMinutes} />
 
         <View className="px-4 mt-2">
           <View className="mt-3 bg-white rounded-xl p-4 shadow">

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, Alert, DeviceEventEmitter, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, Image, TouchableOpacity, Alert, DeviceEventEmitter, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { getCartSummary, updateQuantity, removeFromCart, CartLine } from '../../services/cart';
@@ -9,10 +9,25 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EmptyComponent = () => (
-  <View style={styles.emptyWrap}>
-    <Text style={styles.emptyText}>Giỏ hàng trống</Text>
+  <View className="mt-20 items-center">
+    <Text className="text-gray-500">Giỏ hàng trống</Text>
   </View>
 );
+
+// CheckoutBar defined outside of CartScreen to avoid recreating on every render
+function CheckoutBar({ total, disabled, onCheckout, selectedCount }: { total: number; disabled: boolean; onCheckout: () => void; selectedCount: number }) {
+  return (
+    <View className="absolute left-4 right-4 bottom-4 bg-white rounded-xl p-3 flex-row items-center justify-between shadow">
+      <View>
+        <Text className="text-gray-500 text-sm">{selectedCount} đã chọn</Text>
+        <Text className="text-black text-lg font-extrabold">{formatVND(total)}</Text>
+      </View>
+      <TouchableOpacity disabled={disabled} onPress={onCheckout} className={`px-5 py-3 rounded-lg ${disabled ? 'bg-gray-400' : 'bg-red-500'}`}>
+        <Text className="text-white font-extrabold">{disabled ? 'Chọn sản phẩm' : 'Thanh toán'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function CartScreen() {
   const focused = useIsFocused();
@@ -25,6 +40,84 @@ export default function CartScreen() {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success'|'error'|'info'>('info');
+
+  // Helpers for grouping by shop and selection
+  const grouped = useMemo(() => {
+    // infer vendor/shop id and display name from common fields in each line.raw or line
+    // prefer vendorId/vendorBusinessName coming from backend ProductDto
+    const map: Record<string, { shopId: string; shopName: string; items: any[] }> = {};
+    for (const l of lines) {
+      const raw = (l as any).raw || {};
+      // prefer vendorId for grouping, fall back to shop_id/merchant_id
+      const vendorId = raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.shopId ?? (l as any).vendorId ?? (l as any).shop_id ?? null;
+      const shopId = vendorId ? String(vendorId) : ('unknown_' + String((l as any).product_id));
+
+      // detect business name from multiple possible fields returned by backend
+      const shopName = String(
+        raw.vendorBusinessName ?? raw.vendor_business_name ?? raw.businessName ?? raw.shop_name ?? raw.merchant_name ?? raw.shopName ?? (l as any).vendorBusinessName ?? (l as any).shop_name ?? 'Cửa hàng'
+      );
+
+      if (!map[shopId]) map[shopId] = { shopId, shopName, items: [] };
+      map[shopId].items.push(l);
+    }
+    return Object.values(map);
+  }, [lines]);
+
+  const areAllSelected = useCallback((shopId: string) => {
+    const group = grouped.find(g => g.shopId === shopId);
+    if (!group) return false;
+    return group.items.every((it: any) => selectedIds.includes(it.product_id));
+  }, [grouped, selectedIds]);
+
+  const toggleSelectShop = useCallback((shopId: string) => {
+    const group = grouped.find(g => g.shopId === shopId);
+    if (!group) return;
+    const allSelected = group.items.every((it: any) => selectedIds.includes(it.product_id));
+    setSelectedIds(prev => {
+      if (allSelected) {
+        // deselect all in group
+        return prev.filter(id => !group.items.some((it: any) => it.product_id === id));
+      }
+      // add missing ids
+      const toAdd = group.items.map((it: any) => it.product_id).filter((id: string) => !prev.includes(id));
+      return [...prev, ...toAdd];
+    });
+  }, [grouped, selectedIds]);
+
+  const totalSelectedPrice = useMemo(() => {
+    if (!selectedIds || selectedIds.length === 0) return 0;
+    return lines.reduce((s, l) => s + (selectedIds.includes(l.product_id) ? l.price * l.quantity : 0), 0);
+  }, [lines, selectedIds]);
+
+  // toggleSelectAll intentionally removed (not used)
+
+  // Checkout handler
+  const handleCheckout = useCallback(() => {
+    if (!selectedIds.length) {
+      setToastMsg('Vui lòng chọn sản phẩm để thanh toán'); setToastType('info'); setToastVisible(true); return;
+    }
+
+    const items = lines.filter(l => selectedIds.includes(l.product_id));
+
+    // validate items: quantity >= 1 and vendorId present
+    const invalid = items.find((it: any) => {
+      const qty = Number(it.quantity) || 0;
+      if (!qty || qty < 1) return true;
+      const raw = it.raw ?? {};
+      const vendorId = raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.merchantId ?? it.vendorId ?? it.shop_id ?? null;
+      if (!vendorId) return true;
+      return false;
+    });
+
+    if (invalid) {
+      setToastMsg('Một số sản phẩm thiếu thông tin nhà cung cấp hoặc số lượng không hợp lệ');
+      setToastType('error'); setToastVisible(true);
+      return;
+    }
+
+    // navigate to checkout with validated items
+    navigation.navigate('Checkout' as never, { items } as never);
+  }, [selectedIds, lines, navigation]);
 
   const load = useCallback(async () => {
     try {
@@ -129,113 +222,73 @@ export default function CartScreen() {
     ]);
   };
 
-  const deleteSelected = () => {
-    if (!selectedIds.length) return;
-    Alert.alert('Xóa mục đã chọn', `Xóa ${selectedIds.length} sản phẩm đã chọn?`, [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xóa', style: 'destructive', onPress: async () => {
-        try {
-          // remove in parallel
-          await Promise.all(selectedIds.map(id => removeFromCart(userId || 'guest', id)));
-          await load();
-          setSelectedIds([]);
-          setSelectMode(false);
-          setToastMsg('Đã xóa mục đã chọn'); setToastType('info'); setToastVisible(true);
-        } catch (e) {
-          console.warn('deleteSelected err', e);
-          setToastMsg('Không thể xóa mục đã chọn'); setToastType('error'); setToastVisible(true);
-        }
-      } }
-    ]);
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRowWithBack}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+    <SafeAreaView className="flex-1 bg-[#FFF8F0]">
+      <View className="px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
+        <TouchableOpacity onPress={() => navigation.goBack()} className="w-9 h-9 items-center justify-center">
           <Ionicons name="arrow-back" size={20} color="#0F172A" />
         </TouchableOpacity>
-        <View style={styles.headerTitleWrap}>
-          <Text style={styles.title}>Giỏ hàng</Text>
-          <Text style={styles.sub}>{summary.totalItems} sản phẩm</Text>
+        <View className="flex-1 ml-2">
+          <Text className="text-2xl font-extrabold">Giỏ hàng</Text>
+          <Text className="text-gray-500">{summary.totalItems} sản phẩm</Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => { setSelectMode(prev => !prev); if (selectMode) setSelectedIds([]); }} style={styles.actionBtn}>
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => { setSelectMode(prev => !prev); if (selectMode) setSelectedIds([]); }} className="w-9 h-9 items-center justify-center">
             <Ionicons name={selectMode ? 'close-circle' : 'checkbox-outline'} size={20} color="#0F172A" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={clearAllConfirm} style={styles.actionBtn}>
+          <TouchableOpacity onPress={clearAllConfirm} className="w-9 h-9 items-center justify-center">
             <Ionicons name="trash-outline" size={20} color="#EF4444" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <FlatList
-        data={lines}
-        keyExtractor={(i) => i.product_id}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <View style={[styles.itemCard, selectMode && selectedIds.includes(item.product_id) ? styles.itemCardSelected : null]}>
-            {selectMode ? (
-              <TouchableOpacity onPress={() => toggleSelect(item.product_id)} style={styles.selectToggle}>
-                <Ionicons name={selectedIds.includes(item.product_id) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={selectedIds.includes(item.product_id) ? '#10B981' : '#9CA3AF'} />
-              </TouchableOpacity>
-            ) : null}
-            <Image source={{ uri: item.thumnail_url || 'https://via.placeholder.com/120' }} style={styles.thumb} />
-            <View style={styles.itemBody}>
-              <Text style={styles.itemName}>{item.product_name}</Text>
-              <Text style={styles.itemPrice}>{formatVND(item.price)}</Text>
-              <View style={styles.qtyRow}>
-                <TouchableOpacity onPress={() => onDec(item)} style={styles.qtyBtn}><Text>-</Text></TouchableOpacity>
-                <Text style={styles.qtyCount}>{item.quantity}</Text>
-                <TouchableOpacity onPress={() => onInc(item)} style={styles.qtyBtn}><Text>+</Text></TouchableOpacity>
-                {!selectMode && <TouchableOpacity onPress={() => onRemove(item)} style={styles.removeBtn}><Ionicons name="trash-outline" size={18} color="#EF4444" /></TouchableOpacity>}
+      <ScrollView className="p-3 pb-36">
+        {grouped.length === 0 && <EmptyComponent />}
+        {grouped.map((g) => (
+          <View key={g.shopId} className="mb-4">
+            <View className="p-3 bg-white rounded-lg mb-2 flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                {selectMode && (
+                  <TouchableOpacity onPress={() => toggleSelectShop(g.shopId)} className="mr-2">
+                    <Ionicons name={areAllSelected(g.shopId) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={areAllSelected(g.shopId) ? '#10B981' : '#9CA3AF'} />
+                  </TouchableOpacity>
+                )}
+                <Text className="font-extrabold">{g.shopName}</Text>
               </View>
+              <Text className="text-gray-500">{g.items.length} sản phẩm</Text>
             </View>
-          </View>
-        )}
-        ListEmptyComponent={EmptyComponent}
-      />
 
-      {/* bulk actions toolbar */}
-      {selectedIds.length > 0 && (
-        <View style={styles.bulkBar}>
-          <Text style={styles.bulkText}>{selectedIds.length} đã chọn</Text>
-          <TouchableOpacity onPress={deleteSelected} style={styles.bulkDeleteBtn}><Text style={styles.bulkDeleteText}>Xóa mục đã chọn</Text></TouchableOpacity>
-        </View>
-      )}
+            {g.items.map((item: any) => (
+              <View key={item.product_id} className={`bg-white rounded-xl p-3 mb-3 flex-row items-center ${selectMode && selectedIds.includes(item.product_id) ? 'border border-green-200 bg-green-50' : ''}`}>
+                {selectMode ? (
+                  <TouchableOpacity onPress={() => toggleSelect(item.product_id)} className="mr-2">
+                    <Ionicons name={selectedIds.includes(item.product_id) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={selectedIds.includes(item.product_id) ? '#10B981' : '#9CA3AF'} />
+                  </TouchableOpacity>
+                ) : null}
+                <Image source={{ uri: item.thumnail_url || 'https://via.placeholder.com/120' }} className="w-20 h-20 rounded-lg" />
+                <View className="flex-1 ml-3">
+                  {/* show vendor/shop name per item (in case group name is generic) */}
+                  <Text className="text-gray-500 text-xs mb-1">{(item.raw?.vendorBusinessName ?? item.raw?.vendor_business_name ?? g.shopName) as string}</Text>
+                  <Text className="font-bold">{item.product_name}</Text>
+                  <Text className="text-orange-600 font-extrabold mt-2">{formatVND(item.price)}</Text>
+                  <View className="flex-row items-center mt-2">
+                    <TouchableOpacity onPress={() => onDec(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>-</Text></TouchableOpacity>
+                    <Text className="mx-3 font-bold">{item.quantity}</Text>
+                    <TouchableOpacity onPress={() => onInc(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>+</Text></TouchableOpacity>
+                    {!selectMode && <TouchableOpacity onPress={() => onRemove(item)} className="ml-3"><Ionicons name="trash-outline" size={18} color="#EF4444" /></TouchableOpacity>}
+                  </View>
+                </View>
+              </View>
+            ))}
+
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* sticky checkout bar */}
+      <CheckoutBar total={totalSelectedPrice} disabled={selectedIds.length === 0} onCheckout={handleCheckout} selectedCount={selectedIds.length} />
 
       <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8F0' },
-  headerRowWithBack: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitleWrap: { flex: 1, marginLeft: 8 },
-  spacer: { width: 36 },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  actionBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  title: { fontSize: 20, fontWeight: '800' },
-  sub: { color: '#6B7280' },
-  listContent: { padding: 12 },
-  itemCard: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center' },
-  itemCardSelected: { borderWidth: 1, borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' },
-  selectToggle: { marginRight: 8 },
-  thumb: { width: 80, height: 80, borderRadius: 8 },
-  itemBody: { flex: 1, marginLeft: 12 },
-  itemName: { fontWeight: '700' },
-  itemPrice: { color: '#D97706', fontWeight: '800', marginTop: 8 },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  qtyBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F3F4F6', borderRadius: 6 },
-  qtyCount: { marginHorizontal: 12, fontWeight: '700' },
-  removeBtn: { marginLeft: 12 },
-  footerBar: { padding: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bulkBar: { padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bulkText: { color: '#374151' },
-  bulkDeleteBtn: { backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  bulkDeleteText: { color: '#fff', fontWeight: '700' },
-  emptyWrap: { marginTop: 80, alignItems: 'center' },
-  emptyText: { color: '#6B7280' },
-});
