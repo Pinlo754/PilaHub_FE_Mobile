@@ -96,9 +96,30 @@ export async function getMySubscriptions(): Promise<SubscriptionItem[]> {
   }));
 }
 
+export async function getMyActiveSubscription(): Promise<any | null> {
+  const res = await api.get('/subscriptions/my-active-subscription');
+  return res.data?.data ?? null;
+}
+
+export async function getUpgradeablePackages(): Promise<any[]> {
+  const res = await api.get('/subscriptions/upgradeable-packages');
+  const data = res.data?.data ?? [];
+  // map into simple shape usable by UI
+  return data.map((p: any) => ({
+    packageId: p.packageInfo?.packageId ?? p.packageInfo?.id ?? null,
+    packageInfo: p.packageInfo ?? {},
+    originalPrice: p.originalPrice ?? null,
+    prorationCredit: p.prorationCredit ?? null,
+    finalPrice: p.finalPrice ?? null,
+    discountPercentage: p.discountPercentage ?? null,
+    discountDescription: p.discountDescription ?? null,
+    raw: p,
+  }));
+}
+
 export async function createIoTDevice(payload: CreateIoTDevicePayload) {
   const res = await api.post('/iot-devices', payload);
   return res.data;
 }
 
-export default { getActivePackages, subscribeToPackage, getMe, upgradeSubscription, getMySubscriptions, createIoTDevice };
+export default { getActivePackages, subscribeToPackage, getMe, upgradeSubscription, getMySubscriptions, createIoTDevice, getUpgradeablePackages, getMyActiveSubscription };

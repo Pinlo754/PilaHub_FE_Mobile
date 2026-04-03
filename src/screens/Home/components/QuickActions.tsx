@@ -51,6 +51,7 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
     bgColor: colors.purple[20],
     iconColor: colors.purple.DEFAULT,
     route: 'TraineeBooking',
+    route: 'TraineeBooking',
   },
 ];
 

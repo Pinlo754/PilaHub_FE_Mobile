@@ -33,6 +33,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(
     paramCoachId,
   );
+  const [coachDetail, setCoachDetail] = useState<CoachType>();
   const [selectedPurpose, setSelectedPurpose] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<DaySchedule[]>([]);
   const [weekStart, setWeekStart] = useState<Date>(new Date());
@@ -108,19 +109,20 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     }
   };
 
-  const fetchCoachSchedule = async (coachId: string, start: Date) => {
+  const fetchCoachById = async (coachId: string, start: Date) => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
       const { startTime, endTime } = getWeekTimeRange(start);
 
-      const res = await coachTimeOffService.getByTimeRange(
-        coachId,
-        startTime,
-        endTime,
-      );
+      const [resCoach, resSchedule] = await Promise.all([
+        coachService.getById(coachId),
+        coachTimeOffService.getByTimeRange(coachId, startTime, endTime),
+      ]);
 
-      const schedules = generateCoachSchedule(res, start, 7);
+      setCoachDetail(resCoach);
+
+      const schedules = generateCoachSchedule(resSchedule, start, 7);
 
       setSchedule(schedules);
     } catch (err: any) {
@@ -156,7 +158,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
         openSuccessModal('Đã đăng ký lịch thành công!');
 
         setTimeout(() => {
-          navigation.navigate('MainTabs');
+          navigation.navigate('MainTabs', { screen: 'Home' });
         }, TIMEOUT);
       }
     } catch (err: any) {
@@ -298,7 +300,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   useEffect(() => {
     if (!selectedCoachId) return;
 
-    fetchCoachSchedule(selectedCoachId, weekStart);
+    fetchCoachById(selectedCoachId, weekStart);
   }, [selectedCoachId, weekStart]);
 
   // RETURN
@@ -342,5 +344,6 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     onConfirmModal,
     weekStart,
     openNotiModal,
+    coachDetail,
   };
 };

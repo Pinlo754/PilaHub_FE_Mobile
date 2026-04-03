@@ -5,7 +5,6 @@ import { fetchTraineeProfile, updateTraineeProfile } from '../../services/profil
 import { fetchMyWallet } from '../../services/wallet';
 import ProfileHeader from './components/ProfileHeader';
 import StatsGrid from './components/StatsGrid';
-import ActivityChart from './components/ActivityChart';
 import SettingList from './components/SettingList';
 import ProfileEditModal from './components/ProfileEditModal';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -138,25 +137,19 @@ const TraineeProfileScreen: React.FC = () => {
     );
   }
 
-  const exercisesCount = profile?.exercisesCount ?? 42;
-  const kcal = profile?.kcal ?? 3500;
-  const streak = profile?.streak ?? 12;
-  const level = profile?.level ?? 'Trung cấp';
-  const weeklyMinutes = profile?.weeklyMinutes ?? 145;
+  
 
   return (
     <SafeAreaView className="flex-1 bg-amber-50">
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <Pressable onPress={() => navigation.goBack()} className="p-2"><Text className="text-xl">‹</Text></Pressable>
+        <Pressable onPress={() => (navigation as any).navigate('MainTabs')} className="p-2"><Text className="text-xl">‹</Text></Pressable>
         <Text className="text-lg font-semibold">Hồ sơ</Text>
         <View className="w-8" />
       </View>
       <ScrollView contentContainerStyle={localStyles.scrollPadding}>
         <ProfileHeader profile={profile} onEdit={openEdit} onAvatarPress={() => Alert.alert('Chi tiết', 'Mở trang chi tiết hồ sơ (hardcoded)')} onAvatarEdit={handleAvatarEdit} wallet={wallet} walletLoading={walletLoading} />
 
-        <StatsGrid stats={{ exercisesCount, kcal, streak, level }} />
 
-        <ActivityChart weeklyMinutes={weeklyMinutes} />
 
         <View className="px-4 mt-2">
           <View className="mt-3 bg-white rounded-xl p-4 shadow">
@@ -172,7 +165,7 @@ const TraineeProfileScreen: React.FC = () => {
 
             <PlanList plans={[{ title: 'Lộ trình giảm mỡ 8 tuần', subtitle: '3 buổi/tuần — Tập trung core & cardio', sessions: '3 buổi/tuần', duration: '8 tuần', frequency: '3 lần/tuần', coach: 'Coach An' }]} onOpen={(p)=> Alert.alert('Mở kế hoạch', JSON.stringify(p))} />
 
-            <Pressable className="mt-4" onPress={() => (navigation as any).navigate('HealthProfiles')}>
+            <Pressable className="mt-4" onPress={() => (navigation as any).navigate('BodyMetricDetails')}>
                <View className="bg-amber-50 rounded-lg p-4 shadow">
                  <View className="flex-row justify-between items-center">
                    <View>
@@ -186,10 +179,12 @@ const TraineeProfileScreen: React.FC = () => {
 
           </View>
 
-          <View className="mt-3 bg-white rounded-xl p-4 shadow">
-            <Text className="font-semibold text-lg">Đơn hàng của tôi</Text>
-            <Text className="text-gray-500 mt-1">Chưa có đơn hàng</Text>
-          </View>
+          <Pressable className="mt-3" onPress={() => (navigation as any).navigate('Orders')}>
+            <View className="bg-white rounded-xl p-4 shadow">
+              <Text className="font-semibold text-lg">Đơn hàng của tôi</Text>
+              <Text className="text-gray-500 mt-1">Xem và theo dõi đơn hàng của bạn</Text>
+            </View>
+          </Pressable>
 
           <View className="mt-3 bg-white rounded-xl p-4 shadow">
             <Text className="font-semibold text-lg">Sản phẩm yêu thích</Text>

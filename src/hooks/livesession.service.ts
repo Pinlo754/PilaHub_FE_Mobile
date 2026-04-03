@@ -112,4 +112,21 @@ export const LiveSessionService = {
 
     return res.data.data;
   },
+
+  // GET RECORD URL
+  getRecordUrl: async (bookingId: string): Promise<string> => {
+    const res = await api.get<ApiResponse<string>>(
+      `/live-sessions/${bookingId}/recording-url`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

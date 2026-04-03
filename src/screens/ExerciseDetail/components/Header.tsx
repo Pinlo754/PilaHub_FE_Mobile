@@ -11,8 +11,8 @@ type Props = {
   isVideoPlay: boolean;
   isShowFlag: boolean;
   navigation: NativeStackNavigationProp<RootStackParamList, 'ExerciseDetail'>;
-  navigatePracticeTab: () => void;
   exerciseId: string;
+  onPressBack: () => void;
 };
 
 const Header = ({
@@ -21,22 +21,13 @@ const Header = ({
   isVideoPlay,
   isShowFlag,
   navigation,
-  navigatePracticeTab,
   exerciseId,
+  onPressBack,
 }: Props) => {
   // CHECK
   const shouldHideBack = activeTab === ExerciseTab.Theory && isVideoExpand;
   const showBack = !shouldHideBack && (!isVideoPlay || isShowFlag);
   const showFlag = isShowFlag;
-
-  // HANDLERS
-  const onPressBack = () => {
-    if (isVideoExpand) {
-      navigatePracticeTab();
-    } else {
-      navigation.goBack();
-    }
-  };
 
   const onPressReport = () => {
     navigation.navigate('TraineeReport', { exercise_id: exerciseId });
@@ -47,7 +38,7 @@ const Header = ({
       {showBack && (
         <Pressable
           className="absolute top-16 left-4 z-10"
-          onPress={() => onPressBack()}
+          onPress={onPressBack}
         >
           <Ionicons
             name="chevron-back-outline"

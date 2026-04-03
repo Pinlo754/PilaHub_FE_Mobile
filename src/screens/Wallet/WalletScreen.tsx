@@ -281,7 +281,7 @@ export default function WalletScreen() {
             
             {/* Header with back button */}
             <View className="flex-row items-center px-4 py-3 bg-white">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="p-2">
+                <TouchableOpacity onPress={() => navigation.navigate('TraineeProfile')} className="p-2">
                     <Text className="text-2xl">←</Text>
                 </TouchableOpacity>
                 <Text className="flex-1 text-center text-lg font-bold">Ví</Text>

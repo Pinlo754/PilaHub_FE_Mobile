@@ -1,5 +1,6 @@
 import { colors } from '../theme/colors';
 import { BookingStatus } from './CoachBookingType';
+import { TrainingDay } from './CourseLessonProgressType';
 import { LevelType } from './CourseType';
 
 // RULES
@@ -97,6 +98,16 @@ export const BOOKING_STATUS_MAP: Record<
   },
 };
 
+export const TRAINING_DAYS: Record<TrainingDay, string> = {
+  1: 'T2',
+  2: 'T3',
+  3: 'T4',
+  4: 'T5',
+  5: 'T6',
+  6: 'T7',
+  7: 'CN',
+};
+
 // FUNCTIONS
 export const getProgressColor = (progress: number) =>
   PROGRESS_RULES.find(r => progress >= r.min)?.color ?? colors.danger.DEFAULT;
@@ -104,14 +115,11 @@ export const getProgressColor = (progress: number) =>
 export const getPointContent = (point: number) =>
   POINT_RULES.find(r => point >= r.min) ?? POINT_RULES.at(-1)!;
 
-
 export const getLevelConfig = (level: LevelType) => LEVEL_MAP[level];
 
-export const getLevelNumber = (level: LevelType) =>
-  LEVEL_MAP[level]?.value;
+export const getLevelNumber = (level: LevelType) => LEVEL_MAP[level].value;
 
-export const getLevelLabel = (level: LevelType) =>
-  LEVEL_MAP[level].label;
+export const getLevelLabel = (level: LevelType) => LEVEL_MAP[level].label;
 
 export const getLevelTarget = (level: LevelType) => LEVEL_MAP[level].target;
 

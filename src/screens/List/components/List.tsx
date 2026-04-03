@@ -10,9 +10,15 @@ type Props<K extends ListTab> = {
   activeTab: K;
   data: TabTypeMap[K][];
   navigation: NativeStackNavigationProp<RootStackParamList, 'List'>;
+  traineeId: string;
 };
 
-const List = <K extends ListTab>({ activeTab, data, navigation }: Props<K>) => {
+const List = <K extends ListTab>({
+  activeTab,
+  data,
+  navigation,
+  traineeId,
+}: Props<K>) => {
   const config = LIST_CONFIG[activeTab];
 
   // USE REF
@@ -29,24 +35,21 @@ const List = <K extends ListTab>({ activeTab, data, navigation }: Props<K>) => {
   const renderItem = useCallback(
     ({ item }: { item: TabTypeMap[K] }) => {
       const Card = config.Card;
-      const id = (item as any)[config.idKey];
 
       return (
         <Card
           item={item}
           onPress={() => {
-            console.log('Navigate to', config.screen, 'with id:', id);
+            console.log('Navigate to', config.screen, 'with id:', config.idKey);
             navigation.navigate(
               config.screen as any,
-              {
-                [config.paramKey]: id,
-              } as any,
+              config.getParams(item, { traineeId }),
             );
           }}
         />
       );
     },
-    [config, navigation],
+    [config, navigation, traineeId],
   );
 
   return (

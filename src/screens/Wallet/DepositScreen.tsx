@@ -89,7 +89,7 @@ export default function DepositScreen() {
   return (
     <View className="flex-1 bg-[#FFFAF0] p-6">
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => navigation.goBack()} >
+        <TouchableOpacity onPress={() => navigation.navigate('Wallet')} >
           <Text className="text-lg">←</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-center text-lg font-bold">Nạp tiền</Text>

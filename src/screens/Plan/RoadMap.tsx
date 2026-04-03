@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   Text,
@@ -8,23 +8,30 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-} from "react-native";
-import { useRoute, useFocusEffect } from "@react-navigation/native";
-import { useRoadmapStore } from "../../store/roadmap.store";
+  Modal,
+} from 'react-native';
+import {
+  useRoute,
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
+import { useRoadmapStore } from '../../store/roadmap.store';
 
-import SupplementSection from "./components/SupplementSection";
-import StageCalendar from "./components/StageCalendar";
-import ScheduleDetail from "./components/ScheduleDetail";
-import BottomActionBar from "./components/BottomActionBar";
-import { SafeAreaView } from "react-native-safe-area-context";
-import StageCarousel from "./components/StageCarousel";
-import axios from "../../hooks/axiosInstance";
-import { getProfile } from "../../services/auth";
-import StageRendererApi from "./components/StageRendererApi";
+import SupplementSection from './components/SupplementSection';
+import StageCalendar from './components/StageCalendar';
+import ScheduleDetail from './components/ScheduleDetail';
+import BottomActionBar from './components/BottomActionBar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import StageCarousel from './components/StageCarousel';
+import RoadmapApi from '../../hooks/roadmap.api';
+import { getProfile } from '../../services/auth';
+import StageRendererApi from './components/StageRendererApi';
 
 const RoadMap = () => {
+  // ensure hooks are called in a stable order: store hook first, then route/navigation
+  const storeList = useRoadmapStore(s => s.list);
   const route: any = useRoute();
-  const storeList = useRoadmapStore((s) => s.list);
+  const navigation: any = useNavigation();
 
   // prefer addedRoadmap param when present (from CreateRoadmap flow)
   const paramAdded = route.params?.addedRoadmap ?? null;
@@ -36,15 +43,12 @@ const RoadMap = () => {
     null;
 
   const stages =
-    paramAdded?.stages ??
-    route.params?.stages ??
-    storeList?.[0]?.stages ??
-    [];
+    paramAdded?.stages ?? route.params?.stages ?? storeList?.[0]?.stages ?? [];
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // local display state: when user fetches newest roadmap we show it here
   const [displayRoadmap, setDisplayRoadmap] = useState<any | null>(roadmap);
@@ -52,69 +56,14 @@ const RoadMap = () => {
   const [displaySupplements, setDisplaySupplements] = useState<any[]>([]);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'CURRENT' | 'PROCESSING'>('CURRENT')
-  const [coachRequests, setCoachRequests] = useState<any[]>([])
-
-  const fetchCurrentRoadmap = async () => {
-    const res = await axios.get('/roadmaps/newest')
-    return res.data?.data ?? res.data
-  }
-
-  const fetchProcessingRoadmap = async () => {
-    const res = await axios.get('/roadmaps/my-pending')
-    return res.data?.data ?? res.data
-  }
-
-  const acceptRoadmap = async (roadmapId: string) => {
-    return axios.patch(`/roadmaps/${roadmapId}/approve`)
-  }
-
-  const fetchCoachRequests = async () => {
-    try {
-      const res = await axios.get('/coach-roadmap-requests/my-sent')
-      const data = res.data?.data ?? res.data ?? []
-      setCoachRequests(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.warn("Không lấy được coach requests", err)
-      setCoachRequests([])
-    }
-  }
-
-
-  const handleAcceptRoadmap = () => {
-    if (!currentRoadmap) return;
-    setShowConfirmModal(true);
-  };
-
-
-
-
-
-  const fetchRoadmapSupplements = useCallback(async (roadmapId: string) => {
-    try {
-      // Nếu axiosInstance đã có baseURL chứa /api thì giữ như dưới là đúng
-      const res = await axios.get(
-        `/personal-stage-supplements/roadmap/${roadmapId}`
-      );
-      const data = res.data?.data ?? res.data ?? [];
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn("Không lấy được supplements cho roadmap", roadmapId, err);
-      return [];
-    }
-  }, []);
 
   // fetch helper reused by focus effect
-  const fetchNewest = useCallback(async (type: 'CURRENT' | 'PROCESSING') => {
+  const fetchNewest = useCallback(async () => {
     try {
       setSaving(true);
 
-      const data =
-        type === 'CURRENT'
-          ? await fetchCurrentRoadmap()
-          : await fetchProcessingRoadmap()
-
-      const newestData = data.data?.data ?? data.data ?? data;
+      const newestData = await RoadmapApi.getNewest();
+      console.log('roadmap newest response', newestData);
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -124,10 +73,10 @@ const RoadMap = () => {
         [];
 
       if (!roadmapFromServer) {
-        console.log("fetchNewest: no roadmap in response", newestData);
+        console.log('fetchNewest: no roadmap in response', newestData);
         Alert.alert(
-          "Không có lộ trình mới",
-          "Server trả về không có lộ trình mới nhất. Kiểm tra log để biết chi tiết."
+          'Không có lộ trình mới',
+          'Server trả về không có lộ trình mới nhất. Kiểm tra log để biết chi tiết.',
         );
         setSaving(false);
         return;
@@ -142,25 +91,23 @@ const RoadMap = () => {
       if (roadmapId) {
         try {
           const [eqRes, supplementsRes] = await Promise.allSettled([
-            axios.get(`/equipment/roadmap/${roadmapId}`),
-            fetchRoadmapSupplements(roadmapId),
+            RoadmapApi.getEquipment(roadmapId),
+            RoadmapApi.getSupplements(roadmapId),
           ]);
 
-          if (eqRes.status === "fulfilled") {
-            const eqData =
-              eqRes.value.data?.data ?? eqRes.value.data ?? eqRes.value;
-            roadmapFromServer.equipment = eqData;
+          if (eqRes.status === 'fulfilled') {
+            roadmapFromServer.equipment = eqRes.value ?? [];
           }
 
-          if (supplementsRes.status === "fulfilled") {
-            roadmapFromServer.supplements = supplementsRes.value;
-            setDisplaySupplements(supplementsRes.value);
+          if (supplementsRes.status === 'fulfilled') {
+            roadmapFromServer.supplements = supplementsRes.value ?? [];
+            setDisplaySupplements(supplementsRes.value ?? []);
           } else {
             roadmapFromServer.supplements = [];
             setDisplaySupplements([]);
           }
         } catch (err) {
-          console.warn("Lỗi khi lấy equipment/supplements", err);
+          console.warn('Lỗi khi lấy equipment/supplements', err);
           roadmapFromServer.supplements = [];
           setDisplaySupplements([]);
         }
@@ -172,12 +119,12 @@ const RoadMap = () => {
       setDisplayRoadmap(roadmapFromServer);
       setDisplayStages(Array.isArray(stagesFromServer) ? stagesFromServer : []);
     } catch (err: any) {
-      console.warn("fetchNewest error", err);
+      console.warn('fetchNewest error', err);
       setLastError(String(err?.message ?? err));
     } finally {
       setSaving(false);
     }
-  }, [fetchRoadmapSupplements]);
+  }, []);
 
   // When screen is focused (e.g., tab pressed), fetch newest roadmap+equipment automatically
   useFocusEffect(
@@ -188,33 +135,19 @@ const RoadMap = () => {
       );
 
       if (!hasFetched) {
-        fetchNewest(activeTab);
+        fetchNewest();
       }
 
-      // Fetch coach requests when tab is PROCESSING
-      if (activeTab === 'PROCESSING') {
-        fetchCoachRequests();
-      }
-
-      return () => { };
-    }, [displayRoadmap, fetchNewest, activeTab])
+      return () => {};
+    }, [displayRoadmap, fetchNewest]),
   );
 
   // canonical objects used by the UI (prefer fetched display values)
   const currentRoadmap = displayRoadmap ?? roadmap;
   const currentStages = displayStages?.length ? displayStages : stages;
-  const currentSupplements =
-    displaySupplements?.length
-      ? displaySupplements
-      : currentRoadmap?.supplements ?? [];
-
-  // map stages vào currentRoadmap
-  const roadmapWithStages = currentRoadmap
-    ? {
-      ...currentRoadmap,
-      stages: currentStages,
-    }
-    : null;
+  const currentSupplements = displaySupplements?.length
+    ? displaySupplements
+    : (currentRoadmap?.supplements ?? []);
 
   // detect API-shaped stages: entries with .stage property
   const isApiShaped =
@@ -230,23 +163,21 @@ const RoadMap = () => {
 
       const me = await getProfile();
       const role = me.ok
-        ? String(me.data?.account?.role ?? me.data?.role ?? "").toUpperCase()
-        : "";
+        ? String(me.data?.account?.role ?? me.data?.role ?? '').toUpperCase()
+        : '';
 
-      if (role === "COACH") {
+      if (role === 'COACH') {
         Alert.alert(
-          "Chú ý",
-          "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi tải lộ trình mới nhất."
+          'Chú ý',
+          'Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi tải lộ trình mới nhất.',
         );
         setSaving(false);
         return;
       }
 
       // 1) get newest roadmap for trainee
-      const newestRes = await axios.get("/roadmaps/newest");
-      console.log("handleSave newest response", newestRes?.data ?? newestRes);
-
-      const newestData = newestRes.data?.data ?? newestRes.data ?? newestRes;
+      const newestData = await RoadmapApi.getNewest();
+      console.log('handleSave newest response', newestData);
       setLastResponse(JSON.stringify(newestData, null, 2));
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
@@ -257,8 +188,8 @@ const RoadMap = () => {
 
       if (!roadmapFromServer) {
         Alert.alert(
-          "Không có lộ trình mới",
-          "Không tìm thấy lộ trình mới nhất cho học viên."
+          'Không có lộ trình mới',
+          'Không tìm thấy lộ trình mới nhất cho học viên.',
         );
         setSaving(false);
         return;
@@ -274,25 +205,23 @@ const RoadMap = () => {
       if (roadmapId) {
         try {
           const [eqRes, supplementsRes] = await Promise.allSettled([
-            axios.get(`/equipment/roadmap/${roadmapId}`),
-            fetchRoadmapSupplements(roadmapId),
+            RoadmapApi.getEquipment(roadmapId),
+            RoadmapApi.getSupplements(roadmapId),
           ]);
 
-          if (eqRes.status === "fulfilled") {
-            const eqData =
-              eqRes.value.data?.data ?? eqRes.value.data ?? eqRes.value;
-            roadmapFromServer.equipment = eqData;
+          if (eqRes.status === 'fulfilled') {
+            roadmapFromServer.equipment = eqRes.value ?? [];
           }
 
-          if (supplementsRes.status === "fulfilled") {
-            roadmapFromServer.supplements = supplementsRes.value;
-            setDisplaySupplements(supplementsRes.value);
+          if (supplementsRes.status === 'fulfilled') {
+            roadmapFromServer.supplements = supplementsRes.value ?? [];
+            setDisplaySupplements(supplementsRes.value ?? []);
           } else {
             roadmapFromServer.supplements = [];
             setDisplaySupplements([]);
           }
         } catch (err) {
-          console.warn("Lỗi khi lấy equipment/supplements", err);
+          console.warn('Lỗi khi lấy equipment/supplements', err);
           roadmapFromServer.supplements = [];
           setDisplaySupplements([]);
         }
@@ -305,17 +234,20 @@ const RoadMap = () => {
       setDisplayRoadmap(roadmapFromServer);
       setDisplayStages(Array.isArray(stagesFromServer) ? stagesFromServer : []);
 
-      Alert.alert("Đã tải", "Đã tải lộ trình mới nhất, thiết bị và supplements.");
+      Alert.alert(
+        'Đã tải',
+        'Đã tải lộ trình mới nhất, thiết bị và supplements.',
+      );
     } catch (err: any) {
-      console.error("Fetch newest roadmap error", err);
+      console.error('Fetch newest roadmap error', err);
       setLastError(String(err?.message ?? err));
 
       const message =
         err?.response?.data?.message ??
         err?.message ??
-        "Không thể tải lộ trình mới nhất";
+        'Không thể tải lộ trình mới nhất';
 
-      Alert.alert("Lỗi", message);
+      Alert.alert('Lỗi', message);
     } finally {
       setSaving(false);
     }
@@ -324,39 +256,37 @@ const RoadMap = () => {
   if (!currentRoadmap || !currentStages?.length) {
     if (saving) {
       return (
-        <SafeAreaView className="flex-1 items-center justify-center p-4">
+        <SafeAreaView style={styles.centeredContainer}>
           <ActivityIndicator size="large" color="#8B4513" />
-          <Text className="mt-3">Đang tải lộ trình...</Text>
+          <Text style={styles.loadingText}>Đang tải lộ trình...</Text>
         </SafeAreaView>
       );
     }
 
     return (
-      <SafeAreaView className="flex-1 items-center justify-center p-4">
-        <Text className="text-lg font-semibold mb-3">
-          Không có dữ liệu lộ trình
-        </Text>
+      <SafeAreaView style={styles.centeredContainer}>
+        <Text style={styles.emptyTitle}>Không có dữ liệu lộ trình</Text>
 
         <TouchableOpacity
-          onPress={() => fetchNewest(activeTab)}
-          className="bg-foreground px-4 py-3 rounded-lg mb-3"
+          onPress={() => fetchNewest()}
+          style={styles.buttonPrimary}
         >
-          <Text className="text-white">Tải lộ trình mới nhất</Text>
+          <Text style={styles.buttonPrimaryText}>Tải lộ trình mới nhất</Text>
         </TouchableOpacity>
 
         {lastResponse ? (
-          <View className="mt-3 w-full">
-            <Text className="font-semibold mb-1">Raw response:</Text>
-            <View className="bg-white p-3 rounded-lg border border-gray-200">
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionTitle}>Raw response:</Text>
+            <View style={styles.codeBox}>
               <Text style={styles.mono}>{lastResponse}</Text>
             </View>
           </View>
         ) : null}
 
         {lastError ? (
-          <View className="mt-3 w-full">
-            <Text className="font-semibold mb-1">Last error:</Text>
-            <View className="bg-white p-3 rounded-lg border border-gray-200">
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionTitle}>Last error:</Text>
+            <View style={styles.codeBox}>
               <Text style={styles.errorText}>{lastError}</Text>
             </View>
           </View>
@@ -369,7 +299,7 @@ const RoadMap = () => {
 
   const selectedSchedule =
     selectedStage?.schedules?.find((s: any) =>
-      selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false
+      selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false,
     ) ?? null;
 
   const selectedStageId =
@@ -380,81 +310,64 @@ const RoadMap = () => {
 
   const selectedStageSupplements = selectedStageId
     ? currentSupplements.filter(
-      (sp: any) => sp.personalStageId === selectedStageId
-    )
+        (sp: any) => sp.personalStageId === selectedStageId,
+      )
     : currentSupplements;
 
-  const allSchedules = currentStages.flatMap((st: any) =>
-    st.schedules?.map((s: any) => s.schedule) ?? []
-  );
-
-  const totalSessions = allSchedules.length;
-
-  const firstSchedule = allSchedules[0];
-  const lastSchedule = allSchedules[allSchedules.length - 1];
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("vi-VN");
+  const handleSelectDate = (date: string | null) => {
+    setSelectedDate(date);
+    setShowScheduleModal(true);
   };
 
-  const totalAmount = currentRoadmap?.totalAmount ?? 0;
-
-
   return (
-    <SafeAreaView className="flex-1 bg-[#F3EDE3]">
+    <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View className="flex-row px-5 mt-4 rounded-xl p-1 border border-foreground">
-          <TouchableOpacity
-            onPress={() => {
-              setActiveTab('CURRENT')
-              fetchNewest('CURRENT')
-            }}
-            className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'CURRENT' ? 'bg-foreground' : ''
-              }`}
-          >
-            <Text
-              className={`font-semibold ${activeTab === 'CURRENT' ? 'text-white' : 'text-gray-500'
-                }`}
-            >
-              Roadmap hiện tại
-            </Text>
-          </TouchableOpacity>
+        {/* Header: compact card with title, description and progress bar (polished) */}
+        <View style={styles.sectionWrap}>
+          <View style={styles.card}>
+            <View style={styles.headerRow}>
+              <View style={styles.headerTextWrap}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {currentRoadmap.title}
+                </Text>
+                {currentRoadmap.description ? (
+                  <Text style={styles.cardSubtitle} numberOfLines={2}>
+                    {currentRoadmap.description}
+                  </Text>
+                ) : null}
+              </View>
 
-          <TouchableOpacity
-            onPress={() => {
-              setActiveTab('PROCESSING')
-              fetchNewest('PROCESSING')
-            }}
-            className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'PROCESSING' ? 'bg-foreground' : ''
-              }`}
-          >
-            <Text
-              className={`font-semibold ${activeTab === 'PROCESSING' ? 'text-white' : 'text-gray-500'
-                }`}
-            >
-              Đang xử lý
-            </Text>
-          </TouchableOpacity>
+              {/* small stat: percent */}
+              <View style={styles.statBox}>
+                <Text style={styles.statText}>
+                  {`${Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)}%`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Progress bar */}
+            <View style={styles.progressWrap}>
+              <View style={styles.progressBarBg}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${Math.max(0, Math.min(100, Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)))}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
         </View>
-        {/* Header */}
-        <View className="px-5 mt-4">
-          <Text className="text-2xl font-bold text-[#8B4513]">
-            {currentRoadmap.title}
-          </Text>
-
-          {currentRoadmap.description && (
-            <Text className="text-gray-600 mt-2">
-              {currentRoadmap.description}
-            </Text>
-          )}
-        </View>
-
-
 
         {/* Stage selector */}
-        <View className="mt-6">
+        <View style={styles.stageSelector}>
           {isApiShaped ? (
-            <StageRendererApi apiStages={currentStages} roadmap={currentRoadmap} />
+            <StageRendererApi
+              apiStages={currentStages}
+              roadmap={currentRoadmap}
+            />
           ) : (
             <StageCarousel
               stages={currentStages}
@@ -469,10 +382,37 @@ const RoadMap = () => {
             <StageCalendar
               stage={selectedStage}
               selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
+              onSelectDate={handleSelectDate}
             />
 
-            <ScheduleDetail schedule={selectedSchedule} />
+            {/* Show schedule detail in a modal when user picks a date */}
+            <Modal
+              visible={showScheduleModal}
+              animationType="slide"
+              onRequestClose={() => setShowScheduleModal(false)}
+            >
+              <SafeAreaView style={styles.modalContainer as any}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity onPress={() => setShowScheduleModal(false)}>
+                    <Text style={styles.closeText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                  {selectedSchedule ? (
+                    <ScheduleDetail schedule={selectedSchedule} />
+                  ) : (
+                    <View style={{ padding: 20 }}>
+                      <Text style={{ color: '#3A2A1A', fontSize: 16 }}>
+                        Không có lịch cho ngày này.
+                      </Text>
+                      <Text style={{ color: '#6B6B6B', marginTop: 8 }}>
+                        Vui lòng chọn ngày có lịch để xem bài tập.
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </SafeAreaView>
+            </Modal>
 
             {/* Giữ lại nếu stage cũ vẫn có supplementRecommendations */}
             <SupplementSection stage={selectedStage} />
@@ -481,30 +421,63 @@ const RoadMap = () => {
 
         {/* Equipment fetched for current roadmap (if any) */}
         {currentRoadmap?.equipment ? (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-[#8B4513] mb-2">
-              Thiết bị
-            </Text>
+          <View style={styles.sectionWrap}>
+            <Text style={styles.equipmentTitle}>Thiết bị tập luyện</Text>
 
             {Array.isArray(currentRoadmap.equipment) ? (
               currentRoadmap.equipment.map((eq: any, idx: number) => (
-                <View
+                <TouchableOpacity
                   key={idx}
-                  className="bg-white rounded-lg p-3 mb-2 border border-gray-200"
+                  style={styles.itemCard}
+                  onPress={() => {
+                    const q = eq.equipmentName ?? eq.name ?? '';
+                    // suggest products by equipment name/category
+                    navigation.navigate('ShopSearchResult' as any, {
+                      q,
+                      roadmapFilter: { category: 'Thiết bị', equipmentName: q },
+                    });
+                  }}
                 >
-                  <Text className="font-semibold">
-                    {eq.equipmentName ?? eq.name ?? "Thiết bị"}
-                  </Text>
-                  {eq.description ? (
-                    <Text className="text-sm text-gray-600">
-                      {eq.description}
-                    </Text>
-                  ) : null}
-                </View>
+                  <View style={styles.itemRow}>
+                    {/* Left: image */}
+                    {eq.imageUrl ||
+                    eq.image ||
+                    eq.thumbnailUrl ||
+                    eq.equipmentImageUrl ||
+                    eq.photo ? (
+                      <Image
+                        source={{
+                          uri:
+                            eq.imageUrl ||
+                            eq.image ||
+                            eq.thumbnailUrl ||
+                            eq.equipmentImageUrl ||
+                            eq.photo,
+                        }}
+                        style={styles.itemImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.itemImage} />
+                    )}
+
+                    {/* Right: info */}
+                    <View style={styles.itemContent}>
+                      <Text style={styles.itemTitle}>
+                        {eq.equipmentName ?? eq.name ?? 'Thiết bị'}
+                      </Text>
+                      {eq.description ? (
+                        <Text style={styles.itemSubtitle}>
+                          {eq.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                </TouchableOpacity>
               ))
             ) : (
-              <View className="bg-white rounded-lg p-3 mb-2 border border-gray-200">
-                <Text className="text-sm">
+              <View style={[styles.itemCard, styles.itemCardPadding]}>
+                <Text style={styles.itemSubtitle}>
                   {JSON.stringify(currentRoadmap.equipment)}
                 </Text>
               </View>
@@ -514,283 +487,139 @@ const RoadMap = () => {
 
         {/* New supplement block from roadmap API */}
         {Array.isArray(selectedStageSupplements) &&
-          selectedStageSupplements.length > 0 ? (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-[#8B4513] mb-2">
-              Supplements
-            </Text>
+        selectedStageSupplements.length > 0 ? (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.supplementTitle}>Thực phẩm chức năng</Text>
 
             {selectedStageSupplements.map((sp: any, idx: number) => (
-              <View
+              <TouchableOpacity
                 key={sp.personalStageSupplementId ?? idx}
-                className="bg-white rounded-xl p-4 mb-3 border border-gray-200"
+                style={styles.itemCard}
+                onPress={() => {
+                  const q = sp.supplementName ?? 'Supplement';
+                  navigation.navigate('ShopSearchResult' as any, {
+                    q,
+                    roadmapFilter: {
+                      category: 'Thực phẩm chức năng',
+                      supplementName: q,
+                    },
+                  });
+                }}
               >
-                <View className="flex-row items-start justify-between">
-                  <Text className="font-semibold text-base text-[#3A2A1A] flex-1 pr-3">
-                    {sp.supplementName ?? "Supplement"}
-                  </Text>
+                <View style={styles.itemRow}>
+                  {sp.supplementImageUrl ? (
+                    <Image
+                      source={{ uri: sp.supplementImageUrl }}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.itemImage} />
+                  )}
 
-                  {sp.priority ? (
-                    <View className="px-2 py-1 rounded-full bg-[#F3EDE3]">
-                      <Text className="text-xs font-semibold text-[#8B4513]">
-                        {sp.priority}
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemHeaderRow}>
+                      <Text style={styles.itemTitle}>
+                        {sp.supplementName ?? 'Supplement'}
                       </Text>
+                      {sp.priority ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{sp.priority}</Text>
+                        </View>
+                      ) : null}
                     </View>
-                  ) : null}
+                    {sp.recommendedTiming ? (
+                      <Text style={styles.itemSubtitle}>
+                        Thời điểm: {sp.recommendedTiming}
+                      </Text>
+                    ) : null}
+                    {sp.dosage ? (
+                      <Text style={styles.itemSubtitle}>
+                        Liều dùng: {sp.dosage}
+                      </Text>
+                    ) : null}
+                    {sp.reason ? (
+                      <Text style={styles.itemSubtitle}>
+                        Lý do: {sp.reason}
+                      </Text>
+                    ) : null}
+                    {sp.notes ? (
+                      <Text style={styles.itemSubtitle}>
+                        Ghi chú: {sp.notes}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.smallText}>
+                      Optional: {sp.optional ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
                 </View>
-
-                {sp.supplementImageUrl ? (
-                  <Image
-                    source={{ uri: sp.supplementImageUrl }}
-                    style={styles.supplementImage}
-                    resizeMode="cover"
-                  />
-                ) : null}
-
-                {sp.recommendedTiming ? (
-                  <Text className="text-sm text-gray-600 mt-2">
-                    Thời điểm: {sp.recommendedTiming}
-                  </Text>
-                ) : null}
-
-                {sp.dosage ? (
-                  <Text className="text-sm text-gray-600 mt-1">
-                    Liều dùng: {sp.dosage}
-                  </Text>
-                ) : null}
-
-                {sp.reason ? (
-                  <Text className="text-sm text-gray-700 mt-2">
-                    Lý do: {sp.reason}
-                  </Text>
-                ) : null}
-
-                {sp.notes ? (
-                  <Text className="text-sm text-gray-500 mt-1">
-                    Ghi chú: {sp.notes}
-                  </Text>
-                ) : null}
-
-                <Text className="text-xs text-gray-400 mt-2">
-                  Optional: {sp.optional ? "Yes" : "No"}
-                </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
-        ) : Array.isArray(currentSupplements) && currentSupplements.length > 0 ? (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-semibold text-[#8B4513] mb-2">
-              Supplements
-            </Text>
+        ) : Array.isArray(currentSupplements) &&
+          currentSupplements.length > 0 ? (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.supplementTitle}>Supplements</Text>
 
             {currentSupplements.map((sp: any, idx: number) => (
               <View
                 key={sp.personalStageSupplementId ?? idx}
-                className="bg-white rounded-xl p-4 mb-3 border border-gray-200"
+                style={styles.itemCard}
               >
-                <View className="flex-row items-start justify-between">
-                  <Text className="font-semibold text-base text-[#3A2A1A] flex-1 pr-3">
-                    {sp.supplementName ?? "Supplement"}
-                  </Text>
+                <View style={styles.itemRow}>
+                  {sp.supplementImageUrl ? (
+                    <Image
+                      source={{ uri: sp.supplementImageUrl }}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.itemImage} />
+                  )}
 
-                  {sp.priority ? (
-                    <View className="px-2 py-1 rounded-full bg-[#F3EDE3]">
-                      <Text className="text-xs font-semibold text-[#8B4513]">
-                        {sp.priority}
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemHeaderRow}>
+                      <Text style={styles.itemTitle}>
+                        {sp.supplementName ?? 'Supplement'}
                       </Text>
+                      {sp.priority ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{sp.priority}</Text>
+                        </View>
+                      ) : null}
                     </View>
-                  ) : null}
+                    {sp.recommendedTiming ? (
+                      <Text style={styles.itemSubtitle}>
+                        Thời điểm: {sp.recommendedTiming}
+                      </Text>
+                    ) : null}
+                    {sp.dosage ? (
+                      <Text style={styles.itemSubtitle}>
+                        Liều dùng: {sp.dosage}
+                      </Text>
+                    ) : null}
+                    {sp.reason ? (
+                      <Text style={styles.itemSubtitle}>
+                        Lý do: {sp.reason}
+                      </Text>
+                    ) : null}
+                    {sp.notes ? (
+                      <Text style={styles.itemSubtitle}>
+                        Ghi chú: {sp.notes}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.smallText}>
+                      Optional: {sp.optional ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
                 </View>
-
-                {sp.supplementImageUrl ? (
-                  <Image
-                    source={{ uri: sp.supplementImageUrl }}
-                    style={styles.supplementImage}
-                    resizeMode="cover"
-                  />
-                ) : null}
-
-                {sp.recommendedTiming ? (
-                  <Text className="text-sm text-gray-600 mt-2">
-                    Thời điểm: {sp.recommendedTiming}
-                  </Text>
-                ) : null}
-
-                {sp.dosage ? (
-                  <Text className="text-sm text-gray-600 mt-1">
-                    Liều dùng: {sp.dosage}
-                  </Text>
-                ) : null}
-
-                {sp.reason ? (
-                  <Text className="text-sm text-gray-700 mt-2">
-                    Lý do: {sp.reason}
-                  </Text>
-                ) : null}
-
-                {sp.notes ? (
-                  <Text className="text-sm text-gray-500 mt-1">
-                    Ghi chú: {sp.notes}
-                  </Text>
-                ) : null}
-
-                <Text className="text-xs text-gray-400 mt-2">
-                  Optional: {sp.optional ? "Yes" : "No"}
-                </Text>
               </View>
             ))}
           </View>
         ) : null}
       </ScrollView>
-      <View className="bottom-20">
-        {activeTab === 'PROCESSING' && (
-          <BottomActionBar
-            showAccept={currentRoadmap?.status === 'PENDING'}
-            showSave={false}
-            onAccept={handleAcceptRoadmap}
-            accepting={saving}
 
-          />
-        )}
-      </View>
-      {showConfirmModal && (
-        <View className="absolute inset-0 bg-black/50 justify-center items-center px-5">
-          <View className="bg-white w-full rounded-2xl p-5">
-
-            <Text className="text-xl font-bold text-center mb-4">
-              Xác nhận lộ trình
-            </Text>
-
-            {/* Giá tiền */}
-            <Text className="text-base mb-2">
-              💰 Giá: {totalAmount.toLocaleString()} VNĐ
-            </Text>
-
-            {/* Tổng buổi */}
-            <Text className="text-base mb-2">
-              📊 Tổng số buổi: {totalSessions}
-            </Text>
-
-            {/* Thời gian */}
-            {firstSchedule && lastSchedule && (
-              <Text className="text-base mb-2">
-                📅 Thời gian: {formatDate(firstSchedule.scheduledDate)} -{" "}
-                {formatDate(lastSchedule.scheduledDate)}
-              </Text>
-            )}
-
-            {/* Ngày học (ví dụ THỨ 2, THỨ 6) */}
-            <Text className="text-base mb-4">
-              📆 Lịch học:{" "}
-              {[...new Set(allSchedules.map((s: any) => s.dayOfWeek))].join(", ")}
-            </Text>
-
-            {/* Buttons */}
-            <View className="flex-row justify-between">
-              <TouchableOpacity
-                onPress={() => setShowConfirmModal(false)}
-                className="flex-1 mr-2 py-3 rounded-lg bg-gray-200 items-center"
-              >
-                <Text>Huỷ</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={async () => {
-                  try {
-                    setSaving(true);
-
-                    const roadmapId =
-                      currentRoadmap?.roadmapId ??
-                      currentRoadmap?.id ??
-                      currentRoadmap?._id;
-
-                    // Lấy coachRequest để tìm trainingDaySchedules
-                    const coachRequest = coachRequests.find(
-                      (req: any) => req.coachId === currentRoadmap?.coachId
-                    );
-                    const trainingDaySchedules = coachRequest?.trainingDaySchedules ?? [];
-
-                    // Map bookingSlots từ currentStages + trainingDaySchedules
-                    const bookingSlots = currentStages.flatMap((st: any) =>
-                      st.schedules?.map((scheduleWrapper: any) => {
-                        const schedule = scheduleWrapper.schedule;
-                        const scheduledDate = new Date(schedule.scheduledDate);
-                        
-                        // Lấy ngày tháng năm
-                        const year = scheduledDate.getUTCFullYear();
-                        const month = String(scheduledDate.getUTCMonth() + 1).padStart(2, '0');
-                        const day = String(scheduledDate.getUTCDate()).padStart(2, '0');
-
-                        // Tìm giờ từ trainingDaySchedules dựa vào dayOfWeek
-                        const dayOfWeekMap: any = {
-                          'THỨ HAI': 'MONDAY',
-                          'THỨ BA': 'TUESDAY',
-                          'THỨ TƯ': 'WEDNESDAY',
-                          'THỨ NĂM': 'THURSDAY',
-                          'THỨ SÁU': 'FRIDAY',
-                          'THỨ BẢY': 'SATURDAY',
-                          'CHỦ NHẬT': 'SUNDAY'
-                        };
-                        
-                        const dayOfWeekEng = dayOfWeekMap[schedule.dayOfWeek] || 'MONDAY';
-                        const trainingSchedule = trainingDaySchedules.find(
-                          (tds: any) => tds.dayOfWeek === dayOfWeekEng
-                        );
-                        const startTimeStr = trainingSchedule?.startTime ?? '08:00'; // mặc định 08:00
-
-                        // Parse time HH:mm -> HH:mm:ss
-                        const [hours, minutes] = startTimeStr.split(':');
-                        const startDateTime = `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
-                        
-                        const startDateTimeObj = new Date(startDateTime);
-                        const start = new Date(startDateTimeObj.getTime() -7 * 60 * 60 * 1000); 
-                        const durationMs = 60 * 60 * 1000;
-                        const end = new Date(start.getTime() + durationMs);
-
-                        return {
-                          startTime: start.toISOString(),
-                          endTime: end.toISOString(),
-                        };
-                      }) ?? []
-                    );
-
-                    const payload1 = {
-                      coachId: currentRoadmap?.coachId,
-                      bookingSlots: bookingSlots,
-                      bookingType: "PERSONAL_TRAINING_PACKAGE",
-                      recurringGroupId: roadmapId,
-                    }
-
-                    console.log("Payload for booking", payload1);
-                    await axios.post(`/coach-bookings/batch`, payload1);
-                    await acceptRoadmap(roadmapId);
-
-                    setShowConfirmModal(false);
-
-                    Alert.alert("Thành công", "Đã chấp nhận lộ trình");
-
-                    setActiveTab("CURRENT");
-                    fetchNewest("CURRENT");
-                  } catch (err: any) {
-                    Alert.alert(
-                      "Lỗi",
-                      err?.response?.data?.message ??
-                      "Không thể chấp nhận roadmap"
-                    );
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                className="flex-1 ml-2 py-3 rounded-lg bg-foreground items-center"
-              >
-                <Text className="text-white font-semibold">
-                  Xác nhận thanh toán
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+      <BottomActionBar onSave={handleSaveToServer} saving={saving} />
     </SafeAreaView>
   );
 };
@@ -798,14 +627,149 @@ const RoadMap = () => {
 export default RoadMap;
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F3EDE3' },
   scrollContent: { paddingBottom: 140 },
-  mono: { fontFamily: "monospace", fontSize: 12 },
-  errorText: { color: "red" },
-  supplementImage: {
-    width: "100%",
-    height: 160,
+  mono: { fontFamily: 'monospace', fontSize: 12 },
+  errorText: { color: 'red' },
+
+  // header / card
+  card: {
+    backgroundColor: '#fff',
     borderRadius: 12,
-    marginTop: 12,
-    backgroundColor: "#f3f4f6",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTextWrap: { flex: 1, paddingRight: 8 },
+  cardTitle: { color: '#3A2A1A', fontSize: 18, fontWeight: '700' },
+  cardSubtitle: { color: '#6B6B6B', marginTop: 4, fontSize: 13 },
+  statBox: {
+    minWidth: 48,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F3EDE3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statText: { color: '#8B4513', fontWeight: '700' },
+  progressWrap: { marginTop: 10 },
+  stageSelector: { marginTop: 12 },
+  sectionWrap: { paddingHorizontal: 16, marginTop: 24 },
+  sectionTitle: { fontWeight: '700', marginBottom: 8 },
+  equipmentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#8B4513',
+  },
+  supplementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#8B4513',
+  },
+
+  // items
+  itemCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  itemCardPadding: { paddingVertical: 12 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  itemContent: { flex: 1 },
+  itemHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  itemTitle: { fontSize: 16, color: '#3A2A1A', fontWeight: '700' },
+  itemSubtitle: { fontSize: 13, color: '#6B6B6B', marginTop: 6 },
+  badge: {
+    backgroundColor: '#F3EDE3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeText: { color: '#8B4513', fontWeight: '700', fontSize: 11 },
+  smallText: { fontSize: 12, color: '#8B8B8B', marginTop: 6 },
+
+  // buttons / empty state
+  centeredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingText: { marginTop: 12, fontSize: 16, color: '#8B4513' },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#3A2A1A',
+  },
+  buttonPrimary: {
+    backgroundColor: '#8B4513',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  buttonPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 16 },
+
+  // code / debug box
+  codeBox: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginTop: 8,
+  },
+  // progress bar styles (used in header card)
+  progressBarBg: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#F3EDE3',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
+
+  // modal styles
+  modalContainer: { flex: 1, backgroundColor: '#F3EDE3' },
+  modalHeader: {
+    height: 56,
+    paddingHorizontal: 16,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  closeText: { color: '#8B4513', fontWeight: '600' },
 });

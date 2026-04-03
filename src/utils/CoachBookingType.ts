@@ -34,18 +34,20 @@ export type BookingSlot = {
   endTime: string;
 };
 
+export type TraineeType = {
+  traineeId: string;
+  fullName: string;
+  age: number;
+  gender: GenderType;
+  avatarUrl: string | null;
+  workoutLevel: LevelType;
+  workoutFrequency: WorkoutFrequency;
+};
+
 export type CoachBookingType = {
   id: string;
   coach: CoachType;
-  trainee: {
-    traineeId: string;
-    fullName: string;
-    age: number;
-    gender: GenderType;
-    avatarUrl: string | null;
-    workoutLevel: LevelType;
-    workoutFrequency: WorkoutFrequency;
-  };
+  trainee: TraineeType;
   startTime: string;
   endTime: string;
   pricePerHour: number;

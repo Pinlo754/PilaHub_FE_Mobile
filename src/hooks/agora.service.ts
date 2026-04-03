@@ -8,10 +8,27 @@ class AgoraService {
 
   await this.engine.initialize({ appId });
 
+  try {
+    // Ensure channel profile is COMMUNICATION (0) so everyone can publish/subscribe normally
+    // @ts-ignore
+    if (typeof this.engine.setChannelProfile === 'function') this.engine.setChannelProfile(0);
+  } catch (err) {
+    // ignore if not available
+  }
+
   await this.engine.enableVideo();
   await this.engine.enableAudio();
 
   this.engine.startPreview();
+  // Ensure client role is broadcaster so the SDK will publish local tracks
+  // Use numeric constant for role (1 = broadcaster/host)
+  try {
+    // Some SDK versions expose setClientRole; call if available
+    // @ts-ignore
+    if (typeof this.engine.setClientRole === 'function') this.engine.setClientRole(1);
+  } catch {
+    // ignore if method unavailable
+  }
 
   return this.engine;
 }

@@ -1,5 +1,10 @@
 import { LevelType } from './CourseType';
 
+export enum PackageType {
+  MEMBER = 'MEMBER',
+  VIP_MEMBER = 'VIP_MEMBER',
+}
+
 export type ExerciseTypeEnum =
   | 'CORE_STRENGTHENING'
   | 'PELVIC_FLOOR_ENGAGEMENT'
@@ -36,7 +41,7 @@ export type ExerciseType = {
   prerequisites: string | null;
   contraindications: string | null;
   active: boolean;
-  default_duration_sec: number;
+  duration: number;
 };
 
 export type TutorialType = {

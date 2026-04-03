@@ -22,14 +22,16 @@ const OverviewSection = ({ coachDetail, coachFeedbacks }: Props) => {
       <InfoSection
         icon="golf-outline"
         title="Lĩnh vực"
-         data={coachDetail.specialization}
+        data={coachDetail.specialization?.split(',').map(i => i.trim()) || []}
       />
 
       {/* Certifications */}
       <InfoSection
         icon="receipt-outline"
         title="Chứng chỉ"
-        data={coachDetail.certificationsUrl}
+        data={
+          coachDetail.certificationsUrl ? [coachDetail.certificationsUrl] : []
+        }
       />
 
       {/* Border */}

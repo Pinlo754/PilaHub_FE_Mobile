@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import Video from 'react-native-video';
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
   paused: boolean;
   onLoad: (d: any) => void;
   onProgress: (p: any) => void;
+  onEnd?: () => void;
 };
 
 export function VideoSurface({
@@ -16,6 +17,7 @@ export function VideoSurface({
   paused,
   onLoad,
   onProgress,
+  onEnd,
 }: Props) {
   return (
     <View className="w-full h-full">
@@ -27,6 +29,17 @@ export function VideoSurface({
         style={{ width: '100%', height: '100%' }}
         onLoad={onLoad}
         onProgress={onProgress}
+        onEnd={onEnd}
+        onError={(e) => {
+          console.error('[VideoSurface] video error', e);
+          try {
+            const msg = e?.error?.errorString || JSON.stringify(e?.error ?? e);
+            Alert.alert('Lỗi phát video', String(msg));
+          } catch (err) {
+            Alert.alert('Lỗi phát video', 'Xảy ra lỗi không xác định');
+          }
+        }}
+        controls={true}
         pointerEvents="none"
       />
     </View>

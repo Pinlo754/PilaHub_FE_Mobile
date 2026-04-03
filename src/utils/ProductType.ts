@@ -3,4 +3,5 @@ export type ProductType = {
   product_name: string;
   thumnail_url: string;
   price: number;
+  installationSupported?: boolean;
 };

@@ -13,12 +13,14 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
   return (
     <Pressable
       className={`border-t border-background-sub1 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
+      className={`border-t border-background-sub1 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
       onPress={onPress}
     >
       {/* Image */}
       <View className="rounded-full w-16 h-16 overflow-hidden">
         <Image
           source={{
+            uri: item.avatarUrl,
             uri: item.avatarUrl,
           }}
           style={{ width: '100%', height: '100%' }}
@@ -30,6 +32,7 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
       <View className="flex">
         {/* Name */}
         <Text className="font-bold color-foreground text-lg">
+          {item.fullName}
           {item.fullName}
         </Text>
         {/* Rate */}
