@@ -30,6 +30,13 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
   const lastDeviceId = useRef<string | null>(null);
   const isReconnecting = useRef<boolean>(false);
 
+  // notify parent when status changes
+  useEffect(() => {
+    try {
+      if (onStatusChange) onStatusChange(status);
+    } catch {}
+  }, [status, onStatusChange]);
+
   useEffect(() => {
     return () => {
       stopScan();
@@ -48,6 +55,19 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device]);
+
+  // Auto-start scanning for compact mode when requested
+  useEffect(() => {
+    if (compact && autoStart) {
+      // small timeout to allow component mount
+      const t = setTimeout(() => {
+        if (!scanning && !device) startScan();
+      }, 300);
+      return () => clearTimeout(t);
+    }
+    return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, autoStart]);
 
   async function ensurePermissions() {
     if (Platform.OS !== 'android') return true;
@@ -318,15 +338,8 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
                     console.log('[PolarHeartRate] monitor retry failed', e);
                     // continue to fallback logic below if available
                   }
-                  console.log('[PolarHeartRate] characteristic update', characteristic?.uuid, characteristic?.value);
-                  const bpm = parseHeartRate(characteristic?.value ?? null);
-                  if (bpm !== null) {
-                    console.log('[PolarHeartRate] parsed bpm', bpm);
-                    setHr(bpm);
-                    setStatus('receiving');
-                  }
-                },
-              );
+                }, 800);
+              }
               break;
             }
           } catch (e) {
@@ -355,25 +368,33 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
             const fallback = allChars.find(c => c.notifiable) || allChars[0];
             if (fallback) {
               console.log('[PolarHeartRate] using fallback char', fallback);
-              monitorSub.current = manager.monitorCharacteristicForDevice(
-                connected.id,
-                fallback.service,
-                fallback.uuid,
-                (error, characteristic) => {
-                  if (error) {
-                    console.log('[PolarHeartRate] fallback monitor error', error);
-                    setStatus('monitor_error');
-                    return;
-                  }
-                  console.log('[PolarHeartRate] fallback characteristic update', characteristic?.uuid, characteristic?.value);
-                  const bpm = parseHeartRate(characteristic?.value ?? null);
-                  if (bpm !== null) {
-                    console.log('[PolarHeartRate] parsed bpm (fallback)', bpm);
-                    setHr(bpm);
-                    setStatus('receiving');
-                  }
-                },
-              );
+              try {
+                monitorSub.current = manager.monitorCharacteristicForDevice(
+                  connected.id,
+                  fallback.service,
+                  fallback.uuid,
+                  (error, characteristic) => {
+                    if (error) {
+                      console.log('[PolarHeartRate] fallback monitor error', error);
+                      setStatus('monitor_error');
+                      return;
+                    }
+                    console.log('[PolarHeartRate] fallback characteristic update', characteristic?.uuid, characteristic?.value);
+                    const bpm = parseHeartRate(characteristic?.value ?? null);
+                    if (bpm !== null) {
+                      console.log('[PolarHeartRate] parsed bpm (fallback)', bpm);
+                      setHr(bpm);
+                      try {
+                        onHeartRate?.(bpm);
+                      } catch {}
+                      setStatus('receiving');
+                    }
+                  },
+                );
+              } catch (fbErr) {
+                console.log('[PolarHeartRate] fallback monitor setup threw', fbErr);
+                setStatus('monitor_setup_failed');
+              }
             } else {
               console.log('[PolarHeartRate] no fallback characteristic available');
             }
@@ -417,6 +438,10 @@ export default function PolarHeartRate({ compact = false, onHeartRate, autoStart
       }
       setDevice(null);
       setHr(null);
+      try {
+        // notify listener that HR stream stopped
+        onHeartRate?.(0);
+      } catch {}
       setStatus('idle');
     }
   }

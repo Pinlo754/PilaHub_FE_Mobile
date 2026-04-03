@@ -40,7 +40,7 @@ const List = <K extends ListTab>({
         <Card
           item={item}
           onPress={() => {
-            console.log('Navigate to', config.screen, 'with id:', id);
+            console.log('Navigate to', config.screen, 'with id:', config.idKey);
             navigation.navigate(
               config.screen as any,
               config.getParams(item, { traineeId }),

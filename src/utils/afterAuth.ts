@@ -8,6 +8,15 @@ import { useOnboardingStore } from '../store/onboarding.store';
 // navigation is a React Navigation object; use any to avoid tight typing here
 export async function postLoginRouting(navigation: any, loginData?: any) {
   try {
+    // if app previously detected coach role, prefer that on reload to avoid onboarding loop
+    try {
+      const savedIsCoach = await AsyncStorage.getItem('account:isCoach');
+      if (savedIsCoach === '1') {
+        navigation.replace('CoachScreen');
+        return;
+      }
+    } catch {}
+
     const roleFromLogin = String(loginData?.account?.role ?? '').toUpperCase();
     if (roleFromLogin === 'COACH') {
       navigation.replace('CoachScreen');
