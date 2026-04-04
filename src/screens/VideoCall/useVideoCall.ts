@@ -5,10 +5,10 @@ import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { PublicConfigService } from '../../hooks/publicConfig.service';
+import LiveSessionService from '../../hooks/liveSession.service';
 import { agoraService } from '../../hooks/agora.service';
 import { LiveSessionType } from '../../utils/LiveSessionType';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { LiveSessionService } from '../../hooks/livesession.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'VideoCall'>;

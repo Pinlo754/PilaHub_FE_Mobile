@@ -59,10 +59,6 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
           coachDetail={coachDetail}
           coachFeedbacks={coachFeedbacks}
         />
-        <OverviewSection
-          coachDetail={coachDetail}
-          coachFeedbacks={coachFeedbacks}
-        />
       </Animated.ScrollView>
 
       <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4">

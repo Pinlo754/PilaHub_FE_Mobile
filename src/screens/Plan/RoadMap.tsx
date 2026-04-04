@@ -401,11 +401,11 @@ const RoadMap = () => {
                   {selectedSchedule ? (
                     <ScheduleDetail schedule={selectedSchedule} />
                   ) : (
-                    <View style={{ padding: 20 }}>
-                      <Text style={{ color: '#3A2A1A', fontSize: 16 }}>
+                    <View style={styles.modalEmpty}>
+                      <Text style={styles.modalEmptyTitle}>
                         Không có lịch cho ngày này.
                       </Text>
-                      <Text style={{ color: '#6B6B6B', marginTop: 8 }}>
+                      <Text style={styles.modalEmptySubtitle}>
                         Vui lòng chọn ngày có lịch để xem bài tập.
                       </Text>
                     </View>
@@ -772,4 +772,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeText: { color: '#8B4513', fontWeight: '600' },
+  modalEmpty: { padding: 20 },
+  modalEmptyTitle: { color: '#3A2A1A', fontSize: 16 },
+  modalEmptySubtitle: { color: '#6B6B6B', marginTop: 8 },
 });

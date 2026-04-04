@@ -56,6 +56,7 @@ const MyCalendar = () => {
           endTime: item.coachBooking.endTime,
           time: `${moment(item.coachBooking.startTime).format('HH:mm')} ${moment(item.coachBooking.endTime).format('HH:mm')}`,
           student: item.coachBooking.trainee.fullName,
+          content: item.coachBooking.personalSchedule?.scheduleName || 'Không có nội dung',
         }));
 
         setScheduleData(formattedData);
@@ -104,9 +105,6 @@ const MyCalendar = () => {
           <View className="flex-1 px-4 py-2 justify-center">
             <Text className="text-[#8B5E3C] text-base mb-1" numberOfLines={1}>
               <Text className="font-bold">Học viên: </Text>{item.student}
-            </Text>
-            <Text className="text-[#8B5E3C] text-base mb-1">
-              <Text className="font-bold">Buổi: </Text>{item.lesson}
             </Text>
             <Text className="text-[#8B5E3C] text-base leading-5" numberOfLines={2}>
               <Text className="font-bold">Nội dung: </Text>{item.content}
