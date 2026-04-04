@@ -72,6 +72,7 @@ import OrdersScreen from '../screens/Profile/OrdersScreen';
 import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import OrderSuccessScreen from '../screens/Shop/OrderSuccessScreen';
+import { PracticePayload } from '../utils/CourseLessonProgressType';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -99,7 +100,11 @@ export type RootStackParamList = {
   UpgradePlan: undefined;
   SubscriptionSuccess: { subscription?: any } | undefined;
   OrderSuccess: undefined;
-  ExerciseDetail: { exercise_id: string };
+  ExerciseDetail: {
+    exercise_id: string;
+    allowedPractice?: boolean;
+    practicePayload?: PracticePayload;
+  };
   ProductDetail: { productId: string };
   Cart: undefined;
   InputBody: undefined;

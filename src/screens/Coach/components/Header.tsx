@@ -3,6 +3,7 @@ import { Text, View, TouchableOpacity, Alert } from "react-native";
 import Ionicons from '@react-native-vector-icons/ionicons'; 
 import { useNavigation } from "@react-navigation/native";
 import { logout } from '../../../services/auth';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Header = () => {
   const navigation = useNavigation<any>();
@@ -12,6 +13,7 @@ const Header = () => {
       { text: 'Hủy', style: 'cancel' },
       { text: 'Đăng xuất', style: 'destructive', onPress: async () => {
         try {
+          await AsyncStorage.removeItem('account:isCoach');
           await logout();
         } catch {}
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] } as any);

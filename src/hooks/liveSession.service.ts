@@ -1,8 +1,8 @@
-import { AgoraTokenRes, LiveSessionType } from './../utils/LiveSessionType';
+import { AgoraTokenRes, LiveSessionType } from '../utils/LiveSessionType';
 import { ApiResponse } from '../utils/ApiResType';
 import api from './axiosInstance';
 
-export const LiveSessionService = {
+const LiveSessionService = {
   // GET BY BOOKING_ID
   getByBookingId: async (bookingId: string): Promise<LiveSessionType> => {
     const res = await api.get<ApiResponse<LiveSessionType>>(
@@ -130,3 +130,6 @@ export const LiveSessionService = {
     return res.data.data;
   },
 };
+
+
+export default LiveSessionService;

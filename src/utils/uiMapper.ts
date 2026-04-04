@@ -99,13 +99,13 @@ export const BOOKING_STATUS_MAP: Record<
 };
 
 export const TRAINING_DAYS: Record<TrainingDay, string> = {
-  1: 'T2',
-  2: 'T3',
-  3: 'T4',
-  4: 'T5',
-  5: 'T6',
-  6: 'T7',
-  7: 'CN',
+  0: 'T2',
+  1: 'T3',
+  2: 'T4',
+  3: 'T5',
+  4: 'T6',
+  5: 'T7',
+  6: 'CN',
 };
 
 // FUNCTIONS

@@ -34,7 +34,7 @@ const List = ({ data, navigation, onPressCoach }: Props) => {
             navigation.navigate('CoachDetail', {
               coachId: item.coachId,
               selectedCoachId: item.coachId,
-              pricePerHour: 200000,
+              pricePerHour: item.pricePerHour,
             })
           }
           onPressBtn={() => {

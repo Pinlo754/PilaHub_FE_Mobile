@@ -200,6 +200,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
             if (res) {
                 Alert.alert("Thành công", "Roadmap đã được lưu");
+                navigation.navigate('ListRequest');
             } else {
                 Alert.alert("Lỗi", "Không thể lưu roadmap");
             }
@@ -590,7 +591,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                 )}
 
-                {loading ? <LoadingOverlay message="Đang tạo lộ trình" /> : null}
+                {loading ? <LoadingOverlay/> : null}
                 <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
             </ScrollView>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import VideoPlayer from '../ExerciseDetail/components/VideoPlayer/VideoPlayer';
 import api from '../../hooks/axiosInstance';
 import { markPersonalExerciseCompleted } from '../../services/personalExercise.service';
 import { markPersonalScheduleCompleted } from '../../services/personalSchedule.service';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from '../../components/Toast';
+import VideoPlayer from './components/RoadmapVideo/VideoPlayer';
 
 // Screen wrapper to play a queue of exercises sequentially (free-play mode)
 // Params expected: queue: Array<{ exercise: any, videoSrc?: string }>, startIndex?: number
@@ -211,8 +211,8 @@ export default function SchedulePlayer() {
           personalExerciseId={current.ex?.personalExerciseId}
           personalScheduleId={route.params?.scheduleId}
           onEnd={onEnd}
-          onLoad={(d) => setDuration(d)}
-          onProgress={(t) => setCurrentTime(t)}
+          onLoad={(d: any) => setDuration(Number(d?.duration ?? d ?? 0))}
+          onProgress={(t: any) => setCurrentTime(Number(t?.currentTime ?? t ?? 0))}
         />
       </View>
 

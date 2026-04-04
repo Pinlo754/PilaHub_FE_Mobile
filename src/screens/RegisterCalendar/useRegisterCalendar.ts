@@ -116,7 +116,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
       const { startTime, endTime } = getWeekTimeRange(start);
 
       const [resCoach, resSchedule] = await Promise.all([
-        coachService.getById(coachId),
+        CoachService.getById(coachId),
         coachTimeOffService.getByTimeRange(coachId, startTime, endTime),
       ]);
 
