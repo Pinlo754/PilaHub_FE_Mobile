@@ -72,8 +72,10 @@ export default function DepositWebViewScreen() {
     const { url } = navState;
     if (!url) return;
 
-    // Fallback: if URL has query params from VNPay
-    if (url.includes('vnp_ResponseCode=') || url.includes('vnp_TransactionStatus=')) {
+    // Fallback: if URL has query params from VNPay or MoMo
+    // VNPay uses vnp_ResponseCode / vnp_TransactionStatus
+    // MoMo/IPN redirects often include resultCode / errorCode / orderId / requestId / message
+    if (url.includes('vnp_ResponseCode=') || url.includes('vnp_TransactionStatus=') || url.includes('resultCode=') || url.includes('errorCode=') || url.includes('orderId=') || url.includes('requestId=') || url.includes('message=')) {
       const params = parseQuery(url);
       handleCallbackData(params);
     }

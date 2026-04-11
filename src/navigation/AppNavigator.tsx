@@ -58,6 +58,7 @@ import WalletScreen from '../screens/Wallet/WalletScreen';
 import TransactionDetailScreen from '../screens/Wallet/TransactionDetailScreen';
 import DepositWebViewScreen from '../screens/Wallet/DepositWebViewScreen';
 import DepositResultScreen from '../screens/Wallet/DepositResultScreen';
+import MomoResultScreen from '../screens/Wallet/MomoResultScreen';
 import DeviceScanScreen from '../screens/IoT/DeviceScanScreen';
 import MyDevicesScreen from '../screens/IoT/MyDevicesScreen';
 import { BleProvider } from '../services/BleProvider';
@@ -188,6 +189,7 @@ export type RootStackParamList = {
     | { paymentUrl: string; transactionId?: string; orderCode?: string }
     | undefined;
   DepositResult: { success: boolean; data?: any } | undefined;
+  MomoResult: { orderId?: string; previousBalance?: number } | undefined;
   Deposit: undefined;
   Withdraw: undefined;
   TransactionDetail: { transactionId: string } | undefined;
@@ -387,6 +389,10 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen
               name="DepositResult"
               component={DepositResultScreen}
+            />
+            <Stack.Screen
+              name="MomoResult"
+              component={MomoResultScreen}
             />
             <Stack.Screen
               name="TransactionDetail"

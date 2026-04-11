@@ -21,7 +21,8 @@ export default function DepositResultScreen() {
   }, [data, params]);
 
   const amount = useMemo(() => {
-    const amtRaw = Number(params.vnp_Amount ?? params.amount ?? params.vnpAmount ?? 0) || 0;
+    // Support MoMo params (amount), VNPay (vnp_Amount) and others
+    const amtRaw = Number(params.vnp_Amount ?? params.amount ?? params.vnpAmount ?? params.amount ?? 0) || 0;
     if (!amtRaw) return '-';
     const normalized = amtRaw >= 1000000 && amtRaw % 100 === 0 ? Math.round(amtRaw / 100) : amtRaw; // VNPay sometimes sends amount*100
     return new Intl.NumberFormat('vi-VN').format(normalized) + '₫';
@@ -42,7 +43,10 @@ export default function DepositResultScreen() {
     return String(raw);
   }, [params]);
 
-  const method = useMemo(() => params.vnp_BankCode ?? params.vnp_CardType ?? params.method ?? 'VNPay', [params]);
+  const method = useMemo(() => {
+    if (params.payType || params.transId || params.orderType === 'momo_wallet' || params.orderId) return 'MoMo';
+    return params.vnp_BankCode ?? params.vnp_CardType ?? params.method ?? 'VNPay';
+  }, [params]);
 
   const onShare = useCallback(async () => {
     try {
@@ -62,7 +66,7 @@ export default function DepositResultScreen() {
       </View>
 
       <View className="items-center mt-8">
-        <View className={`w-24 h-24 rounded-full items-center justify-center ${success ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-red-400'} shadow-lg`}>
+        <View className={`w-24 h-24 rounded-full items-center justify-center ${success ? 'bg-green-500' : 'bg-red-400'} shadow-lg`}>
           <Text className="text-3xl text-white">{success ? '✓' : '✕'}</Text>
         </View>
 

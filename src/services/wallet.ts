@@ -50,6 +50,27 @@ export async function createWalletDeposit(amount: number, description = 'Nạp t
 }
 
 /**
+ * Create a MoMo payment request by calling backend `/wallet/momo/deposit/create`.
+ */
+export async function createWalletMomoDeposit(amount: number, description = 'Nạp tiền vào ví') : Promise<ServiceResult<{ paymentUrl: string; transactionId: string; orderCode: string }>> {
+  try {
+    const min = 10000;
+    if (typeof amount !== 'number' || isNaN(amount) || amount < min) {
+      return { ok: false, error: { message: `Số tiền nạp tối thiểu là ${min} VND`, code: 'INVALID_AMOUNT' } };
+    }
+
+    const body = { amount, description };
+    const res = await api.post('/wallet/momo/deposit/create', body);
+    const data = res.data?.data ?? res.data ?? res;
+
+    return { ok: true, data };
+  } catch (err: any) {
+    const error = err.response?.data ?? { message: err.message ?? err, status: err.response?.status };
+    return { ok: false, error };
+  }
+}
+
+/**
  * Get list of banks supported for wallet withdrawals (VietQR)
  * GET /wallet-withdrawals/banks
  */

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { createWalletDeposit, fetchMyWallet } from '../../services/wallet';
+import { createWalletDeposit, createWalletMomoDeposit, fetchMyWallet } from '../../services/wallet';
 
 export default function DepositScreen() {
   const navigation = useNavigation<any>();
@@ -9,6 +9,7 @@ export default function DepositScreen() {
   const [description, setDescription] = useState('Nạp tiền vào ví');
   const [loading, setLoading] = useState(false);
   const [wallet, setWallet] = useState<any | null>(null);
+  const [provider, setProvider] = useState<'vnpay' | 'momo'>('vnpay');
 
   const quickAmounts = [50000, 100000, 200000, 500000];
 
@@ -26,6 +27,28 @@ export default function DepositScreen() {
     return () => { mounted = false; };
   }, []);
 
+  // Try to open deeplink; if it fails, automatically fallback to WebView.
+  async function tryOpenDeeplinkOrFallback(deeplink: string, fallbackUrl: string, transactionId?: string, orderCode?: string) {
+    try {
+      const can = await Linking.canOpenURL(deeplink);
+      if (can) {
+        await Linking.openURL(deeplink);
+        return true;
+      }
+    } catch (e) {
+      console.warn('canOpenURL/open deeplink error', e);
+    }
+
+    // If cannot open deeplink, immediately open fallback WebView (more reliable in dev/emulator)
+    try {
+      navigation.navigate('DepositWebView', { paymentUrl: fallbackUrl, transactionId, orderCode });
+    } catch (e) {
+      console.warn('navigate to DepositWebView failed', e);
+    }
+
+    return false;
+  }
+
   async function submit() {
     const cleaned = Number((amount || '').toString().replace(/[^0-9]/g, '')) || 0;
     const min = 10000;
@@ -36,25 +59,46 @@ export default function DepositScreen() {
 
     setLoading(true);
     try {
-      const res = await createWalletDeposit(cleaned, description || 'Nạp tiền vào ví');
+      const res = provider === 'momo'
+        ? await createWalletMomoDeposit(cleaned, description || 'Nạp tiền vào ví')
+        : await createWalletDeposit(cleaned, description || 'Nạp tiền vào ví');
+
+      // Debug: log backend response
+      console.log('[DepositScreen] create deposit response:', res);
+
       if (!res.ok) {
         Alert.alert('Lỗi', res.error?.message ?? 'Không thể tạo URL thanh toán');
         return;
       }
 
       const d: any = res.data ?? {};
-      const paymentUrl = d.paymentUrl ?? d.payment_url ?? d.url ?? d.paymentUrl;
+      // paymentUrl may be in various fields; momo may also include deeplink
+      const paymentUrl = d.paymentUrl ?? d.payment_url ?? d.url ?? d.payUrl ?? d.PayUrl ?? d.payurl ?? null;
+      const deeplink = d.deeplink ?? d.deepLink ?? d.deep_link ?? (paymentUrl && String(paymentUrl).toLowerCase().startsWith('momo://') ? paymentUrl : null);
       const transactionId = d.transactionId ?? d.transaction_id ?? d.transactionId;
       const orderCode = d.orderCode ?? d.order_code ?? d.orderCode;
 
-      if (!paymentUrl) {
+      if (!paymentUrl && !deeplink) {
         Alert.alert('Lỗi', 'Server không trả về URL thanh toán');
         return;
       }
 
+      // If we have a deeplink, try to open it first, otherwise fallback to webview
+      if (deeplink) {
+        const opened = await tryOpenDeeplinkOrFallback(deeplink, paymentUrl ?? deeplink, transactionId, orderCode);
+        if (opened) {
+          setLoading(false);
+          return;
+        }
+        // if not opened and user cancelled, just stop
+        setLoading(false);
+        return;
+      }
+
+      // No deeplink available, open webview
       navigation.navigate('DepositWebView', { paymentUrl, transactionId, orderCode });
-    } catch {
-      console.warn('deposit err');
+    } catch (e) {
+      console.warn('deposit err', e);
       Alert.alert('Lỗi', 'Không thể tạo giao dịch nạp tiền');
     } finally {
       setLoading(false);
@@ -119,12 +163,21 @@ export default function DepositScreen() {
         <TextInput value={description} onChangeText={setDescription} className="border border-gray-200 rounded p-3 bg-white" />
       </View>
 
+      {/* Provider selector */}
+      <View className="mb-4 flex-row items-center space-x-3">
+        <TouchableOpacity onPress={() => setProvider('vnpay')} className={`px-4 py-2 rounded ${provider === 'vnpay' ? 'bg-teal-500' : 'bg-gray-100'}`}>
+          <Text className={`${provider === 'vnpay' ? 'text-white' : 'text-gray-700'}`}>VNPay</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setProvider('momo')} className={`px-4 py-2 rounded ${provider === 'momo' ? 'bg-teal-500' : 'bg-gray-100'}`}>
+          <Text className={`${provider === 'momo' ? 'text-white' : 'text-gray-700'}`}>MoMo</Text>
+        </TouchableOpacity>
+      </View>
+
       <View className="mt-4">
         <TouchableOpacity
           onPress={submit}
           disabled={!canSubmit}
-          className={`py-3 rounded-lg items-center ${canSubmit ? 'bg-teal-500' : 'bg-gray-300'}`}
-        >
+          className={`py-3 rounded-lg items-center ${canSubmit ? 'bg-teal-500' : 'bg-gray-300'}`}>
           {loading ? (
             <ActivityIndicator color={canSubmit ? 'white' : '#6b7280'} />
           ) : (
