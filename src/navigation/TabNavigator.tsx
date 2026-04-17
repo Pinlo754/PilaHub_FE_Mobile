@@ -6,16 +6,16 @@ import { TabIcon } from '../components/TabIcon';
 import ListScreen from '../screens/List/ListScreen';
 
 import { RenderCenterTabBtn } from '../components/TabCenterBtn';
-import CoachScreen from '../screens/Coach/CoachScreen';
 import ShopScreen from '../screens/Shop/ShopScreen';
 import AppLayout from '../components/AppLayout';
 import RoadMap from '../screens/Plan/RoadMap';
+import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
 
 export type RootTabParamList = {
   Home: undefined;
   List: undefined;
   Roadmap: undefined;
-  Coach: undefined;
+  TraineeProfile: undefined;
   Shop: undefined;
 };
 
@@ -77,15 +77,7 @@ const TabNavigator: React.FC = () => {
             tabBarButton: RenderCenterTabBtn,
           }}
         />
-        <Tab.Screen
-          name="Coach"
-          component={CoachScreen}
-          options={{
-            tabBarLabel: 'HLV',
-            tabBarIcon: TabIcon('person-circle-outline', 'person-circle', 28),
-          }}
-        />
-        <Tab.Screen
+            <Tab.Screen
           name="Shop"
           component={ShopScreen}
           options={{
@@ -93,6 +85,15 @@ const TabNavigator: React.FC = () => {
             tabBarIcon: TabIcon('pricetag-outline', 'pricetag', 22),
           }}
         />
+        <Tab.Screen
+          name="TraineeProfile"
+          component={TraineeProfileScreen}
+          options={{
+            tabBarLabel: 'Cá nhân',
+            tabBarIcon: TabIcon('person-circle-outline', 'person-circle', 28),
+          }}
+        />
+    
       </Tab.Navigator>
     </AppLayout>
   );

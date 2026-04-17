@@ -204,6 +204,7 @@ export type RootStackParamList = {
         title?: string;
       }
     | undefined;
+  MyInjuries: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -399,6 +400,7 @@ const AppNavigator: React.FC = () => {
               component={TransactionDetailScreen}
             />
             <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
+            <Stack.Screen name="MyInjuries" component={require('../screens/Profile/MyInjuriesScreen').default} />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

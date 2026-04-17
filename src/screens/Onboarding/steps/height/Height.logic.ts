@@ -22,14 +22,25 @@ export const useHeightLogic = () => {
   const initialIndex = Math.max(0, HEIGHTS.findIndex(v => v === height));
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  // scroll về đúng vị trí khi mở step
+  // helper for FlatList measurement (so FlatList can compute positions precisely)
+  const getItemLayout = (_: any, index: number) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index });
+
+  // scroll to correct position once on mount using requestAnimationFrame + scrollToIndex when available
   useEffect(() => {
-    setTimeout(() => {
-      listRef.current?.scrollToOffset({
-        offset: currentIndex * ITEM_HEIGHT,
-        animated: false,
-      });
-    }, 50);
+    const raf = requestAnimationFrame(() => {
+      try {
+        if (listRef.current && typeof (listRef.current as any).scrollToIndex === 'function') {
+          (listRef.current as any).scrollToIndex({ index: initialIndex, animated: false, viewPosition: 0.5 });
+        } else {
+          listRef.current?.scrollToOffset({ offset: currentIndex * ITEM_HEIGHT, animated: false });
+        }
+      } catch {
+        // fallback to offset after a short delay
+        setTimeout(() => { listRef.current?.scrollToOffset({ offset: currentIndex * ITEM_HEIGHT, animated: false }); }, 80);
+      }
+    });
+
+    return () => cancelAnimationFrame(raf);
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -72,5 +83,8 @@ export const useHeightLogic = () => {
     onMomentumEnd,
     onNext: () => setStep(step + 1),
     onBack: () => setStep(step - 1),
+    // expose helper props for FlatList
+    getItemLayout,
+    initialIndex,
   };
 };

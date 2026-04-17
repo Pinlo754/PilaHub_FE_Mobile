@@ -12,15 +12,18 @@ function SmallCard({ item, onPress, onBuy }: { item: any; onPress: (i: any) => v
   const price = item.price ?? item.raw?.price ?? 0;
 
   return (
-    <TouchableOpacity onPress={() => onPress(item)} className="w-40 mr-3">
-      <View className="bg-white rounded-xl overflow-hidden">
-        <Image source={(item.image || item.raw?.thumbnailUrl || item.raw?.thumnail_url) ? { uri: item.image ?? item.raw?.thumbnailUrl ?? item.raw?.thumnail_url } : { uri: 'https://via.placeholder.com/320x200.png?text=No+Image' }} className="w-40 h-28 bg-[#f1f5f9]" />
-        <View className="p-2">
-          <Text className="font-semibold text-sm" numberOfLines={2}>{item.name}</Text>
+    <TouchableOpacity onPress={() => onPress(item)} className="w-56 mr-4">
+      <View className="bg-white rounded-xl overflow-hidden shadow-sm">
+        <Image
+          source={(item.image || item.raw?.thumbnailUrl || item.raw?.thumnail_url) ? { uri: item.image ?? item.raw?.thumbnailUrl ?? item.raw?.thumnail_url } : { uri: 'https://via.placeholder.com/480x300.png?text=No+Image' }}
+          className="w-56 h-40 bg-[#f1f5f9]"
+        />
+        <View className="p-3">
+          <Text className="font-semibold text-base text-foreground mb-1" numberOfLines={2}>{item.name}</Text>
           <View className="flex-row justify-between items-center mt-2">
-            <Text className="font-bold text-amber-600 text-sm">{price > 0 ? formatVND(price) : 'Liên hệ'}</Text>
-            <TouchableOpacity onPress={() => onBuy(item)} className="bg-amber-500 px-2 py-1 rounded-md">
-              <Text className="text-white text-xs font-bold">Mua</Text>
+            <Text className="font-extrabold text-amber-600 text-lg">{price > 0 ? formatVND(price) : 'Liên hệ'}</Text>
+            <TouchableOpacity onPress={() => onBuy(item)} className="bg-amber-500 px-3 py-2 rounded-lg">
+              <Text className="text-white text-sm font-bold">Mua</Text>
             </TouchableOpacity>
           </View>
         </View>

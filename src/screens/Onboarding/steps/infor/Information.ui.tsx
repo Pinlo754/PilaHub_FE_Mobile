@@ -5,6 +5,7 @@ import {
   TextInput,
   Pressable,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useInformationLogic } from './Information.logic';
 
@@ -15,6 +16,7 @@ export default function InformationUI() {
     setFullName,
     pickAvatar,
     onNext,
+    uploading,
     onBack,
   } = useInformationLogic();
 
@@ -50,6 +52,11 @@ export default function InformationUI() {
           <View className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full items-center justify-center">
             <Text className="text-foreground text-base">✎</Text>
           </View>
+          {uploading && (
+            <View className="absolute inset-0 items-center justify-center bg-black/30 rounded-full">
+              <ActivityIndicator size="small" color="#fff" />
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -64,10 +71,11 @@ export default function InformationUI() {
       <View className="flex-1 justify-end px-6 mb-6">
         <Pressable
           onPress={onNext}
-          className="h-14 rounded-xl bg-foreground items-center justify-center"
+          disabled={uploading}
+          className={`h-14 rounded-xl ${uploading ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
         >
           <Text className="text-white font-semibold text-base">
-            Tiếp tục
+            {uploading ? 'Đang tải...' : 'Tiếp tục'}
           </Text>
         </Pressable>
       </View>

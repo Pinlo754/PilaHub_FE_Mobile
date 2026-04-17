@@ -203,10 +203,7 @@ onPress={async () => {
         </TouchableOpacity>
 
         {/* Apple */}
-        <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center">
-          <Text className="text-base"></Text>
-          <Text className="ml-2 text-base">Tiếp tục với Apple</Text>
-        </TouchableOpacity>
+       
 
         {/* Footer */}
         <TouchableOpacity className="mt-6 items-center" onPress={() => navigation.navigate('Register')}>

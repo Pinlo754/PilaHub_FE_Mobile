@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PermissionsAndroid, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -6,12 +6,13 @@ import Header from './components/Header';
 import DailyTask from './components/DailyTask';
 import { useHomeScreen } from './useHomeScreen';
 import RoadmapProgress from './components/RoadmapProgress';
-import QuickActions from './components/QuickActions';
+import QuickActions, { ACTIONS } from './components/QuickActions';
 import RecommendCourse from './components/RecommendCourse';
 import NewExercise from './components/NewExercise';
 import NewProduct from './components/NewProduct';
 import messaging from '@react-native-firebase/messaging';
 import { saveFcmToken } from '../../services/auth';
+import MainGuideOverlay from '../../components/MainGuideOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -19,6 +20,18 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // HOOK
   const { dailyTasks, recommendCourses, newExercises, newProducts, scrollRef } =
     useHomeScreen();
+
+  // refs for onboarding overlay (stable refs created once)
+  const targetRefs = useMemo(() => {
+    const m: Record<string, React.RefObject<any>> = {};
+    ACTIONS.forEach((a) => { m[a.id] = React.createRef(); });
+    return m;
+  }, []);
+
+  const [measures, setMeasures] = useState<Record<string, any>>({});
+  const handleMeasure = (id: string, rect: { x: number; y: number; width: number; height: number }) => {
+    setMeasures((s) => ({ ...s, [id]: rect }));
+  };
 
   async function requestPermission() {
     await PermissionsAndroid.request(
@@ -44,6 +57,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header */}
       <Header navigation={navigation} />
 
+      <MainGuideOverlay measures={measures} />
       <ScrollView
         ref={scrollRef}
         className="pt-2"
@@ -57,7 +71,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <RoadmapProgress />
 
         {/* Quick Actions */}
-        <QuickActions navigation={navigation} />
+        <QuickActions navigation={navigation} targetRefs={targetRefs} onMeasure={handleMeasure} />
 
         {/* Recomend Course */}
         <RecommendCourse data={recommendCourses} />

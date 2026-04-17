@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, FlatList, Keyboard, StyleSheet, DeviceEventEmitter, Image } from 'react-native';
+import { View, Text, TextInput, Pressable, FlatList, Keyboard, StyleSheet, Image } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getCartSummary } from '../../../services/cart';
+import { useCart } from '../../../context/CartContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RECENT_KEY = 'shop_recent_searches';
 
@@ -25,57 +25,22 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
   const [focused, setFocused] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const inputRef = useRef<any>(null);
-  const [cartCount, setCartCount] = useState(0);
-  const [userId, setUserId] = useState<string>('guest');
+  const { totalItems, loadCart } = useCart();
 
   useEffect(() => {
     loadRecent();
   }, []);
 
-  // load current user id and initial cart summary, and subscribe to cart updates
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const rawId = await AsyncStorage.getItem('id');
-        let uid: string | null = null;
-        try { uid = rawId ? JSON.parse(rawId) : rawId; } catch { uid = rawId; }
-        const activeUser = uid ?? 'guest';
-        if (mounted) setUserId(activeUser);
-        const s = await getCartSummary(activeUser);
-        if (mounted) setCartCount(s.totalItems ?? 0);
-      } catch { /* ignore */ }
-    })();
-
-    const sub = DeviceEventEmitter.addListener('cartUpdated', (evt: any) => {
-      try {
-        // only update badge for the current user
-        if (!evt) return;
-        const evtUser = evt.userId ?? 'guest';
-        if (evtUser === userId) setCartCount(evt.totalItems ?? 0);
-        // if we are running as guest and event is for guest, update too
-        if (userId === 'guest' && evtUser === 'guest') setCartCount(evt.totalItems ?? 0);
-      } catch { /* ignore */ }
-    });
-
-    return () => { mounted = false; sub.remove(); };
-  }, [userId]);
-
-  // refresh cart count when header/screen gains focus
+  // refresh cart context when header/screen gains focus
   useFocusEffect(
     React.useCallback(() => {
-      let mounted = true;
       (async () => {
         try {
-          const rawId = await AsyncStorage.getItem(RECENT_KEY);
-          let userIdLocal: string | null = null;
-          try { userIdLocal = rawId ? JSON.parse(rawId) : null; } catch { userIdLocal = rawId; }
-          const s = await getCartSummary(userIdLocal ?? 'guest');
-          if (mounted) setCartCount(s.totalItems ?? 0);
-        } catch { }
+          await loadCart();
+        } catch { /* ignore */ }
       })();
-      return () => { mounted = false; };
-    }, [])
+      return () => { /* cleanup */ };
+    }, [loadCart])
   );
 
   async function loadRecent() {
@@ -160,9 +125,9 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
           <Pressable className="p-2" onPress={() => (navigation as any).navigate('Cart')}>
             <View style={stylesHeader.cartWrap}>
               <Ionicons name="cart-outline" size={22} color={colors.foreground} />
-              {cartCount > 0 && (
+              {totalItems > 0 && (
                 <View style={stylesHeader.badgeWrap}>
-                  <Text style={stylesHeader.badgeText}>{cartCount > 99 ? '99+' : String(cartCount)}</Text>
+                  <Text style={stylesHeader.badgeText}>{totalItems > 99 ? '99+' : String(totalItems)}</Text>
                 </View>
               )}
             </View>

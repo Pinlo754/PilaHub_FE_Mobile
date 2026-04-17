@@ -15,7 +15,7 @@ type ActionItem<RouteName extends keyof RootStackParamList> = {
   route: RouteName;
 };
 
-const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
+export const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
   {
     id: 'roadmap',
     title: 'Tạo lộ trình',
@@ -45,26 +45,42 @@ const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
   },
   {
     id: 'video',
-    title: 'Video call',
+    title: 'Gọi video',
     icon: 'videocam',
     size: 23,
     bgColor: colors.purple[20],
     iconColor: colors.purple.DEFAULT,
     route: 'TraineeBooking',
-    route: 'TraineeBooking',
   },
 ];
 
-type Props = {
+type QuickActionsProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
+  // optional refs mapping for onboarding overlay: { [actionId]: ref }
+  targetRefs?: Record<string, React.RefObject<any>>;
+  // callback to report measured window positions when onLayout occurs
+  onMeasure?: (id: string, rect: { x: number; y: number; width: number; height: number }) => void;
 };
 
-const QuickActions = ({ navigation }: Props) => {
+const QuickActions = ({ navigation, targetRefs, onMeasure }: QuickActionsProps) => {
   return (
     <View className="flex-row flex-wrap gap-2 px-4 mb-4">
       {ACTIONS.map(item => (
         <Pressable
           key={item.id}
+          ref={targetRefs?.[item.id]}
+          onLayout={() => {
+            try {
+              const ref = targetRefs?.[item.id];
+              if (ref?.current?.measureInWindow) {
+                ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+                  onMeasure?.(item.id, { x, y, width, height });
+                });
+              }
+            } catch (err) {
+              // ignore
+            }
+          }}
           onPress={() => navigation.navigate(item.route as any)}
           className="w-[49%] bg-white rounded-xl p-4 flex-row items-center shadow-md elevation-md border border-background-sub1_30"
         >

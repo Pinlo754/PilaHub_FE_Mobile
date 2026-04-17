@@ -88,41 +88,42 @@ export default function HeightUI() {
 
               return (
                 <Animated.View
-                  style={{
-                    height: ITEM_HEIGHT,
-                    opacity,
-                    transform: [{ scale }],
-                  }}
-                  className="flex-row items-center"
-                >
-                  {/* ===== NUMBER ===== */}
-                  <Text
-                    className={`w-16 text-right text-2xl font-semibold ${
-                      isActive
-                        ? 'text-warning'
-                        : 'text-warning/40'
-                    }`}
-                  >
-                    {item}
-                  </Text>
+  style={{
+    height: ITEM_HEIGHT,
+    opacity,
+    transform: [{ scale }],
+  }}
+  className="flex-row items-center justify-center"
+>
+  {/* NUMBER */}
+  <Text
+    className={`w-24 text-right text-4xl font-bold ${
+      isActive ? 'text-warning' : 'text-warning/35'
+    }`}
+  >
+    {item}
+  </Text>
 
-                  {/* ===== TICK ===== */}
-                  <View className="mx-4 w-4 items-center">
-                    <View
-                      className={`bg-white rounded-full ${
-                        isMajor ? 'h-8 w-[2px]' : 'h-4 w-[1px]'
-                      }`}
-                    />
-                  </View>
+  {/* TICK */}
+  <View className="mx-6 w-8 items-center">
+    <View
+      className={`rounded-full ${
+        isMajor
+          ? isActive
+            ? 'h-10 w-[3px] bg-warning'
+            : 'h-10 w-[2px] bg-warning/40'
+          : isActive
+          ? 'h-6 w-[2px] bg-warning'
+          : 'h-6 w-[1.5px] bg-warning/25'
+      }`}
+    />
+  </View>
 
-                  {/* ===== ACTIVE INDICATOR ===== */}
-                  {isActive && (
-                    <View className="flex-row items-center">
-                      {/* line */}
-                      <View className="w-12 h-[2px] bg-warning mr-1" />
-                    </View>
-                  )}
-                </Animated.View>
+  {/* ACTIVE INDICATOR */}
+  <View className="w-20 items-start">
+    {isActive && <View className="w-16 h-[4px] rounded-full bg-warning" />}
+  </View>
+</Animated.View>
               );
             }}
           />
