@@ -44,6 +44,7 @@ import AIPractice from '../screens/AIPractice/AIPractice';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
+import ProfileInfoScreen from '../screens/Profile/ProfileInfoScreen';
 import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
 import HealthProfileAssessmentScreen from '../screens/Profile/HealthProfileAssessmentScreen';
 import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
@@ -89,6 +90,7 @@ export type RootStackParamList = {
   AddressList: undefined;
   AddressForm: { onSaved?: () => void } | undefined;
   TraineeProfile: undefined;
+  ProfileInfo: undefined;
   Orders: undefined;
   OrderDetail: { orderId: string };
   Roadmap: undefined;
@@ -292,6 +294,7 @@ const AppNavigator: React.FC = () => {
               name="TraineeProfile"
               component={TraineeProfileScreen}
             />
+            <Stack.Screen name="ProfileInfo" component={ProfileInfoScreen} />
             <Stack.Screen
               name="HealthProfiles"
               component={HealthProfilesScreen}

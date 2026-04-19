@@ -57,7 +57,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header */}
       <Header navigation={navigation} />
 
-      <MainGuideOverlay measures={measures} />
+      <MainGuideOverlay targetRefs={targetRefs} measures={measures} />
       <ScrollView
         ref={scrollRef}
         className="pt-2"

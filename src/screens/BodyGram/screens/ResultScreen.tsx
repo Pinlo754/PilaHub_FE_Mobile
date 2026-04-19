@@ -310,7 +310,7 @@ export default function ResultScreen({ route, navigation }: Props) {
 
       {/* ACTIONS */}
       <View className="mt-6 bg-foreground p-2 rounded-lg " >
-       <Button title ="Lưu kết quả" onPress={handleSubmitAll} color="white" disabled={loading} />
+       <Button title ="Lưu kết quả" onPress={handleSubmitAll} disabled={loading} />
         {/* <Button title="Lưu kết quả" onPress={saveMeasurements} color="white" /> */}
       </View>
 

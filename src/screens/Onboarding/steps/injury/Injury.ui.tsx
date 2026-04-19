@@ -27,15 +27,22 @@ export default function InjuryUI() {
               className="h-12 px-4 mb-4 rounded-xl bg-white text-foreground"
             />
 
-            {(filteredInjuries || []).map((inj: any) => (
-              <Pressable
-                key={inj.injuryId ?? inj.id}
-                onPress={() => selectInjury(inj)}
-                className={`p-4 rounded-xl mb-3 border ${selected && (selected.injuryId ?? selected.id) === (inj.injuryId ?? inj.id) ? 'bg-foreground/10 border-foreground' : 'bg-white border-background-sub2'}`}>
-                <Text className="text-base text-foreground font-medium">{inj.name}</Text>
-                <Text className="text-sm text-secondaryText mt-1">{inj.description}</Text>
-              </Pressable>
-            ))}
+            {(filteredInjuries || []).map((inj: any) => {
+              const id = inj.injuryId ?? inj.id;
+              const sel = selected as any;
+              const isSelected = Array.isArray(sel)
+                ? sel.some((s: any) => ((s?.injuryId ?? s?.id) === id))
+                : (sel && ((sel?.injuryId ?? sel?.id) === id));
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => selectInjury(inj)}
+                  className={`p-4 rounded-xl mb-3 border ${isSelected ? 'bg-foreground/10 border-foreground' : 'bg-white border-background-sub2'}`}>
+                  <Text className="text-base text-foreground font-medium">{inj.name}</Text>
+                  <Text className="text-sm text-secondaryText mt-1">{inj.description}</Text>
+                </Pressable>
+              );
+            })}
 
             <View className="mt-4">
               <Text className="text-sm text-secondaryText mb-2">Ghi chú (nếu muốn)</Text>

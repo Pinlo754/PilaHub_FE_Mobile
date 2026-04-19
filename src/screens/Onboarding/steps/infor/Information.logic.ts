@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
 import { getProfile } from '../../../../services/auth';
@@ -51,9 +51,26 @@ export const useInformationLogic = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // prevent re-entrancy: block while picker is open or upload in progress
+  const isPickingRef = useRef<boolean>(false);
+
   const pickAvatar = async () => {
+    if (uploading || isPickingRef.current) {
+      console.log('[pickAvatar] busy — ignoring tap');
+      return;
+    }
+
+    const now = Date.now();
+    const last = lastPickRef.current ?? 0;
+    if (now - last < 1200) {
+      console.log('[pickAvatar] tapped too fast — ignoring');
+      return;
+    }
+    lastPickRef.current = now;
+
+    isPickingRef.current = true;
     try {
-      const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 1 });
       console.log('[pickAvatar] result', result);
       if (result.didCancel) return;
       const asset = result.assets && result.assets[0];
@@ -64,7 +81,9 @@ export const useInformationLogic = () => {
       setUploading(true);
       const filename = `avatars/${Date.now()}_${asset.fileName ?? 'photo'}`;
       const ref = storage().ref(filename);
-      const localPath = asset.uri.replace('file://', '');
+
+      // handle different uri schemes (content:// or file://). Firebase putFile accepts both on Android/iOS
+      const localPath = asset.uri.startsWith('file://') ? asset.uri.replace('file://', '') : asset.uri;
       console.log('[pickAvatar] uploading file:', localPath, '->', filename);
       await ref.putFile(localPath);
       const url = await ref.getDownloadURL();
@@ -77,13 +96,17 @@ export const useInformationLogic = () => {
       } else {
         console.warn('[pickAvatar] upload returned empty url');
       }
-    } catch (e) {
-      console.warn('pickAvatar/upload error', e);
+    } catch {
+      console.warn('pickAvatar/upload error');
       Alert.alert('Lỗi', 'Không thể tải ảnh lên. Vui lòng thử lại.');
     } finally {
       setUploading(false);
+      isPickingRef.current = false;
     }
   };
+
+  // ref to prevent rapid repeated taps
+  const lastPickRef = useRef<number>(0);
 
   const onNext = () => {
     // persist current form into onboarding store immediately

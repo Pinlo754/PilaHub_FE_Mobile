@@ -617,3 +617,15 @@ export async function fetchPersonalInjuryById(id: string): Promise<ServiceResult
     return { ok: false, error: e.response?.data ?? e.message ?? e };
   }
 }
+
+// Update a personal injury (status, notes)
+export async function updatePersonalInjury(id: string, payload: { status?: string; notes?: string }): Promise<ServiceResult> {
+  try {
+    const res = await api.put(`/personal-injuries/${id}`, payload);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
+  }
+}

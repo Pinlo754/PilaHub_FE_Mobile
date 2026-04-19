@@ -1,4 +1,4 @@
-  import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
   import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
   import { SafeAreaView } from 'react-native-safe-area-context';
   import { RouteProp, useNavigation } from '@react-navigation/native';
@@ -6,6 +6,7 @@
   import { useOnboardingStore } from '../../store/onboarding.store';
   import { useRoadmapStore } from '../../store/roadmap.store';
   import { Send } from 'lucide-react-native';
+  import Ionicons from '@react-native-vector-icons/ionicons';
   import { RootStackParamList } from '../../navigation/AppNavigator';
   import { NativeStackNavigationProp } from '@react-navigation/native-stack';
   import { Picker } from '@react-native-picker/picker';
@@ -225,6 +226,10 @@
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
+          <TouchableOpacity onPress={() => nav.goBack()} className="w-7 items-center justify-center">
+            <Ionicons name="arrow-back" size={22} color="#333" />
+          </TouchableOpacity>
+
           <Text className="flex-1 text-center text-lg font-semibold">Tạo Lộ Trình AI</Text>
           <View className="w-7" />
         </View>
