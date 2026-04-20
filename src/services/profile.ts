@@ -528,6 +528,23 @@ export async function createPersonalInjury(payload: { injuryId: string; notes?: 
     return { ok: false, error };
   }
 }
+export async function uploadInBodyScan(image: { uri: string; name?: string; type?: string }, rawScanId?: string): Promise<ServiceResult> {
+  try {
+    const fd = new FormData();
+    const fileName = image.name ?? `inbody_${Date.now()}.jpg`;
+    const fileAny: any = { uri: image.uri, name: fileName, type: image.type ?? 'image/jpeg' };
+    fd.append('image', fileAny as any);
+    if (rawScanId) fd.append('rawScanId', rawScanId);
+
+    const res = await api.post('/health-profiles/my-profiles/inbody-extract', fd as any, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: 'AI đang bận vui lòng thử lại sau' };
+  }
+}
 
 // Fetch health profiles for the authenticated trainee (returns array or empty)
  export async function fetchMyHealthProfiles(): Promise<ServiceResult> {

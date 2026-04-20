@@ -225,12 +225,12 @@ export default function ProfileInfoScreen() {
                   <View style={styles.field}><Text style={styles.fieldLabel}>Chiều cao</Text><Text style={styles.fieldValue}>{healthProfile ? `${healthProfile.heightCm ?? healthProfile.height ?? '-'} cm` : '-'}</Text></View>
                   <View style={styles.field}><Text style={styles.fieldLabel}>Cân nặng</Text><Text style={styles.fieldValue}>{healthProfile ? `${healthProfile.weightKg ?? healthProfile.weight ?? '-'} kg` : '-'}</Text></View>
                 </View>
-+
-+                {/* workout info */}
-+                <View style={[styles.personalRow, { marginTop: 12 }]}> 
-+                  <View style={styles.field}><Text style={styles.fieldLabel}>Cấp độ</Text><Text style={styles.fieldValue}>{mapWorkoutLevel(profile?.workoutLevel)}</Text></View>
-+                  <View style={styles.field}><Text style={styles.fieldLabel}>Tần suất</Text><Text style={styles.fieldValue}>{mapWorkoutFrequency(profile?.workoutFrequency)}</Text></View>
-+                </View>
+
+                {/* workout info */}
+                <View style={[styles.personalRow, { marginTop: 12 }]}>
+                  <View style={styles.field}><Text style={styles.fieldLabel}>Cấp độ</Text><Text style={styles.fieldValue}>{mapWorkoutLevel(profile?.workoutLevel)}</Text></View>
+                  <View style={styles.field}><Text style={styles.fieldLabel}>Tần suất</Text><Text style={styles.fieldValue}>{mapWorkoutFrequency(profile?.workoutFrequency)}</Text></View>
+                </View>
               </View>
             </View>
 
