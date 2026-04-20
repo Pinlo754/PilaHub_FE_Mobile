@@ -1,16 +1,25 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { ExerciseType } from '../../../utils/ExerciseType';
 import { secondsToTime } from '../../../utils/time';
 import { colors } from '../../../theme/colors';
 import { useEffect, useRef } from 'react';
+import { WorkoutSessionType } from '../../../utils/WorkoutSessionType';
+import HistoryTable from './HistoryTable';
 
 type Props = {
   exerciseDetail: ExerciseType;
   isPracticeTab: boolean;
+  workoutHistory?: WorkoutSessionType[];
+  canPlayTheory: boolean;
 };
 
-const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
+const Description = ({
+  exerciseDetail,
+  isPracticeTab,
+  workoutHistory = [],
+  canPlayTheory,
+}: Props) => {
   // USE REF
   const scrollRef = useRef<ScrollView>(null);
 
@@ -53,7 +62,7 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
         </View>
 
         {/* History */}
-        {isPracticeTab && (
+        {isPracticeTab && canPlayTheory && (
           <View className="flex-col gap-2 pb-5">
             <View className="flex-row gap-1 items-center">
               <Ionicons
@@ -67,7 +76,7 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
             {/* Table */}
             <View className="w-full">
               {/* Header */}
-              <View className="flex-row gap-4 mb-2">
+              <View className="flex-row gap-4 border-b border-background-sub1 pb-2 mb-2">
                 <Text className="w-10 text-foreground font-medium text-center">
                   STT
                 </Text>
@@ -75,28 +84,21 @@ const Description = ({ exerciseDetail, isPracticeTab }: Props) => {
                   Thời gian
                 </Text>
                 <Text className="w-24 text-foreground font-medium text-center">
-                  Phần trăm
+                  Hoàn thành
                 </Text>
                 <View className="w-8" />
               </View>
 
               {/* Body */}
-              <View className="flex-col gap-2">
-                <View className="flex-row gap-4 border-t border-background-sub1 pt-2 items-center">
-                  <Text className="w-10 text-secondaryText font-medium text-center">
-                    1
+              {workoutHistory.length === 0 ? (
+                <View className="py-4 items-center">
+                  <Text className="text-secondaryText">
+                    Chưa có phiên tập được hoàn thành
                   </Text>
-                  <Text className="grow text-secondaryText font-medium">
-                    2023-12-01 08:00
-                  </Text>
-                  <Text className="w-24 text-secondaryText font-medium text-center">
-                    80%
-                  </Text>
-                  <Pressable className="rounded-lg bg-info-20 p-1.5">
-                    <Ionicons name="eye" size={18} color={colors.info.darker} />
-                  </Pressable>
                 </View>
-              </View>
+              ) : (
+                <HistoryTable workoutHistory={workoutHistory} />
+              )}
             </View>
           </View>
         )}

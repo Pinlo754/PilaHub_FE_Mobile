@@ -20,6 +20,6 @@ export type CreateScheduleReq = {
 
 export type PracticePayload = {
   progressId: string;
-  lessonExericseId: string;
+  lessonExerciseIds: string[];
   exerciseIds: ExerciseType['exerciseId'][];
 };

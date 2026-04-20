@@ -10,6 +10,7 @@ import DetailModal from './components/DetailModal';
 import FeedbackModal from './components/FeedbackModal';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import ModalPopup from '../../components/ModalPopup';
+import ReportList from './ReportList/ReportList';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TraineeBooking'>;
 
@@ -34,6 +35,9 @@ const TraineeBooking = (props: Props) => {
     showErrorModal,
     closeErrorModal,
     recordUrl,
+    closeReportList,
+    openReportList,
+    showReportList,
   } = useTraineeBooking();
 
   return (
@@ -42,7 +46,7 @@ const TraineeBooking = (props: Props) => {
 
       <View className="flex-1 pt-14 bg-background">
         {/* Header */}
-        <Header navigation={props.navigation} />
+        <Header navigation={props.navigation} openReportList={openReportList} />
 
         {/* Tabs */}
         <Tabs tabId={activeTab} onChange={onChangeTab} />
@@ -83,6 +87,9 @@ const TraineeBooking = (props: Props) => {
             liveSessionDetail?.commentByCoach || 'Chưa có đánh giá từ HLV!'
           }
         />
+
+        {/* Report List Modal */}
+        <ReportList visible={showReportList} onClose={closeReportList} />
 
         {/* Error Modal */}
         <ModalPopup

@@ -1,4 +1,4 @@
-import { ExerciseType } from "./ExerciseType";
+import { ExerciseType } from './ExerciseType';
 
 export type LevelType = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
@@ -7,7 +7,7 @@ export type CourseType = {
   name: string;
   description: string;
   imageUrl: string;
-  difficultyLevel: LevelType;
+  level: LevelType;
   price: number;
   active: boolean;
   totalLesson: number;
@@ -43,4 +43,3 @@ export type LessonExerciseDetailType = {
   notes: string | null;
   exercise: ExerciseType;
 };
-

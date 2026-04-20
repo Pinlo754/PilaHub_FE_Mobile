@@ -43,6 +43,9 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     showConfirmModal,
     onPressBack,
     currentExercise,
+    workoutHistory,
+    canPlayTheory,
+    exerciseEquipments,
   } = useExerciseDetail({
     route,
     navigation,
@@ -65,6 +68,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             navigation={navigation}
             exerciseId={currentExercise.exerciseId}
             onPressBack={onPressBack}
+            exerciseEquipments={exerciseEquipments}
           />
 
           {/* Image / Video */}
@@ -107,6 +111,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               canPractice={canPractice}
               onPressPractice={onPressPractice}
               activePackage={activePackage}
+              workoutHistory={workoutHistory}
+              canPlayTheory={canPlayTheory}
             />
           )}
 

@@ -1,6 +1,7 @@
 import { Image, Text, View } from 'react-native';
 import StarRating from './StarRating';
 import { CoachFeedbackType } from '../../../utils/CoachFeedbackType';
+import { formatDateTime } from '../../../utils/day';
 
 type Props = {
   item: CoachFeedbackType;
@@ -30,7 +31,9 @@ const CardFeedback = ({ item }: Props) => {
         </View>
 
         {/* Date */}
-        <Text className="color-secondaryText text-xs">{item.createdAt}</Text>
+        <Text className="color-secondaryText text-xs">
+          {formatDateTime(item.createdAt)}
+        </Text>
       </View>
 
       {/* Comment */}

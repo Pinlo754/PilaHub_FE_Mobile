@@ -110,6 +110,8 @@ export type RootStackParamList = {
   OrderSuccess: undefined;
   ExerciseDetail: {
     exercise_id: string;
+    lessonExerciseId?: string;
+    allowedTheory?: boolean;
     allowedPractice?: boolean;
     practicePayload?: PracticePayload;
   };
@@ -318,10 +320,13 @@ const AppNavigator: React.FC = () => {
             />
             <Stack.Screen name="OrderSuccess" component={OrderSuccessScreen} />
             <Stack.Screen name="Plan" component={PlanScreen} />
-              <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
+            <Stack.Screen name="PlanDetail" component={PlanDetailScreen} />
             <Stack.Screen name="SchedulePlayer" component={SchedulePlayer} />
             <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} />
-            <Stack.Screen name="SubscriptionSuccess" component={SubscriptionSuccessScreen} />
+            <Stack.Screen
+              name="SubscriptionSuccess"
+              component={SubscriptionSuccessScreen}
+            />
             <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
             <Stack.Screen name="MyDevices" component={MyDevicesScreen} />
 
@@ -404,15 +409,16 @@ const AppNavigator: React.FC = () => {
               name="DepositResult"
               component={DepositResultScreen}
             />
-            <Stack.Screen
-              name="MomoResult"
-              component={MomoResultScreen}
-            />
+            <Stack.Screen name="MomoResult" component={MomoResultScreen} />
             <Stack.Screen
               name="TransactionDetail"
               component={TransactionDetailScreen}
             />
             <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
+            <Stack.Screen
+              name="MyInjuries"
+              component={require('../screens/Profile/MyInjuriesScreen').default}
+            />
             <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
             <Stack.Screen name="ChatScreen" component={ChatScreen} />
             <Stack.Screen name="MyBlogScreen" component={MyBlogScreen} />

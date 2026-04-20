@@ -133,7 +133,7 @@ const CalendarSection = ({
       />
 
       {/* Booking Slot */}
-      {bookingSlots.length > 0 && <BookingTable bookingSlots={bookingSlots} />}
+      {/* {bookingSlots.length > 0 && <BookingTable bookingSlots={bookingSlots} />} */}
 
       {/* Schedule Available  */}
       {/* <ScheduleAvailable

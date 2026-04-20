@@ -47,30 +47,32 @@ const ExerciseItem = ({
   const buildPracticePayload = (
     lesson: CourseLessonDetailType,
     progressId: string,
-    lessonExercise: LessonExerciseDetailType,
   ): PracticePayload => {
-    const exerciseIds = lesson.exercises
-      .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
-      .map(ex => ex.exercise.exerciseId);
+    const sortedExercises = lesson.exercises.sort(
+      (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
+    );
 
     return {
       progressId,
-      lessonExericseId: lessonExercise.lessonExerciseId,
-      exerciseIds,
+      lessonExerciseIds: sortedExercises.map(ex => ex.lessonExerciseId),
+      exerciseIds: sortedExercises.map(ex => ex.exercise.exerciseId),
     };
   };
 
   const onPressExercise = async (
+    allowedTheory: boolean,
     allowedPractice: boolean,
     ex: LessonExerciseDetailType,
   ) => {
-    if (allowedPractice) {
+    if (allowedTheory) {
       const progressId = await getProgressOfCourseLesson(item.courseLessonId);
 
-      const payload = buildPracticePayload(item, progressId ?? '', ex);
+      const payload = buildPracticePayload(item, progressId ?? '');
 
       navigation.navigate('ExerciseDetail', {
         exercise_id: ex.exercise.exerciseId,
+        lessonExerciseId: ex.lessonExerciseId,
+        allowedTheory,
         allowedPractice,
         practicePayload: payload,
       });
@@ -80,6 +82,7 @@ const ExerciseItem = ({
 
     navigation.navigate('ExerciseDetail', {
       exercise_id: ex.exercise.exerciseId,
+      allowedTheory,
       allowedPractice,
     });
   };
@@ -90,17 +93,21 @@ const ExerciseItem = ({
         onPress={onToggle}
         className={`flex-row justify-between items-center gap-2  pt-3 ${!isFirst && 'border-t border-background-sub1 mt-3'}`}
       >
-        {/* Icon */}
-        {/* <Ionicons name="checkmark-circle" size={24} color={colors.foreground} /> */}
-        <View
-          className={`rounded-full border border-foreground w-8 h-8 flex items-center justify-center ${isCompleted && 'bg-foreground'}`}
-        >
-          <Text
-            className={` font-semibold ${isCompleted ? 'color-background' : 'color-foreground'}`}
+        {isCompleted ? (
+          <Ionicons
+            name="checkmark-circle"
+            size={30}
+            color={colors.success.DEFAULT}
+          />
+        ) : (
+          <View
+            className={`rounded-full border border-foreground w-8 h-8 flex items-center justify-center`}
           >
-            {index + 1}
-          </Text>
-        </View>
+            <Text className={`font-semibold color-foreground`}>
+              {index + 1}
+            </Text>
+          </View>
+        )}
         {/* Name */}
         <Text className="flex-grow color-foreground text-xl font-bold line-clamp-1 max-w-[320px]">
           {item.lesson.name}
@@ -117,14 +124,16 @@ const ExerciseItem = ({
       {isExpand &&
         item.exercises.map(ex => {
           const isFirstExercise = ex.displayOrder === 1;
-          const allowedPractice =
-            isEnrolled && isFirstExercise && !!traineeCourseId;
+          const allowedTheory = isEnrolled && !!traineeCourseId;
+          const allowedPractice = allowedTheory && isFirstExercise;
 
           return (
             <Pressable
               key={ex.lessonExerciseId}
               className="ml-4 flex-row justify-between items-center gap-3 mt-3"
-              onPress={() => onPressExercise(allowedPractice, ex)}
+              onPress={() =>
+                onPressExercise(allowedTheory, allowedPractice, ex)
+              }
             >
               {/* Image */}
               <View className="w-20 h-14 rounded-lg overflow-hidden border border-transparent">

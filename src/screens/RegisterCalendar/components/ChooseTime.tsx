@@ -1,7 +1,7 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { colors } from '../../../theme/colors';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Button from '../../../components/Button';
 import {
   getAvailableEndTimes,
@@ -62,6 +62,11 @@ const ChooseTime = ({
 
     return getAvailableEndTimes(slots, startTime, bookingSlots);
   }, [slots, startTime, bookingSlots]);
+
+  // USE EFFECT
+  useEffect(() => {
+    onPressConfirmSlot();
+  }, [endTime]);
 
   return (
     <>
@@ -161,7 +166,7 @@ const ChooseTime = ({
       </View>
 
       {/* Button */}
-      <View className="flex self-end mr-4 pr-4 mt-5">
+      {/* <View className="flex self-end mr-4 pr-4 mt-5">
         <Button
           text="Xác nhận"
           onPress={onPressConfirmSlot}
@@ -170,7 +175,7 @@ const ChooseTime = ({
           width={100}
           disabled={!isValid}
         />
-      </View>
+      </View> */}
     </>
   );
 };

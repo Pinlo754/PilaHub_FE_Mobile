@@ -1,13 +1,11 @@
 import { ApiResponse } from '../utils/ApiResType';
 import api from './axiosInstance';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CoachType } from '../utils/CoachType';
 import { get } from 'react-native/Libraries/NativeComponent/NativeComponentRegistry';
 
 export const CoachService = {
-
   getAll: async () => {
-    const res = await api.get<ApiResponse<[]>>(`/coaches`);
+    const res = await api.get<ApiResponse<[]>>(`/coaches/active`);
 
     if (!res.data.success) {
       throw {
@@ -35,7 +33,9 @@ export const CoachService = {
   },
 
   getRequestRoadmap: async () => {
-    const res = await api.get<ApiResponse<[]>>(`/coach-roadmap-requests/my-received`);
+    const res = await api.get<ApiResponse<[]>>(
+      `/coach-roadmap-requests/my-received`,
+    );
 
     if (!res.data.success) {
       throw {
@@ -78,7 +78,7 @@ export const CoachService = {
 
   acceptRequestRoadmap: async (id: string) => {
     const res = await api.patch<ApiResponse<[]>>(
-      `/coach-roadmap-requests/${id}/accept`
+      `/coach-roadmap-requests/${id}/accept`,
     );
 
     if (!res.data.success) {
@@ -91,8 +91,9 @@ export const CoachService = {
 
     return res.data.data;
   },
+
   // GET BY ID
-  getById: async (coachId: string)=> {
+  getById: async (coachId: string) => {
     const res = await api.get<ApiResponse<CoachType>>(`/coaches/${coachId}`);
 
     if (!res.data.success) {
@@ -108,6 +109,24 @@ export const CoachService = {
 
   getTimeOffById: async (id: string) => {
     const res = await api.get<ApiResponse<[]>>(`/coach-time-offs/coach/${id}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  getByName: async (name: string): Promise<CoachType[]> => {
+    const res = await api.get<ApiResponse<CoachType[]>>(`/coaches/search`, {
+      params: {
+        name,
+      },
+    });
 
     if (!res.data.success) {
       throw {

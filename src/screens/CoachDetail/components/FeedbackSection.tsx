@@ -13,13 +13,10 @@ const FeedbackSection = ({ feedbackData }: Props) => {
   const PREVIEW_COUNT = 3;
 
   return (
-    <View className="w-full mt-4">
-
+    <View className="w-full mt-4 pb-6">
       {/* Header */}
       <Pressable className="flex-row items-center gap-2 mb-2">
-        <Text className="text-lg font-semibold color-foreground">
-          Đánh giá
-        </Text>
+        <Text className="text-lg font-semibold color-foreground">Đánh giá</Text>
 
         <Ionicons
           name="chevron-forward-outline"

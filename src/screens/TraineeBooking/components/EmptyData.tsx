@@ -12,7 +12,7 @@ const EmptyData = () => {
       />
 
       <Text className="mt-4 text-xl font-semibold color-foreground">
-        Không có lịch video call
+        Không có lịch gọi video
       </Text>
 
       <Text className="mt-1 color-inactive-darker text-center px-10">
