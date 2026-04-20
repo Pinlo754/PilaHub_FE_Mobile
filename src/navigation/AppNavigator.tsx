@@ -15,6 +15,7 @@ import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
 import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
 import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
 import BodyMetricDetails from '../screens/BodyGram/screens/BodyMetricDetails';
+import InBodyScan from '../screens/BodyGram/screens/InBodyScan';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
 import SubscriptionSuccessScreen from '../screens/Plan/SubscriptionSuccessScreen';
@@ -122,8 +123,9 @@ export type RootStackParamList = {
   BodyScanFlow: undefined;
   Result: { measurements: Measurements; avatar?: string; rawResponse?: any };
   BodyGramResult:
-  | { measurements: Measurements; avatar?: string; rawResponse?: any }
-  | undefined;
+    | { measurements: Measurements; avatar?: string; rawResponse?: any }
+    | undefined;
+  InBodyScan: undefined;
   BodyMetricDetails: undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
@@ -256,6 +258,11 @@ const AppNavigator: React.FC = () => {
               name="BodyGramResult"
               component={BodyGramResult}
               options={{ title: 'Kết quả Bodygram' }}
+            />
+            <Stack.Screen
+              name="InBodyScan"
+              component={InBodyScan}
+              options={{ title: 'InBody Scan' }}
             />
             <Stack.Screen
               name="BodyMetricDetails"
@@ -395,10 +402,6 @@ const AppNavigator: React.FC = () => {
               component={HealthProfileAssessmentScreen}
             />
             <Stack.Screen name="Wallet" component={WalletScreen} />
-            <Stack.Screen
-              name="Deposit"
-              component={require('../screens/Wallet/DepositScreen').default}
-            />
             <Stack.Screen
               name="Withdraw"
               component={require('../screens/Wallet/WithdrawScreen').default}

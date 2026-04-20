@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Image } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 type Props = {
@@ -13,31 +13,13 @@ export default function BodySilhouetteOverlay({ mode }: Props) {
       className="absolute inset-0 items-center justify-center"
     >
       <View className="w-3/4 h-4/5 items-center justify-center">
-        <Svg width="100%" height="100%" viewBox="0 0 200 400">
-
-          {mode === 'front' && (
-            <Path
-              d="
-                M100 20
-                C 90 40, 80 60, 80 80
-                C 80 100, 120 100, 120 80
-                C 120 60, 110 40, 100 20
-
-                M80 80
-                C 60 130, 55 170, 60 210
-                C 65 250, 70 280, 80 320
-                C 85 340, 90 360, 100 380
-                C 110 360, 115 340, 120 320
-                C 130 280, 135 250, 140 210
-                C 145 170, 140 130, 120 80
-              "
-              fill="none"
-              stroke="white"
-              strokeWidth={3}
-            />
-          )}
-
-          {mode === 'side' && (
+        {mode === 'front' ? (
+          <Image
+            source={require('../../../assets/front.png')}
+            style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+          />
+        ) : (
+          <Svg width="100%" height="100%" viewBox="0 0 200 400">
             <Path
               d="
                 M110 25
@@ -55,8 +37,8 @@ export default function BodySilhouetteOverlay({ mode }: Props) {
               stroke="white"
               strokeWidth={3}
             />
-          )}
-        </Svg>
+          </Svg>
+        )}
       </View>
     </View>
   );

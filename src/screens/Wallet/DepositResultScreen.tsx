@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Share } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function DepositResultScreen() {
@@ -48,14 +48,7 @@ export default function DepositResultScreen() {
     return params.vnp_BankCode ?? params.vnp_CardType ?? params.method ?? 'VNPay';
   }, [params]);
 
-  const onShare = useCallback(async () => {
-    try {
-      const text = `Giao dịch ${txnId}\nSố tiền: ${amount}\nThời gian: ${payDate}`;
-      await Share.share({ message: text });
-    } catch (e) {
-      console.warn('share err', e);
-    }
-  }, [txnId, amount, payDate]);
+
 
   return (
     <View className="flex-1 bg-[#FFFAF0] p-6">
@@ -100,15 +93,7 @@ export default function DepositResultScreen() {
         </View>
       </View>
 
-      <View className="mt-6 space-y-3">
-        <TouchableOpacity className="py-3 rounded-lg bg-amber-300 items-center">
-          <Text className="font-semibold">Tải xuống hóa đơn</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity className="py-3 rounded-lg bg-gray-100 items-center" onPress={onShare}>
-          <Text className="font-semibold">Chia sẻ giao dịch</Text>
-        </TouchableOpacity>
-      </View>
+    
 
       <View className="flex-1 justify-end mb-6">
         <TouchableOpacity className="py-3 rounded-lg bg-[#8B3A2C] items-center" onPress={() => navigation.replace('Wallet')}>
