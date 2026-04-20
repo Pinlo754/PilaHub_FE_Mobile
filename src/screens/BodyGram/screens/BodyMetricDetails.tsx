@@ -3,7 +3,6 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image, Alert
 import { fetchMyHealthProfileMetrics, fetchHealthProfileById, createHealthProfile, buildHealthProfilePayload } from '../../../services/profile';
 import { LineChart } from 'react-native-chart-kit';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -440,7 +439,6 @@ export default function BodyMetricDetails({ navigation }: any) {
         {profile ? (
           <View style={styles.silhouetteSummaryCard}>
             <View style={styles.silhouetteSmall}>
-              <BodySilhouetteOverlay mode="front" />
               <Image source={require('../../../assets/bodygram.png')} style={styles.silhouetteSmallImage} resizeMode="contain" />
 
               <View style={styles.silSmallTopLeft}>

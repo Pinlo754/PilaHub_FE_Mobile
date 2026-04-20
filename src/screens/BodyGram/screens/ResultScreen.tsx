@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Text, ScrollView, View, Button,  Image } from 'react-native';
+import { Text, ScrollView, View, TouchableOpacity, ActivityIndicator, Image, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
-import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
 import { useOnboardingStore } from '../../../store/onboarding.store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
@@ -30,6 +29,8 @@ function gToKg(g?: number | null) {
 
 export default function ResultScreen({ route, navigation }: Props) {
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
+  // capture navigation source so we can preserve context ('BodyGram' | 'Manual' | ...)
+  const source = (route.params as any)?.source ?? 'BodyGram';
   const setData = useOnboardingStore((s) => s.setData);
   const onboarding = useOnboardingStore((s) => s.data);
  
@@ -163,9 +164,18 @@ export default function ResultScreen({ route, navigation }: Props) {
         console.warn('Error building traineePayload for logging', e);
       }
 
-      const res = await submitProfiles(onboarding, bodyGramForApi, 'BodyGram');
+      // ensure API payload includes the source/context (important for backend tracking)
+      try {
+        (bodyGramForApi as any).input = (bodyGramForApi as any).input ?? {};
+        (bodyGramForApi as any).input.source = (bodyGramForApi as any).input.source ?? source;
+      } catch (e) {
+        console.warn('Could not annotate bodyGramForApi.input.source', e);
+      }
+
+      const res = await submitProfiles(onboarding, bodyGramForApi, source);
       setLoading(false);
       console.log('submitProfiles result', res);
+
       if (res.ok) {
         // save measurements locally as well
         await saveMeasurements();
@@ -179,22 +189,22 @@ export default function ResultScreen({ route, navigation }: Props) {
             if (userId) {
               const info: any = {
                 profileId: res.data?.health?.id ?? res.data?.health?.profileId ?? undefined,
-                savedAt: Date.now(),
-                summary: { height: display.height_est, weight: display.weight_est },
-              };
-              await setBodySavedFor(userId, info);
-            }
-          }
-        } catch (e) {
-          console.warn('Could not persist per-user body saved info', e);
-        }
+                 savedAt: Date.now(),
+                 summary: { height: display.height_est, weight: display.weight_est },
+               };
+               await setBodySavedFor(userId, info);
+             }
+           }
+         } catch (e) {
+           console.warn('Could not persist per-user body saved info', e);
+         }
 
-        setToastType('success');
-        setToastMsg('Lưu hồ sơ thành công');
-        setToastVisible(true);
-        // short delay to show toast then navigate
-        setTimeout(() => navigation.replace('MainTabs'), 700);
-      } else {
+         setToastType('success');
+         setToastMsg('Lưu hồ sơ thành công');
+         setToastVisible(true);
+         // short delay to show toast then navigate
+         setTimeout(() => navigation.replace('MainTabs'), 700);
+       } else {
         // log detailed error for debugging
         const msg = typeof res.error === 'string' ? res.error : JSON.stringify(res.error);
         console.warn('submitProfiles error', res.error);
@@ -210,7 +220,7 @@ export default function ResultScreen({ route, navigation }: Props) {
         setToastMsg(`Lỗi khi lưu: ${msg}`);
         setToastVisible(true);
         Alert.alert('Lỗi', msg);
-      }
+       }
     } catch (e: any) {
       setLoading(false);
       const msg = e?.message ?? String(e);
@@ -236,7 +246,7 @@ export default function ResultScreen({ route, navigation }: Props) {
               <Image source={require('../../../assets/body_3d.png')} className="w-full h-full" resizeMode="contain" />
               For now use the SVG overlay to avoid missing-asset crashes.
           */}
-          <BodySilhouetteOverlay mode="front" />
+          {/* <BodySilhouetteOverlay mode="front" /> */}
 
           {/* use the provided body image asset */}
           <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
@@ -309,9 +319,18 @@ export default function ResultScreen({ route, navigation }: Props) {
       </View>
 
       {/* ACTIONS */}
-      <View className="mt-6 bg-foreground p-2 rounded-lg " >
-       <Button title ="Lưu kết quả" onPress={handleSubmitAll} disabled={loading} />
-        {/* <Button title="Lưu kết quả" onPress={saveMeasurements} color="white" /> */}
+      <View className="mt-6">
+        <TouchableOpacity
+          onPress={handleSubmitAll}
+          disabled={loading}
+          style={[styles.saveBtn, loading ? styles.saveBtnDisabled : null]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveBtnText}>Lưu kết quả</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {loading ? <LoadingOverlay message="Đang lưu hồ sơ..." /> : null}
@@ -321,3 +340,23 @@ export default function ResultScreen({ route, navigation }: Props) {
      
    );
  }
+
+const styles = StyleSheet.create({
+  saveBtn: {
+    backgroundColor: '#A0522D',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    marginHorizontal: 2,
+  },
+  saveBtnDisabled: {
+    backgroundColor: '#c4c4c4',
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+});

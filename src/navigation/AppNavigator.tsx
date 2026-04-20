@@ -76,6 +76,7 @@ import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import OrderSuccessScreen from '../screens/Shop/OrderSuccessScreen';
 import { PracticePayload } from '../utils/CourseLessonProgressType';
+import DepositScreen from '../screens/Wallet/DepositScreen';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -397,6 +398,11 @@ const AppNavigator: React.FC = () => {
               name="DepositResult"
               component={DepositResultScreen}
             />
+            <Stack.Screen
+              name="Deposit"
+              component={DepositScreen}
+            />
+
             <Stack.Screen
               name="MomoResult"
               component={MomoResultScreen}

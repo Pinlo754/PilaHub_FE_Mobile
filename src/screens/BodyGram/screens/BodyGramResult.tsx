@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { Text, ScrollView, View, Image, Pressable, StyleSheet } from 'react-native';
+import { Text, ScrollView, View, Image, Pressable, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
-import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from '../../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { useOnboardingStore } from '../../../store/onboarding.store';
+import { submitProfiles } from '../../../services/profile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyGramResult'>;
 
@@ -26,6 +27,8 @@ function gToKg(g?: number | null) {
 export default function BodyGramResult({ route, navigation: _navigation }: Props) {
   const nav = useNavigation();
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
+  const onboarding = useOnboardingStore((s) => s.data);
+  const [saving, setSaving] = useState(false);
 
   // DEBUG: log incoming route params and parsed result to help investigate missing measurements
   console.log('DEBUG BodyGramResult route.params:', route.params);
@@ -196,7 +199,7 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
     <SafeAreaView className="flex-1 bg-background">
       {/* HEADER: centered title + back */}
       <View style={styles.header}>
-        <Pressable onPress={() => (nav as any).goBack()} style={styles.headerButton}>
+        <Pressable onPress={() => (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] })} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={22} color="#333" />
         </Pressable>
         <Text style={[styles.headerTitle, styles.headerTitleCenter]}>{'Thông tin cơ thể'}</Text>
@@ -221,7 +224,6 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
         {/* SILHOUETTE CARD (unchanged)*/}
         <View className="bg-white rounded-xl p-4 items-center mb-4">
           <View className="w-64 h-80 items-center justify-center">
-            <BodySilhouetteOverlay mode="front" />
             <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
             {/* measurement bubbles (unchanged) */}
             <View className="absolute top-8 left-3">
@@ -354,6 +356,36 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
 
          <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
+        {/* ACTION: Save and return to MainTabs */}
+        <View className="mt-6 mb-8">
+          <TouchableOpacity
+            onPress={async () => {
+              setSaving(true);
+              try {
+                const entry = rawResponse?.entry ?? rawResponse ?? {};
+                const bodyGramForApi: any = { ...entry, measurements: parsed.measurements ?? display };
+                bodyGramForApi.input = bodyGramForApi.input ?? parsed.metadata?.input ?? { source: 'inbody' };
+                const res = await submitProfiles(onboarding, bodyGramForApi, 'InBody', { skipCreateTrainee: true });
+                setSaving(false);
+                if (res.ok) {
+                  Alert.alert('Thành công', 'Lưu hồ sơ thành công', [{ text: 'OK', onPress: () => { (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } }]);
+                } else {
+                  console.warn('submitProfiles (InBodyResult) error', res.error);
+                  Alert.alert('Lỗi', typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+                }
+              } catch (e: any) {
+                setSaving(false);
+                console.error('Saving InBody result error', e);
+                Alert.alert('Lỗi', e?.message ?? String(e));
+              }
+            }}
+            style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]}
+            disabled={saving}
+          >
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Lưu và về trang chính</Text>}
+          </TouchableOpacity>
+        </View>
+
        </ScrollView>
 
        
@@ -411,5 +443,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
     marginTop: 6,
+  },
+  saveBtn: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

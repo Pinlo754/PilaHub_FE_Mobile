@@ -274,9 +274,17 @@ export default function InputBodyScreen({ navigation }: Props) {
           </View>
 
           <View className="flex-row space-x-3 mb-8">
-            <Pressable className="flex-1" onPress={() => navigation.navigate('BodyScanFlow')} style={styles.outlineBtn}>
+            {/* InBody Scan button */}
+            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('InBodyScan' as any)} style={[styles.outlineBtn, { alignItems: 'center', justifyContent: 'center' }] }>
+              <Text style={styles.outlineBtnText}>InBody Scan</Text>
+            </Pressable>
+
+            {/* Camera body scan */}
+            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('BodyScanFlow' as any)} style={styles.outlineBtn}>
               <Text style={styles.outlineBtnText}>Dùng camera Quét cơ thể</Text>
             </Pressable>
+
+            {/* Preview/continue */}
             <Pressable
               style={styles.fillBtn}
               onPress={() => {
@@ -300,24 +308,40 @@ export default function InputBodyScreen({ navigation }: Props) {
                   meas.muscleMassKg = meas.muscleMassKg ?? onboarding.muscleMass;
                 }
 
+                // ensure height/weight are filled from onboarding with simple unit conversions
+                if (!meas.height_est && onboarding?.height != null) {
+                  const hUnit = (onboarding.heightUnit ?? 'cm') as string;
+                  let h = Number(onboarding.height) || 0;
+                  if (hUnit === 'm') h = h * 100; // meters -> cm
+                  else if (hUnit === 'in' || hUnit === 'inch') h = h * 2.54; // inches -> cm
+                  // default assumes cm
+                  if (h > 0) meas.height_est = Math.round(h);
+                }
+                if (!meas.weight_est && onboarding?.weight != null) {
+                  const wUnit = (onboarding.weightUnit ?? 'kg') as string;
+                  let w = Number(onboarding.weight) || 0;
+                  if (wUnit === 'lb' || wUnit === 'lbs') w = w * 0.45359237; // lb -> kg
+                  // default assumes kg
+                  if (w > 0) meas.weight_est = Math.round(w);
+                }
+
+                // mark this preview as coming from manual input so Result can handle context
+                meas.input = meas.input ?? {};
+                meas.input.source = 'manual';
+
                 const h = meas.height_est ?? onboarding?.height;
                 const w = meas.weight_est ?? onboarding?.weight;
                 const bmi = computeBmi(h as any, w as any);
                 if (bmi != null) meas.bmi = bmi;
 
-                navigation.navigate('Result', { measurements: meas, rawResponse: null });
+                navigation.navigate('Result' as any, { measurements: meas, rawResponse: null, source: 'Manual' });
               }}
             >
               <Text style={styles.fillBtnText}>Tiếp tục</Text>
             </Pressable>
           </View>
 
-          <View className="mb-6">
-            <Pressable onPress={handleManualSubmit} style={styles.fillBtn} className="items-center justify-center">
-              <Text style={styles.fillBtnText}>Gửi thủ công</Text>
-            </Pressable>
-          </View>
-
+      
           {loading ? <LoadingOverlay /> : null}
           <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 

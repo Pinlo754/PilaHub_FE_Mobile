@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Modal,
 } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { useRoadmapStore } from "../../store/roadmap.store";
 
 import SupplementSection from "./components/SupplementSection";
@@ -43,6 +43,7 @@ const PlanScreen = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const nav: any = useNavigation();
 
   const handleSelectDate = (date: string | null) => {
     setSelectedDate(date);
@@ -122,11 +123,13 @@ const PlanScreen = () => {
         createdAt: Date.now(),
       });
 
-      Alert.alert("Thành công", "Lộ trình đã được lưu lên server.");
+      Alert.alert("Thành công", "Lộ trình đã được lưu.", [
+        { text: 'OK', onPress: () => { (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Roadmap' } }] }); } }
+      ]);
     } catch (e: any) {
       console.error("Save roadmap error:", e);
       const message =
-        e?.response?.data?.message || e?.message || "Không thể lưu lộ trình lên server";
+        e?.response?.data?.message || e?.message || "Không thể lưu lộ trình.";
       Alert.alert("Lưu thất bại", message);
     } finally {
       setSaving(false);
