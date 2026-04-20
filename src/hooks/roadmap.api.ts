@@ -1,3 +1,4 @@
+import { get } from 'react-native/Libraries/NativeComponent/NativeComponentRegistry';
 import axios from './axiosInstance';
 
 export const RoadmapApi = {
@@ -33,6 +34,26 @@ export const RoadmapApi = {
     const items = pageObj?.content ?? pageObj?.items ?? [];
     return Array.isArray(items) ? items : [];
   },
+
+  getPending: async (): Promise<any> => {
+    const res = await axios.get('/roadmaps/my-pending');
+    return res.data?.data ?? res.data ?? res;
+  },
+
+  getMyCoachRequests: async (): Promise<any> => {
+    const res = await axios.get('/coach-roadmap-requests/my-sent');
+    return res.data?.data ?? res.data ?? res;
+  },
+
+  createBatch: async (payload: any): Promise<any> => {
+    const res = await axios.post('/coach-bookings/batch', payload);
+    return res.data ?? res;
+  },
+
+  approveRoadmap: async (roadmapId: string): Promise<any> => {
+    const res = await axios.patch(`/roadmaps/${roadmapId}/approve`);
+    return res.data ?? res;
+  }
 };
 
 export default RoadmapApi;

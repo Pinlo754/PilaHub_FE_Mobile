@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { CartLine, getCartSummary, saveCart, addToCart as svcAddToCart, updateQuantity as svcUpdateQuantity, removeFromCart as svcRemoveFromCart, clearCart as svcClearCart } from '../services/cart';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import {setInstallationRequest1 } from '../services/cart';
 type CartState = {
   lines: CartLine[];
   totalItems: number;
@@ -117,7 +117,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setInstallationRequest = async (productId: string, installationRequest: boolean) => {
     const id = userId ?? 'guest';
     try {
-      const updated = await (await import('../services/cart')).setInstallationRequest(id, productId, installationRequest);
+      const updated = await setInstallationRequest1(id, productId, installationRequest);
       await saveCart(id, updated);
       const s = await getCartSummary(id);
       setLines(s.lines || []);

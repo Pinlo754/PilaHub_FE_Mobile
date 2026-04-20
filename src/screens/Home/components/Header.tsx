@@ -25,9 +25,16 @@ const Header = ({ navigation }: Props) => {
           <Ionicons name="search-outline" size={24} color={colors.foreground} />
         </Pressable>
         {/* Notification */}
-        <Pressable onPress={() => navigation.navigate('AIPractice')}>
+        <Pressable onPress={() => navigation.navigate('NotificationScreen')}>
           <Ionicons
             name="notifications-outline"
+            size={24}
+            color={colors.foreground}
+          />
+        </Pressable>
+        <Pressable onPress={() => navigation.navigate('ListChatScreen')}>
+          <Ionicons
+            name="chatbox-ellipses-outline"
             size={24}
             color={colors.foreground}
           />

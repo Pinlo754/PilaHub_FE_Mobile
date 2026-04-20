@@ -44,6 +44,21 @@ export const PostService = {
         return res.data.data;
     },
 
+    // GET COACH POSTS
+    getCoachPosts: async (coachId: string): Promise<[]> => {
+        const res = await api.get<ApiResponse<[]>>(`/posts/coach/${coachId}`);
+
+        if (!res.data.success) {
+            throw {
+                type: 'BUSINESS_ERROR',
+                message: res.data.message,
+                errorCode: res.data.errorCode,
+            };
+        }
+
+        return res.data.data;
+    },
+
     getComment: async (postId: string): Promise<[]> => {
         const res = await api.get<ApiResponse<[]>>(
             `/post-comments/post/${postId}`,

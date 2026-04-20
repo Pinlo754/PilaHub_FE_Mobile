@@ -7,11 +7,8 @@ import { useOnboardingStore } from '../../../store/onboarding.store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
-import { getProfile } from '../../../services/auth';
-import { setBodySavedFor } from '../../../utils/bodyCache';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { RoadmapServices } from '../../../hooks/roadmap.service';
@@ -242,12 +239,24 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
     const generateRoadmap = async () => {
         setLoading(true);
         try {
+            // Lấy thời điểm hiện tại
+            const tomorrow = new Date();
+            // Cộng thêm 1 ngày để ra ngày mai
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0'); 
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+
+            const startDateStr = `${year}-${month}-${day}`;
+
             const payload = {
                 traineeId: RequestItem.traineeId,
                 primaryGoalId: RequestItem.primaryGoalId,
                 secondaryGoalIds: RequestItem.secondaryGoalIds,
                 workoutLevel: RequestItem.workoutLevel,
                 trainingDays: RequestItem.trainingDays,
+                startDate: startDateStr, // Truyền ngày mai vào đây
                 durationWeeks: RequestItem.durationWeeks,
             };
 
@@ -591,7 +600,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                 )}
 
-                {loading ? <LoadingOverlay/> : null}
+                {loading ? <LoadingOverlay /> : null}
                 <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
             </ScrollView>
