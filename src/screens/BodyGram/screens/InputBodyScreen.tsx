@@ -14,6 +14,18 @@ import Toast from '../../../components/Toast';
 type Props = NativeStackScreenProps<RootStackParamList, 'InputBody'>;
 
 export default function InputBodyScreen({ navigation }: Props) {
+  const labelMap: Record<string, string> = {
+    shoulder: 'Vai',
+    waist: 'Eo',
+    hip: 'Hông',
+    thigh: 'Đùi',
+    bicep: 'Bắp Tay',
+    calf: 'Bắp Chân',
+    bodyFatPercent: '% Mỡ Cơ Thể',
+    muscleMass: 'Khối Lượng Cơ',
+    height: 'Chiều Cao',
+    weight: 'Cân Nặng'
+  };
   const [modal, setModal] = useState<{ key: string; visible: boolean }>({ key: '', visible: false });
   const onboarding = useOnboardingStore((s) => s.data);
   const setData = useOnboardingStore((s) => s.setData);
@@ -22,15 +34,11 @@ export default function InputBodyScreen({ navigation }: Props) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
-  // Do not reset onboarding here — preserve entered info (name, email) for manual submit
+
   useEffect(() => {
     setModal({ key: '', visible: false });
   }, []);
 
-  // Try to hydrate body composition results from last Bodygram run (debug + UX):
-  // - Prefer compact 'bodygram:lastMeasurements' (saved by BodyScanFlow)
-  // - Fallback to 'bodygram:lastResponse' and extract common fields
-  // Do not override values already present in onboarding store.
   const hydrateRanRef = useRef(false);
   useEffect(() => {
     if (hydrateRanRef.current) return;
@@ -63,7 +71,6 @@ export default function InputBodyScreen({ navigation }: Props) {
           if ((bc.bodyFatPercentage ?? bc.bodyFatPercent ?? bc.body_fat) != null && (onboarding?.bodyFatPercent == null)) update.bodyFatPercent = bc.bodyFatPercentage ?? bc.bodyFatPercent ?? bc.body_fat;
           if ((bc.muscleMassKg ?? bc.muscle_mass_kg ?? bc.muscle_mass) != null && (onboarding?.muscleMass == null)) update.muscleMass = bc.muscleMassKg ?? bc.muscle_mass_kg ?? bc.muscle_mass;
 
-          // some providers put values at top-level fields too
           if ((resp.bodyFatPercentage ?? resp.body_fat) != null && (onboarding?.bodyFatPercent == null)) update.bodyFatPercent = update.bodyFatPercent ?? resp.bodyFatPercentage ?? resp.body_fat;
           if ((resp.muscleMassKg ?? resp.muscle_mass) != null && (onboarding?.muscleMass == null)) update.muscleMass = update.muscleMass ?? resp.muscleMassKg ?? resp.muscle_mass;
 
@@ -78,7 +85,7 @@ export default function InputBodyScreen({ navigation }: Props) {
         console.warn('Could not hydrate bodygram results into onboarding', e);
       }
     })();
-  }, [setData, onboarding?.bodyFatPercent, onboarding?.muscleMass]);
+  }, [setData, onboarding]);
 
   const openModal = (key: string) => setModal({ key, visible: true });
   const closeModal = () => setModal({ key: '', visible: false });
@@ -91,10 +98,10 @@ export default function InputBodyScreen({ navigation }: Props) {
 
   function computeBmi(heightCm?: number | undefined, weightKg?: number | undefined) {
     if (!heightCm || !weightKg) return undefined;
-    const h = heightCm / 100; // m
+    const h = heightCm / 100;
     if (h <= 0) return undefined;
     const bmi = weightKg / (h * h);
-    return Math.round(bmi * 10) / 10; // one decimal
+    return Math.round(bmi * 10) / 10;
   }
 
   const handleManualSubmit = async () => {
@@ -102,38 +109,29 @@ export default function InputBodyScreen({ navigation }: Props) {
     setLoading(true);
     console.log('Manual submit initiated. Onboarding store contents:', onboarding);
     try {
-      // build a bodyGram-like payload from manual inputs so server receives similar structure
       const bodyGramManual: any = {};
-      // measurements
       if (onboarding?.shoulder) bodyGramManual.shoulder = onboarding.shoulder;
       if (onboarding?.waist) bodyGramManual.waist = onboarding.waist;
       if (onboarding?.hip) bodyGramManual.hip = onboarding.hip;
       if (onboarding?.thigh) bodyGramManual.thigh = onboarding.thigh;
       if (onboarding?.bicep) bodyGramManual.bicep = onboarding.bicep;
       if (onboarding?.calf) bodyGramManual.calf = onboarding.calf;
-      // height/weight
       if (onboarding?.height && onboarding.heightUnit === 'cm') bodyGramManual.height = onboarding.height;
       if (onboarding?.weight && onboarding.weightUnit === 'kg') bodyGramManual.weight = onboarding.weight;
-      // body composition
       if (onboarding?.bodyFatPercent != null) bodyGramManual.bodyFatPercentage = onboarding.bodyFatPercent;
       if (onboarding?.muscleMass != null) bodyGramManual.muscleMassKg = onboarding.muscleMass;
-      // attach input metadata
       bodyGramManual.input = { source: 'manual' };
 
-      // Build a minimal trainee payload from onboarding store (use stored values)
       const minimalOnboarding: any = {};
       if (onboarding?.fullName) minimalOnboarding.fullName = onboarding.fullName;
       if (onboarding?.email) minimalOnboarding.email = onboarding.email;
       if (onboarding?.age != null) minimalOnboarding.age = onboarding.age;
       if (onboarding?.gender) minimalOnboarding.gender = onboarding.gender;
-      // include workout preferences if user selected them during onboarding
       if (onboarding?.workoutFrequency) minimalOnboarding.workoutFrequency = onboarding.workoutFrequency;
       if (onboarding?.workoutLevel) minimalOnboarding.workoutLevel = onboarding.workoutLevel;
 
       console.log('Built manual payloads. bodyGramManual:', bodyGramManual, 'minimalOnboarding:', minimalOnboarding);
 
-      // require at least name + email for creating trainee on server
-      // if workout preferences missing, ask user to complete Workout step first
       if (!onboarding?.workoutFrequency || !onboarding?.workoutLevel) {
         setLoading(false);
         Alert.alert(
@@ -184,9 +182,31 @@ export default function InputBodyScreen({ navigation }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-background ">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+        {/* Single absolute back button placed here so it's not covered by header centering */}
+        <Pressable
+          onPress={() => {
+            try {
+              const state = navigation.getState?.();
+              const routes = state?.routes ?? [];
+              const prev = routes[routes.length - 2];
+              // if previous route exists and is not the same screen, goBack; otherwise navigate to Onboarding
+              if (routes.length >= 2 && prev?.name && prev.name !== 'InputBody') {
+                if (navigation.canGoBack && navigation.canGoBack()) navigation.goBack();
+                return;
+              }
+            } catch {}
+            try { setStep(6); } catch {}
+            navigation.navigate('Onboarding' as any);
+          }}
+          style={styles.backBtn}
+          accessibilityLabel="Quay lại"
+          accessibilityRole="button"
+        >
+          <Text style={styles.backIcon}>{'←'}</Text>
+        </Pressable>
         <ScrollView className="flex-1 bg-background p-4" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           {/* Header */}
-          <View className="items-center mb-4">
+          <View className="items-center mb-4" style={styles.headerContainer}>
             <Text className="text-2xl font-semibold text-foreground">Nhập thông tin cơ thể</Text>
             <Text className="text-sm text-secondaryText text-center mt-2 px-6">
               Bạn có thể ước lượng thông tin, không cần chính xác tuyệt đối. Dữ liệu có thể cập nhật bất cứ lúc nào.
@@ -197,24 +217,22 @@ export default function InputBodyScreen({ navigation }: Props) {
           <View className="bg-white rounded-2xl px-6 pt-6 pb-12 shadow-sm mb-4 overflow-hidden">
             <View className="items-center">
               <View className="w-64 h-80 relative items-center justify-center ">
-                <Image source={require('../../../assets/bodygram.png')} style={styles.silhouetteImage} resizeMode="contain"  />
+                <Image source={require('../../../assets/bodygram.png')} style={styles.silhouetteImage as any} resizeMode="contain" />
 
-                {/* Tags positioned with stylesheet for precision */}
-                <View style={styles.tagWrap1} >
-                  <MeasurementTag label="Vai" value={onboarding?.shoulder} onPress={() => openModal('shoulder')}  />
+                <View style={styles.tagWrap1}>
+                  <MeasurementTag label="Vai" value={onboarding?.shoulder} unit="cm" onPress={() => openModal('shoulder')} />
                 </View>
                 <View style={styles.tagWrap2}>
-                  <MeasurementTag label="Eo" value={onboarding?.waist} onPress={() => openModal('waist')} />
+                  <MeasurementTag label="Eo" value={onboarding?.waist} unit="cm" onPress={() => openModal('waist')} />
                 </View>
                 <View style={styles.tagWrap3}>
-                  <MeasurementTag label="Hông" value={onboarding?.hip} onPress={() => openModal('hip')} />
+                  <MeasurementTag label="Hông" value={onboarding?.hip} unit="cm" onPress={() => openModal('hip')} />
                 </View>
                 <View style={styles.tagWrap4}>
-                  <MeasurementTag label="Đùi" value={onboarding?.thigh} onPress={() => openModal('thigh')} />
+                  <MeasurementTag label="Đùi" value={onboarding?.thigh} unit="cm" onPress={() => openModal('thigh')} />
                 </View>
 
-                {/* Tip bubble */}
-                <View style={styles.tipBubble} >
+                <View style={styles.tipBubble}>
                   <View style={styles.tipCard}>
                     <Text style={styles.tipText}>Tip: Ước lượng gần đúng, bạn có thể điều chỉnh sau</Text>
                   </View>
@@ -223,13 +241,12 @@ export default function InputBodyScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {/* Quick stats mock (mirrors Figma) */}
           <View className="flex-row flex-wrap -mx-2 mb-4">
             <View className="w-1/2 px-2 mb-3">
-              <Pressable onPress={() => openModal('bodyFatPercent')}> 
+              <Pressable onPress={() => openModal('bodyFatPercent')}>
                 <View style={styles.statCard}>
                   <Text className="text-sm text-secondaryText">% Mỡ Cơ Thể</Text>
-                  <Text style={styles.statValue}>{onboarding?.bodyFatPercent ?? '—'}</Text>
+                  <Text style={styles.statValue}>{onboarding?.bodyFatPercent != null ? String(onboarding.bodyFatPercent) + '%' : '—'}</Text>
                 </View>
               </Pressable>
             </View>
@@ -237,7 +254,7 @@ export default function InputBodyScreen({ navigation }: Props) {
               <Pressable onPress={() => openModal('muscleMass')}>
                 <View style={styles.statCard}>
                   <Text className="text-sm text-secondaryText">Khối Lượng Cơ (kg)</Text>
-                  <Text style={styles.statValue}>{onboarding?.muscleMass ?? '—'}</Text>
+                  <Text style={styles.statValue}>{onboarding?.muscleMass != null ? String(onboarding.muscleMass) + ' kg' : '—'}</Text>
                 </View>
               </Pressable>
             </View>
@@ -250,13 +267,12 @@ export default function InputBodyScreen({ navigation }: Props) {
             </View>
             <View className="w-1/2 px-2 mb-3">
               <View style={styles.statCard}>
-                <Text className="text-sm text-secondaryText">Cân Nhắc</Text>
+                <Text className="text-sm text-secondaryText">Ghi chú</Text>
                 <Text style={styles.statValue}>{onboarding?.notes ?? '—'}</Text>
               </View>
             </View>
           </View>
 
-          {/* Actions: camera, preview Result, or submit manual */}
           <View className="flex-row space-x-3 mb-8">
             <Pressable className="flex-1" onPress={() => navigation.navigate('BodyScanFlow')} style={styles.outlineBtn}>
               <Text style={styles.outlineBtnText}>Dùng camera Quét cơ thể</Text>
@@ -265,7 +281,6 @@ export default function InputBodyScreen({ navigation }: Props) {
               style={styles.fillBtn}
               onPress={() => {
                 console.log('Preview Result pressed. Onboarding store:', onboarding);
-                // Build a measurements object compatible with ResultScreen's expectations
                 const meas: any = {};
                 if (onboarding?.shoulder) meas.shoulder = onboarding.shoulder;
                 if (onboarding?.waist) meas.waist = onboarding.waist;
@@ -273,11 +288,9 @@ export default function InputBodyScreen({ navigation }: Props) {
                 if (onboarding?.thigh) meas.thigh = onboarding.thigh;
                 if (onboarding?.bicep) meas.bicep = onboarding.bicep;
                 if (onboarding?.calf) meas.calf = onboarding.calf;
-                // height/weight fallback
                 if (onboarding?.height && onboarding.heightUnit === 'cm') meas.height_est = onboarding.height;
                 if (onboarding?.weight && onboarding.weightUnit === 'kg') meas.weight_est = onboarding.weight;
 
-                // include body composition fields if available under common names
                 if (onboarding?.bodyFatPercent != null) {
                   meas.bodyFatPercent = onboarding.bodyFatPercent;
                   meas.bodyFatPercentage = meas.bodyFatPercentage ?? onboarding.bodyFatPercent;
@@ -287,7 +300,6 @@ export default function InputBodyScreen({ navigation }: Props) {
                   meas.muscleMassKg = meas.muscleMassKg ?? onboarding.muscleMass;
                 }
 
-                // compute BMI if we have height & weight
                 const h = meas.height_est ?? onboarding?.height;
                 const w = meas.weight_est ?? onboarding?.weight;
                 const bmi = computeBmi(h as any, w as any);
@@ -306,20 +318,22 @@ export default function InputBodyScreen({ navigation }: Props) {
             </Pressable>
           </View>
 
-          {loading ? <LoadingOverlay message="Đang gửi hồ sơ..." /> : null}
+          {loading ? <LoadingOverlay /> : null}
           <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
           <MeasurementModal
             visible={modal.visible}
-            label={modal.key}
+            label={labelMap[modal.key] ?? modal.key}
             initialValue={undefined}
             onClose={closeModal}
             onSave={save}
+            unit={modal.key === 'muscleMass' ? 'kg' : modal.key === 'bodyFatPercent' ? '%' : 'cm'}
+            subtitle={modal.key === 'bodyFatPercent' ? 'Nhập tỷ lệ phần trăm, ví dụ 18.5' : modal.key === 'muscleMass' ? 'Nhập khối lượng cơ bằng kg' : 'Ước lượng gần đúng. Nhập số theo cm.'}
+            placeholder={modal.key === 'bodyFatPercent' ? 'Ví dụ: 18.5' : modal.key === 'muscleMass' ? 'Ví dụ: 55' : 'Ví dụ: 72'}
           />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    
   );
 }
 
@@ -334,6 +348,14 @@ const styles = StyleSheet.create({
   tipText: { color: '#555', textAlign: 'center' },
   flex: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
+  backBtn: { position: 'absolute', left: 8, top: 8, padding: 12, zIndex: 2000 },
+  backIcon: { fontSize: 20, color: '#1f2937', fontWeight: '700', lineHeight: 20 },
+  headerContainer: { position: 'relative', paddingTop: 8 },
+  headerWrapper: { marginBottom: 16, paddingTop: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backInlineBtn: { width: 90, justifyContent: 'center' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 24, fontWeight: '600', color: '#111827' },
+  headerRightSpacer: { width: 90 },
   statCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, elevation: 3 },
   statValue: { fontSize: 20, fontWeight: '800', marginTop: 8 },
   outlineBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

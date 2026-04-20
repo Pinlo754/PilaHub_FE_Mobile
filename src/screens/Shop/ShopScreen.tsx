@@ -146,7 +146,7 @@ const ShopScreen = () => {
         keyExtractor={(item, index) => String(item.product ?? `${item.raw?.product_id ?? item.raw?.id ?? index}`)}
         numColumns={2}
         renderItem={({ item }) => (
-          <View style={styles.itemContainer} className="px-3 pb-4">
+          <View style={styles.itemContainer} className="px-3 pb-6">
             <CardProduct item={item as any} onPress={() => navigation.navigate('ProductDetail' as any, { productId: item.productId ?? item.raw?.product_id ?? item.raw?.id })} />
           </View>
         )}
@@ -165,8 +165,8 @@ const ShopScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  itemContainer: { flex: 1 },
-  columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 12 },
+  itemContainer: { flex: 1, paddingHorizontal: 6, maxWidth: '50%' },
+  columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 6 },
 });
 
 export default ShopScreen;

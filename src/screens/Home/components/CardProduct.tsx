@@ -42,7 +42,7 @@ const CardProduct = ({ item, onPress }: Props) => {
   return (
     <>
       <Pressable
-        className="bg-white rounded-xl overflow-hidden shadow-md"
+        className="bg-white rounded-xl overflow-hidden shadow-lg"
         onPress={onPress}
         style={localStyles.card}
       >
@@ -51,28 +51,28 @@ const CardProduct = ({ item, onPress }: Props) => {
             <Text className="text-white text-xs font-bold">Hỗ trợ lắp đặt</Text>
           </View>
         ) : null}
-        <View className="h-[140px] bg-gray-100">
+        <View className="h-[180px] bg-gray-100">
           <Image
             source={(item.thumbnailUrl || item.thumnail_url || item.imageUrl) ? { uri: normalizeImageUrl(item.thumbnailUrl ?? item.thumnail_url ?? item.imageUrl) } : (placeholderThumb as any)}
             style={localStyles.thumb}
             resizeMode="cover"
           />
         </View>
-        <View className="p-3">
-          <Text className="text-[#0F172A] font-medium line-clamp-2">{item.name ?? item.product_name}</Text>
+        <View className="p-4">
+          <Text className="text-[#0F172A] font-semibold line-clamp-2 text-base">{item.name ?? item.product_name}</Text>
 
-          <View className="flex-row items-center justify-between mt-2">
-            <Text className="text-teal-500 text-lg font-bold">{formatVND(item.price ?? 0)}</Text>
+          <View className="flex-row items-center justify-between mt-3">
+            <Text className="text-teal-500 text-xl font-extrabold">{formatVND(item.price ?? 0)}</Text>
             <View className="flex-row items-center">
               <Ionicons name="star" size={14} color="#F59E0B" />
               <Text className="ml-1 text-sm text-gray-600">{Number(rating).toFixed(1)}</Text>
             </View>
           </View>
 
-          <View className="flex-row items-center justify-between mt-2">
+          <View className="flex-row items-center justify-between mt-3">
             <Text className="text-xs text-gray-500">Đã bán: {reviewCount}</Text>
-            <Pressable onPress={onBuy} className="bg-orange-500 px-3 py-2 rounded-md">
-              <Text className="text-white font-bold">Mua</Text>
+            <Pressable onPress={onBuy} className="bg-orange-500 px-4 py-2 rounded-lg">
+              <Text className="text-white font-bold text-sm">Thêm</Text>
             </Pressable>
           </View>
           {/* installation badge handled via badgeWrap; no extra install note */}
@@ -86,7 +86,7 @@ const CardProduct = ({ item, onPress }: Props) => {
 
 const localStyles = StyleSheet.create({
   card: { width: '100%' },
-  thumb: { width: '100%', height: 140, backgroundColor: '#f1f5f9' },
+  thumb: { width: '100%', height: 180, backgroundColor: '#f1f5f9' },
   badgeWrap: { position: 'absolute', top: 8, left: 8, zIndex: 10 },
 });
 

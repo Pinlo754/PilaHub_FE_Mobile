@@ -4,18 +4,18 @@ import { getProfile } from '../../services/auth';
 import { fetchTraineeProfile, updateTraineeProfile } from '../../services/profile';
 import { fetchMyWallet } from '../../services/wallet';
 import ProfileHeader from './components/ProfileHeader';
-import StatsGrid from './components/StatsGrid';
+
 import SettingList from './components/SettingList';
 import ProfileEditModal from './components/ProfileEditModal';
 import { launchImageLibrary } from 'react-native-image-picker';
-import PlanList from './components/PlanList';
-import { useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const localStyles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF6EE' },
   scrollPadding: { paddingBottom: 40 },
+  chevronWrap: { width: 28, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 2 },
 });
 
 const TraineeProfileScreen: React.FC = () => {
@@ -27,6 +27,7 @@ const TraineeProfileScreen: React.FC = () => {
   const [wallet, setWallet] = useState<any | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const navigation = useNavigation();
+  const route = useRoute<any>();
 
   useEffect(() => {
     let mounted = true;
@@ -71,6 +72,14 @@ const TraineeProfileScreen: React.FC = () => {
 
     return () => { mounted = false; };
   }, []);
+
+  // If navigated with param openEdit, open modal after profile loaded
+  useEffect(() => {
+    if (!loading && route?.params?.openEdit) {
+      openEdit();
+      try { (navigation as any).setParams({ openEdit: false }); } catch {}
+    }
+  }, [loading, route?.params?.openEdit]);
 
   const openEdit = () => {
     setForm({
@@ -122,7 +131,7 @@ const TraineeProfileScreen: React.FC = () => {
       if (res.didCancel) return;
       const asset = res.assets && res.assets[0];
       if (asset && asset.uri) {
-        setForm((f:any)=> ({ ...f, avatarUrl: asset.uri }));
+        setForm((f: any) => ({ ...f, avatarUrl: asset.uri }));
       }
     } catch (e) {
       console.warn('image-picker', e);
@@ -137,46 +146,32 @@ const TraineeProfileScreen: React.FC = () => {
     );
   }
 
-  
+
 
   return (
     <SafeAreaView className="flex-1 bg-amber-50">
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
-        <Pressable onPress={() => (navigation as any).navigate('MainTabs')} className="p-2"><Text className="text-xl">‹</Text></Pressable>
-        <Text className="text-lg font-semibold">Hồ sơ</Text>
+      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+        <View className="w-8" />
+        <View className="flex-1 items-center">
+          <Text className="text-lg font-semibold">Hồ sơ</Text>
+        </View>
         <View className="w-8" />
       </View>
       <ScrollView contentContainerStyle={localStyles.scrollPadding}>
         <ProfileHeader profile={profile} onEdit={openEdit} onAvatarPress={() => Alert.alert('Chi tiết', 'Mở trang chi tiết hồ sơ (hardcoded)')} onAvatarEdit={handleAvatarEdit} wallet={wallet} walletLoading={walletLoading} />
-
-
-
-        <View className="px-4 mt-2">
+        <View className="px-4 ">
           <View className="mt-3 bg-white rounded-xl p-4 shadow">
-            <View className="flex-row justify-between items-start">
-              <View>
-                <Text className="font-semibold text-lg">Kế hoạch tập luyện</Text>
-                <Text className="text-gray-500 mt-1">Tùy chỉnh lịch và bài tập phù hợp với mục tiêu</Text>
+            <Pressable onPress={() => (navigation as any).navigate('BodyMetricDetails')}>
+              <View className="flex-row justify-between items-center">
+                <View>
+                  <Text className="font-semibold">Thông tin cơ thể của bạn</Text>
+                  <Text className="text-sm text-gray-500 mt-1">Xem chi tiết số đo đã lưu</Text>
+                </View>
+                <View style={localStyles.chevronWrap}>
+                  <Text style={{ fontSize: 20, color: '#A0522D' }}>›</Text>
+                </View>
               </View>
-              <Pressable className="bg-amber-100 px-3 py-2 rounded-full">
-                <Text className="text-amber-800">Tạo mới</Text>
-              </Pressable>
-            </View>
-
-            <PlanList plans={[{ title: 'Lộ trình giảm mỡ 8 tuần', subtitle: '3 buổi/tuần — Tập trung core & cardio', sessions: '3 buổi/tuần', duration: '8 tuần', frequency: '3 lần/tuần', coach: 'Coach An' }]} onOpen={(p)=> Alert.alert('Mở kế hoạch', JSON.stringify(p))} />
-
-            <Pressable className="mt-4" onPress={() => (navigation as any).navigate('BodyMetricDetails')}>
-               <View className="bg-amber-50 rounded-lg p-4 shadow">
-                 <View className="flex-row justify-between items-center">
-                   <View>
-                     <Text className="font-semibold">Thông tin cơ thể của bạn</Text>
-                     <Text className="text-sm text-gray-500 mt-1">Xem chi tiết số đo đã lưu</Text>
-                   </View>
-                   <Ionicons name="chevron-forward" size={20} color="#A0522D" />
-                 </View>
-               </View>
-             </Pressable>
-
+            </Pressable>
           </View>
 
           <Pressable className="mt-3" onPress={() => (navigation as any).navigate('Orders')}>
@@ -190,6 +185,13 @@ const TraineeProfileScreen: React.FC = () => {
             <Text className="font-semibold text-lg">Sản phẩm yêu thích</Text>
             <Text className="text-gray-500 mt-1">Bạn chưa thích sản phẩm nào</Text>
           </View>
+
+          <Pressable className="mt-3" onPress={() => (navigation as any).navigate('MyInjuries')}>
+            <View className="bg-white rounded-xl p-4 shadow">
+              <Text className="font-semibold text-lg">Chấn thương của tôi</Text>
+              <Text className="text-gray-500 mt-1">Xem chấn thương và ghi chú cá nhân</Text>
+            </View>
+          </Pressable>
 
           <SettingList profile={profile} />
         </View>

@@ -4,9 +4,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { logout } from '../../../services/auth';
 
-type Props = { profile: any };
+type Props = {};
 
-export default function SettingList({ profile }: Props) {
+export default function SettingList(_: Props) {
   const navigation = useNavigation();
 
   const handleLogout = async () => {
@@ -44,7 +44,7 @@ export default function SettingList({ profile }: Props) {
           <Text className="ml-3">Thông báo</Text>
         </Pressable>
 
-        <Pressable className="p-4 border-b border-gray-100 flex-row items-center" onPress={() => Alert.alert('Thông tin cá nhân', JSON.stringify(profile ?? {}, null, 2))}>
+        <Pressable className="p-4 border-b border-gray-100 flex-row items-center" onPress={() => (navigation as any).navigate('ProfileInfo')}>
           <Ionicons name="person-outline" size={18} color="#A0522D" />
           <Text className="ml-3">Thông tin cá nhân</Text>
         </Pressable>

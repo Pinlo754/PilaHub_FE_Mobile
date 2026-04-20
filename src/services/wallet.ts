@@ -13,10 +13,10 @@ export async function fetchMyWallet(): Promise<ServiceResult> {
   }
 }
 
-export async function createWallet(): Promise<ServiceResult> {
+// Open (enable) wallet for authenticated user
+export async function openMyWallet(): Promise<ServiceResult> {
   try {
-    // create wallet endpoint — best-effort guess using /wallet
-    const res = await api.post('/wallet');
+    const res = await api.post('/wallet/my-wallet/open');
     const data = res.data?.data ?? res.data ?? res;
     return { ok: true, data };
   } catch (e: any) {
@@ -45,6 +45,27 @@ export async function createWalletDeposit(amount: number, description = 'Nạp t
     return { ok: true, data };
   } catch (e: any) {
     const error = e.response?.data ?? { message: e.message ?? e, status: e.response?.status };
+    return { ok: false, error };
+  }
+}
+
+/**
+ * Create a MoMo payment request by calling backend `/wallet/momo/deposit/create`.
+ */
+export async function createWalletMomoDeposit(amount: number, description = 'Nạp tiền vào ví') : Promise<ServiceResult<{ paymentUrl: string; transactionId: string; orderCode: string }>> {
+  try {
+    const min = 10000;
+    if (typeof amount !== 'number' || isNaN(amount) || amount < min) {
+      return { ok: false, error: { message: `Số tiền nạp tối thiểu là ${min} VND`, code: 'INVALID_AMOUNT' } };
+    }
+
+    const body = { amount, description };
+    const res = await api.post('/wallet/momo/deposit/create', body);
+    const data = res.data?.data ?? res.data ?? res;
+
+    return { ok: true, data };
+  } catch (err: any) {
+    const error = err.response?.data ?? { message: err.message ?? err, status: err.response?.status };
     return { ok: false, error };
   }
 }

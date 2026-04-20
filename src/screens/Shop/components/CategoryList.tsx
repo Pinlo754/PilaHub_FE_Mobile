@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { CategoryItem } from '../../../services/products';
 import { useNavigation } from '@react-navigation/native';
+import roadmapImg from '../../../assets/roadmap.png';
 
 export default function CategoryList({ data, onPressCategory }: { data: CategoryItem[]; onPressCategory?: (c: CategoryItem) => void }) {
   const navigation = useNavigation<any>();
@@ -28,7 +29,9 @@ export default function CategoryList({ data, onPressCategory }: { data: Category
             onPressCategory?.(item);
           }} className="mr-3 items-center">
             <View className="w-16 h-16 rounded-xl bg-pink-50 items-center justify-center overflow-hidden">
-              {item.icon ? (
+              {item.id === '__roadmap_products' ? (
+                <Image source={roadmapImg} className="w-9 h-9" />
+              ) : item.icon ? (
                 <Image source={{ uri: item.icon }} className="w-9 h-9" />
               ) : (
                 <View className="w-9 h-9 rounded-full bg-pink-200" />

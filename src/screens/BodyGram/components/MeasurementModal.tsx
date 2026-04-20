@@ -18,9 +18,12 @@ type Props = {
   initialValue?: number;
   onClose: () => void;
   onSave: (value: number | undefined) => void;
+  unit?: string;
+  subtitle?: string;
+  placeholder?: string;
 };
 
-export default function MeasurementModal({ visible, label, initialValue, onClose, onSave }: Props) {
+export default function MeasurementModal({ visible, label, initialValue, onClose, onSave, unit, subtitle, placeholder }: Props) {
   const [val, setVal] = useState(initialValue != null ? String(initialValue) : '');
 
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function MeasurementModal({ visible, label, initialValue, onClose
           >
             <View style={styles.sheet}>
               <Text style={styles.title}>{label}</Text>
-              <Text style={styles.subtitle}>Ước lượng gần đúng. Nhập số theo cm.</Text>
+              <Text style={styles.subtitle}>{subtitle ?? 'Ước lượng gần đúng. Nhập số theo cm.'}</Text>
 
               <View style={styles.inputRow}>
                 <TextInput
@@ -52,13 +55,13 @@ export default function MeasurementModal({ visible, label, initialValue, onClose
                   value={val}
                   onChangeText={setVal}
                   style={styles.input}
-                  placeholder="Ví dụ: 72"
+                  placeholder={placeholder ?? 'Ví dụ: 72'}
                   placeholderTextColor="#999"
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
                 />
                 <View style={styles.unitPill}>
-                  <Text style={styles.unitText}>cm</Text>
+                  <Text style={styles.unitText}>{unit ?? 'cm'}</Text>
                 </View>
               </View>
 

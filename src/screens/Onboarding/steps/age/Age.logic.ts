@@ -18,15 +18,36 @@ export const useAgeLogic = () => {
     (_, i) => MIN_AGE + i
   );
   
-  const initialIndex = Math.max(0, ages.findIndex(a => a === (data.age ?? 28)));
+  const initialIndex = Math.max(0, ages.findIndex(a => a === (data.age ?? 21)));
   const [selectedIndex, setSelectedIndex] = useState<number>(initialIndex);
   const selectedAge = ages[selectedIndex];
 
-  // scroll to initial index once on mount
+  // getItemLayout helper so FlatList can measure items precisely
+  const getItemLayout = (_: any, index: number) => ({ length: ITEM_WIDTH, offset: ITEM_WIDTH * index, index });
+
+  // scroll to initial index once on mount using scrollToIndex on next animation frame
   useEffect(() => {
-    setTimeout(() => {
-      listRef.current?.scrollToOffset({ offset: selectedIndex * ITEM_WIDTH, animated: false });
-    }, 50);
+    const raf = requestAnimationFrame(() => {
+      try {
+        if (listRef.current && typeof listRef.current?.scrollToIndex === 'function') {
+          // center the item roughly by using viewPosition 0.5
+          (listRef.current as any).scrollToIndex({ index: initialIndex, animated: false, viewPosition: 0.5 });
+        } else {
+          // fallback to scrollToOffset
+          listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_WIDTH, animated: false });
+        }
+      } catch (err) {
+        // ignore index errors (may occur if list not yet populated)
+        // fallback to offset after small delay
+        setTimeout(() => {
+          try {
+            listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_WIDTH, animated: false });
+          } catch {}
+        }, 50);
+      }
+    });
+
+    return () => cancelAnimationFrame(raf);
     // run only once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -51,5 +72,8 @@ export const useAgeLogic = () => {
     onMomentumEnd,
     onNext,
     onBack,
+    // expose helper props for FlatList
+    initialIndex,
+    getItemLayout,
   };
 };

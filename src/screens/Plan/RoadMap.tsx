@@ -256,7 +256,7 @@ const RoadMap = () => {
   if (!currentRoadmap || !currentStages?.length) {
     if (saving) {
       return (
-        <SafeAreaView style={styles.centeredContainer}>
+        <SafeAreaView style={[styles.screen, styles.centeredContainer]}>
           <ActivityIndicator size="large" color="#8B4513" />
           <Text style={styles.loadingText}>Đang tải lộ trình...</Text>
         </SafeAreaView>
@@ -264,33 +264,17 @@ const RoadMap = () => {
     }
 
     return (
-      <SafeAreaView style={styles.centeredContainer}>
-        <Text style={styles.emptyTitle}>Không có dữ liệu lộ trình</Text>
+      <SafeAreaView style={[styles.screen, styles.centeredContainer]}>
+        <Text style={styles.emptyTitle}>Bạn chưa có lộ trình</Text>
 
         <TouchableOpacity
-          onPress={() => fetchNewest()}
+          onPress={() => navigation.navigate('CreateRoadmap')}
           style={styles.buttonPrimary}
         >
-          <Text style={styles.buttonPrimaryText}>Tải lộ trình mới nhất</Text>
+          <Text style={styles.buttonPrimaryText}>Tạo lộ trình mới</Text>
         </TouchableOpacity>
 
-        {lastResponse ? (
-          <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>Raw response:</Text>
-            <View style={styles.codeBox}>
-              <Text style={styles.mono}>{lastResponse}</Text>
-            </View>
-          </View>
-        ) : null}
-
-        {lastError ? (
-          <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>Last error:</Text>
-            <View style={styles.codeBox}>
-              <Text style={styles.errorText}>{lastError}</Text>
-            </View>
-          </View>
-        ) : null}
+       
       </SafeAreaView>
     );
   }
@@ -627,7 +611,7 @@ const RoadMap = () => {
 export default RoadMap;
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F3EDE3' },
+  screen: { flex: 1, backgroundColor: '#FFFAF0' },
   scrollContent: { paddingBottom: 140 },
   mono: { fontFamily: 'monospace', fontSize: 12 },
   errorText: { color: 'red' },
@@ -764,7 +748,7 @@ const styles = StyleSheet.create({
   progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
 
   // modal styles
-  modalContainer: { flex: 1, backgroundColor: '#F3EDE3' },
+  modalContainer: { flex: 1, backgroundColor: '#FFFAF0' },
   modalHeader: {
     height: 56,
     paddingHorizontal: 16,

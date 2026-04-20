@@ -27,6 +27,11 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
   const nav = useNavigation();
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
 
+  // DEBUG: log incoming route params and parsed result to help investigate missing measurements
+  console.log('DEBUG BodyGramResult route.params:', route.params);
+  console.log('DEBUG BodyGramResult rawMeasurements:', rawMeasurements);
+  console.log('DEBUG BodyGramResult rawResponse:', rawResponse);
+
   const parseProfile = useCallback((entry: any) => {
     const out: any = { measurements: {}, meta: {} };
     if (!entry) return out;
@@ -130,7 +135,39 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
     return out;
   }, [rawMeasurements, rawResponse]);
 
-  const whr = display.waist && display.hip ? (display.waist / display.hip).toFixed(2) : undefined;
+  // helper to return numeric value from multiple sources (display, parsed.measurements, parsed top-level, parsed.metadata)
+  function getNumericValue(key: string) {
+    let val: any = display?.[key];
+    if (val == null) val = parsed?.measurements?.[key];
+    if (val == null) val = parsed?.[key];
+    if (val == null && parsed?.metadata && typeof parsed.metadata === 'object') {
+      const candidate = parsed.metadata[key] ?? parsed.metadata[`${key}`];
+      if (candidate != null) val = candidate;
+    }
+    if (val == null) return undefined;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  // helper used by detail tiles to pick a displayable value (string/number)
+  function getDetailValue(key: 'bust'|'waist'|'hip'|'bicep'|'thigh'|'calf') {
+    const dkey: any = key;
+    let val: any = display?.[dkey];
+    if (val == null) val = parsed?.measurements?.[dkey];
+    if (val == null) val = parsed?.[dkey];
+    if (val == null && parsed?.metadata && typeof parsed.metadata === 'object') {
+      const candidate = parsed.metadata[dkey] ?? parsed.metadata[key];
+      if (candidate != null) {
+        const n = Number(candidate);
+        val = Number.isFinite(n) ? Math.round(n) : candidate;
+      }
+    }
+    return val == null ? '-' : val;
+  }
+
+  const waistVal = getNumericValue('waist');
+  const hipVal = getNumericValue('hip');
+  const whr = (waistVal != null && hipVal != null && hipVal !== 0) ? (waistVal / hipVal).toFixed(2) : undefined;
 
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, _setToastMsg] = useState('');
@@ -190,31 +227,31 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
             <View className="absolute top-8 left-3">
               <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
                 <Text className="text-xs text-gray-800">Ngực</Text>
-                <Text className="text-lg font-extrabold">{display.bust ?? '-'}cm</Text>
+                <Text className="text-lg font-extrabold">{(parsed?.measurements?.chest ?? display.bust ?? (parsed?.metadata && parsed.metadata.shoulder ? Math.round(parsed.metadata.shoulder) : null) ?? '-') }cm</Text>
               </View>
             </View>
             <View className="absolute top-24 left-4">
               <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
                 <Text className="text-xs text-gray-800">Eo</Text>
-                <Text className="text-lg font-extrabold">{display.waist ?? '-'}cm</Text>
+                <Text className="text-lg font-extrabold">{(parsed?.measurements?.waist ?? display.waist ?? parsed?.waist ?? '-') }cm</Text>
               </View>
             </View>
             <View className="absolute top-24 right-4">
               <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
                 <Text className="text-xs text-gray-800">Hông</Text>
-                <Text className="text-lg font-extrabold">{display.hip ?? '-'}cm</Text>
+                <Text className="text-lg font-extrabold">{(parsed?.measurements?.hip ?? display.hip ?? parsed?.hip ?? '-') }cm</Text>
               </View>
             </View>
             <View className="absolute bottom-9 left-7">
               <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
                 <Text className="text-xs text-gray-800">Đùi</Text>
-                <Text className="text-lg font-extrabold">{display.thigh ?? '-'}cm</Text>
+                <Text className="text-lg font-extrabold">{(parsed?.measurements?.thigh ?? display.thigh ?? (parsed?.metadata && parsed.metadata.thigh ? Math.round(parsed.metadata.thigh) : null) ?? '-') }cm</Text>
               </View>
             </View>
             <View className="absolute top-9 right-7">
               <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
                 <Text className="text-xs text-gray-800">Bắp tay</Text>
-                <Text className="text-lg font-extrabold">{display.bicep ?? '-'}cm</Text>
+                <Text className="text-lg font-extrabold">{(parsed?.measurements?.bicep ?? display.bicep ?? '-') }cm</Text>
               </View>
             </View>
           </View>
@@ -240,7 +277,7 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
             { key: 'thigh', label: 'Đùi' },
             { key: 'calf', label: 'Bắp chân' },
           ].map((t) => {
-            const cur = display[t.key] ?? null;
+            const cur = getDetailValue(t.key as any);
             return (
               <View key={t.key} className="w-1/2 p-2">
                 <View className="bg-background-sub2 rounded-xl p-4 shadow">

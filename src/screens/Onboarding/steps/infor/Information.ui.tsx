@@ -5,6 +5,7 @@ import {
   TextInput,
   Pressable,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useInformationLogic } from './Information.logic';
 
@@ -15,6 +16,7 @@ export default function InformationUI() {
     setFullName,
     pickAvatar,
     onNext,
+    uploading,
     onBack,
   } = useInformationLogic();
 
@@ -35,39 +37,40 @@ export default function InformationUI() {
         </Text>
       
 
-      {/* AVATAR */}
-      <View className="mt-6 bg-warning h-44 items-center justify-center">
-        <Pressable onPress={pickAvatar} className="relative">
+      {/* LARGE AVATAR — moved to top and enlarged */}
+      <View className="items-center mt-6 mb-6">
+        <Pressable onPress={pickAvatar} className="relative items-center justify-center">
           <Image
-            source={{
-              uri:
-                avatar ??
-                'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e',
-            }}
-            className="w-28 h-28 rounded-full"
+            source={{ uri: avatar ?? 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e' }}
+            className="w-44 h-44 rounded-full border-2 border-white"
           />
 
-          <View className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full items-center justify-center">
+          <View className="absolute right-2 bottom-2 w-9 h-9 bg-white rounded-full items-center justify-center shadow">
             <Text className="text-foreground text-base">✎</Text>
           </View>
+
+          {uploading && (
+            <View className="absolute inset-0 items-center justify-center bg-black/30 rounded-full">
+              <ActivityIndicator size="small" color="#fff" />
+            </View>
+          )}
         </Pressable>
       </View>
 
-      {/* FORM */}
-      <View className=" mt-6 space-y-4 ">
+      {/* FORM (name input placed below avatar) */}
+      <View className="mt-2 px-6 space-y-4">
         <Input label="Họ và tên" value={fullName} onChange={setFullName} />
-       
-       
       </View>
 
       {/* BUTTON */}
       <View className="flex-1 justify-end px-6 mb-6">
         <Pressable
           onPress={onNext}
-          className="h-14 rounded-xl bg-foreground items-center justify-center"
+          disabled={uploading}
+          className={`h-14 rounded-xl ${uploading ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
         >
           <Text className="text-white font-semibold text-base">
-            Tiếp tục
+            {uploading ? 'Đang tải...' : 'Tiếp tục'}
           </Text>
         </Pressable>
       </View>

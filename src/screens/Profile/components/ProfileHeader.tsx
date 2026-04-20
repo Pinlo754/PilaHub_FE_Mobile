@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, Image, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Pressable, Image, Text, View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fetchMyWallet } from '../../../services/wallet';
+import { fetchMyWallet, openMyWallet } from '../../../services/wallet';
 import { getMyActiveSubscription } from '../../../hooks/apiClient';
 
 type Props = {
@@ -23,10 +23,35 @@ export default function ProfileHeader({ profile, onEdit, onAvatarPress, onAvatar
   const activeWallet = wallet ?? walletInternal;
   const activeWalletLoading = walletLoading ?? walletLoadingInternal;
   const walletBalance = activeWallet ? (activeWallet.balanceVND ?? activeWallet.balance ?? null) : (profile?.walletBalance ?? null);
-  const walletAvailable = activeWallet ? (activeWallet.availableVND ?? activeWallet.available ?? null) : null;
-  const walletLocked = activeWallet ? (activeWallet.lockedVND ?? activeWallet.locked ?? null) : null;
 
   const [activeSub, setActiveSub] = useState<any | null>(null);
+
+  // state for opening wallet action
+  const [openingWallet, setOpeningWallet] = useState<boolean>(false);
+
+  const handleOpenWallet = async () => {
+    setOpeningWallet(true);
+    try {
+      const res = await openMyWallet();
+      if (res.ok) {
+        // reload wallet info into internal state
+        try {
+          const reload = await fetchMyWallet();
+          if (reload?.ok) setWalletInternal(reload.data ?? reload);
+        } catch (e) {
+          console.warn('reload wallet after open failed', e);
+        }
+        Alert.alert('Thành công', 'Ví đã được mở');
+      } else {
+        Alert.alert('Lỗi', res.error?.message || 'Không thể mở ví');
+      }
+    } catch (e) {
+      console.warn('openMyWallet failed', e);
+      Alert.alert('Lỗi', 'Có lỗi khi mở ví');
+    } finally {
+      setOpeningWallet(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -125,26 +150,33 @@ export default function ProfileHeader({ profile, onEdit, onAvatarPress, onAvatar
             ) : (
               <Text className="text-lg font-semibold">{profile?.walletBalance ?? '0'}₫</Text>
             )}
-            {wallet && (
-              <Text className="text-xs text-gray-500">Khả dụng: {new Intl.NumberFormat('vi-VN').format(walletAvailable ?? 0)}₫</Text>
-            )}
-            {wallet && (
-              <Text className="text-xs text-gray-500">Khóa: {new Intl.NumberFormat('vi-VN').format(walletLocked ?? 0)}₫</Text>
-            )}
+           
           </View>
 
-          <Pressable
-            onPress={() => navigation.navigate('Wallet')}
-            className="px-3 py-1 rounded-full bg-amber-100 border border-amber-200"
-            accessibilityRole="button"
-            accessibilityLabel="Xem chi tiết ví"
-          >
-            <Text className="text-amber-800 font-medium">Xem chi tiết</Text>
-          </Pressable>
-        </View>
-      </View>
-    </View>
-  );
+          {activeWallet ? (
+            <Pressable
+              onPress={() => navigation.navigate('Wallet')}
+              className="px-3 py-1 rounded-full bg-amber-100 border border-amber-200"
+              accessibilityRole="button"
+              accessibilityLabel="Xem chi tiết ví"
+            >
+              <Text className="text-amber-800 font-medium">Xem chi tiết</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleOpenWallet}
+              disabled={openingWallet}
+              className="px-3 py-1 rounded-full bg-amber-100 border border-amber-200"
+              accessibilityRole="button"
+              accessibilityLabel="Mở ví"
+            >
+              {openingWallet ? <ActivityIndicator color="#92400E" /> : <Text className="text-amber-800 font-medium">Mở ví</Text>}
+            </Pressable>
+          )}
+         </View>
+       </View>
+     </View>
+   );
 }
 
 const localStyles = StyleSheet.create({

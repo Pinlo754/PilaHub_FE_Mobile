@@ -44,6 +44,7 @@ import AIPractice from '../screens/AIPractice/AIPractice';
 import VideoCall from '../screens/VideoCall/VideoCall';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
+import ProfileInfoScreen from '../screens/Profile/ProfileInfoScreen';
 import HealthProfilesScreen from '../screens/Profile/HealthProfilesScreen';
 import HealthProfileAssessmentScreen from '../screens/Profile/HealthProfileAssessmentScreen';
 import CoachProfileScreen from '../screens/Coach/Profile/CoachProfile';
@@ -58,6 +59,7 @@ import WalletScreen from '../screens/Wallet/WalletScreen';
 import TransactionDetailScreen from '../screens/Wallet/TransactionDetailScreen';
 import DepositWebViewScreen from '../screens/Wallet/DepositWebViewScreen';
 import DepositResultScreen from '../screens/Wallet/DepositResultScreen';
+import MomoResultScreen from '../screens/Wallet/MomoResultScreen';
 import DeviceScanScreen from '../screens/IoT/DeviceScanScreen';
 import MyDevicesScreen from '../screens/IoT/MyDevicesScreen';
 import { BleProvider } from '../services/BleProvider';
@@ -93,6 +95,7 @@ export type RootStackParamList = {
   AddressList: undefined;
   AddressForm: { onSaved?: () => void } | undefined;
   TraineeProfile: undefined;
+  ProfileInfo: undefined;
   Orders: undefined;
   OrderDetail: { orderId: string };
   Roadmap: undefined;
@@ -193,6 +196,7 @@ export type RootStackParamList = {
     | { paymentUrl: string; transactionId?: string; orderCode?: string }
     | undefined;
   DepositResult: { success: boolean; data?: any } | undefined;
+  MomoResult: { orderId?: string; previousBalance?: number } | undefined;
   Deposit: undefined;
   Withdraw: undefined;
   TransactionDetail: { transactionId: string } | undefined;
@@ -212,6 +216,7 @@ export type RootStackParamList = {
   MyBlogScreen: undefined;
   ListChatScreen: undefined;
   TraineeDetailScreen: { traineeId: string };
+  MyInjuries: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -299,6 +304,7 @@ const AppNavigator: React.FC = () => {
               name="TraineeProfile"
               component={TraineeProfileScreen}
             />
+            <Stack.Screen name="ProfileInfo" component={ProfileInfoScreen} />
             <Stack.Screen
               name="HealthProfiles"
               component={HealthProfilesScreen}
@@ -399,6 +405,10 @@ const AppNavigator: React.FC = () => {
               component={DepositResultScreen}
             />
             <Stack.Screen
+              name="MomoResult"
+              component={MomoResultScreen}
+            />
+            <Stack.Screen
               name="TransactionDetail"
               component={TransactionDetailScreen}
             />
@@ -408,6 +418,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="MyBlogScreen" component={MyBlogScreen} />
             <Stack.Screen name="ListChatScreen" component={ListChatScreen} />
             <Stack.Screen name="TraineeDetailScreen" component={TraineeDetailScreen} />
+            <Stack.Screen name="MyInjuries" component={require('../screens/Profile/MyInjuriesScreen').default} />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

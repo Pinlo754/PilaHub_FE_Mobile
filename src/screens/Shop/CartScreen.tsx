@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, Alert, DeviceEventEmitter, ScrollView } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { getCartSummary, updateQuantity, removeFromCart, CartLine } from '../../services/cart';
+import { CartLine } from '../../services/cart';
+import { useCart } from '../../context/CartContext';
 import { formatVND } from '../../utils/number';
 import Toast from '../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EmptyComponent = () => (
   <View className="mt-20 items-center">
@@ -32,11 +32,9 @@ function CheckoutBar({ total, disabled, onCheckout, selectedCount }: { total: nu
 export default function CartScreen() {
   const focused = useIsFocused();
   const navigation: any = useNavigation();
-  const [lines, setLines] = useState<CartLine[]>([]);
+  const { lines, totalItems, totalPrice, loadCart, userId, updateQuantity: ctxUpdateQuantity, removeFromCart: ctxRemoveFromCart, clearCart: ctxClearCart } = useCart();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState(false);
-  const [summary, setSummary] = useState({ totalItems: 0, totalPrice: 0 });
-  const [userId, setUserId] = useState<string>('guest');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success'|'error'|'info'>('info');
@@ -86,10 +84,8 @@ export default function CartScreen() {
 
   const totalSelectedPrice = useMemo(() => {
     if (!selectedIds || selectedIds.length === 0) return 0;
-    return lines.reduce((s, l) => s + (selectedIds.includes(l.product_id) ? l.price * l.quantity : 0), 0);
+    return (lines || []).reduce((s, l) => s + (selectedIds.includes(l.product_id) ? l.price * l.quantity : 0), 0);
   }, [lines, selectedIds]);
-
-  // toggleSelectAll intentionally removed (not used)
 
   // Checkout handler
   const handleCheckout = useCallback(() => {
@@ -119,52 +115,14 @@ export default function CartScreen() {
     navigation.navigate('Checkout' as never, { items } as never);
   }, [selectedIds, lines, navigation]);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await getCartSummary(userId || 'guest');
-      setLines(res.lines || []);
-      setSummary({ totalItems: res.totalItems, totalPrice: res.totalPrice });
-    } catch {
-      console.warn('load cart error');
-    }
-  }, [userId]);
-
-  useEffect(() => { if (focused) load(); }, [focused, load]);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const rawId = await AsyncStorage.getItem('id');
-        let uid: string | null = null;
-        try { const p = rawId ? JSON.parse(rawId) : null; uid = p || rawId; } catch { uid = rawId; }
-        const final = uid ? String(uid) : 'guest';
-        if (mounted) setUserId(final);
-      } catch {
-        /* ignore */
-      }
-    })();
-
-    const sub = DeviceEventEmitter.addListener('cartUpdated', (evt: any) => {
-      try {
-        if (!evt) return;
-        const evtUser = evt.userId ?? 'guest';
-        if (evtUser === (userId || 'guest')) load();
-        if ((userId || 'guest') === 'guest' && evtUser === 'guest') load();
-      } catch {
-        /* ignore */
-      }
-    });
-
-    return () => { mounted = false; sub.remove(); };
-  }, [userId, load]);
+  // Load cart when screen focused or when userId changes
+  useEffect(() => { if (focused) loadCart(); }, [focused, loadCart]);
+  useEffect(() => { if (userId) loadCart(); }, [userId, loadCart]);
 
   const onInc = async (item: CartLine) => {
     try {
-      const updated = await updateQuantity(userId || 'guest', item.product_id, item.quantity + 1);
-      setLines(updated);
-      const s = await getCartSummary(userId || 'guest');
-      setSummary({ totalItems: s.totalItems, totalPrice: s.totalPrice });
+      await ctxUpdateQuantity(item.product_id, item.quantity + 1);
+      // context will refresh lines/summary
     } catch {
       setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true);
     }
@@ -172,10 +130,7 @@ export default function CartScreen() {
 
   const onDec = async (item: CartLine) => {
     try {
-      const updated = await updateQuantity(userId || 'guest', item.product_id, Math.max(0, item.quantity - 1));
-      setLines(updated);
-      const s = await getCartSummary(userId || 'guest');
-      setSummary({ totalItems: s.totalItems, totalPrice: s.totalPrice });
+      await ctxUpdateQuantity(item.product_id, Math.max(0, item.quantity - 1));
     } catch {
       setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true);
     }
@@ -185,10 +140,8 @@ export default function CartScreen() {
     Alert.alert('Xoá', 'Bạn có muốn xoá sản phẩm khỏi giỏ?', [
       { text: 'Huỷ', style: 'cancel' },
       { text: 'Xoá', style: 'destructive', onPress: async () => {
-          const updated = await removeFromCart(userId || 'guest', item.product_id);
-          setLines(updated);
-          const s = await getCartSummary(userId || 'guest');
-          setSummary({ totalItems: s.totalItems, totalPrice: s.totalPrice });
+          await ctxRemoveFromCart(item.product_id);
+          // context will refresh lines/summary
           // also clear from selection if present
           setSelectedIds(prev => prev.filter(id => id !== item.product_id));
           setToastMsg('Đã xoá sản phẩm'); setToastType('info'); setToastVisible(true);
@@ -208,17 +161,17 @@ export default function CartScreen() {
     Alert.alert('Xóa tất cả', 'Bạn có chắc muốn xóa toàn bộ sản phẩm trong giỏ?', [
       { text: 'Huỷ', style: 'cancel' },
       { text: 'Xóa tất cả', style: 'destructive', onPress: async () => {
-        try {
-          await (await import('../../services/cart')).clearCart(userId || 'guest');
-          await load();
-          setSelectedIds([]);
-          setSelectMode(false);
-          setToastMsg('Đã xóa tất cả'); setToastType('info'); setToastVisible(true);
-        } catch (e) {
-          console.warn(e);
-          setToastMsg('Xoá không thành công'); setToastType('error'); setToastVisible(true);
-        }
-      } }
+         try {
+          await ctxClearCart();
+          await loadCart();
+           setSelectedIds([]);
+           setSelectMode(false);
+           setToastMsg('Đã xóa tất cả'); setToastType('info'); setToastVisible(true);
+         } catch (e) {
+           console.warn(e);
+           setToastMsg('Xoá không thành công'); setToastType('error'); setToastVisible(true);
+         }
+       } }
     ]);
   };
 
@@ -230,7 +183,7 @@ export default function CartScreen() {
         </TouchableOpacity>
         <View className="flex-1 ml-2">
           <Text className="text-2xl font-extrabold">Giỏ hàng</Text>
-          <Text className="text-gray-500">{summary.totalItems} sản phẩm</Text>
+          <Text className="text-gray-500">{totalItems} sản phẩm</Text>
         </View>
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => { setSelectMode(prev => !prev); if (selectMode) setSelectedIds([]); }} className="w-9 h-9 items-center justify-center">
@@ -243,7 +196,7 @@ export default function CartScreen() {
       </View>
 
       <ScrollView className="p-3 pb-36">
-        {grouped.length === 0 && <EmptyComponent />}
+        {(!grouped || grouped.length === 0) && <EmptyComponent />}
         {grouped.map((g) => (
           <View key={g.shopId} className="mb-4">
             <View className="p-3 bg-white rounded-lg mb-2 flex-row items-center justify-between">

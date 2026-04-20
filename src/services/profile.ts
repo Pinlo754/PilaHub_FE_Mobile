@@ -97,7 +97,9 @@ export function buildTraineeProfilePayload(onboarding: OnboardingData, bodyGram?
   if (onboarding.fullName) payload.fullName = onboarding.fullName;
   if (onboarding.age != null) payload.age = onboarding.age;
   if (onboarding.gender) payload.gender = mapGenderToEnum(onboarding.gender);
+  // support both 'avatarUrl' and older 'avatar' key used by onboarding store
   if (onboarding.avatarUrl) payload.avatarUrl = onboarding.avatarUrl;
+  else if ((onboarding as any).avatar) payload.avatarUrl = (onboarding as any).avatar;
   if (onboarding.workoutLevel) payload.workoutLevel = onboarding.workoutLevel;
   if (onboarding.workoutFrequency) payload.workoutFrequency = onboarding.workoutFrequency;
 
@@ -113,8 +115,9 @@ export function buildTraineeProfilePayload(onboarding: OnboardingData, bodyGram?
 
   // collect metadata: any leftover onboarding fields or bodyGram fields not used above
   const metadata: Record<string, any> = {};
+  // exclude avatar (alias) from metadata because we map it to avatarUrl above
   Object.keys(onboarding || {}).forEach((k) => {
-    if (!['fullName', 'age', 'gender', 'avatarUrl', 'workoutLevel', 'workoutFrequency'].includes(k)) {
+    if (!['fullName', 'age', 'gender', 'avatarUrl', 'avatar', 'workoutLevel', 'workoutFrequency'].includes(k)) {
       metadata[k] = (onboarding as any)[k];
     }
   });
@@ -584,11 +587,45 @@ export async function fetchHealthProfileAssessment(id: string): Promise<ServiceR
 
 // Fetch health profile metrics for the authenticated trainee (for charts/comparisons)
 export async function fetchMyHealthProfileMetrics(): Promise<ServiceResult> {
+   try {
+     const res = await api.get('/health-profiles/my-profiles/metrics');
+     const data = res.data?.data ?? res.data ?? res;
+     return { ok: true, data };
+   } catch (e: any) {
+     return { ok: false, error: e.response?.data ?? e.message ?? e };
+   }
+}
+
+// Fetch personal injuries for authenticated trainee
+export async function fetchMyInjuries(): Promise<ServiceResult> {
   try {
-    const res = await api.get('/health-profiles/my-profiles/metrics');
+    const res = await api.get('/personal-injuries/my-injuries');
     const data = res.data?.data ?? res.data ?? res;
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
+
+// Fetch a single personal injury by id
+export async function fetchPersonalInjuryById(id: string): Promise<ServiceResult> {
+  try {
+    const res = await api.get(`/personal-injuries/${id}`);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
+
+// Update a personal injury (status, notes)
+export async function updatePersonalInjury(id: string, payload: { status?: string; notes?: string }): Promise<ServiceResult> {
+  try {
+    const res = await api.put(`/personal-injuries/${id}`, payload);
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    const error = e.response?.data ?? e.message ?? e;
+    return { ok: false, error };
   }
 }

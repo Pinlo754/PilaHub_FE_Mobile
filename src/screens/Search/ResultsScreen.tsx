@@ -5,8 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { getProducts, ProductItem, PagedResult } from '../../services/products';
 import { formatVND } from '../../utils/number';
-import { addToCart } from '../../services/cart';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCart } from '../../context/CartContext';
 import Toast from '../../components/Toast';
 
 const { width } = Dimensions.get('window');
@@ -42,6 +41,8 @@ export default function ResultsScreen() {
 
   const [appliedFilter, setAppliedFilter] = useState<{ minPrice?: number; maxPrice?: number } | undefined>(undefined);
 
+  const { addToCart } = useCart();
+
   const load = useCallback(async (p = 0) => {
     if (p > 0) setLoadingMore(true);
     try {
@@ -74,10 +75,7 @@ export default function ResultsScreen() {
 
   const onAdd = async (item: ProductItem) => {
     try {
-      const rawId = await AsyncStorage.getItem('id');
-      let userId: string | null = null;
-      try { userId = rawId ? JSON.parse(rawId) : rawId; } catch { userId = rawId; }
-      await addToCart(userId ?? 'guest', { product_id: item.product_id, product_name: item.product_name, thumnail_url: item.thumnail_url, price: item.price }, 1);
+      await addToCart({ product_id: item.product_id, product_name: item.product_name, thumnail_url: item.thumnail_url, price: item.price }, 1);
       setToastMsg('Đã thêm vào giỏ hàng'); setToastType('success'); setToastVisible(true);
     } catch (e) {
       console.warn('add to cart failed', e);

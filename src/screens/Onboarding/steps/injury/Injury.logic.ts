@@ -6,7 +6,8 @@ import { Alert } from 'react-native';
 export const useInjuryLogic = () => {
   const { data, setData, step, setStep } = useOnboardingStore();
   const [injuries, setInjuries] = useState<any[]>([]);
-  const [selected, setSelected] = useState<any | null>(null);
+  // support multiple selection
+  const [selected, setSelected] = useState<any[]>([]);
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -54,22 +55,27 @@ export const useInjuryLogic = () => {
     setStep(step + 1);
   };
 
-  // helper to normalize and select injury (store only locally until submitProfiles)
+  // helper to normalize and toggle injury selection (store only locally until submitProfiles)
   const selectInjury = (inj: any | null) => {
-    if (!inj) return setSelected(null);
+    if (!inj) return setSelected([]);
     const normalized = { ...inj, injuryId: inj.injuryId ?? inj.id };
-    setSelected(normalized);
+    setSelected((prev) => {
+      const exists = prev.find((p) => (p.injuryId ?? p.id) === (normalized.injuryId ?? normalized.id));
+      if (exists) return prev.filter((p) => (p.injuryId ?? p.id) !== (normalized.injuryId ?? normalized.id));
+      return [...prev, normalized];
+    });
   };
 
   const onNext = async () => {
-    if (!selected) return Alert.alert('Vui lòng chọn chấn thương hoặc bỏ qua');
+    if (!selected || selected.length === 0) return Alert.alert('Vui lòng chọn chấn thương hoặc bỏ qua');
     try {
       setLoading(true);
 
       // save selection into onboarding store for later server submission in submitProfiles
       const existing = ((data as any).personalInjuries ?? []) as any[];
-      const toSave = { injuryId: selected.injuryId ?? selected.id, notes };
-      (setData as any)({ personalInjuries: [...existing, toSave], personalInjuriesSkipped: false });
+      // map each selected injury to the persisted shape; apply `notes` to each selected injury
+      const toSaveArr = selected.map((s: any) => ({ injuryId: s.injuryId ?? s.id, notes }));
+      (setData as any)({ personalInjuries: [...existing, ...toSaveArr], personalInjuriesSkipped: false });
 
       setStep(step + 1);
     } catch (e) {

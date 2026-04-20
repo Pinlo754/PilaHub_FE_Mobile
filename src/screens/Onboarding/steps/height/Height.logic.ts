@@ -22,14 +22,52 @@ export const useHeightLogic = () => {
   const initialIndex = Math.max(0, HEIGHTS.findIndex(v => v === height));
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  // scroll về đúng vị trí khi mở step
+  // helper for FlatList measurement (so FlatList can compute positions precisely)
+  const getItemLayout = (_: any, index: number) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index });
+
+  // scroll to correct position once on mount.
+  // Some devices/FlatList implementations don't have the ref ready immediately —
+  // retry a few times then fallback to scrollToOffset. This prevents the
+  // visible big number (center) from being out-of-sync with the list items.
   useEffect(() => {
-    setTimeout(() => {
-      listRef.current?.scrollToOffset({
-        offset: currentIndex * ITEM_HEIGHT,
-        animated: false,
-      });
-    }, 50);
+    let mounted = true;
+    const maxAttempts = 8;
+    let attempt = 0;
+
+    const tryScroll = () => {
+      if (!mounted) return;
+      attempt += 1;
+
+      try {
+        if (listRef.current && typeof (listRef.current as any).scrollToIndex === 'function') {
+          (listRef.current as any).scrollToIndex({ index: initialIndex, animated: false, viewPosition: 0.5 });
+          return;
+        }
+        if (listRef.current && typeof (listRef.current as any).scrollToOffset === 'function') {
+          (listRef.current as any).scrollToOffset({ offset: initialIndex * ITEM_HEIGHT, animated: false });
+          return;
+        }
+      } catch (err) {
+        // ignore and retry
+      }
+
+      if (attempt < maxAttempts) {
+        // wait slightly longer between attempts to give the FlatList time to mount
+        setTimeout(tryScroll, 50 * attempt);
+      } else {
+        // final fallback after attempts
+        setTimeout(() => {
+          listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_HEIGHT, animated: false });
+        }, 120);
+      }
+    };
+
+    const raf = requestAnimationFrame(() => tryScroll());
+
+    return () => {
+      mounted = false;
+      cancelAnimationFrame(raf);
+    };
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -72,5 +110,8 @@ export const useHeightLogic = () => {
     onMomentumEnd,
     onNext: () => setStep(step + 1),
     onBack: () => setStep(step - 1),
+    // expose helper props for FlatList
+    getItemLayout,
+    initialIndex,
   };
 };
