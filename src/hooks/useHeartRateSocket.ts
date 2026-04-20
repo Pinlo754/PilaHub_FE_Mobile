@@ -111,10 +111,14 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
   }, []);
 
   const disconnect = useCallback(() => {
+    // 1. Hủy tất cả các subscription đang active
     Object.values(subsRef.current).forEach((s) => s && s.unsubscribe());
     subsRef.current = {};
-    // Note: Do NOT clear pendingSubsRef.current — keep pending subscriptions
-    // in case reconnection happens. They will be drained on next onConnect.
+
+    // 2. XÓA SẠCH hàng đợi pending (để đảm bảo trạng thái hoàn toàn mới khi mount lại)
+    pendingSubsRef.current = []; 
+
+    // 3. Ngắt kết nối socket
     if (clientRef.current) {
       try {
         clientRef.current.deactivate();
@@ -124,8 +128,16 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
       clientRef.current = null;
       connectingRef.current = false;
     }
+    
     setIsConnected(false);
+    console.log('[HeartRateSocket] disconnected and cleaned up completely');
   }, []);
+
+  useEffect(() => {
+  return () => {
+    disconnect(); // Tự động chạy khi rời trang
+  };
+}, [disconnect]);
 
   const sendHeartRate = useCallback((payload: HeartRatePayload) => {
     const client = clientRef.current;

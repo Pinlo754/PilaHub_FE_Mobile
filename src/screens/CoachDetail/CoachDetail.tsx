@@ -8,6 +8,7 @@ import Header from './components/Header';
 import Button from '../../components/Button';
 import StatsCard from './components/StatsCard';
 import OverviewSection from './components/OverviewSection';
+import BlogSection from './components/BlogSection';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CoachDetail'>;
 
@@ -61,6 +62,9 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
           coachDetail={coachDetail}
           coachFeedbacks={coachFeedbacks}
         />
+
+        {/* Blog Section */}
+        <BlogSection coachId={coachDetail.coachId} />
       </Animated.ScrollView>
 
       <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4">

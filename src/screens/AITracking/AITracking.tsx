@@ -83,6 +83,8 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const [isSaving, setIsSaving] = useState(false);
   const [errorBodyPart, setErrorBodyPart] = useState<string | null>(null);
   const [heartRateList, setHeartRateList] = useState<any[]>([]);
+  const [isPersonDetected, setIsPersonDetected] = useState(false);
+  const lastPersonDetected = useRef(Date.now());
   const BODY_PART_MAP: Record<string, number[]> = {
     "Lower Back": [23, 24],
     "Upper Back": [11, 12],
@@ -425,6 +427,8 @@ const downloadURL = await uploadVideoToFirebase(file.path);
         const posePoints = data.landmarks;
         if (posePoints.length < 33) return;
 
+        lastPersonDetected.current = Date.now();
+
         const raw_kps: number[] = [];
         for (let i = 0; i < 33; i++) {
           const lm = posePoints[i];
@@ -712,6 +716,16 @@ const downloadURL = await uploadVideoToFirebase(file.path);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSessionActive, hr]);
 
+  // Check for person detection
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastDetection = now - lastPersonDetected.current;
+      setIsPersonDetected(timeSinceLastDetection < 2000); // Detected if within 3 seconds
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
 
   if (plugin.state === 'loading') {
     return (
@@ -738,6 +752,13 @@ const downloadURL = await uploadVideoToFirebase(file.path);
           <View className="flex-1 justify-center items-center bg-black">
             <ActivityIndicator size="large" color="#10b981" />
             <Text className="text-white mt-4">Đang xử lý kết quả...</Text>
+          </View>
+        )}
+        {!isPersonDetected && isSessionActive && (
+          <View className="absolute inset-0 bg-black/50 justify-center items-center">
+            <Text className="text-white text-xl font-bold text-center">
+              Không phát hiện người trong camera.{'\n'}Vui lòng đứng vào khung hình.
+            </Text>
           </View>
         )}
       </ViewShot>

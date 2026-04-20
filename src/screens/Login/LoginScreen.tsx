@@ -76,14 +76,14 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     }
   }
 
-   return (
-<SafeAreaView  className="flex-1 bg-background">
-      
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
-   
+
         <Text className="flex-1 text-center text-lg font-semibold text-foreground">
-          
+
           Đăng Nhập
         </Text>
       </View>
@@ -138,7 +138,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Remember & Forgot */}
         <View className="flex-row items-center justify-between mt-4">
-     
+
 
           <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
             <Text className="text-secondaryText">Quên mật khẩu?</Text>
@@ -146,9 +146,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Login Button */}
-          <TouchableOpacity
+        <TouchableOpacity
           className="mt-6 h-12 rounded-lg bg-foreground items-center justify-center"
-onPress={async () => {
+          onPress={async () => {
             setError(null);
             setLoading(true);
             try {
@@ -156,11 +156,11 @@ onPress={async () => {
               // const passwordMock = 'Thoai12345@';
               // const res = await login({ email: emailMock, password: passwordMock });
 
-              const emailMock = 'pinlo752004@gmail.com';
-              const passwordMock = 'Phongpinlo123@';
-              const res = await login({ email: emailMock, password: passwordMock });
-              
-              //const res = await login({ email, password});
+              // const emailMock = 'pinlo752004@gmail.com';
+              // const passwordMock = 'Phongpinlo123@';
+              // const res = await login({ email: emailMock, password: passwordMock });
+
+              const res = await login({ email, password });
               if (!res.ok) {
                 setLoading(false);
                 setError(res.error?.message ?? JSON.stringify(res.error));
@@ -200,7 +200,7 @@ onPress={async () => {
         </TouchableOpacity>
 
         {/* Apple */}
-       
+
 
         {/* Footer */}
         <TouchableOpacity className="mt-6 items-center" onPress={() => navigation.navigate('Register')}>

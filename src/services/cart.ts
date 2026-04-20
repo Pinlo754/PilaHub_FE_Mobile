@@ -113,7 +113,7 @@ export async function getCartSummary(userId: string) {
   return { totalItems, totalPrice, lines };
 }
 
-export async function setInstallationRequest(userId: string, productId: string, installationRequest: boolean): Promise<CartLine[]> {
+export async function setInstallationRequest1(userId: string, productId: string, installationRequest: boolean): Promise<CartLine[]> {
   try {
     const uid = userId || 'guest';
     const lines = await getCart(uid);
