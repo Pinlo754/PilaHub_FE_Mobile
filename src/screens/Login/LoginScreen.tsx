@@ -16,7 +16,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,17 +138,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Remember & Forgot */}
         <View className="flex-row items-center justify-between mt-4">
-          <TouchableOpacity
-            className="flex-row items-center"
-            onPress={() => setRemember(!remember)}
-          >
-            <View
-              className={`w-4 h-4 border mr-2 ${
-                remember ? "bg-secondaryText" : "bg-white"
-              }`}
-            />
-            <Text>Nhớ tài khoản</Text>
-          </TouchableOpacity>
+     
 
           <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
             <Text className="text-secondaryText">Quên mật khẩu?</Text>

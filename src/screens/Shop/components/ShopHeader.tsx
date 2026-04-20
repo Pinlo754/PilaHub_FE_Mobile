@@ -10,12 +10,19 @@ const RECENT_KEY = 'shop_recent_searches';
 
 const stylesHeader = StyleSheet.create({
   cartWrap: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
-  badgeWrap: { position: 'absolute', right: -2, top: -4, backgroundColor: '#F59E0B', minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
+  badgeWrap: {
+    position: 'absolute',
+    right: -2,
+    top: -4,
+    backgroundColor: '#F59E0B',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-});
-
-const stylesAvatar = StyleSheet.create({
-  img: { width: '100%', height: '100%' },
 });
 
 // reference to avoid unused variable lint in this edit block
@@ -37,9 +44,13 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
       (async () => {
         try {
           await loadCart();
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       })();
-      return () => { /* cleanup */ };
+      return () => {
+        /* cleanup */
+      };
     }, [loadCart])
   );
 
@@ -80,7 +91,6 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
 
   function clearInput() {
     setQuery('');
-    // if cleared while focused, also refresh to new products (handled by parent onSearch when empty)
     onSearch?.('');
     inputRef.current?.focus();
   }
@@ -92,7 +102,9 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
     onSearch?.(q);
     Keyboard.dismiss();
     setFocused(false);
-    try { (navigation as any).navigate('ShopSearchResult', { q }); } catch { }
+    try {
+      (navigation as any).navigate('ShopSearchResult', { q });
+    } catch {}
   }
 
   function handleSelectRecent(item: string) {
@@ -101,33 +113,31 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
     addToRecent(item);
     setFocused(false);
     Keyboard.dismiss();
-    try { (navigation as any).navigate('ShopSearchResult', { q: item }); } catch { }
+    try {
+      (navigation as any).navigate('ShopSearchResult', { q: item });
+    } catch {}
   }
 
   return (
     <View className="px-4 pt-6 pb-3 bg-amber-50">
       <View className="flex-row items-center justify-between">
         <Text className="text-2xl font-bold color-foreground">Cửa hàng</Text>
-        <View className="flex-row items-center gap-3">
+
+        <View className="flex-row items-center">
           <Pressable className="p-2">
             <Ionicons name="notifications-outline" size={22} color={colors.foreground} />
           </Pressable>
 
           {/* Profile button with avatar image: navigate to TraineeProfile */}
-          <Pressable className="w-10 h-10 rounded-full overflow-hidden p-0" onPress={() => (navigation as any).navigate('TraineeProfile')}>
-            <Image
-              source={{ uri: 'https://www.toponseek.com/wp-content/uploads/2024/07/celeb-la-gi-6.jpg' }}
-              style={stylesAvatar.img}
-              resizeMode="cover"
-            />
-          </Pressable>
 
           <Pressable className="p-2" onPress={() => (navigation as any).navigate('Cart')}>
             <View style={stylesHeader.cartWrap}>
               <Ionicons name="cart-outline" size={22} color={colors.foreground} />
               {totalItems > 0 && (
                 <View style={stylesHeader.badgeWrap}>
-                  <Text style={stylesHeader.badgeText}>{totalItems > 99 ? '99+' : String(totalItems)}</Text>
+                  <Text style={stylesHeader.badgeText}>
+                    {totalItems > 99 ? '99+' : String(totalItems)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -145,7 +155,6 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
             value={query}
             onChangeText={setQuery}
             onFocus={() => {
-              // stay within Shop: show recent dropdown instead of navigating away
               setFocused(true);
             }}
             onBlur={() => setTimeout(() => setFocused(false), 150)}
@@ -158,13 +167,17 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
               <Ionicons name="close-circle" size={18} color={colors.secondaryText} />
             </Pressable>
           ) : (
-            <Pressable onPress={() => { inputRef.current?.focus(); }} className="p-2">
+            <Pressable
+              onPress={() => {
+                inputRef.current?.focus();
+              }}
+              className="p-2"
+            >
               <Ionicons name="search" size={18} color={'#E07A4D'} />
             </Pressable>
           )}
         </View>
 
-        {/* Recent searches dropdown */}
         {focused && (
           <View className="mt-3 bg-white rounded-xl overflow-hidden border border-background-sub2">
             {recent.length > 0 ? (

@@ -6,6 +6,7 @@ import axios from '../../hooks/axiosInstance';
 import { useOnboardingStore } from '../../store/onboarding.store';
 import { useRoadmapStore } from '../../store/roadmap.store';
 import GoalPicker from './components/GoalPicker';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 const WEEKDAY_LABELS_VN: Record<string, string> = {
   MONDAY: 'Thứ 2',
@@ -116,6 +117,10 @@ const CreateRoadmapScreen: React.FC = () => {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
+        <TouchableOpacity onPress={() => nav.goBack()} className="w-7 items-center justify-center">
+          <Ionicons name="arrow-back" size={22} color="#333" />
+        </TouchableOpacity>
+
         <Text className="flex-1 text-center text-lg font-semibold">Tạo Lộ Trình AI</Text>
         <View className="w-7" />
       </View>

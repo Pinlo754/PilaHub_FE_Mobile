@@ -13,10 +13,10 @@ export async function fetchMyWallet(): Promise<ServiceResult> {
   }
 }
 
-export async function createWallet(): Promise<ServiceResult> {
+// Open (enable) wallet for authenticated user
+export async function openMyWallet(): Promise<ServiceResult> {
   try {
-    // create wallet endpoint — best-effort guess using /wallet
-    const res = await api.post('/wallet');
+    const res = await api.post('/wallet/my-wallet/open');
     const data = res.data?.data ?? res.data ?? res;
     return { ok: true, data };
   } catch (e: any) {

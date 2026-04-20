@@ -85,8 +85,22 @@ const HealthProfilesScreen: React.FC = () => {
                     }} className={`p-3 rounded-lg ${selected === p ? 'bg-amber-50' : 'bg-white'} mb-2 shadow`}>
                     <View className="flex-row justify-between items-center">
                       <View>
-                        <Text className="font-semibold">{p.name ?? `Hồ sơ ${idx+1}`}</Text>
-                        <Text className="text-sm text-gray-500">{new Date(p.createdAt ?? p.created_at ?? Date.now()).toLocaleString()}</Text>
+                        {/* Title: latest profile shows as 'Hồ sơ hiện tại', others show date */}
+                        {(() => {
+                          const createdAt = new Date(p.createdAt ?? p.created_at ?? Date.now());
+                          // Format like: '17 Tháng 4 2026'
+                          const day = createdAt.getDate();
+                          const month = createdAt.getMonth() + 1;
+                          const year = createdAt.getFullYear();
+                          const dateLabel = `${day} Tháng ${month} ${year}`;
+                          const titleText = p.isLatest ? 'Hồ sơ hiện tại' : `Hồ sơ ${dateLabel}`;
+                          return (
+                            <>
+                              <Text className="font-semibold">{titleText}</Text>
+                              <Text className="text-sm text-gray-500">{new Date(p.createdAt ?? p.created_at ?? Date.now()).toLocaleString()}</Text>
+                            </>
+                          );
+                        })()}
                       </View>
                       <View className="flex-row items-center">
                         {p.isLatest ? (

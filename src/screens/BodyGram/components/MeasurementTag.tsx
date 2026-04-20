@@ -3,17 +3,19 @@ import { Pressable, Text, View, StyleSheet } from 'react-native';
 
 type Props = {
   label: string;
-  value?: number;
+  value?: number | string;
   onPress: () => void;
   style?: any;
+  unit?: string;
 };
 
-export default function MeasurementTag({ label, value, onPress, style }: Props) {
+export default function MeasurementTag({ label, value, onPress, style, unit }: Props) {
+  const displayUnit = unit ?? 'cm';
   return (
     <Pressable onPress={onPress} style={style}>
       <View style={styles.container}>
         <Text style={styles.label}>{label}</Text>
-        {value != null && <Text style={styles.value}>{typeof value === 'number' ? value.toFixed(0) + ' cm' : String(value)}</Text>}
+        {value != null && <Text style={styles.value}>{typeof value === 'number' ? value.toFixed(0) + ' ' + displayUnit : String(value)}</Text>}
       </View>
     </Pressable>
   );

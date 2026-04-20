@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image } from 'react-native';
-import { fetchMyHealthProfileMetrics, fetchHealthProfileById } from '../../../services/profile';
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image, Alert, ActivityIndicator } from 'react-native';
+import { fetchMyHealthProfileMetrics, fetchHealthProfileById, submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
 import { LineChart } from 'react-native-chart-kit';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
@@ -12,6 +12,7 @@ export default function BodyMetricDetails({ navigation }: any) {
   const [metricsData, setMetricsData] = useState<any | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [activeMetric, setActiveMetric] = useState<'weightKg' | 'bmi' | 'bodyFatPercentage' | 'muscleMassKg' | 'waistCm' | 'hipCm'>('weightKg');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -25,7 +26,10 @@ export default function BodyMetricDetails({ navigation }: any) {
         const latestId = res.data?.latestProfileId;
         if (latestId) {
           const pRes = await fetchHealthProfileById(String(latestId));
-          if (pRes.ok) setProfile(pRes.data);
+          if (pRes.ok) {
+            console.log('DEBUG: fetched latest health profile:', pRes.data);
+            setProfile(pRes.data);
+          }
         }
       } catch {
         // ignore
@@ -48,9 +52,19 @@ export default function BodyMetricDetails({ navigation }: any) {
 
     if (safe.length === 0) return { labels: [], values: [] };
 
+    // sort by date ascending to ensure chart x-axis is chronological
+    safe.sort((a, b) => {
+      const ta = Number(new Date(a.date));
+      const tb = Number(new Date(b.date));
+      return ta - tb;
+    });
+
     const vals = safe.map((d) => d.value);
-    const labels = safe.map((d) => d.date);
-    return { labels, values: vals };
+    // shorten labels for readability (dd/MM)
+    const labels = safe.map((d) => {
+      try { return new Date(d.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); } catch { return String(d.date); }
+    });
+    return { labels, values: vals, raw: safe };
   }
 
   const activeChart = useMemo(() => {
@@ -61,23 +75,84 @@ export default function BodyMetricDetails({ navigation }: any) {
   // helper to read a named measurement from profile.metadata.measurements
   function findMeasurement(profileObj: any, keywords: string[]) {
     try {
-      let meta = profileObj?.metadata ?? profileObj?.metadata;
-      if (typeof meta === 'string') meta = JSON.parse(meta || '{}');
-      const arr = meta?.measurements ?? [];
+      // 1) quick scan profile top-level numeric fields (e.g., waistCm, hipCm, weightKg, bodyFatPercentage)
+      if (profileObj && typeof profileObj === 'object') {
+        for (const k of Object.keys(profileObj)) {
+          const v = profileObj[k];
+          if (v != null && typeof v === 'number') {
+            const lname = k.toLowerCase();
+            for (const kw of keywords) {
+              if (lname.includes(kw)) {
+                // heuristic unit
+                if (lname.includes('cm') || kw.includes('waist') || kw.includes('hip') || kw.includes('thigh') || kw.includes('bust') || kw.includes('chest') || kw.includes('shoulder') || kw.includes('arm')) return `${Math.round(v)}cm`;
+                if (lname.includes('kg') || kw.includes('weight') || kw.includes('mass')) return `${v}kg`;
+                if (lname.includes('fat') || kw.includes('fat') || lname.includes('bfp') || kw.includes('bodyfat')) return `${v}%`;
+                return String(v);
+              }
+            }
+          }
+        }
+      }
+
+      // 2) if metadata is a plain object like { shoulder:20, thigh:20 }, check keys
+      let meta = profileObj?.metadata ?? {};
+      if (typeof meta === 'string') {
+        try { meta = JSON.parse(meta || '{}'); } catch { meta = {}; }
+      }
+      if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+        for (const mk of Object.keys(meta)) {
+          const mv = meta[mk];
+          if (mv == null) continue;
+          const mkLower = mk.toLowerCase();
+          for (const kw of keywords) {
+            if (mkLower.includes(kw) || kw.includes(mkLower)) {
+              const num = Number(mv);
+              if (!Number.isFinite(num)) return `${mv}`;
+              // heuristic: body part -> cm, weight -> kg, fat -> %
+              if (mkLower.includes('waist') || mkLower.includes('hip') || mkLower.includes('thigh') || mkLower.includes('bust') || mkLower.includes('chest') || mkLower.includes('shoulder') || mkLower.includes('arm')) return `${Math.round(num)}cm`;
+              if (mkLower.includes('weight') || mkLower.includes('kg') || mkLower.includes('mass')) return `${num}kg`;
+              if (mkLower.includes('fat') || mkLower.includes('bodyfat')) return `${num}%`;
+              return `${num}`;
+            }
+          }
+        }
+      }
+
+      // 3) fall back to previous flexible array/object search
+      let arr: any[] = [];
+      if (Array.isArray(profileObj?.measurements)) {
+        arr = profileObj.measurements;
+      } else {
+        if (Array.isArray(meta?.measurements)) arr = meta.measurements;
+        else if (Array.isArray(meta?.measurementList)) arr = meta.measurementList;
+      }
+
+      if (arr.length === 0) {
+        for (const k of Object.keys(profileObj || {})) {
+          const v = profileObj[k];
+          if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'object' && (v[0].name || v[0].key || v[0].value)) {
+            arr = v; break;
+          }
+        }
+      }
+
       for (const m of arr) {
-        const name = (m.name || m.key || '') + '';
+        const name = (m.name || m.key || m.label || '') + '';
         const lname = name.toLowerCase();
         for (const kw of keywords) {
           if (lname.includes(kw)) {
             const unit = ((m.unit || '') + '').toLowerCase();
-            const raw = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? null;
-            if (raw == null) return null;
+            const raw = m.value ?? m.latestValue ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? (m.values && m.values[0] && m.values[0].value) ?? null;
+            if (raw == null || raw === '') return null;
             const num = Number(raw);
-            if (isNaN(num)) return null;
+            if (!Number.isFinite(num)) return `${raw}`;
             if (unit === 'mm') return `${Math.round(num/10)}cm`;
             if (unit === 'cm') return `${Math.round(num)}cm`;
             if (unit === 'g') return `${(num/1000).toFixed(2)}kg`;
             if (unit === 'kg') return `${num}kg`;
+            if (kw.includes('waist') || kw.includes('hip') || kw.includes('thigh') || kw.includes('bust') || kw.includes('chest') || kw.includes('bicep') || kw.includes('arm')) return `${Math.round(num)}cm`;
+            if (kw.includes('weight') || kw.includes('kg') || kw.includes('mass')) return `${num}kg`;
+            if (kw.includes('fat') || kw.includes('bodyfat')) return `${num}%`;
             return `${raw}`;
           }
         }
@@ -86,12 +161,102 @@ export default function BodyMetricDetails({ navigation }: any) {
     return null;
   }
 
+  // return a readable latest value for a given metric key
+  function getLatestValue(key: string) {
+    try {
+      // prefer top-level profile fields if present (backend DTO may include these)
+      const top = profile?.[key];
+      if (top != null) {
+        if (String(key).toLowerCase().includes('kg')) return `${top}kg`;
+        if (String(key).toLowerCase().includes('cm')) return `${top}cm`;
+        if (key === 'bodyFatPercentage') return `${top}%`;
+        return String(top);
+      }
+    } catch { /* ignore */ }
+
+    const kws: any = {
+      weightKg: ['weight', 'weightkg', 'mass', 'kg'],
+      bmi: ['bmi'],
+      bodyFatPercentage: ['body fat', 'bodyfat', 'fat', 'body_fat'],
+      muscleMassKg: ['muscle', 'muscle mass', 'musclemass'],
+      waistCm: ['waist', 'waistgirth', 'belly'],
+      hipCm: ['hip', 'hipgirth']
+    };
+
+    // try metadata measurements
+    const found = findMeasurement(profile, kws[key] || []);
+    if (found) return found;
+
+    // fallback to last metric point from metrics arrays
+    const arr = metrics?.[key];
+    if (Array.isArray(arr) && arr.length > 0) {
+      const chart = toChart(arr);
+      if (chart.values && chart.values.length > 0) {
+        const last = chart.values[chart.values.length - 1];
+        if (String(key).toLowerCase().includes('kg')) return `${last}kg`;
+        if (String(key).toLowerCase().includes('cm')) return `${last}cm`;
+        if (key === 'bodyFatPercentage') return `${last}%`;
+        return String(last);
+      }
+    }
+
+    return '-';
+  }
+
+  async function handleRescan() {
+    try {
+      (navigation as any).navigate('BodyScanFlow');
+    } catch (e) {
+      console.log('Rescan navigation error', e);
+      Alert.alert('Lỗi', 'Không thể bắt đầu quét.');
+    }
+  }
+
+  async function handleSaveToProfile() {
+    if (!profile) {
+      Alert.alert('Không có dữ liệu', 'Không có hồ sơ nào để lưu. Vui lòng quét Bodygram trước.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const payload = buildTraineeProfilePayload(profile);
+      const res = await submitProfiles(payload);
+      if (res && res.ok) {
+        Alert.alert('Thành công', 'Đã tạo / cập nhật hồ sơ sức khỏe.');
+        // refresh metrics list
+        try {
+          const refreshed = await fetchMyHealthProfileMetrics();
+          if (refreshed.ok) setMetricsData(refreshed.data);
+        } catch { /* ignore */ }
+      } else {
+        const errMsg = res ? ((res as any).error || (res as any).message || JSON.stringify(res)) : null;
+        Alert.alert('Lỗi', errMsg || 'Không thể lưu hồ sơ');
+      }
+    } catch (e) {
+      console.log('Save profile error', e);
+      Alert.alert('Lỗi', 'Không thể lưu hồ sơ. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}><Ionicons name="arrow-back" size={22} color="#333" /></Pressable>
         <Text style={styles.headerTitle}>Lịch sử số đo</Text>
         <View style={styles.headerBtn} />
+      </View>
+
+      {/* ACTIONS: rescan or save to health profile */}
+      <View style={styles.actionRow}>
+        <Pressable onPress={handleRescan} style={styles.actionBtn}>
+          <Text style={styles.actionText}>Quét lại Bodygram</Text>
+        </Pressable>
+        <Pressable onPress={handleSaveToProfile} style={[styles.actionBtn, styles.actionBtnPrimary]} disabled={saving}>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionTextPrimary}>Lưu vào hồ sơ</Text>}
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
@@ -132,19 +297,21 @@ export default function BodyMetricDetails({ navigation }: any) {
             {['weightKg','bmi','bodyFatPercentage','muscleMassKg','waistCm','hipCm'].map((k) => {
               const comp = latestComparison?.[k];
               const upDown = comp == null ? null : (Number(comp) > 0 ? 'up' : (Number(comp) < 0 ? 'down' : 'same'));
-              const color = upDown === 'up' ? '#dc2626' : upDown === 'down' ? '#16a34a' : '#6b7280';
+              const diffColor = upDown === 'up' ? '#dc2626' : upDown === 'down' ? '#16a34a' : '#6b7280';
               const labelMap: any = { weightKg: 'Cân nặng', bmi: 'BMI', bodyFatPercentage: 'Tỷ lệ mỡ', muscleMassKg: 'Khối cơ', waistCm: 'Eo', hipCm: 'Hông' };
+              const latest = getLatestValue(k as string);
               return (
                 <View key={k} style={styles.quickItem}>
                   <Text style={styles.quickLabel}>{labelMap[k]}</Text>
-                  <Text style={[styles.quickValue, { color }]}>{comp == null ? '-' : (Number(comp) > 0 ? `+${comp}` : `${comp}`)}</Text>
+                  <Text style={styles.quickValue}>{latest}</Text>
+                  {comp != null ? <Text style={[styles.quickDiff, { color: diffColor }]}>{Number(comp) > 0 ? `+${comp}` : `${comp}`}</Text> : null}
                 </View>
               );
             })}
           </View>
-        </View>
+         </View>
 
-        <View style={styles.card}>
+         <View style={styles.card}>
           <Text style={styles.cardTitle}>Biểu đồ</Text>
 
           <View style={styles.tabRow}>
@@ -155,7 +322,7 @@ export default function BodyMetricDetails({ navigation }: any) {
             ))}
           </View>
 
-          {/* render chart only when we have at least 2 valid numeric points */}
+          {/* render chart when >=2 points; if exactly 1 point, show latest value card; otherwise show placeholder */}
           {Array.isArray(activeChart.values) && activeChart.values.length >= 2 ? (
             <LineChart
               data={{ labels: (activeChart.labels || []).map(String), datasets: [{ data: (activeChart.values || []).map((v: any) => Number(v)) }] }}
@@ -174,6 +341,16 @@ export default function BodyMetricDetails({ navigation }: any) {
               withInnerLines
               style={styles.chartStyle}
             />
+          ) : Array.isArray(activeChart.values) && activeChart.values.length === 1 ? (
+            // single measurement: show latest value and date prominently
+            <View style={[styles.card, styles.singleCard]}> 
+              <Text style={styles.singleTitle}>Giá trị mới nhất</Text>
+              <Text style={styles.singleValue}>{String(activeChart.values[0])}</Text>
+              {activeChart.raw && activeChart.raw[0] && (
+                <Text style={styles.singleDate}>{new Date(activeChart.raw[0].date).toLocaleDateString('vi-VN')}</Text>
+              )}
+              <Text style={styles.singleHint}>Cần ít nhất 2 lần đo để hiển thị biểu đồ</Text>
+            </View>
           ) : (
             <View style={styles.placeholderWrap}>
               <Text style={styles.placeholderText}>Không đủ dữ liệu để hiển thị biểu đồ</Text>
@@ -191,6 +368,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff' },
   headerBtn: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '700' },
+  actionRow: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  actionBtn: { flex: 1, paddingVertical: 10, marginHorizontal: 6, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' },
+  actionBtnPrimary: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  actionText: { color: '#374151', fontWeight: '600' },
+  actionTextPrimary: { color: '#fff', fontWeight: '700' },
   container: { padding: 16 },
   card: { backgroundColor: '#fff', padding: 14, borderRadius: 12, marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
@@ -201,7 +383,8 @@ const styles = StyleSheet.create({
   quickItem: { width: '48%', padding: 10, borderRadius: 10, backgroundColor: '#fdf6ec', marginBottom: 8 },
   quickLabel: { fontSize: 12, color: '#6b7280' },
   quickValue: { fontSize: 16, fontWeight: '700' },
-  tabRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  quickDiff: { fontSize: 12, fontWeight: '500', marginLeft: 4 },
+  tabRow: { flexDirection: 'row', flexWrap: 'wrap' },
   tabBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#f3f4f6', marginRight: 8, marginBottom: 8 },
   tabBtnActive: { backgroundColor: '#2563eb' },
   tabText: { color: '#374151', fontWeight: '600' },
@@ -229,4 +412,9 @@ const styles = StyleSheet.create({
   bubbleCardSmall: { backgroundColor: '#f3f4f6', borderRadius: 10, padding: 8, marginBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bubbleLabel: { fontSize: 12, color: '#6b7280' },
   bubbleValueSmall: { fontSize: 14, fontWeight: '700' },
+  singleCard: { alignItems: 'center' },
+  singleTitle: { fontSize: 14, color: '#6b7280', marginBottom: 6 },
+  singleValue: { fontSize: 28, fontWeight: '800', color: '#1f2937' },
+  singleDate: { marginTop: 6, color: '#6b7280' },
+  singleHint: { marginTop: 8, color: '#9CA3AF' },
 });

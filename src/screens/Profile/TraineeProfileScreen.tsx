@@ -9,7 +9,7 @@ import SettingList from './components/SettingList';
 import ProfileEditModal from './components/ProfileEditModal';
 import { launchImageLibrary } from 'react-native-image-picker';
 
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const localStyles = StyleSheet.create({
@@ -27,6 +27,7 @@ const TraineeProfileScreen: React.FC = () => {
   const [wallet, setWallet] = useState<any | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const navigation = useNavigation();
+  const route = useRoute<any>();
 
   useEffect(() => {
     let mounted = true;
@@ -71,6 +72,14 @@ const TraineeProfileScreen: React.FC = () => {
 
     return () => { mounted = false; };
   }, []);
+
+  // If navigated with param openEdit, open modal after profile loaded
+  useEffect(() => {
+    if (!loading && route?.params?.openEdit) {
+      openEdit();
+      try { (navigation as any).setParams({ openEdit: false }); } catch {}
+    }
+  }, [loading, route?.params?.openEdit]);
 
   const openEdit = () => {
     setForm({
