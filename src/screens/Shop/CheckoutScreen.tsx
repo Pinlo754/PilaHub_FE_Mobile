@@ -164,8 +164,6 @@ function HeaderBlock({ lines, selectedPayment, setSelectedPayment, onUpdateQuant
         <Text style={styles.sectionTitle}>Phương thức thanh toán</Text>
         <View style={styles.card}>
           <PaymentOption id="pilapay" title="PilaPay" icon={'wallet-outline'} selected={selectedPayment} onSelect={setSelectedPayment} />
-          <PaymentOption id="card" title="Thẻ / Ngân hàng" icon={'card-outline'} selected={selectedPayment} onSelect={setSelectedPayment} />
-          <PaymentOption id="cod" title="Thanh toán khi nhận (COD)" icon={'cash-outline'} selected={selectedPayment} onSelect={setSelectedPayment} />
         </View>
       </View>
     </View>
@@ -218,7 +216,6 @@ function ProductShippingOptions({ productId: _productId, vendorId: _vendorId, se
   return (
     <View style={styles.productShippingCard}>
       <ShippingOption id="fast" title="Giao hàng nhanh" subtitle="Nhận trong 1-2 ngày" price={fastPrice} selected={cur} onSelect={(id) => onSelect(id)} />
-      <ShippingOption id="standard" title="Giao hàng tiêu chuẩn" subtitle="Nhận trong 3-5 ngày" price={'free'} selected={cur} onSelect={(id) => onSelect(id)} />
     </View>
   );
 }
