@@ -12,6 +12,7 @@ type Props = {
   isPracticeTab: boolean;
   workoutHistory?: WorkoutSessionType[];
   canPlayTheory: boolean;
+  fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
 };
 
 const Description = ({
@@ -19,6 +20,7 @@ const Description = ({
   isPracticeTab,
   workoutHistory = [],
   canPlayTheory,
+  fetchAISummary,
 }: Props) => {
   // USE REF
   const scrollRef = useRef<ScrollView>(null);
@@ -97,7 +99,10 @@ const Description = ({
                   </Text>
                 </View>
               ) : (
-                <HistoryTable workoutHistory={workoutHistory} />
+                <HistoryTable
+                  workoutHistory={workoutHistory}
+                  fetchAISummary={fetchAISummary}
+                />
               )}
             </View>
           </View>

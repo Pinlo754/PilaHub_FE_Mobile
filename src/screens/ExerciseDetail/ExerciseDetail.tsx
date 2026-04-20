@@ -46,6 +46,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     workoutHistory,
     canPlayTheory,
     exerciseEquipments,
+    fetchAISummary,
   } = useExerciseDetail({
     route,
     navigation,
@@ -113,6 +114,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               activePackage={activePackage}
               workoutHistory={workoutHistory}
               canPlayTheory={canPlayTheory}
+              fetchAISummary={fetchAISummary}
             />
           )}
 

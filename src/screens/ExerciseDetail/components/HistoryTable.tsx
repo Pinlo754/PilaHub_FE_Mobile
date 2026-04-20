@@ -8,11 +8,12 @@ import WorkoutDetailModal from './WorkoutDetailModal';
 
 type Props = {
   workoutHistory: WorkoutSessionType[];
+  fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
 };
 
 const PAGE_SIZE = 3;
 
-const HistoryTable = ({ workoutHistory }: Props) => {
+const HistoryTable = ({ workoutHistory, fetchAISummary }: Props) => {
   const [page, setPage] = useState(1);
   const [selectedSession, setSelectedSession] =
     useState<WorkoutSessionType | null>(null);
@@ -117,6 +118,7 @@ const HistoryTable = ({ workoutHistory }: Props) => {
       <WorkoutDetailModal
         session={selectedSession}
         onClose={() => setSelectedSession(null)}
+        onPressAISummary={fetchAISummary}
       />
     </>
   );
