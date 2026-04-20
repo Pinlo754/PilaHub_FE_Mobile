@@ -132,7 +132,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const payload: WorkoutExerciseReq = {
         exerciseId: id,
         haveAITracking: true,
-        haveIOTDeviceTracking: true,
+        haveIOTDeviceTracking: false,
       };
 
       const res = await workoutSessionService.startFreeWorkout(payload);

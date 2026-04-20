@@ -73,6 +73,11 @@ import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import OrderSuccessScreen from '../screens/Shop/OrderSuccessScreen';
 import { PracticePayload } from '../utils/CourseLessonProgressType';
+import CreatePostScreen from '../screens/Coach/Blog/CreatePostScreen';
+import ChatScreen from '../screens/Chat/ChatScreen';
+import { MyBlogScreen } from '../screens/Coach/Blog/MyBlog';
+import ListChatScreen from '../screens/Chat/ListChatScreen';
+import TraineeDetailScreen from '../screens/Coach/TraineeList/TraineeDetail';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -202,6 +207,11 @@ export type RootStackParamList = {
         title?: string;
       }
     | undefined;
+  CreatePostScreen: undefined;
+  ChatScreen: { id: string };
+  MyBlogScreen: undefined;
+  ListChatScreen: undefined;
+  TraineeDetailScreen: { traineeId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -393,6 +403,11 @@ const AppNavigator: React.FC = () => {
               component={TransactionDetailScreen}
             />
             <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
+            <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
+            <Stack.Screen name="ChatScreen" component={ChatScreen} />
+            <Stack.Screen name="MyBlogScreen" component={MyBlogScreen} />
+            <Stack.Screen name="ListChatScreen" component={ListChatScreen} />
+            <Stack.Screen name="TraineeDetailScreen" component={TraineeDetailScreen} />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

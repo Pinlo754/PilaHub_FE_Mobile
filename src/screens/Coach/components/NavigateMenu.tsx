@@ -17,9 +17,9 @@ const features: FeatureItem[] = [
   { id: '1', title: 'Danh sách học viên', icon: "people-outline", screen: 'TraineeListScreen' },
   { id: '2', title: 'Đăng ký lịch nghỉ', icon: "calendar-outline", screen: 'CoachRegisterSchedule' },
   { id: '3', title: 'Danh sách yêu cầu', icon: "list-circle-outline", screen: 'ListRequest' },
-  { id: '4', title: 'Tin nhắn', icon: "chatbubbles-outline", screen: 'Messages' },
+  { id: '4', title: 'Tin nhắn', icon: "chatbubbles-outline", screen: 'ListChatScreen' },
   { id: '5', title: 'Hồ sơ cá nhân', icon: "person-outline", screen: 'CoachProfileScreen' },
-  { id: '6', title: 'Cài đặt', icon: "settings-outline", screen: 'FeedbackScreen' },
+  { id: '6', title: 'Blog của tôi', icon: "settings-outline", screen: 'MyBlogScreen' },
 ];
 
 const FeatureGrid = () => {

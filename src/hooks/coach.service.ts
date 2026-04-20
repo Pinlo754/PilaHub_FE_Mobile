@@ -2,6 +2,7 @@ import { ApiResponse } from '../utils/ApiResType';
 import api from './axiosInstance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CoachType } from '../utils/CoachType';
+import { get } from 'react-native/Libraries/NativeComponent/NativeComponentRegistry';
 
 export const CoachService = {
 
@@ -118,4 +119,34 @@ export const CoachService = {
 
     return res.data.data;
   },
+
+  updateProfile: async (id:string, payload: any) => {
+    const res = await api.put<ApiResponse<[]>>(`/coaches/${id}`, payload);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  getMyRoadmap: async () => {
+    const res = await api.get<ApiResponse<[]>>(`/roadmaps/my`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+
 };

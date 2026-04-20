@@ -18,14 +18,21 @@ const App: React.FC = () => {
   console.log('App component rendered');
 
   useEffect(() => {
+  const unsubscribe = messaging().onMessage(async remoteMessage => {
+    console.log('Notification received:', remoteMessage);
 
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('Notification received:', remoteMessage);
-    });
+    // await notifee.displayNotification({
+    //   title: remoteMessage.notification?.title || 'Notification',
+    //   body: remoteMessage.notification?.body || '',
+    //   android: {
+    //     channelId: 'default',
+    //   },
+    // });
+  });
 
-    return unsubscribe;
+  return unsubscribe;
+}, []);
 
-  }, []);
   return (
     <SafeAreaProvider>
       <NavigationContainer>
