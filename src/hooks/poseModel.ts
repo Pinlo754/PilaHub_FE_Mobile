@@ -6,12 +6,8 @@ export const LABELS = {
     "shoulder_bridge_single_leg", "side_kick_kneeling_hold", 
     "side_plank", "superman_hold", "swan_hold"
   ],
-  body_parts: [
-    "none", "Core", "Elbows", "Glutes", "Hips", 
-    "Knees", "Lower Back", "Neck", "Shoulders", 
-    "Upper Arms", "Upper Back"
-  ],
-  sides: ["both", "left", "right"]
+  body_parts: ["Arms", "Hips", "Neck", "none"],
+  sides: ["both"],
 };
 
 // Copy đầy đủ 132 giá trị từ model_metadata.json của bạn vào đây

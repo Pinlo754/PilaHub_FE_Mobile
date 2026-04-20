@@ -1,85 +1,34 @@
 {
-  "exercises": {
-    "0": "bridge_hold",
-    "1": "hundred_hold",
-    "2": "plank",
-    "3": "shoulder_bridge_single_leg",
-    "4": "side_kick_kneeling_hold",
-    "5": "side_plank",
-    "6": "superman_hold",
-    "7": "swan_hold"
+  "label": {
+    "0": "correct",
+    "1": "incorrect"
   },
-  "body_parts": {
-    "0": "none",
-    "1": "Core",
-    "2": "Elbows",
-    "3": "Glutes",
-    "4": "Hips",
-    "5": "Knees",
-    "6": "Lower Back",
-    "7": "Neck",
-    "8": "Shoulders",
-    "9": "Upper Arms",
-    "10": "Upper Back"
+  "body_part": {
+    "0": "Arms",
+    "1": "Hips",
+    "2": "Neck",
+    "3": "none"
   },
-  "sides": {
-    "0": "both",
-    "1": "left",
-    "2": "right"
+  "side": {
+    "0": "both"
   },
-  "exercise_body_parts": {
-    "plank": [
-      "Core",
-      "Lower Back",
-      "Shoulders",
-      "Elbows",
-      "Neck"
-    ],
-    "side_plank": [
-      "Core",
-      "Hips",
-      "Shoulders",
-      "Upper Back"
-    ],
-    "hundred_hold": [
-      "Core",
-      "Neck",
-      "Lower Back",
-      "Shoulders",
-      "Upper Arms"
-    ],
-    "bridge_hold": [
-      "Hips",
-      "Glutes",
-      "Lower Back",
-      "Knees",
-      "Shoulders"
-    ],
-    "shoulder_bridge_single_leg": [
-      "Hips",
-      "Glutes",
-      "Lower Back",
-      "Knees"
-    ],
-    "swan_hold": [
-      "Upper Back",
-      "Lower Back",
-      "Shoulders",
-      "Neck",
-      "Glutes"
-    ],
-    "side_kick_kneeling_hold": [
-      "Core",
-      "Hips",
-      "Shoulders",
-      "Upper Back"
-    ],
-    "superman_hold": [
-      "Lower Back",
-      "Core",
-      "Neck",
-      "Shoulders",
-      "Glutes"
-    ]
+  "exercise": {
+    "0": "plank",
+    "1": "dummy1",
+    "2": "dummy2",
+    "3": "dummy3",
+    "4": "dummy4",
+    "5": "dummy5",
+    "6": "dummy6",
+    "7": "dummy7"
+  },
+  "input_shape": {
+    "keypoints_input": 144,
+    "exercise_input": 8
+  },
+  "preprocessing": {
+    "keypoints": "normalize_by_hip_center_and_shoulder_distance",
+    "angles": "12_joint_angles_appended",
+    "scaler": "StandardScaler (feature_scaler.pkl)"
   }
 }

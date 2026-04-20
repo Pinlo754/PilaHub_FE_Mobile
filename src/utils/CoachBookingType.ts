@@ -3,6 +3,20 @@ import { LevelType } from './CourseType';
 
 export type BookingType = 'SINGLE' | 'PERSONAL_TRAINING_PACKAGE';
 
+export type HealthProfileType = {
+  healthProfileId: string;
+  traineeId: string;
+  heightCm: number;
+  weightKg: number;
+  bmi: number;
+  bodyFatPercentage: number;
+  muscleMassKg: number;
+  waistCm: number;
+  hipCm: number;
+  source: string;
+  createdAt: string;
+};
+
 export type BookingStatus =
   | 'SCHEDULED'
   | 'CANCELLED_BY_COACH'

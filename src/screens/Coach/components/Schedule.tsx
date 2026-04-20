@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, FlatList, Text, StyleSheet } from 'react-native';
 import CalendarStrip from 'react-native-calendar-strip';
 import moment from 'moment';
-import 'moment/locale/vi'; // Import tiếng Việt
 import { NavigationProp, useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
