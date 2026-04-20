@@ -284,7 +284,7 @@ export const MyBlogScreen = () => {
 /* ============================ 
     POST DETAIL MODAL (Comment & Reply UI)
    ============================ */
-const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) => {
+export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) => {
     const [comments, setComments] = useState<Comment[]>([]);
     const [loadingCmt, setLoadingCmt] = useState(true);
     const [commentText, setCommentText] = useState('');

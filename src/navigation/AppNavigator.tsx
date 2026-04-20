@@ -15,6 +15,7 @@ import BodyScanFlowScreen from '../screens/BodyGram/screens/BodyScanFlowScreen';
 import ResultScreen from '../screens/BodyGram/screens/ResultScreen';
 import BodyGramResult from '../screens/BodyGram/screens/BodyGramResult';
 import BodyMetricDetails from '../screens/BodyGram/screens/BodyMetricDetails';
+import InBodyScan from '../screens/BodyGram/screens/InBodyScan';
 import PlanScreen from '../screens/Plan/PlanScreen';
 import UpgradePlanScreen from '../screens/Plan/UpgradePlanScreen';
 import SubscriptionSuccessScreen from '../screens/Plan/SubscriptionSuccessScreen';
@@ -80,6 +81,8 @@ import ChatScreen from '../screens/Chat/ChatScreen';
 import { MyBlogScreen } from '../screens/Coach/Blog/MyBlog';
 import ListChatScreen from '../screens/Chat/ListChatScreen';
 import TraineeDetailScreen from '../screens/Coach/TraineeList/TraineeDetail';
+import NotificationScreen from '../screens/Notifications/NotificationScreen';
+import DepositScreen from '../screens/Wallet/DepositScreen';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -123,6 +126,7 @@ export type RootStackParamList = {
   BodyGramResult:
     | { measurements: Measurements; avatar?: string; rawResponse?: any }
     | undefined;
+  InBodyScan: undefined;
   BodyMetricDetails: undefined;
   Register: undefined;
   VerifyEmail: { email: string; password?: string };
@@ -158,8 +162,8 @@ export type RootStackParamList = {
   List: undefined;
   DailyTask: undefined;
   RegisterCalendar:
-    | { coach_id?: string | null; pricePerHour?: number }
-    | undefined;
+  | { coach_id?: string | null; pricePerHour?: number }
+  | undefined;
   TraineeFeedback: { liveSessionId?: string } | undefined;
   TraineeReport:
     | {
@@ -169,13 +173,13 @@ export type RootStackParamList = {
       }
     | undefined;
   AISummary:
-    | {
-        feedback: any;
-        videoUrl: string;
-        mistakeLog: any;
-        heartRateLogs?: { heartRate: number; recordedAt: number }[];
-      }
-    | undefined;
+  | {
+    feedback: any;
+    videoUrl: string;
+    mistakeLog: any;
+    heartRateLogs?: { heartRate: number; recordedAt: number }[];
+  }
+  | undefined;
 
   AIPractice: {
     exercise_id: string;
@@ -194,13 +198,13 @@ export type RootStackParamList = {
   SendRequestScreen: { coach_id: string; pricePerHour: number | undefined };
   ListRequest: undefined;
   TraineeHealthProfileResult:
-    | { measurements: Measurements; avatar?: string; rawResponse?: any }
-    | undefined;
+  | { measurements: Measurements; avatar?: string; rawResponse?: any }
+  | undefined;
   ForgotPassword: undefined;
   Wallet: { transactionId?: string } | undefined;
   DepositWebView:
-    | { paymentUrl: string; transactionId?: string; orderCode?: string }
-    | undefined;
+  | { paymentUrl: string; transactionId?: string; orderCode?: string }
+  | undefined;
   DepositResult: { success: boolean; data?: any } | undefined;
   MomoResult: { orderId?: string; previousBalance?: number } | undefined;
   Deposit: undefined;
@@ -210,19 +214,20 @@ export type RootStackParamList = {
   MyDevices: undefined;
   TraineeBooking: undefined;
   SchedulePlayer:
-    | {
-        queue: { ex: any; videoSrc?: string | null }[];
-        startIndex?: number;
-        scheduleId?: string;
-        title?: string;
-      }
-    | undefined;
+  | {
+    queue: { ex: any; videoSrc?: string | null }[];
+    startIndex?: number;
+    scheduleId?: string;
+    title?: string;
+  }
+  | undefined;
   CreatePostScreen: undefined;
   ChatScreen: { id: string };
   MyBlogScreen: undefined;
   ListChatScreen: undefined;
   TraineeDetailScreen: { traineeId: string };
   MyInjuries: undefined;
+  NotificationScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -258,6 +263,11 @@ const AppNavigator: React.FC = () => {
               name="BodyGramResult"
               component={BodyGramResult}
               options={{ title: 'Kết quả Bodygram' }}
+            />
+            <Stack.Screen
+              name="InBodyScan"
+              component={InBodyScan}
+              options={{ title: 'InBody Scan' }}
             />
             <Stack.Screen
               name="BodyMetricDetails"
@@ -398,10 +408,6 @@ const AppNavigator: React.FC = () => {
             />
             <Stack.Screen name="Wallet" component={WalletScreen} />
             <Stack.Screen
-              name="Deposit"
-              component={require('../screens/Wallet/DepositScreen').default}
-            />
-            <Stack.Screen
               name="Withdraw"
               component={require('../screens/Wallet/WithdrawScreen').default}
             />
@@ -413,27 +419,27 @@ const AppNavigator: React.FC = () => {
               name="DepositResult"
               component={DepositResultScreen}
             />
-            <Stack.Screen name="MomoResult" component={MomoResultScreen} />
+            <Stack.Screen
+              name="Deposit"
+              component={DepositScreen}
+            />
+
+            <Stack.Screen
+              name="MomoResult"
+              component={MomoResultScreen}
+            />
             <Stack.Screen
               name="TransactionDetail"
               component={TransactionDetailScreen}
             />
             <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
-            <Stack.Screen
-              name="MyInjuries"
-              component={require('../screens/Profile/MyInjuriesScreen').default}
-            />
-            <Stack.Screen
-              name="CreatePostScreen"
-              component={CreatePostScreen}
-            />
+            <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
             <Stack.Screen name="ChatScreen" component={ChatScreen} />
             <Stack.Screen name="MyBlogScreen" component={MyBlogScreen} />
             <Stack.Screen name="ListChatScreen" component={ListChatScreen} />
-            <Stack.Screen
-              name="TraineeDetailScreen"
-              component={TraineeDetailScreen}
-            />
+            <Stack.Screen name="TraineeDetailScreen" component={TraineeDetailScreen} />
+            <Stack.Screen name="MyInjuries" component={require('../screens/Profile/MyInjuriesScreen').default} />
+            <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

@@ -7,6 +7,7 @@ import { useOnboardingStore } from '../../store/onboarding.store';
 import { useRoadmapStore } from '../../store/roadmap.store';
 import GoalPicker from './components/GoalPicker';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { Calendar } from 'react-native-calendars';
 
 const WEEKDAY_LABELS_VN: Record<string, string> = {
   MONDAY: 'Thứ 2',
@@ -31,13 +32,16 @@ const CreateRoadmapScreen: React.FC = () => {
   const [workoutLevel] = useState<typeof workoutLevelFromOnboarding>(workoutLevelFromOnboarding);
   const [trainingDays, setTrainingDays] = useState<string[]>(['MONDAY','WEDNESDAY','FRIDAY']);
   const [durationWeeks, setDurationWeeks] = useState<string>('5');
+  // Backend requires a startDate (LocalDate YYYY-MM-DD). Default to today.
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0,10));
+  const [showCalendar, setShowCalendar] = useState<boolean>(false);
 
   const [submitting, setSubmitting] = useState(false);
 
   const toggleDay = (d: string) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d]);
 
   const onSubmit = async () => {
-    console.log('CreateRoadmap onSubmit invoked, primaryGoalId:', primaryGoalIdState, 'workoutLevel:', workoutLevel);
+    console.log('CreateRoadmap onSubmit invoked, primaryGoalId:', primaryGoalIdState, 'workoutLevel:', workoutLevel, 'startDate:', startDate);
     if (!primaryGoalIdState) {
       Alert.alert('Lỗi', 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.');
       return;
@@ -52,6 +56,8 @@ const CreateRoadmapScreen: React.FC = () => {
         primaryGoalId: primaryGoalIdState,
         secondaryGoalIds: secondaryGoalIdsState,
         workoutLevel,
+        // send startDate as YYYY-MM-DD (LocalDate expected by backend)
+        startDate,
         trainingDays,
         durationWeeks: parseInt(durationWeeks, 10) || 4,
       };
@@ -99,9 +105,10 @@ const CreateRoadmapScreen: React.FC = () => {
         console.warn('CreateRoadmap: no stages found in AI response. Response keys:', Object.keys(inner));
       }
 
-      // Persist locally and navigate immediately to Plan so user can review the generated roadmap.
+      // Persist locally and navigate into the main tab navigator to the Roadmap tab
+      // so the user sees the roadmap within the app's TabNavigator context.
       addRoadmap({ roadmap: roadmapObj, stages, createdAt: Date.now() });
-      nav.navigate('Plan', { addedRoadmap: { roadmap: roadmapObj, stages, primaryGoalId: primaryGoalIdState, secondaryGoalIds: secondaryGoalIdsState } });
+       nav.navigate('Plan', { addedRoadmap: { roadmap: roadmapObj, stages, primaryGoalId: primaryGoalIdState, secondaryGoalIds: secondaryGoalIdsState } });
       setSubmitting(false);
       return;
 
@@ -157,6 +164,24 @@ const CreateRoadmapScreen: React.FC = () => {
 
           <Text className="font-semibold mt-6">Số tuần</Text>
           <TextInput className="border border-gray-200 rounded-lg px-4 py-3 mt-2 text-base" value={durationWeeks} onChangeText={setDurationWeeks} keyboardType="numeric" />
+
+          <Text className="font-semibold mt-6">Ngày bắt đầu</Text>
+          <Pressable onPress={() => setShowCalendar(true)} className="border border-gray-200 rounded-lg px-4 py-3 mt-2">
+            <Text className="text-base">{startDate}</Text>
+          </Pressable>
+
+          {showCalendar && (
+            <View className="mt-2 bg-white rounded-lg border border-gray-200">
+              <Calendar
+                onDayPress={(day) => {
+                  setStartDate(day.dateString);
+                  setShowCalendar(false);
+                }}
+                markedDates={{ [startDate]: { selected: true, selectedColor: '#A0522D' } }}
+                theme={{ todayTextColor: '#A0522D' }}
+              />
+            </View>
+          )}
 
           {/* Restore original position of Create button inside content card */}
           <TouchableOpacity onPress={onSubmit} className="h-12 bg-foreground rounded-lg items-center justify-center mt-4">

@@ -103,7 +103,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     setIsLoading(true);
     try {
       if (!liveSessionIdParam) return null;
-
+      console.log(`Submitting feedback for coach id: ${liveSessionIdParam} with rating:`, rating);
       await LiveSessionService.feedbackForCoach(liveSessionIdParam, rating);
 
       openSuccessModal('Đã đánh giá thành công!');

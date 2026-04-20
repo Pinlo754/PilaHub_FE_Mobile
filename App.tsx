@@ -5,6 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './global.css';
 import messaging from '@react-native-firebase/messaging';
 import { Linking } from 'react-native';
+import notifee, { AndroidImportance } from '@notifee/react-native';
+
 
 const navigationRef = createNavigationContainerRef();
 
@@ -22,20 +24,37 @@ const App: React.FC = () => {
   console.log('App component rendered');
 
   useEffect(() => {
-  const unsubscribe = messaging().onMessage(async remoteMessage => {
-    console.log('Notification received:', remoteMessage);
+    // --- BƯỚC 2: XIN QUYỀN (Android 13+ và iOS) ---
+    const requestUserPermission = async () => {
+      await notifee.requestPermission();
+    };
 
-    // await notifee.displayNotification({
-    //   title: remoteMessage.notification?.title || 'Notification',
-    //   body: remoteMessage.notification?.body || '',
-    //   android: {
-    //     channelId: 'default',
-    //   },
-    // });
-  });
+    // --- BƯỚC 3: XỬ LÝ KHI APP ĐANG MỞ (Foreground) ---
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      console.log('Nhận thông báo ở Foreground:', remoteMessage);
 
-  return unsubscribe;
-}, []);
+      // Tạo Channel cho Android (Bắt buộc)
+      const channelId = await notifee.createChannel({
+        id: 'important_channel',
+        name: 'Thông báo quan trọng',
+        importance: AndroidImportance.HIGH, // HIGH để hiện popup (Heads-up)
+      });
+
+      // Hiển thị thông báo bằng Notifee
+      await notifee.displayNotification({
+        title: remoteMessage.notification?.title || "Thông báo mới",
+        body: remoteMessage.notification?.body || "",
+        android: {
+          channelId,
+          importance: AndroidImportance.HIGH,
+          pressAction: { id: 'default' },
+        },
+      });
+    });
+
+    requestUserPermission();
+    return unsubscribe;
+  }, []);
 
   // Add deep-link debug listener: log initial URL and incoming url events
   useEffect(() => {
@@ -82,7 +101,7 @@ const App: React.FC = () => {
         sub && sub.remove();
       } catch {
         // fallback for older RN
-        try { (Linking as any).removeEventListener && (Linking as any).removeEventListener('url', handleUrl); } catch {}
+        try { (Linking as any).removeEventListener && (Linking as any).removeEventListener('url', handleUrl); } catch { }
       }
     };
   }, []);

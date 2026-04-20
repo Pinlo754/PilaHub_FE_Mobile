@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, Pressable, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, ScrollView, Alert, StyleSheet } from 'react-native';
 import { fetchMyHealthProfiles, fetchHealthProfileById } from '../../services/profile';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 const HealthProfilesScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -39,9 +40,7 @@ const HealthProfilesScreen: React.FC = () => {
   return (
     <SafeAreaView className="flex-1 bg-background p-4">
       <View className="flex-row items-center justify-between mb-3">
-        <Pressable onPress={() => navigation.navigate('MainTabs')} className="p-2">
-          <Text className="text-xl">‹</Text>
-        </Pressable>
+        <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}><Ionicons name="arrow-back" size={22} color="#333" /></Pressable>
         <Text className="text-xl font-bold text-center flex-1">Thông tin cơ thể</Text>
         <View className="w-8" />
       </View>
@@ -128,5 +127,9 @@ const HealthProfilesScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
-
+const styles = StyleSheet.create({
+  headerBtn: {
+    padding: 8,
+  },
+});
 export default HealthProfilesScreen;

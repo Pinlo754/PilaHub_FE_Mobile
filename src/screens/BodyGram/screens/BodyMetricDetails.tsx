@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image, Alert, ActivityIndicator } from 'react-native';
-import { fetchMyHealthProfileMetrics, fetchHealthProfileById, submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image, Alert, Modal, TextInput, KeyboardAvoidingView, TouchableOpacity, Platform } from 'react-native';
+import { fetchMyHealthProfileMetrics, fetchHealthProfileById, createHealthProfile, buildHealthProfilePayload } from '../../../services/profile';
 import { LineChart } from 'react-native-chart-kit';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import BodySilhouetteOverlay from '../components/BodySilhouetteOverlay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -12,7 +11,35 @@ export default function BodyMetricDetails({ navigation }: any) {
   const [metricsData, setMetricsData] = useState<any | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [activeMetric, setActiveMetric] = useState<'weightKg' | 'bmi' | 'bodyFatPercentage' | 'muscleMassKg' | 'waistCm' | 'hipCm'>('weightKg');
-  const [saving, setSaving] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [heightInput, setHeightInput] = useState<string>('');
+  const [weightInput, setWeightInput] = useState<string>('');
+  const [bmiInput, setBmiInput] = useState<string>('');
+  const [bodyFatInput, setBodyFatInput] = useState<string>('');
+  const [muscleInput, setMuscleInput] = useState<string>('');
+  const [waistInput, setWaistInput] = useState<string>('');
+  const [hipInput, setHipInput] = useState<string>('');
+  const [bustInput, setBustInput] = useState<string>('');
+  const [bicepInput, setBicepInput] = useState<string>('');
+  const [thighInput, setThighInput] = useState<string>('');
+  const [calfInput, setCalfInput] = useState<string>('');
+  const [sourceInput] = useState<string>('Manual');
+  const [pendingBodyGramForCreate, setPendingBodyGramForCreate] = useState<any>(null);
+
+  function parseNumberFromLabel(label?: string): number | null {
+    if (!label) return null;
+    const m = String(label).match(/([0-9]+(?:\.[0-9]+)?)/);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function parseNullableNumber(s?: string): number | null {
+    if (s == null || s === '') return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -212,32 +239,166 @@ export default function BodyMetricDetails({ navigation }: any) {
     }
   }
 
-  async function handleSaveToProfile() {
+  async function handleCreateHealthProfile() {
     if (!profile) {
-      Alert.alert('Không có dữ liệu', 'Không có hồ sơ nào để lưu. Vui lòng quét Bodygram trước.');
+      Alert.alert('Không có dữ liệu', 'Không có hồ sơ để gửi. Vui lòng quét hoặc nhập số đo.');
       return;
     }
 
     try {
-      setSaving(true);
-      const payload = buildTraineeProfilePayload(profile);
-      const res = await submitProfiles(payload);
+      // prepare bodyGramPayload by merging parsed metadata if present
+      let bodyGramPayload: any = profile;
+      try {
+        if (typeof profile?.metadata === 'string') {
+          const md = JSON.parse(profile.metadata || '{}');
+          bodyGramPayload = { ...profile, ...(md || {}) };
+        }
+      } catch { /* ignore parse errors */ }
+
+      // build health payload to see if normalization yields height/weight
+      const hp = buildHealthProfilePayload(bodyGramPayload, 'BodyMetricDetails');
+
+      // Prefill inputs from normalized payload, or attempt to parse from profile/metrics
+      const prefHeight = hp.heightCm ?? parseNumberFromLabel(String(findMeasurement(profile, ['height','heightcm','stature']) ?? '')) ?? null;
+      const prefWeight = hp.weightKg ?? parseNumberFromLabel(String(findMeasurement(profile, ['weight','weightkg','mass','kg']) ?? '')) ?? null;
+
+      setHeightInput(prefHeight ? String(prefHeight) : '');
+      setWeightInput(prefWeight ? String(prefWeight) : '');
+      // prefill extra measurements if available
+      const prefBust = parseNumberFromLabel(String(findMeasurement(profile, ['bust','chest','bustgirth']) ?? ''));
+      const prefWaist = parseNumberFromLabel(String(findMeasurement(profile, ['waist','belly','waistgirth']) ?? ''));
+      const prefHip = parseNumberFromLabel(String(findMeasurement(profile, ['hip','tophip','hipgirth']) ?? ''));
+      const prefBicep = parseNumberFromLabel(String(findMeasurement(profile, ['bicep','upperarm','arm']) ?? ''));
+      const prefThigh = parseNumberFromLabel(String(findMeasurement(profile, ['thigh','midthigh','thighgirth']) ?? ''));
+      const prefCalf = parseNumberFromLabel(String(findMeasurement(profile, ['calf','calfgirth']) ?? ''));
+      setBustInput(prefBust ? String(prefBust) : '');
+      setWaistInput(prefWaist ? String(prefWaist) : (prefWaist === 0 ? '0' : ''));
+      setHipInput(prefHip ? String(prefHip) : '');
+      setBicepInput(prefBicep ? String(prefBicep) : '');
+      setThighInput(prefThigh ? String(prefThigh) : '');
+      setCalfInput(prefCalf ? String(prefCalf) : '');
+      setPendingBodyGramForCreate(bodyGramPayload);
+      setModalVisible(true);
+
+    } catch (e) {
+      console.log('Prepare create health profile error', e);
+      Alert.alert('Lỗi', 'Không thể chuẩn bị tạo health-profile.');
+    }
+  }
+
+  async function handleSubmitModal() {
+    const h = Number(heightInput);
+    const w = Number(weightInput);
+    if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) {
+      Alert.alert('Lỗi', 'Vui lòng nhập chiều cao(cm) và cân nặng(kg) hợp lệ.');
+      return;
+    }
+
+    const bmiVal = Number(bmiInput) || undefined;
+    const bodyFatVal = Number(bodyFatInput) || undefined;
+    const muscleVal = Number(muscleInput) || undefined;
+    const waistVal = Number(waistInput) || undefined;
+    const hipVal = Number(hipInput) || undefined;
+
+    // build metadata by merging existing profile.metadata (if any) and attach images/extra
+    let existingMeta: any = {};
+    try {
+      if (typeof (pendingBodyGramForCreate || profile)?.metadata === 'string') existingMeta = JSON.parse((pendingBodyGramForCreate || profile).metadata || '{}');
+      else existingMeta = (pendingBodyGramForCreate || profile)?.metadata ?? {};
+    } catch { existingMeta = {}; }
+
+    const metadataObj: any = { ...(existingMeta || {}) };
+    // copy possible image fields to metadata
+    const maybeImg = (pendingBodyGramForCreate || profile)?.avatarUrl ?? (pendingBodyGramForCreate || profile)?.avatar ?? (pendingBodyGramForCreate || profile)?.photo ?? null;
+    if (maybeImg) metadataObj.image = maybeImg;
+    // include original measurements if present
+    if ((pendingBodyGramForCreate || profile)?.measurements) metadataObj.measurements = (pendingBodyGramForCreate || profile).measurements;
+    // include extra simple measurements from modal (null if not provided)
+    const extraMeasures: any = {
+      bust: parseNullableNumber(bustInput),
+      waist: parseNullableNumber(waistInput),
+      hip: parseNullableNumber(hipInput),
+      bicep: parseNullableNumber(bicepInput),
+      thigh: parseNullableNumber(thighInput),
+      calf: parseNullableNumber(calfInput),
+    };
+    metadataObj.simpleMeasurements = { ...(metadataObj.simpleMeasurements || {}), ...extraMeasures };
+
+    // redact large strings
+    const redactLargeStrings = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return;
+      for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (typeof v === 'string' && v.length > 2000) obj[k] = '[redacted]';
+        else if (typeof v === 'object') redactLargeStrings(v);
+      }
+    };
+    redactLargeStrings(metadataObj);
+
+    const bodyGramPayload = {
+      ...(pendingBodyGramForCreate || profile),
+      height: h,
+      heightCm: h,
+      weight: w,
+      weightKg: w,
+      bmi: bmiVal,
+      bodyFatPercentage: bodyFatVal,
+      muscleMassKg: muscleVal,
+      waistCm: waistVal,
+      hipCm: hipVal,
+      source: sourceInput || 'Manual',
+      metadata: JSON.stringify(metadataObj),
+    };
+
+    try {
+      setModalVisible(false);
+      const res = await createHealthProfile(bodyGramPayload, 'BodyMetricDetails');
       if (res && res.ok) {
-        Alert.alert('Thành công', 'Đã tạo / cập nhật hồ sơ sức khỏe.');
-        // refresh metrics list
+        Alert.alert('Thành công', 'Đã tạo health-profile mới.');
         try {
           const refreshed = await fetchMyHealthProfileMetrics();
           if (refreshed.ok) setMetricsData(refreshed.data);
-        } catch { /* ignore */ }
+        } catch { }
       } else {
-        const errMsg = res ? ((res as any).error || (res as any).message || JSON.stringify(res)) : null;
-        Alert.alert('Lỗi', errMsg || 'Không thể lưu hồ sơ');
+        let errMsg: string | null = null;
+        if (res) {
+          const e = (res as any).error ?? res;
+          errMsg = typeof e === 'string' ? e : JSON.stringify(e);
+        }
+        Alert.alert('Lỗi', errMsg || 'Không thể tạo health-profile');
       }
     } catch (e) {
-      console.log('Save profile error', e);
-      Alert.alert('Lỗi', 'Không thể lưu hồ sơ. Vui lòng thử lại.');
+      console.log('create from modal error', e);
+      Alert.alert('Lỗi', 'Không thể tạo health-profile.');
     } finally {
-      setSaving(false);
+      setPendingBodyGramForCreate(null);
+    }
+  }
+
+  function renderInputRow(label: string, value: string, onChange: (s: string) => void, placeholder: string, unit?: string) {
+    return (
+      <View>
+        <Text style={modalStyles.inputLabel}>{label}</Text>
+        <View style={modalStyles.inputRow}>
+          <TextInput
+            value={value}
+            onChangeText={onChange}
+            keyboardType={'numeric'}
+            placeholder={placeholder}
+            style={modalStyles.inputFlex}
+          />
+          {unit ? <Text style={modalStyles.unitText}>{unit}</Text> : null}
+        </View>
+      </View>
+    );
+  }
+
+  function handleInbodyScan() {
+    try {
+      (navigation as any).navigate('InBodyScan');
+    } catch (e) {
+      console.log('InBody navigation error', e);
+      Alert.alert('Lỗi', 'Không thể mở InBody scan.');
     }
   }
 
@@ -249,13 +410,27 @@ export default function BodyMetricDetails({ navigation }: any) {
         <View style={styles.headerBtn} />
       </View>
 
-      {/* ACTIONS: rescan or save to health profile */}
+      {/* ACTIONS: rescan, dropdown for updates, and view profiles */}
       <View style={styles.actionRow}>
-        <Pressable onPress={handleRescan} style={styles.actionBtn}>
-          <Text style={styles.actionText}>Quét lại Bodygram</Text>
-        </Pressable>
-        <Pressable onPress={handleSaveToProfile} style={[styles.actionBtn, styles.actionBtnPrimary]} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionTextPrimary}>Lưu vào hồ sơ</Text>}
+        {/* Primary dropdown button: keep brown (actionBtnPrimary) and don't override its bg */}
+        <View style={styles.dropdownWrap}>
+          <Pressable onPress={() => setMenuVisible((s) => !s)} style={[styles.actionBtn, styles.actionBtnPrimary]}> 
+            <Text style={styles.actionTextPrimary}>Cập nhật số đo ▾</Text>
+          </Pressable>
+
+          {menuVisible ? (
+            <View style={styles.menuBox}>
+              <TouchableOpacity onPress={() => { setMenuVisible(false); handleRescan(); }} style={styles.menuItem}><Text style={styles.menuItemText}>Quét lại Bodygram</Text></TouchableOpacity>
+              <TouchableOpacity onPress={async () => { setMenuVisible(false); await handleCreateHealthProfile(); }} style={styles.menuItem}><Text style={styles.menuItemText}>Tạo health-profile</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setMenuVisible(false); handleInbodyScan(); }} style={[styles.menuItem, styles.menuItemLast]}>
+                <View style={styles.menuItemRow}><Ionicons name="flame" size={16} color="#FF4500" style={styles.menuItemIcon} /><Text style={styles.menuItemText}>InBody Scan</Text></View>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+
+        <Pressable onPress={() => (navigation as any).navigate('HealthProfiles')} style={[styles.actionBtn, styles.viewProfilesBtnTop]}>
+          <Text style={styles.actionText}>Xem hồ sơ</Text>
         </Pressable>
       </View>
 
@@ -264,7 +439,6 @@ export default function BodyMetricDetails({ navigation }: any) {
         {profile ? (
           <View style={styles.silhouetteSummaryCard}>
             <View style={styles.silhouetteSmall}>
-              <BodySilhouetteOverlay mode="front" />
               <Image source={require('../../../assets/bodygram.png')} style={styles.silhouetteSmallImage} resizeMode="contain" />
 
               <View style={styles.silSmallTopLeft}>
@@ -289,9 +463,6 @@ export default function BodyMetricDetails({ navigation }: any) {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>So sánh nhanh</Text>
-            <Pressable onPress={() => (navigation as any).navigate('HealthProfiles')} style={styles.viewProfilesBtn}>
-              <Text style={styles.viewProfilesText}>Xem hồ sơ</Text>
-            </Pressable>
           </View>
           <View style={styles.quickGrid}>
             {['weightKg','bmi','bodyFatPercentage','muscleMassKg','waistCm','hipCm'].map((k) => {
@@ -359,18 +530,60 @@ export default function BodyMetricDetails({ navigation }: any) {
         </View>
 
       </ScrollView>
+
+      {/* Modal: ask for missing height/weight */}
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={modalStyles.backdrop}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={modalStyles.keyboardAvoiding}>
+            <ScrollView style={modalStyles.modalScroll} contentContainerStyle={modalStyles.modalContentContainer} keyboardShouldPersistTaps="handled">
+              <View style={modalStyles.modalContainer}>
+                <Text style={modalStyles.modalTitle}>Nhập chiều cao và cân nặng</Text>
+                {renderInputRow('Chiều cao', heightInput, setHeightInput, 'Chiều cao', 'cm')}
+                {renderInputRow('Cân nặng', weightInput, setWeightInput, 'Cân nặng', 'kg')}
+                {renderInputRow('BMI', bmiInput, setBmiInput, 'BMI', '')}
+                {renderInputRow('Tỷ lệ mỡ', bodyFatInput, setBodyFatInput, 'Tỷ lệ mỡ (%)', '%')}
+                {renderInputRow('Khối cơ', muscleInput, setMuscleInput, 'Khối cơ (kg)', 'kg')}
+                {renderInputRow('Ngực', bustInput, setBustInput, 'Ngực', 'cm')}
+                {renderInputRow('Eo', waistInput, setWaistInput, 'Eo', 'cm')}
+                {renderInputRow('Hông', hipInput, setHipInput, 'Hông', 'cm')}
+                {renderInputRow('Bắp tay', bicepInput, setBicepInput, 'Bắp tay', 'cm')}
+                {renderInputRow('Đùi', thighInput, setThighInput, 'Đùi', 'cm')}
+                {renderInputRow('Bắp chân', calfInput, setCalfInput, 'Bắp chân', 'cm')}
+                {/* hide source input from UI when manual; keep internal sourceInput as 'Manual' */}
+                <View style={modalStyles.modalActions}>
+                  <TouchableOpacity onPress={() => setModalVisible(false)} style={modalStyles.cancelBtn}>
+                    <Text style={modalStyles.cancelText}>Hủy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleSubmitModal} style={modalStyles.submitBtn}>
+                    <Text style={modalStyles.submitText}>Gửi</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FAFAFB' },
+  safe: { flex: 1, backgroundColor: '#FFFAF0' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff' },
   headerBtn: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '700' },
   actionRow: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  dropdownWrap: { position: 'relative', flex: 1, alignItems: 'flex-start' },
+  menuBox: { position: 'absolute', top: 46, right: 4, minWidth: 180, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 6, borderWidth: 1, borderColor: '#eee', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 12, zIndex: 999 },
+  menuItem: { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  menuItemLast: { borderBottomWidth: 0 },
+  menuItemText: { color: '#111827', fontSize: 15 },
+  menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  viewProfilesBtnTop: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
+  actionTextYellow: { color: '#FBBF24', fontWeight: '600' },
+  menuItemIcon: { marginRight: 8 },
   actionBtn: { flex: 1, paddingVertical: 10, marginHorizontal: 6, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' },
-  actionBtnPrimary: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  actionBtnPrimary: { backgroundColor: '#A0522D', borderColor: '#A0522D', padding: 10 },
   actionText: { color: '#374151', fontWeight: '600' },
   actionTextPrimary: { color: '#fff', fontWeight: '700' },
   container: { padding: 16 },
@@ -378,7 +591,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   viewProfilesBtn: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#eee' },
-  viewProfilesText: { color: '#2563eb', fontWeight: '700' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   quickItem: { width: '48%', padding: 10, borderRadius: 10, backgroundColor: '#fdf6ec', marginBottom: 8 },
   quickLabel: { fontSize: 12, color: '#6b7280' },
@@ -404,17 +616,39 @@ const styles = StyleSheet.create({
   silhouetteSummaryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, overflow: 'hidden' },
   silhouetteSmall: { position: 'relative', alignItems: 'center', justifyContent: 'center', aspectRatio: 1, width: '100%', borderRadius: 12 },
   silhouetteSmallImage: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 12 },
-  silSmallTopLeft: { position: 'absolute', left: 8, top: 8 },
-  silSmallMidLeft: { position: 'absolute', left: 8, top: 40 },
-  silSmallTopRight: { position: 'absolute', right: 8, top: 8 },
-  silSmallMidRight: { position: 'absolute', right: 8, top: 40 },
-  silSmallBottom: { position: 'absolute', left: '50%', bottom: 8, transform: [{ translateX: -55 }] },
-  bubbleCardSmall: { backgroundColor: '#f3f4f6', borderRadius: 10, padding: 8, marginBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bubbleLabel: { fontSize: 12, color: '#6b7280' },
-  bubbleValueSmall: { fontSize: 14, fontWeight: '700' },
+  // position bubbles using percentages to better align with centered body image
+  silSmallTopLeft: { position: 'absolute', left: '12%', top: '20%' },
+  silSmallMidLeft: { position: 'absolute', left: '12%', top: '35%' },
+  silSmallTopRight: { position: 'absolute', right: '12%', top: '20%' },
+  silSmallMidRight: { position: 'absolute', right: '12%', top: '40%' },
+  silSmallBottom: { position: 'absolute', left: '50%', bottom: '6%', transform: [{ translateX: -50 }] },
+  bubbleCardSmall: { backgroundColor: '#f3f4f6', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: 72 },
+  bubbleLabel: { fontSize: 13, color: '#6b7280', marginRight: 6 },
+  bubbleValueSmall: { fontSize: 15, fontWeight: '800' },
   singleCard: { alignItems: 'center' },
   singleTitle: { fontSize: 14, color: '#6b7280', marginBottom: 6 },
   singleValue: { fontSize: 28, fontWeight: '800', color: '#1f2937' },
   singleDate: { marginTop: 6, color: '#6b7280' },
   singleHint: { marginTop: 8, color: '#9CA3AF' },
+});
+
+const modalStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 84, paddingHorizontal: 12 },
+  sheet: { width: '92%', backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  title: { fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  input: { borderWidth: 1, borderColor: '#e5e7eb', padding: 14, borderRadius: 10, marginBottom: 10, backgroundColor: '#fff' },
+  inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, backgroundColor: '#fff' },
+  inputFlex: { flex: 1, paddingVertical: 8, paddingHorizontal: 6, fontSize: 18 },
+  unitText: { marginLeft: 8, color: '#6b7280', fontSize: 15, minWidth: 36, textAlign: 'right' },
+  inputLabel: { marginBottom: 6, color: '#111827', fontSize: 14, fontWeight: '700' },
+  modalContainer: { backgroundColor: '#fff', padding: 20, borderRadius: 20, width: Math.min(width * 0.9, 520), alignSelf: 'center', marginTop: 18, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
+  modalScroll: { maxHeight: '78%' },
+  modalContentContainer: { paddingBottom: 16 },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 12, textAlign: 'center' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
+  cancelBtn: { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#f3f4f6', borderRadius: 10, marginRight: 10 },
+  cancelText: { color: '#111827', fontWeight: '600' },
+  submitBtn: { paddingHorizontal: 18, paddingVertical: 12, backgroundColor: '#A0522D', borderRadius: 10 },
+  submitText: { color: '#fff', fontWeight: '700' },
+  keyboardAvoiding: { flex: 1 },
 });

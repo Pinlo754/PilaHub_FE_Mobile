@@ -312,13 +312,16 @@ export async function createHealthProfile(bodyGram: BodyGramData, source = 'Body
   }
 }
 
-export async function submitProfiles(onboarding: OnboardingData, bodyGram?: BodyGramData, source = 'BodyGram') : Promise<ServiceResult<{ trainee?: any; health?: any }>> {
+export async function submitProfiles(onboarding: OnboardingData, bodyGram?: BodyGramData, source = 'BodyGram', options?: { skipCreateTrainee?: boolean; forceHealthOnly?: boolean; }) : Promise<ServiceResult<{ trainee?: any; health?: any }>> {
    try {
      const results: any = {};
 
-     // create trainee profile (if onboarding has meaningful fields)
+     const skipCreate = options?.skipCreateTrainee ?? false;
+     const forceHealthOnly = options?.forceHealthOnly ?? false;
+
+     // create trainee profile (if onboarding has meaningful fields) unless caller asked to skip
      const traineePayload = buildTraineeProfilePayload(onboarding, bodyGram);
-     if (Object.keys(traineePayload).length > 0) {
+     if (!skipCreate && Object.keys(traineePayload).length > 0) {
        const t = await createTraineeProfile(onboarding, bodyGram);
        if (!t.ok) {
          // If server returns 500/internal error, retry with minimal payload (some backends fail on metadata)
@@ -392,23 +395,25 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
 
        // AFTER trainee creation (or skip), attach personal injuries if provided in onboarding
        try {
-         const injuriesInput = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? null;
-         if (injuriesInput && Array.isArray(injuriesInput) && injuriesInput.length > 0) {
-           const injuryResults: any[] = [];
-           for (const inj of injuriesInput) {
-             // normalize to { injuryId, notes }
-             const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injuryId ?? inj?.injury?.id ?? null;
-             const notes = inj?.notes ?? inj?.note ?? null;
-             if (!injuryId) continue;
-             try {
-               const p = await createPersonalInjury({ injuryId, notes });
-               if (p.ok) injuryResults.push(p.data ?? p.data?.data ?? p.data);
-               else injuryResults.push({ error: p.error });
-             } catch (e) {
-               injuryResults.push({ error: e });
+         if (!skipCreate && !forceHealthOnly) {
+           const injuriesInput = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? null;
+           if (injuriesInput && Array.isArray(injuriesInput) && injuriesInput.length > 0) {
+             const injuryResults: any[] = [];
+             for (const inj of injuriesInput) {
+               // normalize to { injuryId, notes }
+               const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injuryId ?? inj?.injury?.id ?? null;
+               const notes = inj?.notes ?? inj?.note ?? null;
+               if (!injuryId) continue;
+               try {
+                 const p = await createPersonalInjury({ injuryId, notes });
+                 if (p.ok) injuryResults.push(p.data ?? p.data?.data ?? p.data);
+                 else injuryResults.push({ error: p.error });
+               } catch (e) {
+                 injuryResults.push({ error: e });
+               }
              }
+             results.personalInjuries = injuryResults;
            }
-           results.personalInjuries = injuryResults;
          }
        } catch (e) {
          console.warn('Failed to attach personal injuries after trainee creation', e);
@@ -469,6 +474,7 @@ export async function submitProfiles(onboarding: OnboardingData, bodyGram?: Body
         });
         results.health = { skipped: true, reason: 'missing_height_or_weight', payload: healthPayload } as any;
       } else {
+        // if caller forced health-only behavior, still create health profile (useful for logged-in flows)
         const h = await createHealthProfile(mergedBodyGram, source);
         if (!h.ok) return { ok: false, error: { step: 'health', error: h.error } };
         results.health = h.data;
@@ -526,6 +532,23 @@ export async function createPersonalInjury(payload: { injuryId: string; notes?: 
   } catch (e: any) {
     const error = e.response?.data ?? e.message ?? e;
     return { ok: false, error };
+  }
+}
+export async function uploadInBodyScan(image: { uri: string; name?: string; type?: string }, rawScanId?: string): Promise<ServiceResult> {
+  try {
+    const fd = new FormData();
+    const fileName = image.name ?? `inbody_${Date.now()}.jpg`;
+    const fileAny: any = { uri: image.uri, name: fileName, type: image.type ?? 'image/jpeg' };
+    fd.append('image', fileAny as any);
+    if (rawScanId) fd.append('rawScanId', rawScanId);
+
+    const res = await api.post('/health-profiles/my-profiles/inbody-extract', fd as any, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const data = res.data?.data ?? res.data ?? res;
+    return { ok: true, data };
+  } catch (e: any) {
+    return { ok: false, error: 'AI đang bận vui lòng thử lại sau' };
   }
 }
 
