@@ -42,6 +42,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [selectedDays, setSelectedDays] = useState<TrainingDay[]>([]);
   const [traineeId, setTraineeId] = useState<string | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
+  const [selectedStartDate, setSelectedStartDate] = useState<string>('');
 
   // FETCH
   const fetchById = async () => {
@@ -118,6 +119,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
       const payload: CreateScheduleReq = {
         traineeCourseId: resEnroll.traineeCourseId,
         trainingDays: selectedDays,
+        startDate: selectedStartDate,
       };
 
       await courseLessonProgressService.createSchedule(payload);
@@ -205,6 +207,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const closeSchedule = () => {
     setShowSchedule(false);
     setSelectedDays([]);
+    setSelectedStartDate('');
   };
 
   const handleSelectDay = (day: TrainingDay) => {
@@ -216,8 +219,9 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     }
   };
 
-  const onPressRegister = () => {
+  const onPressRegister = (startDate: string) => {
     if (!programFullDetail) return;
+    setSelectedStartDate(startDate);
     openConfirmModal(
       `Bạn có chắc muốn đăng ký khóa học với giá ${formatVND(programFullDetail.course.price)}?`,
     );

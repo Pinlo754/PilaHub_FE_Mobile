@@ -10,6 +10,8 @@ export type WorkoutSessionType = {
   startTime: string;
   endTime: string | null;
   durationSeconds: number | null;
+  recordUrl: string;
+  recordAvailable: boolean;
   completed: boolean;
 };
 

@@ -22,4 +22,23 @@ export const mistakeLogService = {
 
     return res.data.data;
   },
+
+  // GET BY WORKOUT SESSION ID
+  getByWorkoutSessionId: async (
+    workoutSessionId: string,
+  ): Promise<MistakeLogType[]> => {
+    const res = await api.get<ApiResponse<MistakeLogType[]>>(
+      `/mistake-logs/workout-session/${workoutSessionId}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

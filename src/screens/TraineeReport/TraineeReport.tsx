@@ -33,6 +33,9 @@ const TraineeReport = (props: Props) => {
     showConfirmModal,
     confirmMsg,
     isLoading,
+    closeErrorModal,
+    errorMsg,
+    showErrorModal,
   } = useTraineeReport({ route: props.route, navigation: props.navigation });
 
   // STATE
@@ -122,6 +125,20 @@ const TraineeReport = (props: Props) => {
           cancelBtnColor="grey"
           onConfirm={onConfirmModal}
           onClose={closeConfirmModal}
+          modalWidth={355}
+        />
+
+        {/* Error Modal */}
+        <ModalPopup
+          visible={showErrorModal}
+          mode="noti"
+          contentText={errorMsg || ''}
+          iconName="alert"
+          iconSize={35}
+          iconBgColor="red"
+          confirmBtnText="Đóng"
+          confirmBtnColor="grey"
+          onClose={closeErrorModal}
           modalWidth={355}
         />
       </View>

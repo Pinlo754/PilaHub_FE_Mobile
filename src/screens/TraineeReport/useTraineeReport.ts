@@ -20,9 +20,9 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   const TIMEOUT = 3010;
 
   // PARAM
-  const selectedCoachId = route.params.coach_id ?? null;
-  const selectedExerciseId = route.params.exercise_id ?? null;
-  const liveSessionIdParam = route.params.liveSessionId ?? null;
+  const selectedCoachId = route.params?.coach_id ?? null;
+  const selectedExerciseId = route.params?.exercise_id ?? null;
+  const liveSessionIdParam = route.params?.liveSessionId ?? null;
 
   // STATE
   const [options, setOptions] = useState<optionType[] | null>(null);
@@ -32,6 +32,7 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   const [description, setDescription] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
 
@@ -51,16 +52,16 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
         description.trim() || undefined,
       );
 
-      openSuccessModal('Đã đánh giá thành công!');
+      openSuccessModal('Đã báo cáo thành công!');
 
       setTimeout(() => {
         navigation.navigate('MainTabs', { screen: 'Home' });
       }, TIMEOUT);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setErrorMsg(err.message);
+        openErrorModal(err.message);
       } else {
-        setErrorMsg('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Bạn đã báo cáo buổi tập này rồi!');
       }
     } finally {
       setIsLoading(false);
@@ -95,6 +96,16 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
 
   const onPressSubmit = () => {
     openConfirmModal('Bạn có chắc muốn gửi báo cáo không?');
+  };
+
+  const openErrorModal = (msg: string) => {
+    setErrorMsg(msg);
+    setShowErrorModal(true);
+  };
+
+  const closeErrorModal = () => {
+    setErrorMsg('');
+    setShowErrorModal(false);
   };
 
   // CHECK
@@ -139,5 +150,9 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
     onConfirmModal,
     confirmMsg,
     isLoading,
+    openErrorModal,
+    closeErrorModal,
+    errorMsg,
+    showErrorModal,
   };
 };

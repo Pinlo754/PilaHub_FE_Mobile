@@ -121,6 +121,7 @@ export const CoachService = {
     return res.data.data;
   },
 
+  // GET BY NAME
   getByName: async (name: string): Promise<CoachType[]> => {
     const res = await api.get<ApiResponse<CoachType[]>>(`/coaches/search`, {
       params: {
@@ -139,7 +140,7 @@ export const CoachService = {
     return res.data.data;
   },
 
-  updateProfile: async (id:string, payload: any) => {
+  updateProfile: async (id: string, payload: any) => {
     const res = await api.put<ApiResponse<[]>>(`/coaches/${id}`, payload);
 
     if (!res.data.success) {
@@ -166,6 +167,4 @@ export const CoachService = {
 
     return res.data.data;
   },
-
-
 };

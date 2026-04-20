@@ -15,6 +15,7 @@ export type CourseLessonProgressType = {
 
 export type CreateScheduleReq = {
   traineeCourseId: string;
+  startDate: string;
   trainingDays: TrainingDay[];
 };
 

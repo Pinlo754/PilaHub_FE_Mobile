@@ -166,8 +166,12 @@ export type RootStackParamList = {
   | undefined;
   TraineeFeedback: { liveSessionId?: string } | undefined;
   TraineeReport:
-  | { coach_id?: string | null; exercise_id?: string | null }
-  | undefined;
+    | {
+        coach_id?: string | null;
+        exercise_id?: string | null;
+        liveSessionId?: string | null;
+      }
+    | undefined;
   AISummary:
   | {
     feedback: any;

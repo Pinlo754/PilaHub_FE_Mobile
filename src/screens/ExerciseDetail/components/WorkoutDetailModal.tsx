@@ -9,10 +9,18 @@ import Button from '../../../components/Button';
 type Props = {
   session: WorkoutSessionType | null;
   onClose: () => void;
+  onPressAISummary: (workoutSessionId: string, recordUrl: string) => void;
 };
 
-const WorkoutDetailModal = ({ session, onClose }: Props) => {
+const WorkoutDetailModal = ({ session, onClose, onPressAISummary }: Props) => {
   if (!session) return null;
+
+  const showAIButton = session.haveAITracking && session.recordAvailable;
+
+  const onPressAISummaryBtn = () => {
+    onPressAISummary(session.workoutSessionId, session.recordUrl);
+    onClose();
+  };
 
   return (
     <Modal
@@ -52,11 +60,11 @@ const WorkoutDetailModal = ({ session, onClose }: Props) => {
               value: secondsToTime(session.durationSeconds || 0),
             },
             {
-              label: 'AI Tracking',
+              label: 'Tập với AI',
               value: session.haveAITracking ? 'Có' : 'Không',
             },
             {
-              label: 'IOT Tracking',
+              label: 'Thiết bị IOT',
               value: session.haveIOTDeviceTracking ? 'Có' : 'Không',
             },
           ].map(({ label, value }) => (
@@ -99,12 +107,25 @@ const WorkoutDetailModal = ({ session, onClose }: Props) => {
             )}
           </View>
 
-          {/* Close btn */}
-          <View className="flex items-end mt-4">
+          {/* Footer buttons */}
+          <View className="flex-row justify-between items-center mt-4">
+            {/* Nút AI Summary */}
+            {showAIButton ? (
+              <Button
+                text="Xem tổng kết từ AI"
+                onPress={onPressAISummaryBtn}
+                colorType="sub1"
+                rounded="xl"
+                width={170}
+              />
+            ) : (
+              <View />
+            )}
+
             <Button
               text="Đóng"
               onPress={onClose}
-              colorType="sub1"
+              colorType="grey"
               rounded="xl"
               width={100}
             />

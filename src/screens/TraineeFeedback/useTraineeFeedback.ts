@@ -132,7 +132,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
       openSuccessModal('Đã đánh giá thành công!');
 
       setTimeout(() => {
-        navigation.navigate('MainTabs', { screen: 'Home' });
+        navigation.navigate('CoachScreen');
       }, TIMEOUT);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {

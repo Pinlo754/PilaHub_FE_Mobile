@@ -20,6 +20,7 @@ type Props = {
   activePackage: PackageType | null;
   workoutHistory: WorkoutSessionType[];
   canPlayTheory: boolean;
+  fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
 };
 
 const OverviewSection = ({
@@ -35,6 +36,7 @@ const OverviewSection = ({
   activePackage,
   workoutHistory,
   canPlayTheory,
+  fetchAISummary,
 }: Props) => {
   return (
     <View
@@ -68,6 +70,7 @@ const OverviewSection = ({
         isPracticeTab={isPracticeTab}
         workoutHistory={workoutHistory}
         canPlayTheory={canPlayTheory}
+        fetchAISummary={fetchAISummary}
       />
 
       {/* Btn */}

@@ -21,6 +21,9 @@ import { courseLessonProgressService } from '../../hooks/courseLessonProgress.se
 import { getProfile } from '../../services/auth';
 import { lessonExerciseProgressService } from '../../hooks/lessonExerciseProgress.service';
 import { ExerciseEquipment } from '../../utils/EquipmentType';
+import { workoutFeedbackService } from '../../hooks/workoutFeedback.service';
+import { mistakeLogService } from '../../hooks/mistakeLog.service';
+import { heartRateService } from '../../hooks/heartRate.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -249,6 +252,34 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       setExerciseEquipments(res);
     } catch (err: any) {
       console.error('Fetch equipment error:', err);
+    }
+  };
+
+  const fetchAISummary = async (
+    workoutSessionId: string,
+    recordUrl: string,
+  ) => {
+    setIsLoading(true);
+    try {
+      const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
+        workoutFeedbackService.getByWorkoutSessionId(workoutSessionId),
+        mistakeLogService.getByWorkoutSessionId(workoutSessionId),
+        heartRateService.getByWorkoutSessionId(workoutSessionId),
+      ]);
+
+      navigation.navigate('AISummary', {
+        feedback,
+        videoUrl: recordUrl,
+        mistakeLog,
+        heartRateLogs: heartRateLogs.map(h => ({
+          heartRate: h.heartRate,
+          recordedAt: h.recordedAt,
+        })),
+      });
+    } catch (err) {
+      console.error('Fetch AI summary error:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -494,5 +525,6 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     practicePayload,
     workoutHistory,
     canPlayTheory,
+    fetchAISummary,
   };
 };

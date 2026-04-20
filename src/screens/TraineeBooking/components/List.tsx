@@ -17,6 +17,7 @@ type Props = {
   openDetailModal: (bookingId: string) => void;
   openFeedbackModal: (bookingId: string) => void;
   openVideoRecord: (bookingId: string) => void;
+  onPressReport: (bookingId: string) => void;
 };
 
 const List = ({
@@ -26,6 +27,7 @@ const List = ({
   openDetailModal,
   openFeedbackModal,
   openVideoRecord,
+  onPressReport,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
@@ -82,6 +84,7 @@ const List = ({
         onPressBtn={() => handlePress(item.status)}
         onPressCard={() => handlePressCard(item.status)}
         onPressRecord={() => openVideoRecord(item.id)}
+        onPressReport={() => onPressReport(item.id)}
       />
     );
   };
