@@ -12,12 +12,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { tutorialService } from '../../hooks/tutorial.service';
 import { workoutSessionService } from '../../hooks/workoutSession.service';
 import {
+  GetByExerciseIdParams,
   WorkoutExerciseReq,
   WorkoutLessonExerciseReq,
   WorkoutSessionType,
 } from '../../utils/WorkoutSessionType';
 import { courseLessonProgressService } from '../../hooks/courseLessonProgress.service';
 import { getProfile } from '../../services/auth';
+import { lessonExerciseProgressService } from '../../hooks/lessonExerciseProgress.service';
+import { ExerciseEquipment } from '../../utils/EquipmentType';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -26,8 +29,9 @@ type Props = {
 
 export const useExerciseDetail = ({ route, navigation }: Props) => {
   // PARAM
-  const { exercise_id, allowedPractice } = route.params;
+  const { exercise_id, allowedPractice, allowedTheory } = route.params;
   const practicePayload = route.params.practicePayload ?? null;
+  const lessonExerciseIdParam = route.params.lessonExerciseId ?? null;
 
   // CONSTANT
   const TIMEOUT = 3010;
@@ -54,11 +58,18 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [activePackage, setActivePackage] = useState<PackageType | null>(null);
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutSessionType[]>(
+    [],
+  );
+  const [exerciseEquipments, setExerciseEquipments] = useState<
+    ExerciseEquipment[]
+  >([]);
 
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
   const id = route.params.exercise_id;
   const canPractice = allowedPractice ?? true;
+  const canPlayTheory = allowedTheory ?? true;
 
   // FETCH
   const fetchInformation = async () => {
@@ -151,12 +162,15 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     }
   };
 
-  const startWorkoutForLessonExercise = async () => {
+  const startWorkoutForLessonExercise = async (index?: number) => {
     if (!practicePayload) return Promise.reject('No payload');
+
+    const currentIndex = index ?? currentExerciseIndex;
+    const lessonExerciseId = practicePayload.lessonExerciseIds[currentIndex];
 
     const payload: WorkoutLessonExerciseReq = {
       courseLessonProgressId: practicePayload.progressId,
-      lessonExerciseId: practicePayload.lessonExericseId,
+      lessonExerciseId,
       haveAITracking,
       haveIOTDeviceTracking,
     };
@@ -172,7 +186,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   const endWorkout = async () => {
     if (!workoutSession) return Promise.reject('No workout session');
-    const recordUrl = '';
+    const recordUrl =
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
     return workoutSessionService.endWorkout(
       workoutSession?.workoutSessionId,
@@ -186,6 +201,55 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     return courseLessonProgressService.completeLesson(
       practicePayload.progressId,
     );
+  };
+
+  const fetchWorkoutHistory = async () => {
+    if (!exercise_id) return;
+    try {
+      const params: GetByExerciseIdParams = {};
+
+      console.log('lessonExerciseIdParam', lessonExerciseIdParam);
+
+      const lessonExerciseId =
+        lessonExerciseIdParam ??
+        practicePayload?.lessonExerciseIds[currentExerciseIndex];
+
+      if (practicePayload?.progressId && lessonExerciseId) {
+        const lessonExerciseProgressList =
+          await lessonExerciseProgressService.getByCourseLessonProgressId(
+            practicePayload.progressId,
+          );
+
+        const matched = lessonExerciseProgressList.find(
+          item =>
+            item.exerciseId === exercise_id &&
+            item.lessonExerciseId === lessonExerciseId,
+        );
+
+        if (!matched) return;
+
+        params.lessonExerciseProgressId = matched.lessonExerciseProgressId;
+      }
+
+      const res = await workoutSessionService.getByExerciseId(
+        exercise_id,
+        params,
+      );
+
+      setWorkoutHistory(res.filter(session => session.completed));
+    } catch (err: any) {
+      console.error('Fetch history error:', err);
+    }
+  };
+
+  const fetchEquipment = async () => {
+    if (!exercise_id) return;
+    try {
+      const res = await exerciseService.getExerciseEquipment(exercise_id);
+      setExerciseEquipments(res);
+    } catch (err: any) {
+      console.error('Fetch equipment error:', err);
+    }
   };
 
   // HANDLERS
@@ -212,7 +276,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const toggleVideoExpand = () => {
-    startWorkoutExerciseFree();
+    // startWorkoutExerciseFree();
     setIsVideoExpand(prev => {
       if (activeTab === ExerciseTab.Practice) {
         togglePlayButton();
@@ -232,18 +296,20 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const onPressStartCourseLesson = async () => {
-    if (!practicePayload) return;
-
     setIsLoading(true);
     setError(null);
 
     try {
-      const [workoutRes] = await Promise.all([
-        startWorkoutForLessonExercise(),
-        startCourseLessonProgress(),
-      ]);
+      if (!practicePayload) {
+        await startWorkoutExerciseFree();
+      } else {
+        const [workoutRes] = await Promise.all([
+          startWorkoutForLessonExercise(0),
+          startCourseLessonProgress(),
+        ]);
 
-      setWorkoutSession(workoutRes);
+        setWorkoutSession(workoutRes);
+      }
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
@@ -297,7 +363,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
         }
         return;
       }
-      // await endWorkout();
+      await endWorkout();
 
       if (!practicePayload) {
         openSuccessModal('Bạn đã hoàn thành bài tập.');
@@ -323,7 +389,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
           setCurrentTutorial(nextTutorial);
 
           // Start workout mới
-          const newWorkout = await startWorkoutForLessonExercise();
+          const newWorkout = await startWorkoutForLessonExercise(nextIndex);
           setWorkoutSession(newWorkout);
         } else {
           // Hoàn thành lesson
@@ -375,6 +441,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       try {
         await fetchInformation();
         await fetchById();
+        await fetchWorkoutHistory();
+        await fetchEquipment();
       } finally {
         setIsLoading(false);
       }
@@ -385,6 +453,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   return {
     activeTab,
+    exerciseEquipments,
     exerciseDetail,
     currentExercise,
     tutorial,
@@ -407,7 +476,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     onPressAIPractice,
     // expose ids for video player
     personalExerciseId: exerciseDetail?.exerciseId ?? undefined,
-    personalScheduleId: (exerciseDetail as any)?.personalScheduleId ?? undefined,
+    personalScheduleId:
+      (exerciseDetail as any)?.personalScheduleId ?? undefined,
     onPressPractice,
     currentExerciseIndex,
     handleVideoEnd,
@@ -422,5 +492,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     onConfirmModal,
     onPressBack,
     practicePayload,
+    workoutHistory,
+    canPlayTheory,
   };
 };

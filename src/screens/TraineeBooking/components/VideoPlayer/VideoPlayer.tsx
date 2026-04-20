@@ -19,6 +19,7 @@ export default function VideoPlayer({ source, onBack }: Props) {
     <View className="w-full" style={{ height: height }}>
       <VideoSurface
         videoRef={player.videoRef}
+        pipVideoRef={player.pipVideoRef}
         source={source}
         paused={player.paused}
         onLoad={d => player.setDuration(d.duration)}

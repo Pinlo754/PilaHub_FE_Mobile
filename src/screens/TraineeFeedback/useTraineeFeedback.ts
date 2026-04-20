@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { LiveSessionService } from '../../hooks/liveSession.service';
+import LiveSessionService from '../../hooks/liveSession.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = {

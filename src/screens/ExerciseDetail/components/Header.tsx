@@ -4,6 +4,9 @@ import { Pressable } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { colors } from '../../../theme/colors';
 import { ExerciseTab } from '../../../constants/exerciseTab';
+import { ExerciseEquipment } from '../../../utils/EquipmentType';
+import { useState } from 'react';
+import EquipmentModal from './EquipmentModal';
 
 type Props = {
   activeTab: ExerciseTab;
@@ -13,6 +16,7 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ExerciseDetail'>;
   exerciseId: string;
   onPressBack: () => void;
+  exerciseEquipments: ExerciseEquipment[];
 };
 
 const Header = ({
@@ -23,11 +27,14 @@ const Header = ({
   navigation,
   exerciseId,
   onPressBack,
+  exerciseEquipments,
 }: Props) => {
   // CHECK
   const shouldHideBack = activeTab === ExerciseTab.Theory && isVideoExpand;
   const showBack = !shouldHideBack && (!isVideoPlay || isShowFlag);
   const showFlag = isShowFlag;
+  const showEquipmentIcon = !isShowFlag;
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
   const onPressReport = () => {
     navigation.navigate('TraineeReport', { exercise_id: exerciseId });
@@ -48,7 +55,7 @@ const Header = ({
         </Pressable>
       )}
 
-      {showFlag && (
+      {/* {showFlag && (
         <Pressable
           className="absolute top-16 right-4 z-10"
           onPress={() => onPressReport()}
@@ -59,7 +66,26 @@ const Header = ({
             color={colors.background.DEFAULT}
           />
         </Pressable>
+      )} */}
+
+      {showEquipmentIcon && (
+        <Pressable
+          className="absolute top-16 right-4 z-10"
+          onPress={() => setShowEquipmentModal(true)}
+        >
+          <Ionicons
+            name="barbell-outline"
+            size={24}
+            color={colors.foreground}
+          />
+        </Pressable>
       )}
+
+      <EquipmentModal
+        visible={showEquipmentModal}
+        onClose={() => setShowEquipmentModal(false)}
+        equipments={exerciseEquipments}
+      />
     </>
   );
 };

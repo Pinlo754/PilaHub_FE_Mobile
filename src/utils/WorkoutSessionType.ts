@@ -20,8 +20,13 @@ export type WorkoutExerciseReq = {
 };
 
 export type WorkoutLessonExerciseReq = {
-  courseLessonProgressId: string,
-  lessonExerciseId: string,
+  courseLessonProgressId: string;
+  lessonExerciseId: string;
   haveAITracking: boolean;
   haveIOTDeviceTracking: boolean;
+};
+
+export type GetByExerciseIdParams = {
+  lessonExerciseProgressId?: string;
+  personalExerciseId?: string;
 };

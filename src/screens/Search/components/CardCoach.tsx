@@ -2,6 +2,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { CoachType } from '../../../utils/CoachType';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
+import { formatShortVND } from '../../../utils/number';
 
 type Props = {
   item: CoachType;
@@ -13,14 +14,12 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
   return (
     <Pressable
       className={`border-t border-background-sub1 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
-      className={`border-t border-background-sub1 flex-row gap-4 py-3 px-4 ${isLast ? 'border-b' : ''}`}
       onPress={onPress}
     >
       {/* Image */}
       <View className="rounded-full w-16 h-16 overflow-hidden">
         <Image
           source={{
-            uri: item.avatarUrl,
             uri: item.avatarUrl,
           }}
           style={{ width: '100%', height: '100%' }}
@@ -33,14 +32,13 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
         {/* Name */}
         <Text className="font-bold color-foreground text-lg">
           {item.fullName}
-          {item.fullName}
         </Text>
         {/* Rate */}
         <View className="flex-row gap-6">
           <View className="flex-row gap-2 items-center">
             <Ionicons name="star" size={18} color={colors.warning.DEFAULT} />
             <Text className="color-secondaryText font-medium">
-              {item.avgRating.toFixed(1)}
+              {item.avgRating ? item.avgRating.toFixed(1) : 'Chưa có'}
             </Text>
           </View>
           {/* Experience year */}
@@ -48,6 +46,13 @@ const CardCoach = ({ item, isLast, onPress }: Props) => {
             <Ionicons name="ribbon" size={18} color={colors.info.darker} />
             <Text className="color-secondaryText font-medium">
               {item.yearsOfExperience} năm
+            </Text>
+          </View>
+          {/* Price */}
+          <View className="flex-row gap-2 items-center">
+            <Ionicons name="card" size={18} color={colors.success.DEFAULT} />
+            <Text className="color-secondaryText font-medium">
+              {formatShortVND(item.pricePerHour)}/1h
             </Text>
           </View>
         </View>

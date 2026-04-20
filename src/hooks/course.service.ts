@@ -15,12 +15,48 @@ export const courseService = {
       };
     }
 
-     return res.data.data.filter(course => course.totalLesson > 0);
+    return res.data.data.filter(course => course.totalLesson > 0);
   },
 
   // GET BY ID
   getById: async (courseId: string): Promise<CourseType> => {
     const res = await api.get<ApiResponse<CourseType>>(`/courses/${courseId}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET BY NAME
+  getByName: async (name: string): Promise<CourseType[]> => {
+    const res = await api.get<ApiResponse<CourseType[]>>(`/courses/search`, {
+      params: {
+        name,
+      },
+    });
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET BY DIFFICULTY LEVEL
+  getByLevel: async (level: string): Promise<CourseType[]> => {
+    const res = await api.get<ApiResponse<CourseType[]>>(
+      `/courses/level/${level}/active`,
+    );
 
     if (!res.data.success) {
       throw {
@@ -35,22 +71,9 @@ export const courseService = {
 
   // GET FULL DETAIL
   getFullDetail: async (courseId: string): Promise<CourseDetailType> => {
-    const res = await api.get<ApiResponse<CourseDetailType>>(`/courses/${courseId}/details`);
-
-    if (!res.data.success) {
-      throw {
-        type: 'BUSINESS_ERROR',
-        message: res.data.message,
-        errorCode: res.data.errorCode,
-      };
-    }
-
-    return res.data.data;
-  },
-
-  // GET BY ID
-  getById: async (courseId: string): Promise<CourseType> => {
-    const res = await api.get<ApiResponse<CourseType>>(`/courses/${courseId}`);
+    const res = await api.get<ApiResponse<CourseDetailType>>(
+      `/courses/${courseId}/details`,
+    );
 
     if (!res.data.success) {
       throw {

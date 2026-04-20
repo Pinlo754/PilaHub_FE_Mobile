@@ -1,24 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Pressable, TextInput } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
+import { SearchTab } from '../../../constants/searchTab';
 
-const Header = () => {
+type Props = {
+  activeTab: SearchTab;
+  searchQuery: string;
+  onSearch: (query: string) => void;
+  onOpenFilter: () => void;
+};
+
+const Header = ({ activeTab, searchQuery, onSearch, onOpenFilter }: Props) => {
   // NAVIGATION
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // STATE
   const [focused, setFocused] = useState(false);
-  const [query, setQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState(searchQuery);
 
-  function doSearch() {
-    const q = (query || '').trim();
-    navigation.navigate('SearchResult' as any, { q });
-  }
+  const canFilter = activeTab !== SearchTab.Coach;
+
+  // USE EFFECT
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
 
   return (
     <View className="flex-row justify-between items-center px-4">
@@ -43,28 +53,46 @@ const Header = () => {
           placeholderTextColor={colors.inactive[80]}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          style={{ width: 230 }}
-          value={query}
-          onChangeText={setQuery}
+          style={{ width: 200 }}
+          value={localQuery}
+          onChangeText={setLocalQuery}
           returnKeyType="search"
-          onSubmitEditing={doSearch}
+          onSubmitEditing={() => onSearch(localQuery)}
         />
 
-        <Pressable className="px-3" onPress={doSearch}>
+        {localQuery.length > 0 ? (
+          <Pressable
+            className="px-2"
+            onPress={() => {
+              setLocalQuery('');
+              onSearch('');
+            }}
+          >
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color={colors.inactive[80]}
+            />
+          </Pressable>
+        ) : null}
+
+        <Pressable className="px-3" onPress={() => onSearch(localQuery)}>
           <Ionicons name="search" size={24} color={colors.foreground} />
         </Pressable>
       </View>
 
       {/* Filter */}
-      <View className="">
-        <Pressable onPress={() => navigation.navigate('SearchResult' as any, { q: '', showFilter: true })}>
+      {canFilter ? (
+        <Pressable className="ml-3" onPress={onOpenFilter}>
           <Ionicons
             name="options-outline"
             size={24}
             color={colors.foreground}
           />
         </Pressable>
-      </View>
+      ) : (
+        <View />
+      )}
     </View>
   );
 };

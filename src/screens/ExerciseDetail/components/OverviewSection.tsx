@@ -5,6 +5,7 @@ import Description from './Description';
 import { ExerciseType, PackageType } from '../../../utils/ExerciseType';
 import Footer from './Footer';
 import PlayButton from './PlayButton';
+import { WorkoutSessionType } from '../../../utils/WorkoutSessionType';
 
 type Props = {
   activeTab: ExerciseTab;
@@ -17,6 +18,8 @@ type Props = {
   canPractice: boolean;
   onPressPractice: () => void;
   activePackage: PackageType | null;
+  workoutHistory: WorkoutSessionType[];
+  canPlayTheory: boolean;
 };
 
 const OverviewSection = ({
@@ -30,13 +33,15 @@ const OverviewSection = ({
   canPractice,
   onPressPractice,
   activePackage,
+  workoutHistory,
+  canPlayTheory,
 }: Props) => {
   return (
     <View
-      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${!canPractice || isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
+      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${!canPlayTheory || isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
-      {!isPracticeTab && (
+      {!isPracticeTab && canPlayTheory && (
         <PlayButton
           isVideoPlay={isVideoPlay}
           togglePlayButton={togglePlayButton}
@@ -45,7 +50,7 @@ const OverviewSection = ({
 
       {/* Name */}
       <Text
-        className={`text-center text-2xl font-bold color-foreground ${!canPractice || isPracticeTab ? 'mt-5' : 'mt-2'}`}
+        className={`text-center text-2xl font-bold color-foreground ${!canPlayTheory || isPracticeTab ? 'mt-5' : 'mt-2'}`}
       >
         {exerciseDetail.name}
       </Text>
@@ -61,6 +66,8 @@ const OverviewSection = ({
       <Description
         exerciseDetail={exerciseDetail}
         isPracticeTab={isPracticeTab}
+        workoutHistory={workoutHistory}
+        canPlayTheory={canPlayTheory}
       />
 
       {/* Btn */}

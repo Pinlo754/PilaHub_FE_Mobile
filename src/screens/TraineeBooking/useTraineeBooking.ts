@@ -3,7 +3,7 @@ import { BookingTab } from '../../constants/bookingTab';
 import { BookingStatus, CoachBookingType } from '../../utils/CoachBookingType';
 import { coachBookingService } from '../../hooks/coachBooking.service';
 import { LiveSessionType } from '../../utils/LiveSessionType';
-import { LiveSessionService } from '../../hooks/liveSession.service';
+import LiveSessionService from '../../hooks/liveSession.service';
 
 type DataByTab = {
   [K in BookingTab]: CoachBookingType[];
@@ -39,6 +39,7 @@ export const useTraineeBooking = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const [showRecord, setShowRecord] = useState<boolean>(false);
   const [recordUrl, setRecordUrl] = useState<string | null>(null);
+  const [showReportList, setShowReportList] = useState<boolean>(false);
 
   // API
   const fetchData = async () => {
@@ -54,6 +55,12 @@ export const useTraineeBooking = () => {
       };
 
       setDataByTab(filterData);
+
+      if (filterData[BookingTab.Ready].length > 0) {
+        setActiveTab(BookingTab.Ready);
+      } else {
+        setActiveTab(BookingTab.Scheduled);
+      }
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
@@ -78,6 +85,7 @@ export const useTraineeBooking = () => {
     setIsLoading(true);
     try {
       const res = await LiveSessionService.getRecordUrl(bookingId);
+      console.log('video url', res);
       setRecordUrl(res);
       return true;
     } catch (err: any) {
@@ -133,6 +141,14 @@ export const useTraineeBooking = () => {
     setRecordUrl(null);
   };
 
+  const openReportList = () => {
+    setShowReportList(true);
+  };
+
+  const closeReportList = () => {
+    setShowReportList(false);
+  };
+
   const openErrorModal = (msg: string) => {
     setErrorMsg(msg);
     setShowErrorModal(true);
@@ -168,5 +184,8 @@ export const useTraineeBooking = () => {
     showErrorModal,
     closeErrorModal,
     recordUrl,
+    showReportList,
+    openReportList,
+    closeReportList,
   };
 };

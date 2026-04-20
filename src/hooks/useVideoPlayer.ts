@@ -9,6 +9,7 @@ type Props = {
 export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
   // REF
   const videoRef = useRef<VideoRef>(null);
+  const pipVideoRef = useRef<VideoRef>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // STATE
@@ -27,7 +28,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
   // HANDLERS
   const setDuration = (d: number) => {
     if (!isFinite(d) || d <= 0 || d > 100000) return;
-    setDurationState(d); 
+    setDurationState(d);
   };
 
   const clearHideTimer = () => {
@@ -73,6 +74,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
 
   const seek = (time: number) => {
     videoRef.current?.seek(time);
+    pipVideoRef.current?.seek(time);
     setCurrentTime(time);
     startHideTimer();
   };
@@ -89,6 +91,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
     setDurationState(0);
     setIsLoaded(false);
     videoRef.current?.seek(0);
+    pipVideoRef.current?.seek(0);
   };
 
   // USE EFFECT
@@ -112,6 +115,7 @@ export const useVideoPlayer = ({ isVideoPlay, setIsShowControls }: Props) => {
 
   return {
     videoRef,
+    pipVideoRef,
     paused,
     duration,
     currentTime,

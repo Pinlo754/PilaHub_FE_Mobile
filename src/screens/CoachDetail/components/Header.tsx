@@ -66,12 +66,12 @@ const Header = ({ navigation, scrollY, coachId }: Props) => {
           <Ionicons name="chevron-back-outline" size={24} color={iconColor} />
         </Pressable>
 
-        <Pressable
+        {/* <Pressable
           className="absolute top-16 right-4 z-10"
           onPress={() => onPressReport()}
         >
           <Ionicons name="flag-outline" size={24} color={iconColor} />
-        </Pressable>
+        </Pressable> */}
       </View>
     </View>
   );

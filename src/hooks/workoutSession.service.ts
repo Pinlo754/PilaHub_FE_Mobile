@@ -1,5 +1,6 @@
 import { ApiResponse } from '../utils/ApiResType';
 import {
+  GetByExerciseIdParams,
   WorkoutExerciseReq,
   WorkoutLessonExerciseReq,
   WorkoutSessionType,
@@ -10,6 +11,32 @@ export const workoutSessionService = {
   getById: async (id: string): Promise<WorkoutSessionType> => {
     const res = await api.get<ApiResponse<WorkoutSessionType>>(
       `/workout-sessions/${id}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET BY EXERCISE ID
+  getByExerciseId: async (
+    exerciseId: string,
+    params?: GetByExerciseIdParams,
+  ): Promise<WorkoutSessionType[]> => {
+    const res = await api.get<ApiResponse<WorkoutSessionType[]>>(
+      `/workout-sessions/my-sessions/by-exercise/${exerciseId}/with-filters`,
+      {
+        params: {
+          lessonExerciseProgressId: params?.lessonExerciseProgressId,
+          personalExerciseId: params?.personalExerciseId,
+        },
+      },
     );
 
     if (!res.data.success) {
@@ -80,7 +107,7 @@ export const workoutSessionService = {
     return res.data.data;
   },
 
-   // START WORKOUT FOR LESSON EXERCISE
+  // START WORKOUT FOR LESSON EXERCISE
   startWorkoutForLessonExercise: async (
     payload: WorkoutLessonExerciseReq,
   ): Promise<WorkoutSessionType> => {

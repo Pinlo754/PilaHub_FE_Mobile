@@ -25,6 +25,13 @@ type DurationDisplay = {
   endTime: string;
 };
 
+type ISOFormatType = 'date' | 'time' | 'datetime';
+
+type FormatISOOptions = {
+  type?: ISOFormatType;
+  showSeconds?: boolean;
+};
+
 // FUNCTIONS
 export const getWeekDays = (date: Date): DayItem[] => {
   const start = new Date(date);
@@ -127,6 +134,42 @@ export const formatDurationDateTime = (
     startTime: formatTimeText(start),
     endTime: formatTimeText(end),
   };
+};
+
+export const formatDateTime = (
+  isoString: string,
+  options: FormatISOOptions = {},
+): string => {
+  const { type = 'datetime', showSeconds = false } = options;
+
+  const d = dayjs.utc(isoString).local();
+
+  if (!d.isValid()) return '';
+
+  // TIME (reuse logic của bạn)
+  if (type === 'time') {
+    const totalSeconds = d.hour() * 3600 + d.minute() * 60 + d.second();
+
+    const parts = calculateTimeParts(totalSeconds);
+
+    return formatTime(parts, { showSeconds, pad: true });
+  }
+
+  // DATE
+  if (type === 'date') {
+    return d.format('DD/MM/YYYY');
+  }
+
+  // DATETIME
+  const date = d.format('DD/MM/YYYY');
+
+  const totalSeconds = d.hour() * 3600 + d.minute() * 60 + d.second();
+
+  const parts = calculateTimeParts(totalSeconds);
+
+  const time = formatTime(parts, { showSeconds, pad: true });
+
+  return `${time} ${date}`;
 };
 
 // CHECK

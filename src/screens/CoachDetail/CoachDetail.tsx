@@ -13,13 +13,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CoachDetail'>;
 
 const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   // HOOK
-  const { coachDetail, coachFeedbacks, scrollY, onPressBtn, sendRequestRoadmap } = useCoachDetail({
+  const {
+    coachDetail,
+    coachFeedbacks,
+    scrollY,
+    onPressBtn,
+    sendRequestRoadmap,
+  } = useCoachDetail({
     route,
     navigation,
   });
-
-  // CALC
-  const dynamicPaddingBottom = coachFeedbacks.length > 0 ? 320 : 0;
 
   // LOADING
   if (!coachDetail) return null;
@@ -34,7 +37,6 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       />
 
       <Animated.ScrollView
-        contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -44,7 +46,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
       >
         {/* Image */}
         <ImageCoach
-          avatarUrl={coachDetail?. avatarUrl}
+          avatarUrl={coachDetail?.avatarUrl}
           coachName={coachDetail?.fullName}
         />
 
@@ -66,7 +68,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
           text="Đăng ký lịch"
           onPress={onPressBtn}
           colorType="sub1"
-          rounded="full"
+          rounded="xl"
           iconName="today-outline"
           iconSize={26}
         />
@@ -74,7 +76,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
           text="Đăng ký Roadmap"
           onPress={sendRequestRoadmap}
           colorType="sub1"
-          rounded="full"
+          rounded="xl"
           iconName="today-outline"
           iconSize={26}
         />

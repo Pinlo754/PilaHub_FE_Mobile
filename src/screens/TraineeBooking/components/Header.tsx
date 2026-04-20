@@ -6,12 +6,13 @@ import { colors } from '../../../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'TraineeBooking'>;
+  openReportList: () => void;
 };
 
-const Header = ({ navigation }: Props) => {
+const Header = ({ navigation, openReportList }: Props) => {
   // HANDLERS
   const handleGoBack = () => {
-    navigation.navigate('MainTabs');
+    navigation.navigate('MainTabs', { screen: 'Home' });
   };
 
   return (
@@ -27,8 +28,15 @@ const Header = ({ navigation }: Props) => {
 
       {/* Title */}
       <Text className="color-foreground text-3xl font-bold text-center">
-        Video call
+        Gọi video
       </Text>
+
+      <Pressable
+        className="absolute top-1 right-4 z-10"
+        onPress={openReportList}
+      >
+        <Ionicons name="flag-outline" size={24} color={colors.foreground} />
+      </Pressable>
     </View>
   );
 };

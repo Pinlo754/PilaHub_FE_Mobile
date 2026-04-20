@@ -199,19 +199,21 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   const onPressConfirmSlot = () => {
     if (!selectedDate || !startTime || !endTime) return;
 
-    setBookingSlots(prev => {
-      const exists = prev.some(
-        s =>
-          s.date.getTime() === selectedDate.getTime() &&
-          s.startTime === startTime &&
-          s.endTime === endTime,
-      );
+    // setBookingSlots(prev => {
+    //   const exists = prev.some(
+    //     s =>
+    //       s.date.getTime() === selectedDate.getTime() &&
+    //       s.startTime === startTime &&
+    //       s.endTime === endTime,
+    //   );
 
-      if (exists) return prev;
+    //   if (exists) return prev;
 
-      return [...prev, { date: selectedDate, startTime, endTime }];
-    });
-    clearTime();
+    //   return [...prev, { date: selectedDate, startTime, endTime }];
+    // });
+    // clearTime();
+
+    setBookingSlots([{ date: selectedDate, startTime, endTime }]);
   };
 
   const onPressRegister = () => {

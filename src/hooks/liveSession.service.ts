@@ -3,6 +3,23 @@ import { ApiResponse } from '../utils/ApiResType';
 import api from './axiosInstance';
 
 const LiveSessionService = {
+  // GET BY ID
+  getById: async (liveSessionId: string): Promise<LiveSessionType> => {
+    const res = await api.get<ApiResponse<LiveSessionType>>(
+      `/live-sessions/${liveSessionId}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
   // GET BY BOOKING_ID
   getByBookingId: async (bookingId: string): Promise<LiveSessionType> => {
     const res = await api.get<ApiResponse<LiveSessionType>>(
@@ -130,6 +147,5 @@ const LiveSessionService = {
     return res.data.data;
   },
 };
-
 
 export default LiveSessionService;
