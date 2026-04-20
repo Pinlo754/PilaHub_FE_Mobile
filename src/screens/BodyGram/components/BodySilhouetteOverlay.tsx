@@ -16,7 +16,7 @@ export default function BodySilhouetteOverlay({ mode }: Props) {
         {mode === 'front' ? (
           <Image
             source={require('../../../assets/front.png')}
-            style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+            style={{ width: '200%', height: '100%', resizeMode: 'contain' }}
           />
         ) : (
           <Svg width="100%" height="100%" viewBox="0 0 200 400">

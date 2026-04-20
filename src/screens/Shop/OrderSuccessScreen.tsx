@@ -26,7 +26,7 @@ export default function OrderSuccessScreen() {
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity onPress={() => navigation.navigate('Home' as never)} style={styles.homeBtn}>
+        <TouchableOpacity onPress={() => (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] })} style={styles.homeBtn}>
           <Text style={styles.homeBtnText}>Quay về trang chính</Text>
         </TouchableOpacity>
       </View>

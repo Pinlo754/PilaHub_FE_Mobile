@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { extractInBodyScanFile, uploadInBodyScan } from '../../../services/profile';
+import { extractInBodyScanFile, uploadInBodyScan, createTraineeProfile, createPersonalInjury } from '../../../services/profile';
+import { useOnboardingStore } from '../../../store/onboarding.store';
 import storage from '@react-native-firebase/storage';
 import { useNavigation } from '@react-navigation/native';
 
 export default function InBodyScan() {
   const nav = useNavigation();
+  const onboarding = useOnboardingStore((s) => s.data);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -36,34 +38,99 @@ export default function InBodyScan() {
     if (!imageUri) { Alert.alert('Chưa chọn ảnh', 'Vui lòng chụp hoặc chọn ảnh InBody.'); return; }
     try {
       setUploading(true);
-      // first upload to Firebase to obtain rawScanId (public URL)
-      let rawScanId: string | undefined;
+      // If onboarding data exists, attempt to create trainee and personal injuries first
+      let traineeCreated = false;
+      let traineeError: any = null;
+      let injuriesCreated = 0;
+      let injuriesFailed = 0;
       try {
-        const path = `inbody/${Date.now()}.jpg`;
-        const ref = storage().ref(path);
-        await ref.putFile(imageUri);
-        rawScanId = await ref.getDownloadURL();
-      } catch (uploadErr) {
-        console.log('Firebase upload failed, will proceed without rawScanId', uploadErr);
-        // fallthrough: still attempt backend call without rawScanId
+        if (onboarding && Object.keys(onboarding).length > 0) {
+          const t = await createTraineeProfile(onboarding);
+          if (!t.ok) {
+            console.warn('createTraineeProfile (InBody flow) returned error', t.error);
+            traineeError = t.error;
+          } else {
+            traineeCreated = true;
+            console.log('Created/updated trainee before InBody extract:', t.data);
+          }
+
+          const injuries = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? [];
+          if (Array.isArray(injuries) && injuries.length > 0) {
+            for (const inj of injuries) {
+              const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injury?.id ?? null;
+              const notes = inj?.notes ?? inj?.note ?? null;
+              if (!injuryId) continue;
+              try {
+                const p = await createPersonalInjury({ injuryId, notes });
+                if (!p.ok) {
+                  injuriesFailed += 1;
+                  console.warn('createPersonalInjury failed', p.error);
+                } else {
+                  injuriesCreated += 1;
+                  console.log('Created personal injury', p.data);
+                }
+              } catch (err) {
+                injuriesFailed += 1;
+                console.warn('createPersonalInjury thrown', err);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Pre-InBody create trainee/injuries step failed', err);
+        traineeError = traineeError ?? err;
       }
 
-      const img = { uri: imageUri, name: 'inbody.jpg', type: 'image/jpeg' };
-      // prefer new uploadInBodyScan helper which accepts rawScanId
-      const res = await (uploadInBodyScan ? uploadInBodyScan(img, rawScanId) : extractInBodyScanFile(img));
-      if (res.ok) {
-        (nav as any).navigate('BodyGramResult', { measurements: res.data?.measurements ?? null, rawResponse: { entry: res.data ?? {} } });
-      } else {
-        const err = res.error;
-        Alert.alert('Lỗi', typeof err === 'string' ? err : JSON.stringify(err));
-      }
-    } catch (e: any) {
-      console.log('InBody API call error', e);
-      Alert.alert('Lỗi', 'Không thể gọi InBody API');
-    } finally {
-      setUploading(false);
-    }
-  }
+      // prepare a human-friendly message and continue only after user acknowledges
+      const preMsgParts: string[] = [];
+      if (traineeCreated) preMsgParts.push('Tạo tài khoản/ hồ sơ thành công.');
+      else if (traineeError) preMsgParts.push('Không thể tạo tài khoản/hồ sơ.');
+      if (injuriesCreated > 0) preMsgParts.push(`Tạo ${injuriesCreated} chấn thương thành công.`);
+      if (injuriesFailed > 0) preMsgParts.push(`${injuriesFailed} chấn thương không tạo được.`);
+      const preMsg = preMsgParts.length > 0 ? preMsgParts.join(' ') : 'Không có dữ liệu hồ sơ để tạo.';
+
+      const continueToExtract = async () => {
+        try {
+          // first upload to Firebase to obtain rawScanId (public URL)
+          let rawScanId: string | undefined;
+          try {
+            const path = `inbody/${Date.now()}.jpg`;
+            const ref = storage().ref(path);
+            await ref.putFile(imageUri);
+            rawScanId = await ref.getDownloadURL();
+          } catch (uploadErr) {
+            console.log('Firebase upload failed, will proceed without rawScanId', uploadErr);
+            // fallthrough: still attempt backend call without rawScanId
+          }
+
+          const img = { uri: imageUri, name: 'inbody.jpg', type: 'image/jpeg' };
+          // prefer new uploadInBodyScan helper which accepts rawScanId
+          const res = await (uploadInBodyScan ? uploadInBodyScan(img, rawScanId) : extractInBodyScanFile(img));
+          if (res.ok) {
+            (nav as any).navigate('BodyGramResult', { measurements: res.data?.measurements ?? null, rawResponse: { entry: res.data ?? {} } });
+          } else {
+            const err = res.error;
+            Alert.alert('Lỗi', typeof err === 'string' ? err : JSON.stringify(err));
+          }
+        } catch (e: any) {
+          console.log('InBody API call error', e);
+          Alert.alert('Lỗi', 'Không thể gọi InBody API');
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      // show result then continue when user presses 'Tiếp tục'
+      Alert.alert('Kết quả chuẩn bị hồ sơ', preMsg, [{ text: 'Tiếp tục', onPress: continueToExtract }]);
+      return; // wait for user to press button before proceeding
+     } catch (e: any) {
+       console.log('InBody API call error', e);
+       Alert.alert('Lỗi', 'Không thể gọi InBody API');
+     } finally {
+      // if we returned early to wait for user confirmation, do not clear uploading here
+      // setUploading(false) is handled in continueToExtract finally
+     }
+   }
 
   return (
     <View style={styles.container}>

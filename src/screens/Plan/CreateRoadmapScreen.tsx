@@ -105,9 +105,10 @@ const CreateRoadmapScreen: React.FC = () => {
         console.warn('CreateRoadmap: no stages found in AI response. Response keys:', Object.keys(inner));
       }
 
-      // Persist locally and navigate immediately to Plan so user can review the generated roadmap.
+      // Persist locally and navigate into the main tab navigator to the Roadmap tab
+      // so the user sees the roadmap within the app's TabNavigator context.
       addRoadmap({ roadmap: roadmapObj, stages, createdAt: Date.now() });
-      nav.navigate('Plan', { addedRoadmap: { roadmap: roadmapObj, stages, primaryGoalId: primaryGoalIdState, secondaryGoalIds: secondaryGoalIdsState } });
+       nav.navigate('Plan', { addedRoadmap: { roadmap: roadmapObj, stages, primaryGoalId: primaryGoalIdState, secondaryGoalIds: secondaryGoalIdsState } });
       setSubmitting(false);
       return;
 
