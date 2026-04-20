@@ -59,6 +59,11 @@ const TraineeBooking = (props: Props) => {
           openDetailModal={openDetailModal}
           openFeedbackModal={openFeedbackModal}
           openVideoRecord={openVideoRecord}
+          onPressReport={bookingId =>
+            props.navigation.navigate('TraineeReport', {
+              liveSessionId: bookingId,
+            })
+          }
         />
 
         {/* Detail Modal */}

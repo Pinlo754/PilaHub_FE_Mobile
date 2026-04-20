@@ -46,7 +46,7 @@ const getColors = (type: ColorType) => {
       };
     case 'red':
       return {
-        backgroundColor: colors.danger.DEFAULT,
+        backgroundColor: colors.danger[20],
         textColor: colors.danger.darker,
       };
     case 'yellow':

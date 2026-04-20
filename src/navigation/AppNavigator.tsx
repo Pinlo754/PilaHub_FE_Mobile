@@ -162,7 +162,11 @@ export type RootStackParamList = {
     | undefined;
   TraineeFeedback: { liveSessionId?: string } | undefined;
   TraineeReport:
-    | { coach_id?: string | null; exercise_id?: string | null }
+    | {
+        coach_id?: string | null;
+        exercise_id?: string | null;
+        liveSessionId?: string | null;
+      }
     | undefined;
   AISummary:
     | {
@@ -419,12 +423,17 @@ const AppNavigator: React.FC = () => {
               name="MyInjuries"
               component={require('../screens/Profile/MyInjuriesScreen').default}
             />
-            <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
+            <Stack.Screen
+              name="CreatePostScreen"
+              component={CreatePostScreen}
+            />
             <Stack.Screen name="ChatScreen" component={ChatScreen} />
             <Stack.Screen name="MyBlogScreen" component={MyBlogScreen} />
             <Stack.Screen name="ListChatScreen" component={ListChatScreen} />
-            <Stack.Screen name="TraineeDetailScreen" component={TraineeDetailScreen} />
-            <Stack.Screen name="MyInjuries" component={require('../screens/Profile/MyInjuriesScreen').default} />
+            <Stack.Screen
+              name="TraineeDetailScreen"
+              component={TraineeDetailScreen}
+            />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

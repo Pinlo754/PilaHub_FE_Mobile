@@ -12,6 +12,7 @@ type Props = {
   onPressBtn: () => void;
   onPressCard: () => void;
   onPressRecord: () => void;
+  onPressReport: () => void;
 };
 
 const CardBooking = ({
@@ -19,6 +20,7 @@ const CardBooking = ({
   onPressBtn,
   onPressCard,
   onPressRecord,
+  onPressReport,
 }: Props) => {
   // VARIABLE
   const config = BOOKING_UI_CONFIG[item.status];
@@ -29,6 +31,16 @@ const CardBooking = ({
   );
   const bookingType =
     item.bookingType === 'SINGLE' ? 'Đặt lịch riêng' : 'Lịch trong lộ trình';
+
+  const canReport = (() => {
+    if (!config.showReportButton) return false;
+    const start = new Date(item.startTime).getTime();
+    const now = Date.now();
+    const diffDays = (now - start) / (1000 * 60 * 60 * 24);
+    return diffDays <= 7;
+  })();
+
+  const showFooter = config.showButton || canReport;
 
   return (
     <Pressable
@@ -119,49 +131,67 @@ const CardBooking = ({
       </View>
 
       {/* Button */}
-      {config.showButton && (
+      {showFooter && (
         <>
-          {/* Border */}
           <View
             pointerEvents="none"
             className="border-t border-background-sub1 absolute left-0 right-0 top-[155px]"
           />
 
-          {item.status === 'COMPLETED' ? (
-            <View className="flex-row justify-between mt-6 -mx-2">
-              <Button
-                text="Video record"
-                onPress={onPressRecord}
-                colorType="sub1"
-                rounded="xl"
-                showArrow={true}
-                width={config.buttonWidth}
-                height={40}
-              />
+          <View className="mt-6 -mx-2 gap-3">
+            {/* Hàng 1: Video record + Xem đánh giá (chỉ COMPLETED) */}
+            {item.status === 'COMPLETED' && (
+              <View className="flex-row justify-between">
+                <Button
+                  text="Video record"
+                  onPress={onPressRecord}
+                  colorType="sub1"
+                  rounded="xl"
+                  showArrow={true}
+                  width={config.buttonWidth}
+                  height={40}
+                />
+                <Button
+                  text={config.buttonText ?? 'Xem'}
+                  onPress={onPressBtn}
+                  colorType="sub1"
+                  rounded="xl"
+                  showArrow={true}
+                  width={config.buttonWidth}
+                  height={40}
+                />
+              </View>
+            )}
 
-              <Button
-                text={config.buttonText ?? 'Xem'}
-                onPress={onPressBtn}
-                colorType="sub1"
-                rounded="xl"
-                showArrow={true}
-                width={config.buttonWidth}
-                height={40}
-              />
+            {/* Hàng 2: Báo cáo (căn phải) + button chính nếu không phải COMPLETED */}
+            <View className="flex-row justify-between">
+              {canReport && (
+                <Button
+                  text="Báo cáo"
+                  onPress={onPressReport}
+                  colorType="red"
+                  rounded="xl"
+                  showArrow={true}
+                  width={config.buttonWidth}
+                  height={40}
+                />
+              )}
+
+              {config.showButton && item.status !== 'COMPLETED' && (
+                <View className="ml-auto">
+                  <Button
+                    text={config.buttonText ?? 'Xem'}
+                    onPress={onPressBtn}
+                    colorType="sub1"
+                    rounded="xl"
+                    showArrow={true}
+                    width={config.buttonWidth}
+                    height={40}
+                  />
+                </View>
+              )}
             </View>
-          ) : (
-            <View className="flex items-end mt-6 -mx-2">
-              <Button
-                text={config.buttonText ?? 'Xem'}
-                onPress={onPressBtn}
-                colorType="sub1"
-                rounded="xl"
-                showArrow={true}
-                width={config.buttonWidth}
-                height={40}
-              />
-            </View>
-          )}
+          </View>
         </>
       )}
     </Pressable>

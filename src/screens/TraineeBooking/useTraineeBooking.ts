@@ -105,7 +105,12 @@ export const useTraineeBooking = () => {
     data: CoachBookingType[],
     tab: BookingTab,
   ): CoachBookingType[] => {
-    return data.filter(item => statusMap[tab].includes(item.status));
+    return data
+      .filter(item => statusMap[tab].includes(item.status))
+      .sort(
+        (a, b) =>
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+      );
   };
 
   const openDetailModal = async (bookingId: string) => {

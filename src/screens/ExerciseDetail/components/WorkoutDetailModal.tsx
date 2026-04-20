@@ -52,11 +52,11 @@ const WorkoutDetailModal = ({ session, onClose }: Props) => {
               value: secondsToTime(session.durationSeconds || 0),
             },
             {
-              label: 'AI Tracking',
+              label: 'Tập với AI',
               value: session.haveAITracking ? 'Có' : 'Không',
             },
             {
-              label: 'IOT Tracking',
+              label: 'Thiết bị IOT',
               value: session.haveIOTDeviceTracking ? 'Có' : 'Không',
             },
           ].map(({ label, value }) => (
