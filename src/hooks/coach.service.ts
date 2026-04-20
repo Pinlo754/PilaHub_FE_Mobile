@@ -1,6 +1,7 @@
 import { ApiResponse } from '../utils/ApiResType';
 import api from './axiosInstance';
 import { CoachType } from '../utils/CoachType';
+import { get } from 'react-native/Libraries/NativeComponent/NativeComponentRegistry';
 
 export const CoachService = {
   getAll: async () => {
@@ -120,7 +121,6 @@ export const CoachService = {
     return res.data.data;
   },
 
-  // GET BY NAME
   getByName: async (name: string): Promise<CoachType[]> => {
     const res = await api.get<ApiResponse<CoachType[]>>(`/coaches/search`, {
       params: {
@@ -138,4 +138,34 @@ export const CoachService = {
 
     return res.data.data;
   },
+
+  updateProfile: async (id:string, payload: any) => {
+    const res = await api.put<ApiResponse<[]>>(`/coaches/${id}`, payload);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  getMyRoadmap: async () => {
+    const res = await api.get<ApiResponse<[]>>(`/roadmaps/my`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+
 };
