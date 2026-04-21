@@ -420,8 +420,8 @@ export default function BodyMetricDetails({ navigation }: any) {
 
           {menuVisible ? (
             <View style={styles.menuBox}>
-              <TouchableOpacity onPress={() => { setMenuVisible(false); handleRescan(); }} style={styles.menuItem}><Text style={styles.menuItemText}>Quét lại Bodygram</Text></TouchableOpacity>
-              <TouchableOpacity onPress={async () => { setMenuVisible(false); await handleCreateHealthProfile(); }} style={styles.menuItem}><Text style={styles.menuItemText}>Tạo health-profile</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setMenuVisible(false); handleRescan(); }} style={styles.menuItem}><Text style={styles.menuItemText}>Quét Bodygram</Text></TouchableOpacity>
+              <TouchableOpacity onPress={async () => { setMenuVisible(false); await handleCreateHealthProfile(); }} style={styles.menuItem}><Text style={styles.menuItemText}>Cập nhật thủ công</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => { setMenuVisible(false); handleInbodyScan(); }} style={[styles.menuItem, styles.menuItemLast]}>
                 <View style={styles.menuItemRow}><Ionicons name="flame" size={16} color="#FF4500" style={styles.menuItemIcon} /><Text style={styles.menuItemText}>InBody Scan</Text></View>
               </TouchableOpacity>
