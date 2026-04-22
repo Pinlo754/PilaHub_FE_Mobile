@@ -32,8 +32,9 @@ const CreateRoadmapScreen: React.FC = () => {
   const [workoutLevel] = useState<typeof workoutLevelFromOnboarding>(workoutLevelFromOnboarding);
   const [trainingDays, setTrainingDays] = useState<string[]>(['MONDAY','WEDNESDAY','FRIDAY']);
   const [durationWeeks, setDurationWeeks] = useState<string>('5');
-  // Backend requires a startDate (LocalDate YYYY-MM-DD). Default to today.
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0,10));
+  // Backend requires a startDate (LocalDate YYYY-MM-DD). Default to today and disallow past dates.
+  const today = new Date().toISOString().slice(0,10);
+  const [startDate, setStartDate] = useState<string>(today);
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -107,7 +108,7 @@ const CreateRoadmapScreen: React.FC = () => {
 
       // Persist locally and navigate into the main tab navigator to the Roadmap tab
       // so the user sees the roadmap within the app's TabNavigator context.
-      addRoadmap({ roadmap: roadmapObj, stages, createdAt: Date.now() });
+      addRoadmap({ roadmap: roadmapObj, stages, createdAt: Date.now() })
        nav.navigate('Plan', { addedRoadmap: { roadmap: roadmapObj, stages, primaryGoalId: primaryGoalIdState, secondaryGoalIds: secondaryGoalIdsState } });
       setSubmitting(false);
       return;
@@ -173,7 +174,10 @@ const CreateRoadmapScreen: React.FC = () => {
           {showCalendar && (
             <View className="mt-2 bg-white rounded-lg border border-gray-200">
               <Calendar
+                minDate={today}
                 onDayPress={(day) => {
+                  // Calendar already prevents past-day presses via minDate, but guard defensively
+                  if (day.dateString < today) return;
                   setStartDate(day.dateString);
                   setShowCalendar(false);
                 }}

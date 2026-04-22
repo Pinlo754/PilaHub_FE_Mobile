@@ -30,6 +30,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   // STATE
   const today = new Date();
   const [coaches, setCoaches] = useState<CoachType[]>([]);
+  const [initialCoaches, setInitialCoaches] = useState<CoachType[]>([]);
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(
     paramCoachId,
   );
@@ -41,6 +42,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   const [startTime, setStartTime] = useState<string | null>(null);
   const [endTime, setEndTime] = useState<string | null>(null);
   const [bookingSlots, setBookingSlots] = useState<BookingSlot[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // MODAL + LOADING
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -98,6 +100,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
       const res = await CoachService.getAll();
 
       setCoaches(res);
+      setInitialCoaches(res);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setErrorMsg(err.message);
@@ -167,6 +170,28 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
       } else {
         openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    const q = query.trim();
+
+    if (!q) {
+      setIsLoading(false);
+      setCoaches(initialCoaches);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await CoachService.getByName(q);
+
+      setCoaches(res);
+    } catch (err: any) {
+      openErrorModal('Lỗi tìm kiếm HLV!');
     } finally {
       setIsLoading(false);
     }
@@ -347,5 +372,8 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     weekStart,
     openNotiModal,
     coachDetail,
+    handleSearch,
+    searchQuery,
+    setSearchQuery,
   };
 };

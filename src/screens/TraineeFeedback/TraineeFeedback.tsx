@@ -10,6 +10,7 @@ import ModalPopup from '../../components/ModalPopup';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../theme/colors';
+import AssessmentSection from './components/AssessmentSection';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TraineeFeedback'>;
 
@@ -33,6 +34,9 @@ const TraineeFeedback = (props: Props) => {
     mode,
     title,
     liveSessionIdParam,
+    criteria,
+    onScoreChange,
+    scores,
   } = useTraineeFeedback({
     route: props.route,
     navigation: props.navigation,
@@ -90,6 +94,14 @@ const TraineeFeedback = (props: Props) => {
               comment={comment}
               onChange={setComment}
               mode={mode ?? 'feedbackForCourse'}
+            />
+          )}
+
+          {mode === 'feedbackForTrainee' && (
+            <AssessmentSection
+              criteria={criteria}
+              scores={scores}
+              onScoreChange={onScoreChange}
             />
           )}
 

@@ -12,6 +12,8 @@ import {
 } from '../../utils/CourseLessonProgressType';
 import { fetchTraineeProfile } from '../../services/profile';
 import { formatVND } from '../../utils/number';
+import { PackageType } from '../../utils/ExerciseType';
+import { getProfile } from '../../services/auth';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
@@ -43,12 +45,26 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [traineeId, setTraineeId] = useState<string | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [selectedStartDate, setSelectedStartDate] = useState<string>('');
+  const [activePackage, setActivePackage] = useState<PackageType | null>(null);
 
   // FETCH
+  const fetchInformation = async () => {
+    try {
+      const res = await getProfile();
+      if (!res.ok) return;
+      setActivePackage(res.data.activePackageType);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    }
+  };
+
   const fetchById = async () => {
     if (!program_id) return;
 
-    setIsLoading(true);
     try {
       let programDetail;
       let enrolled = false;
@@ -101,8 +117,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
       } else {
         openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -231,7 +245,17 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   useEffect(() => {
     if (!program_id) return;
 
-    fetchById();
+    const fetchAll = async () => {
+      setIsLoading(true);
+      try {
+        await fetchInformation();
+        await fetchById();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAll();
   }, [program_id]);
 
   return {
@@ -260,5 +284,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     traineeCourseId,
     progressOfCourse,
     completedLessonIds,
+    activePackage,
   };
 };

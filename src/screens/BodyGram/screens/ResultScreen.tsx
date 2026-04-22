@@ -6,7 +6,7 @@ import { useOnboardingStore } from '../../../store/onboarding.store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { submitProfiles, buildTraineeProfilePayload } from '../../../services/profile';
+import { buildTraineeProfilePayload, submitTraineeProfile, submitPersonalInjuries, submitHealthProfile } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 import { getProfile } from '../../../services/auth';
@@ -160,23 +160,46 @@ export default function ResultScreen({ route, navigation }: Props) {
         const traineePayload = buildTraineeProfilePayload(onboarding, bodyGramForApi);
         console.log('submitProfiles -> traineePayload', traineePayload);
         console.log('submitProfiles -> bodyGram (sample keys)', Object.keys(bodyGramForApi).slice(0,20));
-      } catch (e) {
-        console.warn('Error building traineePayload for logging', e);
+      } catch (err) {
+        console.warn('Error building traineePayload for logging', err);
       }
 
       // ensure API payload includes the source/context (important for backend tracking)
       try {
         (bodyGramForApi as any).input = (bodyGramForApi as any).input ?? {};
         (bodyGramForApi as any).input.source = (bodyGramForApi as any).input.source ?? source;
-      } catch (e) {
-        console.warn('Could not annotate bodyGramForApi.input.source', e);
+      } catch (err) {
+        console.warn('Could not annotate bodyGramForApi.input.source', err);
       }
 
-      const res = await submitProfiles(onboarding, bodyGramForApi, source);
-      setLoading(false);
-      console.log('submitProfiles result', res);
+      // 1) Create trainee profile (if any meaningful data)
+      const tRes = await submitTraineeProfile(onboarding, bodyGramForApi);
+      if (!tRes.ok) {
+        const errMsg = typeof tRes.error === 'string' ? tRes.error : JSON.stringify(tRes.error);
+        console.warn('submitTraineeProfile failed:', tRes.error);
+        if (String(errMsg).toLowerCase().includes('validation') || String(errMsg).toLowerCase().includes('must')) {
+          setLoading(false);
+          setToastType('error');
+          setToastMsg(`Lỗi khi tạo hồ sơ cá nhân: ${errMsg}`);
+          setToastVisible(true);
+          Alert.alert('Lỗi', errMsg);
+          return;
+        }
+      }
 
-      if (res.ok) {
+      // 2) Submit personal injuries in background (best-effort)
+      try {
+        const injRes = await submitPersonalInjuries(onboarding);
+        if (!injRes.ok) console.warn('submitPersonalInjuries returned error', injRes.error);
+      } catch (err) {
+        console.warn('submitPersonalInjuries thrown', err);
+      }
+
+      // 3) Submit health profile (required to navigate to assessment)
+      const hRes = await submitHealthProfile(bodyGramForApi, source);
+      setLoading(false);
+
+      if (hRes.ok) {
         // save measurements locally as well
         await saveMeasurements();
 
@@ -188,52 +211,40 @@ export default function ResultScreen({ route, navigation }: Props) {
             const userId = d?.id ?? d?.accountId ?? d?.memberId ?? null;
             if (userId) {
               const info: any = {
-                profileId: res.data?.health?.id ?? res.data?.health?.profileId ?? undefined,
+                profileId: hRes.data?.id ?? hRes.data?.profileId ?? undefined,
                  savedAt: Date.now(),
                  summary: { height: display.height_est, weight: display.weight_est },
                };
                await setBodySavedFor(userId, info);
              }
            }
-         } catch (e) {
-           console.warn('Could not persist per-user body saved info', e);
+         } catch (err) {
+           console.warn('Could not persist per-user body saved info', err);
          }
 
-         setToastType('success');
-         setToastMsg('Lưu hồ sơ thành công');
-         setToastVisible(true);
-         // short delay to show toast then navigate to AI assessment screen (HealthProfileAssessment)
-         const profileId = res.data?.health?.id ?? res.data?.health?.profileId ?? res.data?.health?.healthProfileId ?? null;
-         setTimeout(() => {
-           if (profileId) {
-             // navigate to assessment screen so user can review AI assessment before returning to main
-             try {
-               (navigation as any).reset({ index: 0, routes: [{ name: 'HealthProfileAssessment', params: { healthProfileId: String(profileId) } }] });
-             } catch {
-               try { navigation.navigate('HealthProfileAssessment' as any, { healthProfileId: String(profileId) } as any); } catch { /* ignore */ }
-             }
-           } else {
-             // fallback: reset to MainTabs
-             try { (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } catch { try { navigation.navigate('MainTabs' as any); } catch {} }
-           }
-         }, 700);
-       } else {
-        // log detailed error for debugging
-        const msg = typeof res.error === 'string' ? res.error : JSON.stringify(res.error);
-        console.warn('submitProfiles error', res.error);
-        // if server error object exists, print status and data
-        if (res.error && typeof res.error === 'object') {
-          try {
-            console.error('submitProfiles error details:', res.error);
-          } catch (e) {
-            console.warn('Could not stringify error details', e);
+        setToastType('success');
+        setToastMsg('Lưu hồ sơ thành công');
+        setToastVisible(true);
+        const profileId = hRes.data?.id ?? hRes.data?.profileId ?? hRes.data?.healthProfileId ?? null;
+        setTimeout(() => {
+          if (profileId) {
+            try {
+              (navigation as any).reset({ index: 0, routes: [{ name: 'HealthProfileAssessment', params: { healthProfileId: String(profileId) } }] });
+            } catch {
+              try { navigation.navigate('HealthProfileAssessment' as any, { healthProfileId: String(profileId) } as any); } catch { /* ignore */ }
+            }
+          } else {
+            try { (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } catch { try { navigation.navigate('MainTabs' as any); } catch {} }
           }
-        }
+        }, 700);
+      } else {
+        const msg = typeof hRes.error === 'string' ? hRes.error : JSON.stringify(hRes.error);
+        console.warn('submitHealthProfile error', hRes.error);
         setToastType('error');
         setToastMsg(`Lỗi khi lưu: ${msg}`);
         setToastVisible(true);
         Alert.alert('Lỗi', msg);
-       }
+      }
     } catch (e: any) {
       setLoading(false);
       const msg = e?.message ?? String(e);

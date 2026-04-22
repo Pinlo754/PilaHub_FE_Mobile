@@ -738,75 +738,10 @@ const downloadURL = await uploadVideoToFirebase(file.path);
 
 
   return (
-    <View className="flex-1 bg-background-sub2">
-      <ViewShot ref={viewShotRef} style={{ flex: 1 }}>
-        {showCamera ? (
-          <RNMediapipe
-            style={{ flex: 1 }}
-            onLandmark={data => {
-              const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-              handlePoseRef.current(parsed);
-            }}
-          />
-        ) : (
-          <View className="flex-1 justify-center items-center bg-black">
-            <ActivityIndicator size="large" color="#10b981" />
-            <Text className="text-white mt-4">Đang xử lý kết quả...</Text>
-          </View>
-        )}
-        {!isPersonDetected && isSessionActive && (
-          <View className="absolute inset-0 bg-black/50 justify-center items-center">
-            <Text className="text-white text-xl font-bold text-center">
-              Không phát hiện người trong camera.{'\n'}Vui lòng đứng vào khung hình.
-            </Text>
-          </View>
-        )}
-      </ViewShot>
-      <View className="absolute top-20 left-0 right-0 items-center z-10">
-        {!isSessionActive ? (
-          <TouchableOpacity
-            onPress={handleStartSession}
-            className="bg-emerald-500 px-4 py-2 rounded-full z-10"
-          >
-            <Text className="text-white text-xl font-bold">START RECORD</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            onPress={handleEndSession}
-            className="bg-red-500 px-4 py-2 rounded-full z-10"
-          >
-            <Text className="text-white text-xl font-bold">END SESSION</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-
-      {isRecording && (
-        <View className="absolute top-16 right-5 flex-row items-center bg-black/60 px-3 py-1 rounded-full">
-          <View className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-          <Text className="text-white font-bold">REC</Text>
-        </View>
-      )}
-      {isSaving && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 999,
-          }}
-        >
-          <ActivityIndicator size="large" color="#10b981" />
-          <Text style={{ color: 'white', marginTop: 10, fontSize: 16 }}>
-            Đang lưu dữ liệu...
-          </Text>
-        </View>
-      )}
+    <View>
+      <Text>AITracking</Text>
     </View>
   );
-}
+};
+
+export default AITracking;

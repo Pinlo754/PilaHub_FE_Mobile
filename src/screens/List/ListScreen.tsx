@@ -32,6 +32,7 @@ const ListScreen = (props: Props) => {
             data={dataByTab[activeTab]}
             navigation={props.navigation}
             traineeId={traineeId}
+            isLoading={isLoading}
           />
         )}
       </View>

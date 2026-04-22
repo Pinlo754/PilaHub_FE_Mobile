@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ScrollView,
   Text,
@@ -24,7 +24,6 @@ import BottomActionBar from './components/BottomActionBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StageCarousel from './components/StageCarousel';
 import RoadmapApi from '../../hooks/roadmap.api';
-import { getProfile } from '../../services/auth';
 import StageRendererApi from './components/StageRendererApi';
 
 const RoadMap = () => {
@@ -51,7 +50,6 @@ const RoadMap = () => {
   const [pendingStagesData, setPendingStagesData] = useState<any[]>([]);
   const [pendingSupplementsData, setPendingSupplementsData] = useState<any[]>([]);
 
-  const [lastResponse, setLastResponse] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'CURRENT' | 'PROCESSING'>('CURRENT');
@@ -229,6 +227,45 @@ const RoadMap = () => {
     }, [fetchNewest, fetchProcessing, activeTab])
   );
 
+  // If the screen receives a newly created roadmap via params, fetch its equipment/supplements right away
+  const fetchEquipmentAndSupplements = useCallback(async (rm: any) => {
+    try {
+      const roadmapId = rm?.id ?? rm?.roadmapId ?? rm?._id ?? null;
+      if (!roadmapId) return;
+
+      const [eqRes, supplementsRes] = await Promise.allSettled([
+        RoadmapApi.getEquipment(roadmapId),
+        RoadmapApi.getSupplements(roadmapId),
+      ]);
+
+      const normalizePayload = (res: any) => {
+        if (!res) return [];
+        const val = res?.data ?? res;
+        if (Array.isArray(val)) return val;
+        // axios may wrap value inside .data (object) or return object directly
+        return Array.isArray(res) ? res : (val ?? []);
+      };
+
+      const equipment = eqRes.status === 'fulfilled' ? normalizePayload(eqRes.value) : [];
+      const supplements = supplementsRes.status === 'fulfilled' ? normalizePayload(supplementsRes.value) : [];
+
+      // update local copies so UI reflects fetched equipment/supplements immediately
+      setCurrentRoadmapData((prev: any) => ({ ...(prev ?? rm), equipment }));
+      setCurrentSupplementsData(supplements);
+    } catch (err) {
+      console.warn('fetchEquipmentAndSupplements error', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    // prefer the freshly added roadmap passed as param
+    const target = paramAdded?.roadmap ?? roadmap;
+    // only fetch when we have a fresh roadmap and equipment isn't already present
+    if (target && (!target.equipment || target.equipment.length === 0)) {
+      fetchEquipmentAndSupplements(target);
+    }
+  }, [paramAdded, roadmap, fetchEquipmentAndSupplements]);
+
   // --- DYNAMIC BINDING UI BIẾN DỰA TRÊN TAB ---
   const activeDataRoadmap = activeTab === 'CURRENT' ? currentRoadmapData : pendingRoadmapData;
   const activeDataStages = activeTab === 'CURRENT' ? currentStagesData : pendingStagesData;
@@ -376,6 +413,8 @@ const RoadMap = () => {
             </View>
           </View>
         </View>
+
+       
 
         {/* Stage selector */}
         <View style={styles.stageSelector}>
@@ -669,4 +708,9 @@ const styles = StyleSheet.create({
   cancelButton: { flex: 1, marginRight: 8, paddingVertical: 12, backgroundColor: '#f3f4f6', borderRadius: 8, alignItems: 'center' },
   cancelText: { color: '#6B6B6B', fontWeight: '600' },
   confirmButton: { flex: 1, marginLeft: 8, paddingVertical: 12, backgroundColor: '#8B4513', borderRadius: 8, alignItems: 'center' },
+
+  recreateButton: {
+    backgroundColor: '#8B4513', paddingVertical: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+  },
+  recreateText: { color: '#FFF', fontWeight: '500', fontSize: 14 },
 });

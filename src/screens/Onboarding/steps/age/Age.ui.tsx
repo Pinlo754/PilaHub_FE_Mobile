@@ -21,6 +21,7 @@ export default function AgeUI() {
     onNext,
     onBack,
     listRef,
+    canContinue,
   } = useAgeLogic();
 
   return (
@@ -82,7 +83,8 @@ export default function AgeUI() {
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { x: scrollX } } }],
               { useNativeDriver: true }
-            )}
+            )
+            }
             renderItem={({ item, index }) => {
               const inputRange = [
                 (index - 1) * ITEM_WIDTH,
@@ -128,7 +130,8 @@ export default function AgeUI() {
       <View className="mb-6">
         <Pressable
           onPress={onNext}
-          className="h-14 rounded-xl bg-foreground items-center justify-center"
+          disabled={!canContinue}
+          className={`h-14 rounded-xl ${!canContinue ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
         >
           <Text className="text-white font-semibold text-base">
             Tiếp tục

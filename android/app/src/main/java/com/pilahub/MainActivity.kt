@@ -9,8 +9,8 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 import com.margelo.nitro.nitroscreenrecorder.NitroScreenRecorder
 
 class MainActivity : ReactActivity() {
-
-  override fun getMainComponentName(): String = "PilaHub"
+  
+  override fun getMainComponentName(): String = "PilaHub" 
 
   override fun createReactActivityDelegate(): ReactActivityDelegate =
     DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)

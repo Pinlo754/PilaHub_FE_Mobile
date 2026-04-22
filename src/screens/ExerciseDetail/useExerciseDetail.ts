@@ -71,8 +71,18 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   // CHECK
   const isPracticeTab = activeTab === ExerciseTab.Practice;
   const id = route.params.exercise_id;
-  const canPractice = allowedPractice ?? true;
-  const canPlayTheory = allowedTheory ?? true;
+  const canPractice = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
+    activePackage as PackageType,
+  )
+    ? true
+    : (allowedPractice ?? false);
+  const canPlayTheory = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
+    activePackage as PackageType,
+  )
+    ? true
+    : (allowedTheory ?? false);
+  const isCourseFlow = !!practicePayload;
+  const isEnrolledCourse = practicePayload?.isEnrolled;
 
   // FETCH
   const fetchInformation = async () => {
@@ -153,7 +163,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
       setWorkoutSession(res);
 
-      return res; // 🔥 return session
+      return res;
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
@@ -167,6 +177,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   const startWorkoutForLessonExercise = async (index?: number) => {
     if (!practicePayload) return Promise.reject('No payload');
+    if (!practicePayload?.isEnrolled) return;
 
     const currentIndex = index ?? currentExerciseIndex;
     const lessonExerciseId = practicePayload.lessonExerciseIds[currentIndex];
@@ -183,6 +194,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   const startCourseLessonProgress = async () => {
     if (!practicePayload) return Promise.reject('No payload');
+    if (!practicePayload?.isEnrolled) return;
 
     return courseLessonProgressService.startLesson(practicePayload.progressId);
   };
@@ -200,6 +212,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   const endCourseLessonProgress = async () => {
     if (!practicePayload) return Promise.reject('No payload');
+    if (!practicePayload?.isEnrolled) return;
 
     return courseLessonProgressService.completeLesson(
       practicePayload.progressId,
@@ -333,13 +346,15 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     try {
       if (!practicePayload) {
         await startWorkoutExerciseFree();
-      } else {
+      } else if (isEnrolledCourse) {
         const [workoutRes] = await Promise.all([
           startWorkoutForLessonExercise(0),
           startCourseLessonProgress(),
         ]);
 
         setWorkoutSession(workoutRes);
+      } else {
+        return;
       }
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
@@ -384,6 +399,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
   const handleVideoEnd = async () => {
     try {
+      // THEORY
       if (!isPracticeTab) {
         openSuccessModal('Bạn đã xem xong lý thuyết.');
 
@@ -394,6 +410,35 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
         }
         return;
       }
+
+      // NOT ENROLLED
+      if (isCourseFlow && !isEnrolledCourse) {
+        const isLast =
+          currentExerciseIndex ===
+          (practicePayload?.exerciseIds.length ?? 0) - 1;
+
+        if (!isLast) {
+          const nextIndex = currentExerciseIndex + 1;
+          const nextExerciseId = practicePayload!.exerciseIds[nextIndex];
+
+          setCurrentExerciseIndex(nextIndex);
+
+          const [nextExercise, nextTutorial] = await Promise.all([
+            exerciseService.getById(nextExerciseId),
+            tutorialService.getById(nextExerciseId),
+          ]);
+
+          setCurrentExercise(nextExercise);
+          setCurrentTutorial(nextTutorial);
+        } else {
+          openSuccessModal('Bạn đã hoàn thành bài tập.');
+          setTimeout(() => navigatePracticeTab(), TIMEOUT);
+        }
+
+        return;
+      }
+
+      // ENROLLED
       await endWorkout();
 
       if (!practicePayload) {

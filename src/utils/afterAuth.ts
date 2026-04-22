@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchTraineeProfile, fetchMyHealthProfiles } from '../services/profile';
+import { fetchTraineeProfile } from '../services/profile';
 import { getProfile } from '../services/auth';
-import { getBodySavedFor } from './bodyCache';
 import { setOnboardingCompletedFor } from './storage';
 import { useOnboardingStore } from '../store/onboarding.store';
 
@@ -75,34 +74,6 @@ export async function postLoginRouting(navigation: any, loginData?: any) {
       try {
         await setOnboardingCompletedFor(userId);
       } catch {}
-    }
-
-    // check health profiles
-    let hasHealth = false;
-    try {
-      const hRes = await fetchMyHealthProfiles();
-      if (hRes.ok) {
-        const data = (hRes.data && (hRes.data.data ?? hRes.data)) ?? hRes.data;
-        if (Array.isArray(data)) hasHealth = data.length > 0;
-        else if (Array.isArray(hRes.data)) hasHealth = hRes.data.length > 0;
-      }
-    } catch {
-      hasHealth = false;
-    }
-
-    if (!hasHealth) {
-      if (userId) {
-        const saved = await getBodySavedFor(userId);
-        hasHealth = !!saved;
-      } else {
-        const savedRaw = await AsyncStorage.getItem('bodygram:savedMeasurements');
-        hasHealth = !!savedRaw;
-      }
-    }
-
-    if (!hasHealth) {
-      navigation.replace('Onboarding');
-      return;
     }
 
     navigation.replace('MainTabs');
