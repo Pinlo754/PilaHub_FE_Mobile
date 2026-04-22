@@ -5,6 +5,7 @@ import { colors } from '../../../theme/colors';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCart } from '../../../context/CartContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const RECENT_KEY = 'shop_recent_searches';
 
@@ -119,9 +120,9 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
   }
 
   return (
-    <View className="px-4 pt-6 pb-3 bg-amber-50">
+    <SafeAreaView className="px-4 pt-6 pb-3" style={{ backgroundColor: colors.background.DEFAULT }}>
       <View className="flex-row items-center justify-between">
-        <Text className="text-2xl font-bold color-foreground">Cửa hàng</Text>
+        <Text className="text-2xl font-bold" style={{ color: colors.foreground }}>Cửa hàng</Text>
 
         <View className="flex-row items-center">
           <Pressable className="p-2">
@@ -145,8 +146,8 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
         </View>
       </View>
 
-      <View className="mt-3">
-        <View className="flex-row items-center bg-white rounded-xl px-3 py-2 border border-background-sub2">
+      <View className="mt-2">
+        <View className="flex-row items-center bg-white rounded-xl px-3 py-1 border border-background-sub2">
           <Ionicons name="search-outline" size={18} color={colors.secondaryText} />
           <TextInput
             ref={inputRef}
@@ -214,6 +215,6 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
           </View>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

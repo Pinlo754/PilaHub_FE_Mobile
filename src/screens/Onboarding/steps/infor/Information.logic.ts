@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
 import { getProfile } from '../../../../services/auth';
@@ -122,6 +122,16 @@ export const useInformationLogic = () => {
 
   const onBack = () => setStep(step - 1);
 
+  // NEW: computed canContinue and validation message (require fullName)
+  const canContinue = useMemo(() => {
+    return (fullName && fullName.trim().length > 0) && !uploading;
+  }, [fullName, uploading]);
+
+  const validationMessage = useMemo(() => {
+    if (fullName && fullName.trim().length > 0) return '';
+    return 'Vui lòng nhập họ và tên';
+  }, [fullName]);
+
   return {
     avatar,
     uploading,
@@ -134,5 +144,7 @@ export const useInformationLogic = () => {
     pickAvatar,
     onNext,
     onBack,
+    canContinue,
+    validationMessage,
   };
 };

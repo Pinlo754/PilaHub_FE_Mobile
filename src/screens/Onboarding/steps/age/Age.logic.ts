@@ -64,6 +64,8 @@ export const useAgeLogic = () => {
   const onNext = () => setStep(step + 1);
   const onBack = () => step > 0 && setStep(step - 1);
 
+  const canContinue = selectedAge != null;
+
   return {
     ages,
     scrollX,
@@ -75,5 +77,6 @@ export const useAgeLogic = () => {
     // expose helper props for FlatList
     initialIndex,
     getItemLayout,
+    canContinue,
   };
 };

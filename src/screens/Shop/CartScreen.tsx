@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Alert, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { CartLine } from '../../services/cart';
@@ -13,6 +13,10 @@ const EmptyComponent = () => (
     <Text className="text-gray-500">Giỏ hàng trống</Text>
   </View>
 );
+
+const localStyles = StyleSheet.create({
+  qtyInput: { minWidth: 48, textAlign: 'center' },
+});
 
 // CheckoutBar defined outside of CartScreen to avoid recreating on every render
 function CheckoutBar({ total, disabled, onCheckout, selectedCount }: { total: number; disabled: boolean; onCheckout: () => void; selectedCount: number }) {
@@ -35,6 +39,8 @@ export default function CartScreen() {
   const { lines, totalItems, totalPrice, loadCart, userId, updateQuantity: ctxUpdateQuantity, removeFromCart: ctxRemoveFromCart, clearCart: ctxClearCart } = useCart();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState(false);
+  // map product_id -> input string so user can type freely
+  const [qtyInputs, setQtyInputs] = useState<Record<string,string>>({});
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success'|'error'|'info'>('info');
@@ -88,7 +94,12 @@ export default function CartScreen() {
   }, [lines, selectedIds]);
 
   // Checkout handler
-  const handleCheckout = useCallback(() => {
+  function getStockForItem(it: any) {
+    const raw = it.raw ?? {};
+    return raw.stockQuantity ?? raw.stock_quantity ?? raw.stock ?? raw.availableQuantity ?? null;
+  }
+
+  const handleCheckout = useCallback(async () => {
     if (!selectedIds.length) {
       setToastMsg('Vui lòng chọn sản phẩm để thanh toán'); setToastType('info'); setToastVisible(true); return;
     }
@@ -111,17 +122,43 @@ export default function CartScreen() {
       return;
     }
 
+    // check stock for each selected item; if any exceeds, adjust and stop checkout so user can review
+    for (const it of items) {
+      const stock = getStockForItem(it);
+      if (stock !== null && typeof stock !== 'undefined' && Number(it.quantity) > Number(stock)) {
+        // adjust server-side quantity to available stock
+        try {
+          await ctxUpdateQuantity(it.product_id, Number(stock));
+          setToastMsg(`Sản phẩm "${it.product_name ?? it.product_id}" đã vượt quá tồn kho. Đã điều chỉnh về ${stock}.`);
+          setToastType('error'); setToastVisible(true);
+          await loadCart();
+        } catch (e) {
+          console.warn('adjust qty on checkout failed', e);
+          setToastMsg('Không thể điều chỉnh số lượng theo tồn kho'); setToastType('error'); setToastVisible(true);
+        }
+        return; // stop checkout, let user review
+      }
+    }
+
     // navigate to checkout with validated items
     navigation.navigate('Checkout' as never, { items } as never);
-  }, [selectedIds, lines, navigation]);
+  }, [selectedIds, lines, navigation, ctxUpdateQuantity, loadCart]);
 
   // Load cart when screen focused or when userId changes
   useEffect(() => { if (focused) loadCart(); }, [focused, loadCart]);
   useEffect(() => { if (userId) loadCart(); }, [userId, loadCart]);
 
+  // sync qtyInputs when cart lines change
+  useEffect(() => {
+    const next: Record<string,string> = {};
+    for (const l of lines) next[l.product_id] = String(l.quantity ?? 1);
+    setQtyInputs(next);
+  }, [lines]);
+
   const onInc = async (item: CartLine) => {
     try {
       await ctxUpdateQuantity(item.product_id, item.quantity + 1);
+      setQtyInputs(prev => ({ ...prev, [item.product_id]: String(Math.max(1, item.quantity + 1)) }));
       // context will refresh lines/summary
     } catch {
       setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true);
@@ -131,6 +168,7 @@ export default function CartScreen() {
   const onDec = async (item: CartLine) => {
     try {
       await ctxUpdateQuantity(item.product_id, Math.max(0, item.quantity - 1));
+      setQtyInputs(prev => ({ ...prev, [item.product_id]: String(Math.max(0, item.quantity - 1)) }));
     } catch {
       setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true);
     }
@@ -211,28 +249,47 @@ export default function CartScreen() {
               <Text className="text-gray-500">{g.items.length} sản phẩm</Text>
             </View>
 
-            {g.items.map((item: any) => (
-              <View key={item.product_id} className={`bg-white rounded-xl p-3 mb-3 flex-row items-center ${selectMode && selectedIds.includes(item.product_id) ? 'border border-green-200 bg-green-50' : ''}`}>
-                {selectMode ? (
-                  <TouchableOpacity onPress={() => toggleSelect(item.product_id)} className="mr-2">
-                    <Ionicons name={selectedIds.includes(item.product_id) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={selectedIds.includes(item.product_id) ? '#10B981' : '#9CA3AF'} />
-                  </TouchableOpacity>
-                ) : null}
-                <Image source={{ uri: item.thumnail_url || 'https://via.placeholder.com/120' }} className="w-20 h-20 rounded-lg" />
-                <View className="flex-1 ml-3">
-                  {/* show vendor/shop name per item (in case group name is generic) */}
-                  <Text className="text-gray-500 text-xs mb-1">{(item.raw?.vendorBusinessName ?? item.raw?.vendor_business_name ?? g.shopName) as string}</Text>
-                  <Text className="font-bold">{item.product_name}</Text>
-                  <Text className="text-orange-600 font-extrabold mt-2">{formatVND(item.price)}</Text>
-                  <View className="flex-row items-center mt-2">
-                    <TouchableOpacity onPress={() => onDec(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>-</Text></TouchableOpacity>
-                    <Text className="mx-3 font-bold">{item.quantity}</Text>
-                    <TouchableOpacity onPress={() => onInc(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>+</Text></TouchableOpacity>
-                    {!selectMode && <TouchableOpacity onPress={() => onRemove(item)} className="ml-3"><Ionicons name="trash-outline" size={18} color="#EF4444" /></TouchableOpacity>}
+            {g.items.map((item: any) => {
+              const stock = getStockForItem(item);
+              return (
+                <View key={item.product_id} className={`bg-white rounded-xl p-3 mb-3 flex-row items-center ${selectMode && selectedIds.includes(item.product_id) ? 'border border-green-200 bg-green-50' : ''}`}>
+                  {selectMode ? (
+                    <TouchableOpacity onPress={() => toggleSelect(item.product_id)} className="mr-2">
+                      <Ionicons name={selectedIds.includes(item.product_id) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={selectedIds.includes(item.product_id) ? '#10B981' : '#9CA3AF'} />
+                    </TouchableOpacity>
+                  ) : null}
+                  <Image source={{ uri: item.thumnail_url || 'https://via.placeholder.com/120' }} className="w-20 h-20 rounded-lg" />
+                  <View className="flex-1 ml-3">
+                    {/* show vendor/shop name per item (in case group name is generic) */}
+                    <Text className="text-gray-500 text-xs mb-1">{(item.raw?.vendorBusinessName ?? item.raw?.vendor_business_name ?? g.shopName) as string}</Text>
+                    <Text className="font-bold">{item.product_name}</Text>
+                    <Text className="text-orange-600 font-extrabold mt-2">{formatVND(item.price)}</Text>
+                    {stock !== null ? (
+                      stock > 0 ? <Text className="text-sm text-gray-500 mt-1">Còn {stock} sản phẩm</Text> : <Text className="text-sm text-red-600 mt-1">Hết hàng</Text>
+                    ) : null}
+                    <View className="flex-row items-center mt-2">
+                      <TouchableOpacity onPress={() => onDec(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>-</Text></TouchableOpacity>
+                      <TextInput
+                        value={qtyInputs[item.product_id] ?? String(item.quantity)}
+                        onChangeText={(t) => setQtyInputs(prev => ({ ...prev, [item.product_id]: t.replace(/[^0-9]/g, '') }))}
+                        onBlur={async () => {
+                          const raw = qtyInputs[item.product_id] ?? String(item.quantity);
+                          const n = Math.max(1, parseInt(raw || '0', 10) || 1);
+                          const final = (stock !== null && !isNaN(Number(stock))) ? Math.min(n, Number(stock)) : n;
+                          try { await ctxUpdateQuantity(item.product_id, final); await loadCart(); } catch { setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true); }
+                        }}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        className="mx-3 font-bold text-center bg-white px-2 py-1 rounded"
+                        style={localStyles.qtyInput}
+                      />
+                      <TouchableOpacity onPress={() => onInc(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>+</Text></TouchableOpacity>
+                      {!selectMode && <TouchableOpacity onPress={() => onRemove(item)} className="ml-3"><Ionicons name="trash-outline" size={18} color="#EF4444" /></TouchableOpacity>}
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
 
           </View>
         ))}

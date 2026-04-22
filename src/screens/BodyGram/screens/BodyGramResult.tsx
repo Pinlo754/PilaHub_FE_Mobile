@@ -7,7 +7,7 @@ import Toast from '../../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useOnboardingStore } from '../../../store/onboarding.store';
-import { submitProfiles } from '../../../services/profile';
+import { submitHealthProfile, submitPersonalInjuries } from '../../../services/profile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyGramResult'>;
 
@@ -365,13 +365,23 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
                 const entry = rawResponse?.entry ?? rawResponse ?? {};
                 const bodyGramForApi: any = { ...entry, measurements: parsed.measurements ?? display };
                 bodyGramForApi.input = bodyGramForApi.input ?? parsed.metadata?.input ?? { source: 'inbody' };
-                const res = await submitProfiles(onboarding, bodyGramForApi, 'InBody', { skipCreateTrainee: true });
+
+                // 1) Create trainee profile skipped for InBodyResult (skipCreateTrainee: true)
+                try {
+                  // best-effort: don't create trainee here
+                } catch (e) { /* noop */ }
+
+                // 2) Submit personal injuries (best-effort)
+                try { await submitPersonalInjuries(onboarding); } catch { console.warn('submitPersonalInjuries fail'); }
+
+                // 3) Submit health profile
+                const hRes = await submitHealthProfile(bodyGramForApi, 'InBody');
                 setSaving(false);
-                if (res.ok) {
+                if (hRes.ok) {
                   Alert.alert('Thành công', 'Lưu hồ sơ thành công', [{ text: 'OK', onPress: () => { (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } }]);
                 } else {
-                  console.warn('submitProfiles (InBodyResult) error', res.error);
-                  Alert.alert('Lỗi', typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+                  console.warn('submitHealthProfile (InBodyResult) error', hRes.error);
+                  Alert.alert('Lỗi', typeof hRes.error === 'string' ? hRes.error : JSON.stringify(hRes.error));
                 }
               } catch (e: any) {
                 setSaving(false);
