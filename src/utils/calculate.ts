@@ -1,4 +1,5 @@
 import { BookingSlot } from './CoachBookingType';
+import { SessionAssessmentType } from './SessionAssessmentType';
 import { timeToMinutes } from './time';
 
 // số giờ của slot
@@ -51,4 +52,18 @@ export const calculateBookingSummary = (
     totalHours,
     totalPrice: totalHours * pricePerHour,
   };
+};
+
+// Điểm trung bình của assessment
+export const getAverageAssessmentScore = (
+  assessment: SessionAssessmentType | null,
+): number | null => {
+  if (!assessment || assessment.results.length === 0) return null;
+
+  const total = assessment.results.reduce(
+    (sum, result) => sum + result.score,
+    0,
+  );
+
+  return Math.round((total / assessment.results.length) * 10) / 10;
 };

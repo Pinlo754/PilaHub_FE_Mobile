@@ -94,7 +94,7 @@ const Button = ({
 
   return (
     <Pressable
-      className={`flex-row gap-2 items-center  ${width ? '' : 'w-full'} rounded-${rounded} ${iconName ? 'py-2 pl-4 pr-2' : 'py-2.5'}`}
+      className={`flex-row gap-2 items-center z-2  ${width ? '' : 'w-full'} rounded-${rounded} ${iconName ? 'py-2 pl-4 pr-2' : 'py-2.5'}`}
       style={{
         backgroundColor: color.backgroundColor,
         width: width ? width : undefined,

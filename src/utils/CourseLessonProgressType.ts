@@ -20,6 +20,7 @@ export type CreateScheduleReq = {
 };
 
 export type PracticePayload = {
+  isEnrolled: boolean;
   progressId: string;
   lessonExerciseIds: string[];
   exerciseIds: ExerciseType['exerciseId'][];

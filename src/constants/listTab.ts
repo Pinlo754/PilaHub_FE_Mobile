@@ -16,6 +16,9 @@ type TabConfigItem<K extends ListTab> = {
   screen: keyof RootStackParamList;
   getParams: (item: TabTypeMap[K], extra?: { traineeId?: string }) => object;
   idKey: string;
+  emptyTitle: string;
+  emptySubtitle: string;
+  emptyIcon: string;
 };
 
 export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
@@ -26,6 +29,9 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
     getParams: item => ({
       exercise_id: item.exerciseId,
     }),
+    emptyTitle: 'Chưa có bài tập nào',
+    emptySubtitle: 'Hãy khám phá và bắt đầu luyện tập ngay!',
+    emptyIcon: 'barbell-outline',
   },
 
   [ListTab.Course]: {
@@ -37,5 +43,8 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
       program_id: item.course.courseId,
       traineeId: extra?.traineeId,
     }),
+    emptyTitle: 'Chưa có khóa học nào',
+    emptySubtitle: 'Mua khóa học để bắt đầu hành trình luyện tập ngay!',
+    emptyIcon: 'book-outline',
   },
 };

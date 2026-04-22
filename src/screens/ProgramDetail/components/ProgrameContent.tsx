@@ -5,6 +5,7 @@ import ExerciseItem from './ExerciseItem';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { CourseLessonDetailType } from '../../../utils/CourseType';
+import { PackageType } from '../../../utils/ExerciseType';
 
 type Props = {
   data: CourseLessonDetailType[];
@@ -13,6 +14,7 @@ type Props = {
   getProgressOfCourseLesson: (courseLessonId: string) => void;
   traineeCourseId: string | null;
   completedLessonIds: string[];
+  activePackage: PackageType | null;
 };
 
 const ProgrameContent = ({
@@ -22,6 +24,7 @@ const ProgrameContent = ({
   getProgressOfCourseLesson,
   traineeCourseId,
   completedLessonIds,
+  activePackage,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
@@ -43,6 +46,7 @@ const ProgrameContent = ({
         getProgressOfCourseLesson={getProgressOfCourseLesson}
         traineeCourseId={traineeCourseId}
         completedLessonIds={completedLessonIds}
+        activePackage={activePackage}
       />
     );
   };
