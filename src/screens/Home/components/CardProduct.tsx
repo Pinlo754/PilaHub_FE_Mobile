@@ -85,7 +85,8 @@ const CardProduct = ({ item, onPress }: Props) => {
 };
 
 const localStyles = StyleSheet.create({
-  card: { width: '100%' },
+  // fixed card height so two-column grid renders uniform cards
+  card: { width: '100%', height: 360, justifyContent: 'space-between' },
   thumb: { width: '100%', height: 180, backgroundColor: '#f1f5f9' },
   badgeWrap: { position: 'absolute', top: 8, left: 8, zIndex: 10 },
 });

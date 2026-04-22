@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
-import { fetchInjuries } from '../../../../services/profile';
+import { fetchInjuries, submitPersonalInjuries } from '../../../../services/profile';
 import { Alert } from 'react-native';
 
 export const useInjuryLogic = () => {
@@ -13,6 +13,22 @@ export const useInjuryLogic = () => {
 
   // search state
   const [searchText, setSearchText] = useState<string>('');
+
+  // toast state for lightweight notifications
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info', duration = 3000) => {
+    setToastMsg(message);
+    setToastType(type);
+    setToastVisible(true);
+    if (duration && duration > 0) {
+      setTimeout(() => {
+        try { setToastVisible(false); } catch {}
+      }, duration);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -46,9 +62,8 @@ export const useInjuryLogic = () => {
 
   const onBack = () => setStep(step - 1);
 
-  const onSkip = () => {
+  const onSkip = async () => {
     // user has no injuries / wants to skip
-    // persist a skip flag so submitProfiles will NOT call personal-injuries API
     try {
       (setData as any)({ personalInjuriesSkipped: true });
     } catch {}
@@ -77,6 +92,22 @@ export const useInjuryLogic = () => {
       const toSaveArr = selected.map((s: any) => ({ injuryId: s.injuryId ?? s.id, notes }));
       (setData as any)({ personalInjuries: [...existing, ...toSaveArr], personalInjuriesSkipped: false });
 
+      // Immediately submit to server (best-effort). If success, set a saved flag.
+      try {
+        const injRes = await submitPersonalInjuries({ ...(data as any), personalInjuries: toSaveArr });
+        if (injRes.ok) {
+          (setData as any)({ personalInjuriesSaved: true });
+          showToast('Danh sách chấn thương đã được lưu lên server.', 'success');
+        } else {
+          console.warn('submitPersonalInjuries immediate returned error', injRes.error);
+          const msg = typeof injRes.error === 'string' ? injRes.error : JSON.stringify(injRes.error);
+          showToast(`Lỗi khi lưu chấn thương: ${msg}`, 'error', 5000);
+        }
+      } catch (e) {
+        console.warn('submitPersonalInjuries immediate thrown', e);
+        showToast('Không thể lưu chấn thương. Vui lòng thử lại sau.', 'error');
+      }
+
       setStep(step + 1);
     } catch (e) {
       console.log('Error saving personal injury locally', e);
@@ -100,5 +131,10 @@ export const useInjuryLogic = () => {
     onBack,
     onSkip,
     onNext,
+    // toast state for UI
+    toastVisible,
+    toastMsg,
+    toastType,
+    setToastVisible,
   };
 };

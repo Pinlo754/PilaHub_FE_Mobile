@@ -1,4 +1,5 @@
 import { View, TouchableOpacity, Text, ActivityIndicator } from "react-native";
+import { useNavigation } from '@react-navigation/native';
 
 type Props = {
   onSave?: () => void;
@@ -17,6 +18,7 @@ export default function BottomActionBar({
   accepting,
   showSave = true, // 👈 default
 }: Props & { showSave?: boolean }) {
+  const navigation: any = useNavigation();
   return (
     <View className="absolute bottom-5 left-5 right-5">
 
@@ -50,7 +52,7 @@ export default function BottomActionBar({
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity className="flex-1 bg-[#E5D5C3] p-4 rounded-2xl items-center">
+        <TouchableOpacity onPress={() => navigation.navigate('CreateRoadmap')} className="flex-1 bg-[#E5D5C3] p-4 rounded-2xl items-center">
           <Text className="font-bold">Tạo lại</Text>
         </TouchableOpacity>
       </View>

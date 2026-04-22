@@ -7,7 +7,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { submitProfiles } from '../../../services/profile';
+import { submitTraineeProfile, submitPersonalInjuries, submitHealthProfile } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 
@@ -155,10 +155,28 @@ export default function InputBodyScreen({ navigation }: Props) {
         return;
       }
 
-      const res = await submitProfiles(minimalOnboarding as any, bodyGramManual, 'Manual');
+      // New sequence: 1) create trainee profile, 2) submit injuries (best-effort), 3) create health profile
+      // 1) ensure trainee exists
+      const tRes = await submitTraineeProfile(minimalOnboarding as any, bodyGramManual);
+      if (!tRes.ok) {
+        setLoading(false);
+        Alert.alert('Lỗi', `Không thể tạo hồ sơ: ${JSON.stringify(tRes.error ?? tRes)}`);
+        return;
+      }
+
+      // 2) injuries best-effort
+      try {
+        const injRes = await submitPersonalInjuries(onboarding as any);
+        if (!injRes.ok) console.warn('submitPersonalInjuries (manual) failed', injRes.error);
+      } catch (err) {
+        console.warn('submitPersonalInjuries thrown', err);
+      }
+
+      // 3) create health profile
+      const hRes = await submitHealthProfile(bodyGramManual, 'Manual');
       setLoading(false);
-      console.log('submitProfiles (manual) result', res);
-      if (res.ok) {
+      console.log('submitHealthProfile (manual) result', hRes);
+      if (hRes.ok) {
         setToastType('success');
         setToastMsg('Lưu hồ sơ thành công');
         setToastVisible(true);
@@ -167,7 +185,7 @@ export default function InputBodyScreen({ navigation }: Props) {
         setToastType('error');
         setToastMsg('Lưu thất bại');
         setToastVisible(true);
-        Alert.alert('Lỗi', JSON.stringify(res.error ?? res));
+        Alert.alert('Lỗi', JSON.stringify(hRes.error ?? hRes));
       }
     } catch (e: any) {
       setLoading(false);
@@ -275,12 +293,12 @@ export default function InputBodyScreen({ navigation }: Props) {
 
           <View className="flex-row space-x-3 mb-8">
             {/* InBody Scan button */}
-            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('InBodyScan' as any)} style={[styles.outlineBtn, { alignItems: 'center', justifyContent: 'center' }] }>
+            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('InBodyScan' as any)} style={[styles.outlineBtn, styles.centerContent]}>
               <Text style={styles.outlineBtnText}>InBody Scan</Text>
             </Pressable>
 
             {/* Camera body scan */}
-            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('BodyScanFlow' as any)} style={styles.outlineBtn}>
+            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('BodyScanFlow' as any)} style={[styles.outlineBtn, styles.centerContent]}>
               <Text style={styles.outlineBtnText}>Dùng camera Quét cơ thể</Text>
             </Pressable>
 
@@ -384,6 +402,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800', marginTop: 8 },
   outlineBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   outlineBtnText: { color: 'rgba(0,0,0,0.85)', fontWeight: '700' },
+  centerContent: { alignItems: 'center', justifyContent: 'center' },
   fillBtn: { backgroundColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   fillBtnText: { color: '#fff', fontWeight: '700' },
 });

@@ -312,180 +312,111 @@ export async function createHealthProfile(bodyGram: BodyGramData, source = 'Body
   }
 }
 
+// New: submit trainee profile only (wrapper around createTraineeProfile)
+export async function submitTraineeProfile(onboarding: OnboardingData, bodyGram?: BodyGramData): Promise<ServiceResult> {
+  try {
+    const payload = buildTraineeProfilePayload(onboarding, bodyGram);
+    // If no meaningful data, skip creation but return success so callers can continue
+    if (!payload || Object.keys(payload).length === 0) {
+      return { ok: true, data: { skipped: true } };
+    }
+    return await createTraineeProfile(onboarding, bodyGram);
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
+
+// New: submit personal injuries in parallel (non-blocking)
+export async function submitPersonalInjuries(onboarding: OnboardingData): Promise<ServiceResult> {
+  try {
+    const injuriesInput = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? null;
+    if (!injuriesInput || !Array.isArray(injuriesInput) || injuriesInput.length === 0) {
+      return { ok: true, data: [] };
+    }
+
+    const promises = injuriesInput.map((inj: any) => {
+      const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injury?.id ?? null;
+      const notes = inj?.notes ?? inj?.note ?? null;
+      if (!injuryId) return Promise.resolve({ skipped: true });
+      // createPersonalInjury expects { injuryId: string }
+      return createPersonalInjury({ injuryId: String(injuryId), notes });
+    });
+
+    const results = await Promise.all(promises);
+    // normalize results to a simple array
+    const normalized = results.map((r: any) => (r?.ok ? r.data : { error: r?.error ?? r }));
+    return { ok: true, data: normalized };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
+
+// New: submit health profile only (wrapper)
+export async function submitHealthProfile(bodyGram: BodyGramData, source = 'BodyGram'): Promise<ServiceResult> {
+  try {
+    // buildHealthProfilePayload will validate/normalize; if missing height/weight it may still return payload without those
+    const payload = buildHealthProfilePayload(bodyGram, source);
+    if (!payload || Object.keys(payload).length === 0) {
+      return { ok: true, data: { skipped: true } };
+    }
+    return await createHealthProfile(bodyGram, source);
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
+
+// Update existing submitProfiles to reuse the new smaller helpers for backward compatibility
 export async function submitProfiles(onboarding: OnboardingData, bodyGram?: BodyGramData, source = 'BodyGram', options?: { skipCreateTrainee?: boolean; forceHealthOnly?: boolean; }) : Promise<ServiceResult<{ trainee?: any; health?: any }>> {
-   try {
-     const results: any = {};
+  try {
+    const results: any = {};
 
-     const skipCreate = options?.skipCreateTrainee ?? false;
-     const forceHealthOnly = options?.forceHealthOnly ?? false;
+    const skipCreate = options?.skipCreateTrainee ?? false;
 
-     // create trainee profile (if onboarding has meaningful fields) unless caller asked to skip
-     const traineePayload = buildTraineeProfilePayload(onboarding, bodyGram);
-     if (!skipCreate && Object.keys(traineePayload).length > 0) {
-       const t = await createTraineeProfile(onboarding, bodyGram);
-       if (!t.ok) {
-         // If server returns 500/internal error, retry with minimal payload (some backends fail on metadata)
-         const errObj = t.error;
-         console.warn('createTraineeProfile failed, attempting minimal retry', errObj);
-         // log full error for debugging
-         try { console.log('createTraineeProfile full error:', JSON.stringify(errObj, null, 2)); } catch { /* ignore */ }
-         const isInternal = (errObj && (errObj.errorCode === 'INTERNAL_SERVER_ERROR' || errObj.message?.toLowerCase?.().includes('internal')));
-         if (isInternal) {
-           try {
-             const minimal: any = {};
-             if (onboarding.fullName) minimal.fullName = onboarding.fullName;
-             if (onboarding.age != null) minimal.age = onboarding.age;
-             if (onboarding.gender) minimal.gender = mapGenderToEnum(onboarding.gender);
-             if (onboarding.workoutFrequency) minimal.workoutFrequency = onboarding.workoutFrequency;
-             if (onboarding.workoutLevel) minimal.workoutLevel = onboarding.workoutLevel;
-             console.warn('Retrying createTraineeProfile with minimal payload', minimal);
-             const retry = await createTraineeProfile(minimal as any, undefined);
-             if (retry.ok) {
-               results.trainee = retry.data;
-             } else {
-               return { ok: false, error: { step: 'trainee', error: t.error, retry: retry.error } };
-             }
-           } catch (e: any) {
-             return { ok: false, error: { step: 'trainee', error: t.error, retryThrown: e } };
-           }
-           // continue to health creation
-         } else {
-          // If trainee already exists, skip creating trainee and continue to health profile
-          const alreadyExists = errObj && (errObj.errorCode === 'INVALID_ARGUMENT' || errObj.message?.toLowerCase?.().includes('already exists'));
-          if (alreadyExists) {
-            console.warn('Trainee already exists — skipping trainee creation and continuing to health profile', errObj);
-            // optionally attach info about skipped trainee
-            results.trainee = { skipped: true, reason: 'already_exists' } as any;
-            // continue to health creation
-          } else {
-            // If the server responded with validation errors, attempt a targeted minimal retry
-            const errCode = errObj?.errorCode ?? '';
-            const isValidation = errCode === 'VALIDATION_ERROR' || String(errObj?.message ?? '').toLowerCase().includes('validation');
-            if (isValidation) {
-              try {
-                const minimal2: any = {};
-                if (onboarding.fullName) minimal2.fullName = onboarding.fullName;
-                if (onboarding.email) minimal2.email = onboarding.email;
-                if (onboarding.age != null) minimal2.age = onboarding.age;
-                if (onboarding.gender) minimal2.gender = mapGenderToEnum(onboarding.gender);
-                if (onboarding.workoutFrequency) minimal2.workoutFrequency = onboarding.workoutFrequency;
-                if (onboarding.workoutLevel) minimal2.workoutLevel = onboarding.workoutLevel;
-                 // if we have at least one field to send, try retry
-                 if (Object.keys(minimal2).length === 0) {
-                   return { ok: false, error: { step: 'trainee', error: t.error } };
-                 }
-                 console.warn('Retrying createTraineeProfile with validation-aware minimal payload', minimal2);
-                 const retry = await createTraineeProfile(minimal2 as any, undefined);
-                 if (retry.ok) {
-                   results.trainee = retry.data;
-                 } else {
-                   return { ok: false, error: { step: 'trainee', error: t.error, retry: retry.error } };
-                 }
-               } catch (e: any) {
-                 return { ok: false, error: { step: 'trainee', error: t.error, retryThrown: e } };
-               }
-             } else {
-               return { ok: false, error: { step: 'trainee', error: t.error } };
-             }
-           }
-         }
-       } else {
-         results.trainee = t.data;
-       }
-
-       // AFTER trainee creation (or skip), attach personal injuries if provided in onboarding
-       try {
-         if (!skipCreate && !forceHealthOnly) {
-           const injuriesInput = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? null;
-           if (injuriesInput && Array.isArray(injuriesInput) && injuriesInput.length > 0) {
-             const injuryResults: any[] = [];
-             for (const inj of injuriesInput) {
-               // normalize to { injuryId, notes }
-               const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injuryId ?? inj?.injury?.id ?? null;
-               const notes = inj?.notes ?? inj?.note ?? null;
-               if (!injuryId) continue;
-               try {
-                 const p = await createPersonalInjury({ injuryId, notes });
-                 if (p.ok) injuryResults.push(p.data ?? p.data?.data ?? p.data);
-                 else injuryResults.push({ error: p.error });
-               } catch (e) {
-                 injuryResults.push({ error: e });
-               }
-             }
-             results.personalInjuries = injuryResults;
-           }
-         }
-       } catch (e) {
-         console.warn('Failed to attach personal injuries after trainee creation', e);
-       }
-     }
-
-     // create health profile from bodyGram
-     if (bodyGram && Object.keys(bodyGram).length > 0) {
-       // merge onboarding-provided height/weight into bodyGram when missing so normalization can pick them up
-       const mergedBodyGram: BodyGramData = { ...bodyGram };
-       if (onboarding) {
-         // copy straightforward numeric fields
-         if ((onboarding as any).weight != null && mergedBodyGram.weight == null && mergedBodyGram.weightKg == null) {
-           mergedBodyGram.weight = (onboarding as any).weight;
-         }
-         if ((onboarding as any).weightKg != null && mergedBodyGram.weightKg == null) {
-           mergedBodyGram.weightKg = (onboarding as any).weightKg;
-         }
-         if ((onboarding as any).height != null && mergedBodyGram.height == null && mergedBodyGram.heightCm == null) {
-           mergedBodyGram.height = (onboarding as any).height;
-         }
-         if ((onboarding as any).heightCm != null && mergedBodyGram.heightCm == null) {
-           mergedBodyGram.heightCm = (onboarding as any).heightCm;
-         }
-
-         // if onboarding carries a metadata JSON string (common), try to parse and extract
-         const md = (onboarding as any).metadata;
-         if (md) {
-           if (typeof md === 'string') {
-             try {
-               const parsed = JSON.parse(md);
-               if (parsed) {
-                 if (mergedBodyGram.height == null && parsed.height != null) mergedBodyGram.height = parsed.height;
-                 if (mergedBodyGram.heightCm == null && (parsed.heightCm != null || parsed.height_cm != null)) mergedBodyGram.heightCm = parsed.heightCm ?? parsed.height_cm;
-                 if (mergedBodyGram.weight == null && parsed.weight != null) mergedBodyGram.weight = parsed.weight;
-                 if (mergedBodyGram.weightKg == null && (parsed.weightKg != null || parsed.weight_kg != null)) mergedBodyGram.weightKg = parsed.weightKg ?? parsed.weight_kg;
-               }
-             } catch {
-               // ignore parse errors
-             }
-           } else if (typeof md === 'object') {
-             if (mergedBodyGram.height == null && md.height != null) mergedBodyGram.height = md.height;
-             if (mergedBodyGram.heightCm == null && (md.heightCm != null || md.height_cm != null)) mergedBodyGram.heightCm = md.heightCm ?? md.height_cm;
-             if (mergedBodyGram.weight == null && md.weight != null) mergedBodyGram.weight = md.weight;
-             if (mergedBodyGram.weightKg == null && (md.weightKg != null || md.weight_kg != null)) mergedBodyGram.weightKg = md.weightKg ?? md.weight_kg;
-           }
-         }
-       }
-
-      // Build health payload to see if normalization yields height/weight; skip API call if missing
-      const healthPayload = buildHealthProfilePayload(mergedBodyGram, source);
-      if (healthPayload.heightCm == null || healthPayload.weightKg == null) {
-        console.warn('Skipping health profile creation due to missing normalized height/weight (merged with onboarding)', {
-          heightCm: healthPayload.heightCm,
-          weightKg: healthPayload.weightKg,
-          sampleOnboardingKeys: Object.keys(onboarding || {}).slice(0, 20),
-          sampleBodyGramKeys: Object.keys(bodyGram || {}).slice(0, 20),
-        });
-        results.health = { skipped: true, reason: 'missing_height_or_weight', payload: healthPayload } as any;
+    if (!skipCreate) {
+      const tRes = await submitTraineeProfile(onboarding, bodyGram);
+      if (!tRes.ok) {
+        // if creation failed but looks like 'already exists' or validation, still continue to health profile
+        results.trainee = { ok: false, error: tRes.error };
       } else {
-        // if caller forced health-only behavior, still create health profile (useful for logged-in flows)
-        const h = await createHealthProfile(mergedBodyGram, source);
-        if (!h.ok) return { ok: false, error: { step: 'health', error: h.error } };
-        results.health = h.data;
+        results.trainee = tRes.data;
       }
-     }
 
-     return { ok: true, data: results };
-   } catch (e: any) {
-     return { ok: false, error: e.response?.data ?? e.message ?? e };
-   }
- }
+      // attach injuries (best-effort)
+      const injRes = await submitPersonalInjuries(onboarding);
+      if (!injRes.ok) results.personalInjuries = { ok: false, error: injRes.error };
+      else results.personalInjuries = injRes.data;
+    }
+
+    // create health profile
+    if (bodyGram && Object.keys(bodyGram).length > 0) {
+      const mergedBodyGram: BodyGramData = { ...bodyGram };
+      if (onboarding) {
+        if ((onboarding as any).weight != null && mergedBodyGram.weight == null && mergedBodyGram.weightKg == null) mergedBodyGram.weight = (onboarding as any).weight;
+        if ((onboarding as any).height != null && mergedBodyGram.height == null && mergedBodyGram.heightCm == null) mergedBodyGram.height = (onboarding as any).height;
+        const md = (onboarding as any).metadata;
+        if (md) {
+          try {
+            const parsed = typeof md === 'string' ? JSON.parse(md) : md;
+            if (parsed) {
+              if (mergedBodyGram.height == null && parsed.height != null) mergedBodyGram.height = parsed.height;
+              if (mergedBodyGram.weight == null && parsed.weight != null) mergedBodyGram.weight = parsed.weight;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      const healthRes = await submitHealthProfile(mergedBodyGram, source);
+      if (!healthRes.ok) return { ok: false, error: { step: 'health', error: healthRes.error } };
+      results.health = healthRes.data;
+    }
+
+    return { ok: true, data: results };
+  } catch (e: any) {
+    return { ok: false, error: e.response?.data ?? e.message ?? e };
+  }
+}
 
 // Fetch trainee profile for current authenticated account
 export async function fetchTraineeProfile(): Promise<ServiceResult> {

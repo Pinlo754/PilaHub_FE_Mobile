@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { useInjuryLogic } from './Injury.logic';
+import Toast from '../../../../components/Toast';
 
 export default function InjuryUI() {
-  const { filteredInjuries, selected, selectInjury, notes, setNotes, loading, searchText, setSearchText, onBack, onSkip, onNext } = useInjuryLogic();
+  const { filteredInjuries, selected, selectInjury, notes, setNotes, loading, searchText, setSearchText, onBack, onSkip, onNext, toastVisible, toastMsg, toastType, setToastVisible } = useInjuryLogic();
 
   return (
     <View className="flex-1 bg-background w-full">
@@ -65,6 +66,8 @@ export default function InjuryUI() {
           </Pressable>
         </View>
       </View>
+
+      <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
     </View>
   );

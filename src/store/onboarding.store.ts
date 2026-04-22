@@ -31,6 +31,12 @@ export type OnboardingData = {
   // workout fields (required during onboarding flow): use enum-like strings
   workoutFrequency?: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'ATHLETE';
   workoutLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';  
+
+  // persisted id of the trainee profile created on server
+  traineeId?: string;
+
+  // whether personal injuries have been uploaded to server
+  personalInjuriesSaved?: boolean;
 };
 
 type OnboardingState = {

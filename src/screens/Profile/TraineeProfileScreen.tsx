@@ -181,11 +181,7 @@ const TraineeProfileScreen: React.FC = () => {
             </View>
           </Pressable>
 
-          <View className="mt-3 bg-white rounded-xl p-4 shadow">
-            <Text className="font-semibold text-lg">Sản phẩm yêu thích</Text>
-            <Text className="text-gray-500 mt-1">Bạn chưa thích sản phẩm nào</Text>
-          </View>
-
+     
           <Pressable className="mt-3" onPress={() => (navigation as any).navigate('MyInjuries')}>
             <View className="bg-white rounded-xl p-4 shadow">
               <Text className="font-semibold text-lg">Chấn thương của tôi</Text>

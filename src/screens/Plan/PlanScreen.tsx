@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ScrollView,
   Text,
@@ -28,16 +28,65 @@ const PlanScreen = () => {
   // prefer addedRoadmap param when present (from CreateRoadmap flow)
   const paramAdded = route.params?.addedRoadmap ?? null;
 
-  const roadmap =
-    paramAdded?.roadmap ??
-    route.params?.roadmap ??
-    storeList?.[0]?.roadmap ??
-    null;
-  const stages =
-    paramAdded?.stages ??
-    route.params?.stages ??
-    storeList?.[0]?.stages ??
-    [];
+  // memoize roadmaps/stages derived from route or store to avoid changing references every render
+  const roadmap = React.useMemo(() => {
+    return (
+      paramAdded?.roadmap ?? route.params?.roadmap ?? storeList?.[0]?.roadmap ?? null
+    );
+  }, [paramAdded, route.params?.roadmap, storeList]);
+
+  const stages = React.useMemo(() => {
+    return (
+      paramAdded?.stages ?? route.params?.stages ?? storeList?.[0]?.stages ?? []
+    );
+  }, [paramAdded, route.params?.stages, storeList]);
+
+  // shift returned dates by +7 hours for display only (fix server time offset)
+  const shiftDateString = (dateStr: any, hours: number) => {
+    if (!dateStr || typeof dateStr !== 'string') return dateStr;
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      d.setHours(d.getHours() + hours);
+      return d.toISOString();
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const displayRoadmap = useMemo(() => {
+    if (!roadmap) return roadmap;
+    const copied: any = { ...roadmap };
+    if (copied.generatedAt) copied.generatedAt = shiftDateString(copied.generatedAt, 7);
+    return copied;
+  }, [roadmap]);
+
+  const displayStages = useMemo(() => {
+    if (!Array.isArray(stages)) return stages;
+    return stages.map((stg: any) => {
+      if (!stg) return stg;
+      // defensively handle both API-shaped and simple stage objects
+      const schedules = Array.isArray(stg.schedules) ? stg.schedules : stg?.stage?.schedules ?? null;
+      if (!schedules) return stg;
+      const shifted = schedules.map((sch: any) => {
+        if (!sch) return sch;
+        const out = { ...sch };
+        if (out.scheduledDate) out.scheduledDate = shiftDateString(out.scheduledDate, 7);
+        if (out.startTime) out.startTime = shiftDateString(out.startTime, 7);
+        if (out.endTime) out.endTime = shiftDateString(out.endTime, 7);
+        return out;
+      });
+
+      if (Array.isArray(stg.schedules)) {
+        return { ...stg, schedules: shifted };
+      }
+      // if API-shaped where schedules may live under stage
+      if (stg.stage) {
+        return { ...stg, stage: { ...stg.stage, schedules: shifted } };
+      }
+      return stg;
+    });
+  }, [stages]);
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -58,7 +107,8 @@ const PlanScreen = () => {
     );
   }
 
-  const selectedStage = stages[selectedStageIndex];
+  // use display versions for UI so times appear with +7h correction
+  const selectedStage = displayStages[selectedStageIndex];
 
   const selectedSchedule =
     selectedStage?.schedules?.find((s: any) =>
@@ -142,13 +192,13 @@ const PlanScreen = () => {
         {/* Header */}
         <View className="px-5 mt-4">
           <Text className="text-2xl font-bold text-[#8B4513]">
-            {roadmap.title}
+            {displayRoadmap?.title ?? roadmap.title}
           </Text>
-          {roadmap.description && (
+          {displayRoadmap?.description ?? roadmap.description ? (
             <Text className="text-gray-600 mt-2">
-              {roadmap.description}
+              {displayRoadmap?.description ?? roadmap.description}
             </Text>
-          )}
+          ) : null}
         </View>
 
         {/* Stage selector */}
@@ -157,10 +207,10 @@ const PlanScreen = () => {
             Giai đoạn
           </Text>
           {isApiShaped ? (
-            <StageRendererApi apiStages={stages} roadmap={roadmap} />
+            <StageRendererApi apiStages={displayStages} roadmap={displayRoadmap ?? roadmap} />
           ) : (
             <StageCarousel
-              stages={stages}
+              stages={displayStages}
               onChangeIndex={setSelectedStageIndex}
             />
           )}

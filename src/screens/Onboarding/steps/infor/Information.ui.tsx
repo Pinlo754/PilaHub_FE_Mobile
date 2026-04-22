@@ -18,6 +18,8 @@ export default function InformationUI() {
     onNext,
     uploading,
     onBack,
+    canContinue,
+    validationMessage,
   } = useInformationLogic();
 
   return (
@@ -60,14 +62,15 @@ export default function InformationUI() {
       {/* FORM (name input placed below avatar) */}
       <View className="mt-2 px-6 space-y-4">
         <Input label="Họ và tên" value={fullName} onChange={setFullName} />
+        {validationMessage ? <Text className="text-red-500">{validationMessage}</Text> : null}
       </View>
 
       {/* BUTTON */}
       <View className="flex-1 justify-end px-6 mb-6">
         <Pressable
           onPress={onNext}
-          disabled={uploading}
-          className={`h-14 rounded-xl ${uploading ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
+          disabled={uploading || !canContinue}
+          className={`h-14 rounded-xl ${uploading || !canContinue ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
         >
           <Text className="text-white font-semibold text-base">
             {uploading ? 'Đang tải...' : 'Tiếp tục'}

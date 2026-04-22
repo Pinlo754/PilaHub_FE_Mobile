@@ -9,6 +9,7 @@ import {
   ScrollView,
   Animated,
   StyleSheet,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,7 +18,9 @@ import { getProductById, ProductItem, normalizeImageUrl } from '../../services/p
 import { getProductReviews } from '../../services/productReviews';
 import { formatVND } from '../../utils/number';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../theme/colors';
 import { useCart } from '../../context/CartContext';
+import { useIsFocused } from '@react-navigation/native';
 import Toast from '../../components/Toast';
 import VendorCard from './components/VendorCard';
 
@@ -70,14 +73,34 @@ const ProductHeader = ({ product, rating, reviewCount, vendor, category, _stock,
             {vendor ? <Text className="font-bold text-[#0F172A]">{vendor}</Text> : null}
             {category ? <Text className="text-sm text-[#6B7280] mt-2">Danh mục</Text> : null}
             {category ? <Text className="font-bold text-[#0F172A]">{category}</Text> : null}
+            {/* Stock display */}
+            {_stock === null ? null : _stock > 0 ? (
+              <Text className="text-sm font-semibold text-emerald-700 mt-2">Còn {_stock} sản phẩm</Text>
+            ) : (
+              <Text className="text-sm font-semibold text-red-600 mt-2">Hết hàng</Text>
+            )}
           </View>
         </View>
 
         <View className="flex-row items-center justify-between mt-4">
           <View className="flex-row items-center bg-white rounded-lg px-2 py-1">
             <TouchableOpacity onPress={() => setQuantity(Math.max(1, quantity - 1))} className="px-3"><Text className="text-lg">−</Text></TouchableOpacity>
-            <Text className="px-4 font-bold">{quantity}</Text>
-            <TouchableOpacity onPress={() => setQuantity(quantity + 1)} className="px-3"><Text className="text-lg">+</Text></TouchableOpacity>
+            <TextInput
+              value={String(quantity)}
+              onChangeText={(t) => {
+                const raw = String(t ?? '');
+                const digits = raw.replace(/[^0-9]/g, '');
+                let n = parseInt(digits || '0', 10) || 0;
+                if (n <= 0) n = 1;
+                if (_stock !== null && n > _stock) n = _stock;
+                setQuantity(n);
+              }}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              className="px-4 font-bold text-center"
+              style={{ minWidth: 48 }}
+            />
+            <TouchableOpacity onPress={() => setQuantity(Math.min((_stock ?? Infinity), quantity + 1))} className="px-3"><Text className="text-lg">+</Text></TouchableOpacity>
           </View>
 
           <TouchableOpacity onPress={() => setShowFullDesc(!showFullDesc)} className="px-3 py-2">
@@ -94,6 +117,14 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [product, setProduct] = useState<ProductItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  // Keep a string-backed input so users can clear the field to retype.
+  const [quantityInput, setQuantityInput] = useState(String(1));
+
+  // Sync quantityInput when quantity changes externally (e.g., via +/-)
+  React.useEffect(() => {
+    setQuantityInput(String(quantity));
+  }, [quantity]);
+
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
@@ -157,7 +188,10 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const category = product?.raw?.categoryName ?? null;
   const stock = product?.raw?.stockQuantity ?? null;
 
-  const { addToCart, clearCart } = useCart();
+  const { addToCart, clearCart, totalItems, loadCart } = useCart();
+  // Debug: log cart count to help track badge updates
+  console.log('[ProductDetail] totalItems', totalItems);
+  const isFocused = useIsFocused();
   const [buying, setBuying] = useState(false);
 
   // image animation refs (unchanging order)
@@ -167,7 +201,23 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     Animated.timing(imageOpacity, { toValue: 1, duration: 350, useNativeDriver: true }).start();
   };
 
+  // Refresh cart summary whenever this screen becomes focused so the badge updates.
+  React.useEffect(() => {
+    if (!isFocused) return;
+    (async () => {
+      try { await loadCart(); } catch {};
+      console.log('[ProductDetail] loadCart called, totalItems now', totalItems);
+    })();
+  }, [isFocused, loadCart]);
+
   const onAddToCart = async () => {
+    // Prevent adding when out of stock or requested quantity exceeds available stock
+    if (stock !== null && stock <= 0) {
+      setToastMsg('Sản phẩm hiện hết hàng'); setToastType('error'); setToastVisible(true); return;
+    }
+    if (stock !== null && quantity > stock) {
+      setToastMsg(`Chỉ còn ${stock} sản phẩm`); setToastType('error'); setToastVisible(true); setQuantity(stock); return;
+    }
     try {
       console.log('[ProductDetail] addToCart payload', { productId: product?.productId, quantity, price: product?.price ?? 0 });
       const item = {
@@ -198,6 +248,13 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const onBuyNow = async () => {
     if (!product) return;
     setBuying(true);
+    // Prevent buying when out of stock or requested quantity exceeds available stock
+    if (stock !== null && stock <= 0) {
+      setToastMsg('Sản phẩm hiện hết hàng'); setToastType('error'); setToastVisible(true); setBuying(false); return;
+    }
+    if (stock !== null && quantity > stock) {
+      setToastMsg(`Chỉ còn ${stock} sản phẩm`); setToastType('error'); setToastVisible(true); setQuantity(stock); setBuying(false); return;
+    }
     try {
       console.log('[ProductDetail] buyNow start', { productId: product.productId, quantity, unitPrice: product.price ?? 0, total: (product.price ?? 0) * quantity });
       // Clear existing cart, add only this product, then go to Checkout
@@ -244,24 +301,33 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.bg }}>
-      {/* Custom header: back, centered title, actions */}
-      <View className="flex-row items-center justify-between px-3 py-2" style={{ backgroundColor: COLORS.bg }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 rounded">
-          <Ionicons name="arrow-back" size={20} color={COLORS.text} />
-        </TouchableOpacity>
-
-        <Text className="text-[18px] font-extrabold" style={{ color: COLORS.primary }}>Chi tiết sản phẩm</Text>
-
-        <View className="flex-row items-center">
-          <TouchableOpacity className="p-2 rounded" onPress={() => {}}>
-            <Ionicons name="notifications-outline" size={20} color={COLORS.muted} />
+      {/* Custom header: match ShopHeader spacing/colors */}
+      <View className="px-4 pt-6 pb-3">
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 rounded">
+            <Ionicons name="arrow-back" size={22} color={colors.foreground} />
           </TouchableOpacity>
-          <TouchableOpacity className="p-2 rounded" onPress={openCart}>
-            <Ionicons name="cart-outline" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+
+          <Text className="text-[18px] font-extrabold" style={{ color: colors.foreground }}>Chi tiết sản phẩm</Text>
+
+          <View className="flex-row items-center">
+            <TouchableOpacity className="p-2 rounded" onPress={() => {}}>
+              <Ionicons name="notifications-outline" size={22} color={colors.foreground} />
+            </TouchableOpacity>
+            <View style={localStyles.cartWrap} className="relative">
+              <TouchableOpacity onPress={openCart} className="rounded">
+                <Ionicons name="cart-outline" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+              {totalItems > 0 && (
+                <View style={stylesHeader?.badgeWrap ?? { position: 'absolute', right: -2, top: -4, backgroundColor: '#F59E0B', minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{totalItems > 99 ? '99+' : totalItems}</Text>
+                </View>
+              )}
+            </View>
+          </View>
         </View>
       </View>
-
+       
       <ScrollView contentContainerStyle={localStyles.scrollContent}>
         {/* Image carousel */}
         <View className="w-full items-center bg-white pt-3">
@@ -358,10 +424,10 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
 
         <View className="flex-row">
-          <TouchableOpacity onPress={onAddToCart} className="bg-white px-4 py-3 rounded-lg mr-3 border border-gray-200">
+          <TouchableOpacity onPress={onAddToCart} className="bg-white px-4 py-3 rounded-lg mr-3 border border-gray-200" disabled={stock !== null && stock <= 0}>
             <Text className="font-semibold text-[#0F172A]">Thêm</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onBuyNow} className="px-5 py-3 rounded-lg" style={{ backgroundColor: COLORS.warm }} disabled={buying}>
+          <TouchableOpacity onPress={onBuyNow} className="px-5 py-3 rounded-lg" style={{ backgroundColor: COLORS.warm, opacity: (stock !== null && stock <= 0) ? 0.6 : 1 }} disabled={buying || (stock !== null && stock <= 0)}>
             {buying ? <ActivityIndicator color="#fff" /> : <Text className="font-extrabold text-black">Mua ngay</Text>}
           </TouchableOpacity>
         </View>
@@ -378,6 +444,7 @@ const localStyles = StyleSheet.create({
   imageWrapper: { width: width, height: IMAGE_HEIGHT, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.card },
   mainImage: { width: width - 32, height: IMAGE_HEIGHT - 20, borderRadius: 14, backgroundColor: COLORS.card },
   stickyBarShadow: { backgroundColor: COLORS.card, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, elevation: 6 },
+  cartWrap: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default ProductDetailScreen;

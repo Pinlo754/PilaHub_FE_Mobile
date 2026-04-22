@@ -20,6 +20,8 @@ export default function HeightUI() {
     onBack,
   } = useHeightLogic();
 
+  const canContinue = currentHeight != null;
+
   return (
     <View className="flex-1 bg-background ">
       {/* ===== BACK ===== */}
@@ -134,7 +136,8 @@ export default function HeightUI() {
       <View className="flex-1 justify-end mb-6">
         <Pressable
           onPress={onNext}
-          className="h-14 rounded-xl bg-foreground items-center justify-center"
+          disabled={!canContinue}
+          className={`h-14 rounded-xl ${!canContinue ? 'bg-foreground/40' : 'bg-foreground'} items-center justify-center`}
         >
           <Text className="text-white font-semibold text-base">
             Tiếp tục

@@ -103,8 +103,9 @@ export default function HealthProfileAssessmentScreen() {
             <View className="bg-amber-50 rounded-3xl p-5 mt-3 shadow">
               <Text className="font-semibold text-yellow-400">Điểm nổi bật</Text>
               <View className="mt-3 space-y-3">
-                {highlights.map((h: any) => (
+                {highlights.map((h: any, idx: number) => (
                     <IconInfo
+                      key={h?.id ?? h?.title ?? `highlight-${idx}`}
                       title={h.title}
                       description={h.description}
                     />
@@ -116,8 +117,9 @@ export default function HealthProfileAssessmentScreen() {
             <View className="bg-red-300 rounded-3xl p-5 mt-3 shadow">
               <Text className="font-semibold text-red-600">Rủi ro</Text>
               <View className="mt-3 space-y-3">
-                {risks.length === 0 ? <Text className="text-sm text-gray-600">Không phát hiện rủi ro lớn.</Text> : risks.map((r: any) => (
+                {risks.length === 0 ? <Text className="text-sm text-gray-600">Không phát hiện rủi ro lớn.</Text> : risks.map((r: any, idx: number) => (
                   <IconInfo
+                    key={r?.id ?? `${r?.riskType ?? 'risk'}-${r?.severity ?? idx}`}
                     title={`${r.riskType} — ${r.severity}`}
                     description={r.description}
                   />
@@ -146,19 +148,19 @@ export default function HealthProfileAssessmentScreen() {
 
             <View className="h-16" />
             {/* Footer action: go to Home tab */}
-            <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
-              <TouchableOpacity
-                onPress={() => {
-                  try {
-                    (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Home' } }] });
-                  } catch (e) {
-                    try { navigation.navigate('MainTabs' as any, { screen: 'Home' }); } catch {} }
-                }}
-                style={styles.okBtn}
-              >
-                <Text style={styles.okBtnText}>OK — Về trang chính</Text>
-              </TouchableOpacity>
-            </View>
+            <View className="px-4 mt-3">
+               <TouchableOpacity
+                 onPress={() => {
+                   try {
+                     (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Home' } }] });
+                   } catch {
+                     try { navigation.navigate('MainTabs' as any, { screen: 'Home' }); } catch {} }
+                 }}
+                 style={styles.okBtn}
+               >
+                 <Text style={styles.okBtnText}>OK — Về trang chính</Text>
+               </TouchableOpacity>
+             </View>
            </View>
          ) : (
           <View className="p-6"><Text>Không có dữ liệu đánh giá.</Text></View>
