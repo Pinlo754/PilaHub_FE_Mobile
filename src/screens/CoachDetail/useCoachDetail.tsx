@@ -8,6 +8,8 @@ import api from '../../hooks/axiosInstance';
 import { CoachService } from '../../hooks/coach.service';
 import { CoachFeedbackType } from '../../utils/CoachFeedbackType';
 import { coachFeedbackService } from '../../hooks/coachFeedback.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MessageService } from '../../hooks/message.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CoachDetail'>;
@@ -69,6 +71,41 @@ export const useCoachDetail = ({ route, navigation }: Props) => {
     });
   };
 
+  const onChatPress = async () => {
+    try {
+      const idStr = await AsyncStorage.getItem('id');
+      const currentId = idStr ? JSON.parse(idStr) : null;
+
+      if (!currentId || !coachId) return;
+
+      // Fetch conversations to find the one with coach
+      const response = await MessageService.getConversationByUser(currentId) as any;
+      let conversationId = null;
+
+      if (response && response.content) {
+        const conversation = response.content.find(
+          (conv: any) => conv.otherUserId === coachId
+        );
+        conversationId = conversation?.conversationId || null;
+      }
+
+      navigation.navigate('ChatScreen', {
+        receiverId: coachId,
+        receiverName: coachDetail?.fullName,
+        receiverAvatar: coachDetail?.avatarUrl,
+        conversationId: conversationId,
+      });
+    } catch (error) {
+      console.error('Error navigating to chat:', error);
+      // Fallback navigation without conversationId
+      navigation.navigate('ChatScreen', {
+        receiverId: coachId,
+        receiverName: coachDetail?.fullName,
+        receiverAvatar: coachDetail?.avatarUrl,
+      });
+    }
+  };
+
   // USE EFFECT
   useEffect(() => {
     if (!coachId) return;
@@ -83,6 +120,7 @@ export const useCoachDetail = ({ route, navigation }: Props) => {
     selectedCoachId,
     onPressBtn,
     sendRequestRoadmap,
+    onChatPress,
     isLoading,
     error,
   };

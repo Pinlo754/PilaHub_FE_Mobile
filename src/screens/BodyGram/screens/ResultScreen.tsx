@@ -202,8 +202,21 @@ export default function ResultScreen({ route, navigation }: Props) {
          setToastType('success');
          setToastMsg('Lưu hồ sơ thành công');
          setToastVisible(true);
-         // short delay to show toast then navigate
-         setTimeout(() => navigation.replace('MainTabs'), 700);
+         // short delay to show toast then navigate to AI assessment screen (HealthProfileAssessment)
+         const profileId = res.data?.health?.id ?? res.data?.health?.profileId ?? res.data?.health?.healthProfileId ?? null;
+         setTimeout(() => {
+           if (profileId) {
+             // navigate to assessment screen so user can review AI assessment before returning to main
+             try {
+               (navigation as any).reset({ index: 0, routes: [{ name: 'HealthProfileAssessment', params: { healthProfileId: String(profileId) } }] });
+             } catch {
+               try { navigation.navigate('HealthProfileAssessment' as any, { healthProfileId: String(profileId) } as any); } catch { /* ignore */ }
+             }
+           } else {
+             // fallback: reset to MainTabs
+             try { (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } catch { try { navigation.navigate('MainTabs' as any); } catch {} }
+           }
+         }, 700);
        } else {
         // log detailed error for debugging
         const msg = typeof res.error === 'string' ? res.error : JSON.stringify(res.error);
@@ -333,7 +346,7 @@ export default function ResultScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {loading ? <LoadingOverlay message="Đang lưu hồ sơ..." /> : null}
+      {loading ? <LoadingOverlay /> : null}
       <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
 
      </ScrollView></SafeAreaView>
@@ -360,3 +373,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+

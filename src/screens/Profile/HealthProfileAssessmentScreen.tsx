@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView, Pressable, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { fetchHealthProfileAssessment } from '../../services/profile';
 import ProgressCircle from '../../components/ProgressCircle';
@@ -145,8 +145,22 @@ export default function HealthProfileAssessmentScreen() {
             </View>
 
             <View className="h-16" />
-          </View>
-        ) : (
+            {/* Footer action: go to Home tab */}
+            <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  try {
+                    (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Home' } }] });
+                  } catch (e) {
+                    try { navigation.navigate('MainTabs' as any, { screen: 'Home' }); } catch {} }
+                }}
+                style={styles.okBtn}
+              >
+                <Text style={styles.okBtnText}>OK — Về trang chính</Text>
+              </TouchableOpacity>
+            </View>
+           </View>
+         ) : (
           <View className="p-6"><Text>Không có dữ liệu đánh giá.</Text></View>
         )}
       </ScrollView>
@@ -158,4 +172,9 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120 },
   circleWrap: { width: 110, height: 110 },
   circleOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  okBtn: { backgroundColor: '#A0522D', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  okBtnText: { color: '#fff', fontWeight: '700' },
 });
+
+
+

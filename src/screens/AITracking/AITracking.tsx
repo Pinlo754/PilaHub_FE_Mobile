@@ -441,7 +441,7 @@ const downloadURL = await uploadVideoToFirebase(file.path);
         const exArray = new Float32Array(8).fill(0);
         const exerciseName = workoutSession?.exerciseName?.toLowerCase();
 
-        const exIdx = LABELS.exercises.findIndex(e => e === 'plank');
+         const exIdx = LABELS.exercises.findIndex(e => e === 'plank');
         // const exIdx = LABELS.exercises.findIndex(
         //   e => e.toLowerCase() === exerciseName
         // );
