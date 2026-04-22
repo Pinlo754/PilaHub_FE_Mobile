@@ -10,6 +10,7 @@ import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useState } from 'react';
 import { formatTime } from '../../../utils/time';
 import { PracticePayload } from '../../../utils/CourseLessonProgressType';
+import { PackageType } from '../../../utils/ExerciseType';
 
 type Props = {
   item: CourseLessonDetailType;
@@ -19,6 +20,7 @@ type Props = {
   getProgressOfCourseLesson: (courseLessonId: string) => void;
   traineeCourseId: string | null;
   completedLessonIds: string[];
+  activePackage: PackageType | null;
 };
 
 const ExerciseItem = ({
@@ -29,10 +31,14 @@ const ExerciseItem = ({
   getProgressOfCourseLesson,
   traineeCourseId,
   completedLessonIds,
+  activePackage,
 }: Props) => {
   // VARIABLE
   const isFirst = index === 0;
   const isCompleted = completedLessonIds.includes(item.courseLessonId);
+  const isVip = activePackage === PackageType.VIP_MEMBER;
+  const isMember = activePackage === PackageType.MEMBER;
+  const hasPackage = isVip || isMember;
 
   // STATE
   const [isExpand, setIsExpand] = useState<boolean>(false);
@@ -53,8 +59,11 @@ const ExerciseItem = ({
     );
 
     return {
-      progressId,
-      lessonExerciseIds: sortedExercises.map(ex => ex.lessonExerciseId),
+      isEnrolled,
+      progressId: isEnrolled ? progressId : '',
+      lessonExerciseIds: isEnrolled
+        ? sortedExercises.map(ex => ex.lessonExerciseId)
+        : [],
       exerciseIds: sortedExercises.map(ex => ex.exercise.exerciseId),
     };
   };
@@ -124,7 +133,7 @@ const ExerciseItem = ({
       {isExpand &&
         item.exercises.map(ex => {
           const isFirstExercise = ex.displayOrder === 1;
-          const allowedTheory = isEnrolled && !!traineeCourseId;
+          const allowedTheory = hasPackage || (isEnrolled && !!traineeCourseId);
           const allowedPractice = allowedTheory && isFirstExercise;
 
           return (
@@ -159,7 +168,7 @@ const ExerciseItem = ({
               </View>
 
               {/* Icon */}
-              {isEnrolled && traineeCourseId ? (
+              {allowedTheory ? (
                 <View
                   className={`rounded-full w-10 h-10 flex items-center justify-center pl-0.5 ${isFirstExercise ? 'bg-background-sub1' : 'bg-inactive-lighter'}`}
                 >

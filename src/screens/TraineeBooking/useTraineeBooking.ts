@@ -4,6 +4,8 @@ import { BookingStatus, CoachBookingType } from '../../utils/CoachBookingType';
 import { coachBookingService } from '../../hooks/coachBooking.service';
 import { LiveSessionType } from '../../utils/LiveSessionType';
 import LiveSessionService from '../../hooks/liveSession.service';
+import { SessionAssessmentType } from '../../utils/SessionAssessmentType';
+import { SessionAssessmentService } from '../../hooks/sessionAssessment.service';
 
 type DataByTab = {
   [K in BookingTab]: CoachBookingType[];
@@ -40,6 +42,9 @@ export const useTraineeBooking = () => {
   const [showRecord, setShowRecord] = useState<boolean>(false);
   const [recordUrl, setRecordUrl] = useState<string | null>(null);
   const [showReportList, setShowReportList] = useState<boolean>(false);
+  const [assessment, setAssessment] = useState<SessionAssessmentType | null>(
+    null,
+  );
 
   // API
   const fetchData = async () => {
@@ -100,6 +105,29 @@ export const useTraineeBooking = () => {
     }
   };
 
+  const fetchAssessment = async (bookingId: string) => {
+    if (!bookingId) return;
+    setIsLoading(true);
+    try {
+      const data = await SessionAssessmentService.getById(bookingId);
+      const sorted = {
+        ...data,
+        results: [...data.results].sort(
+          (a, b) => a.displayOrder - b.displayOrder,
+        ),
+      };
+      setAssessment(sorted);
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Chưa có đánh giá từ HLV!');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // HANDLERS
   const filterBookings = (
     data: CoachBookingType[],
@@ -124,7 +152,7 @@ export const useTraineeBooking = () => {
   };
 
   const openFeedbackModal = async (bookingId: string) => {
-    await fetchLiveSessionDetail(bookingId);
+    await fetchAssessment(bookingId);
     setShowFeedbackModal(true);
   };
 
@@ -192,5 +220,6 @@ export const useTraineeBooking = () => {
     showReportList,
     openReportList,
     closeReportList,
+    assessment,
   };
 };
