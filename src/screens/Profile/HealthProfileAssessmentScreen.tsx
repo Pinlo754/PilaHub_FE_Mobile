@@ -177,3 +177,6 @@ const styles = StyleSheet.create({
   okBtn: { backgroundColor: '#A0522D', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   okBtnText: { color: '#fff', fontWeight: '700' },
 });
+
+
+

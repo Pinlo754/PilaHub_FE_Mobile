@@ -20,6 +20,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
     scrollY,
     onPressBtn,
     sendRequestRoadmap,
+    onChatPress,
   } = useCoachDetail({
     route,
     navigation,
@@ -67,7 +68,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
         <BlogSection coachId={coachDetail.coachId} />
       </Animated.ScrollView>
 
-      <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4">
+      <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4 flex-wrap">
         <Button
           text="Đăng ký lịch"
           onPress={onPressBtn}
@@ -82,6 +83,14 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
           colorType="sub1"
           rounded="xl"
           iconName="today-outline"
+          iconSize={26}
+        />
+        <Button
+          text="Nhắn tin"
+          onPress={onChatPress}
+          colorType="sub1"
+          rounded="xl"
+          iconName="chatbubble-outline"
           iconSize={26}
         />
       </View>
