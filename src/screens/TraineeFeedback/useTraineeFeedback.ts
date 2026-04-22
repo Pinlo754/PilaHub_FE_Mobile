@@ -4,6 +4,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import LiveSessionService from '../../hooks/liveSession.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AssessmentCriterionType } from '../../utils/AssessmentCriterionType';
+import { SessionAssessmentService } from '../../hooks/sessionAssessment.service';
+import { AssessmentCriterionService } from '../../hooks/assessmentCriterion.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'TraineeFeedback'>;
@@ -47,6 +50,8 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [criteria, setCriteria] = useState<AssessmentCriterionType[]>([]);
+  const [scores, setScores] = useState<Record<string, string>>({});
 
   // VARIABLE
   const mode: ModeType | undefined = (() => {
@@ -77,8 +82,8 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
       title: 'Bạn thấy học viên tập như thế nào?',
       showInfo: false,
       showRating: false,
-      showComment: true,
-      validate: () => comment.trim().length > 0,
+      showComment: false,
+      validate: () => isAssessmentValid(),
       submit: () => {
         feedbackForTrainee();
       },
@@ -98,12 +103,23 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
 
   const config = mode ? modeConfig[mode] : undefined;
 
+  const isAssessmentValid = () => {
+    if (criteria.length === 0) return false;
+    return criteria.every(c => {
+      const val = parseFloat(scores[c.assessmentCriterionId] ?? '');
+      return !isNaN(val) && val >= 1 && val <= 10;
+    });
+  };
+
   // API
   const feedbackForCoach = async () => {
     setIsLoading(true);
     try {
       if (!liveSessionIdParam) return null;
-      console.log(`Submitting feedback for coach id: ${liveSessionIdParam} with rating:`, rating);
+      console.log(
+        `Submitting feedback for coach id: ${liveSessionIdParam} with rating:`,
+        rating,
+      );
       await LiveSessionService.feedbackForCoach(liveSessionIdParam, rating);
 
       openSuccessModal('Đã đánh giá thành công!');
@@ -127,7 +143,15 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     try {
       if (!liveSessionIdParam) return null;
 
-      await LiveSessionService.feedbackForTrainee(liveSessionIdParam, comment);
+      const results = criteria.map(c => ({
+        criterionId: c.assessmentCriterionId,
+        score: parseFloat(scores[c.assessmentCriterionId]),
+      }));
+
+      await SessionAssessmentService.createSessionAssessment(
+        liveSessionIdParam,
+        { results },
+      );
 
       openSuccessModal('Đã đánh giá thành công!');
 
@@ -140,6 +164,19 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
       } else {
         setError('Có lỗi xảy ra. Vui lòng thử lại.');
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchCriteria = async () => {
+    setIsLoading(true);
+    try {
+      const data = await AssessmentCriterionService.getAll();
+      const sorted = [...data].sort((a, b) => a.displayOrder - b.displayOrder);
+      setCriteria(sorted);
+    } catch (err: any) {
+      setError('Không thể tải tiêu chí đánh giá.');
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +197,10 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     config?.submit();
   };
 
+  const onScoreChange = (criterionId: string, value: string) => {
+    setScores(prev => ({ ...prev, [criterionId]: value }));
+  };
+
   // CHECK
   const isValid = config?.validate() ?? false;
   const showInfo = config?.showInfo ?? false;
@@ -176,6 +217,12 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
 
     loadRole();
   }, []);
+
+  useEffect(() => {
+    if (mode === 'feedbackForTrainee') {
+      fetchCriteria();
+    }
+  }, [mode]);
 
   return {
     info,
@@ -195,5 +242,8 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     isLoading,
     title,
     liveSessionIdParam,
+    criteria,
+    scores,
+    onScoreChange,
   };
 };

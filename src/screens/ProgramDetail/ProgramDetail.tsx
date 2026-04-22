@@ -41,6 +41,7 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     traineeCourseId,
     progressOfCourse,
     completedLessonIds,
+    activePackage,
   } = useProgramDetail({
     route,
     navigation,
@@ -79,6 +80,7 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         getProgressOfCourseLesson={getProgressOfCourseLesson}
         traineeCourseId={traineeCourseId}
         completedLessonIds={completedLessonIds}
+        activePackage={activePackage}
       />
 
       {!isEnrolled ? (

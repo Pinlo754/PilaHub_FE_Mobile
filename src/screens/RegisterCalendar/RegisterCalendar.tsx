@@ -52,6 +52,8 @@ const RegisterCalendar = (props: Props) => {
     onConfirmModal,
     weekStart,
     coachDetail,
+    handleSearch,
+    searchQuery,
   } = useRegisterCalendar({
     route: props.route,
     navigation: props.navigation,
@@ -75,7 +77,10 @@ const RegisterCalendar = (props: Props) => {
           {!selectedCoachId ? (
             <>
               {/* Search Section */}
-              <SearchSection />
+              <SearchSection
+                searchQuery={searchQuery}
+                onSearch={handleSearch}
+              />
               {/* List Section */}
               <List
                 data={coaches}

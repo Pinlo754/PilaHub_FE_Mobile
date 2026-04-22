@@ -38,6 +38,7 @@ const TraineeBooking = (props: Props) => {
     closeReportList,
     openReportList,
     showReportList,
+    assessment,
   } = useTraineeBooking();
 
   return (
@@ -88,9 +89,7 @@ const TraineeBooking = (props: Props) => {
         <FeedbackModal
           visible={showFeedbackModal}
           onClose={closeFeedbackModal}
-          comment={
-            liveSessionDetail?.commentByCoach || 'Chưa có đánh giá từ HLV!'
-          }
+          assessment={assessment}
         />
 
         {/* Report List Modal */}
