@@ -5,9 +5,8 @@ import MeasurementModal from '../components/MeasurementModal';
 import { useOnboardingStore } from '../../../store/onboarding.store';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView} from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { submitTraineeProfile, submitPersonalInjuries, submitHealthProfile } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 
@@ -15,8 +14,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InputBody'>;
 
 export default function InputBodyScreen({ navigation }: Props) {
   const labelMap: Record<string, string> = {
-    shoulder: 'Vai',
     waist: 'Eo',
+    bust: 'Ngực',
     hip: 'Hông',
     thigh: 'Đùi',
     bicep: 'Bắp Tay',
@@ -30,10 +29,10 @@ export default function InputBodyScreen({ navigation }: Props) {
   const onboarding = useOnboardingStore((s) => s.data);
   const setData = useOnboardingStore((s) => s.setData);
   const setStep = useOnboardingStore((s) => s.setStep);
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [toastMsg, _setToastMsg] = useState('');
+  const [toastType, _setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   useEffect(() => {
     setModal({ key: '', visible: false });
@@ -104,97 +103,56 @@ export default function InputBodyScreen({ navigation }: Props) {
     return Math.round(bmi * 10) / 10;
   }
 
-  const handleManualSubmit = async () => {
-    setToastVisible(false);
-    setLoading(true);
-    console.log('Manual submit initiated. Onboarding store contents:', onboarding);
-    try {
-      const bodyGramManual: any = {};
-      if (onboarding?.shoulder) bodyGramManual.shoulder = onboarding.shoulder;
-      if (onboarding?.waist) bodyGramManual.waist = onboarding.waist;
-      if (onboarding?.hip) bodyGramManual.hip = onboarding.hip;
-      if (onboarding?.thigh) bodyGramManual.thigh = onboarding.thigh;
-      if (onboarding?.bicep) bodyGramManual.bicep = onboarding.bicep;
-      if (onboarding?.calf) bodyGramManual.calf = onboarding.calf;
-      if (onboarding?.height && onboarding.heightUnit === 'cm') bodyGramManual.height = onboarding.height;
-      if (onboarding?.weight && onboarding.weightUnit === 'kg') bodyGramManual.weight = onboarding.weight;
-      if (onboarding?.bodyFatPercent != null) bodyGramManual.bodyFatPercentage = onboarding.bodyFatPercent;
-      if (onboarding?.muscleMass != null) bodyGramManual.muscleMassKg = onboarding.muscleMass;
-      bodyGramManual.input = { source: 'manual' };
+  // compute once and shared continue handler
+  const allFilled = allMeasurementsFilled(onboarding);
+  console.log('InputBodyScreen onboarding:', onboarding);
 
-      const minimalOnboarding: any = {};
-      if (onboarding?.fullName) minimalOnboarding.fullName = onboarding.fullName;
-      if (onboarding?.email) minimalOnboarding.email = onboarding.email;
-      if (onboarding?.age != null) minimalOnboarding.age = onboarding.age;
-      if (onboarding?.gender) minimalOnboarding.gender = onboarding.gender;
-      if (onboarding?.workoutFrequency) minimalOnboarding.workoutFrequency = onboarding.workoutFrequency;
-      if (onboarding?.workoutLevel) minimalOnboarding.workoutLevel = onboarding.workoutLevel;
-
-      console.log('Built manual payloads. bodyGramManual:', bodyGramManual, 'minimalOnboarding:', minimalOnboarding);
-
-      if (!onboarding?.workoutFrequency || !onboarding?.workoutLevel) {
-        setLoading(false);
-        Alert.alert(
-          'Thiếu lựa chọn tập luyện',
-          'Bạn cần hoàn tất phần lựa chọn tần suất và mức độ tập luyện trước khi gửi thủ công.',
-          [
-            { text: 'Đi tới Workout', onPress: () => { setStep(5); navigation.navigate('Onboarding' as any); } },
-            { text: 'Hủy', style: 'cancel' },
-          ]
-        );
-        return;
-      }
-
-      if (!minimalOnboarding.fullName || !minimalOnboarding.email) {
-        setLoading(false);
-        Alert.alert(
-          'Thiếu thông tin',
-          'Vui lòng hoàn tất tên và email trong hồ sơ trước khi gửi thủ công.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // New sequence: 1) create trainee profile, 2) submit injuries (best-effort), 3) create health profile
-      // 1) ensure trainee exists
-      const tRes = await submitTraineeProfile(minimalOnboarding as any, bodyGramManual);
-      if (!tRes.ok) {
-        setLoading(false);
-        Alert.alert('Lỗi', `Không thể tạo hồ sơ: ${JSON.stringify(tRes.error ?? tRes)}`);
-        return;
-      }
-
-      // 2) injuries best-effort
-      try {
-        const injRes = await submitPersonalInjuries(onboarding as any);
-        if (!injRes.ok) console.warn('submitPersonalInjuries (manual) failed', injRes.error);
-      } catch (err) {
-        console.warn('submitPersonalInjuries thrown', err);
-      }
-
-      // 3) create health profile
-      const hRes = await submitHealthProfile(bodyGramManual, 'Manual');
-      setLoading(false);
-      console.log('submitHealthProfile (manual) result', hRes);
-      if (hRes.ok) {
-        setToastType('success');
-        setToastMsg('Lưu hồ sơ thành công');
-        setToastVisible(true);
-        setTimeout(() => navigation.replace('MainTabs' as any), 700);
-      } else {
-        setToastType('error');
-        setToastMsg('Lưu thất bại');
-        setToastVisible(true);
-        Alert.alert('Lỗi', JSON.stringify(hRes.error ?? hRes));
-      }
-    } catch (e: any) {
-      setLoading(false);
-      console.log('submitProfiles manual error', e);
-      setToastType('error');
-      setToastMsg('Lỗi khi gửi hồ sơ');
-      setToastVisible(true);
-      Alert.alert('Lỗi', e?.message ?? String(e));
+  const handleContinue = () => {
+    if (!allFilled) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ các thông số trước khi tiếp tục.');
+      return;
     }
+    const meas: any = {};
+    if (onboarding?.waist) meas.waist = onboarding.waist;
+    if (onboarding?.hip) meas.hip = onboarding.hip;
+    if (onboarding?.thigh) meas.thigh = onboarding.thigh;
+    if (onboarding?.bicep) meas.bicep = onboarding.bicep;
+    if (onboarding?.calf) meas.calf = onboarding.calf;
+    if (onboarding?.bust) meas.bust = onboarding.bust;
+    if (onboarding?.height && onboarding.heightUnit === 'cm') meas.height_est = onboarding.height;
+    if (onboarding?.weight && onboarding.weightUnit === 'kg') meas.weight_est = onboarding.weight;
+
+    if (onboarding?.bodyFatPercent != null) {
+      meas.bodyFatPercent = onboarding.bodyFatPercent;
+      meas.bodyFatPercentage = meas.bodyFatPercentage ?? onboarding.bodyFatPercent;
+    }
+    if (onboarding?.muscleMass != null) {
+      meas.muscleMass = onboarding.muscleMass;
+      meas.muscleMassKg = meas.muscleMassKg ?? onboarding.muscleMass;
+    }
+
+    if (!meas.height_est && onboarding?.height != null) {
+      const hUnit = (onboarding.heightUnit ?? 'cm') as string;
+      let h = Number(onboarding.height) || 0;
+      if (hUnit === 'm') h = h * 100;
+      else if (hUnit === 'in' || hUnit === 'inch') h = h * 2.54;
+      if (h > 0) meas.height_est = Math.round(h);
+    }
+    if (!meas.weight_est && onboarding?.weight != null) {
+      const wUnit = (onboarding.weightUnit ?? 'kg') as string;
+      let w = Number(onboarding.weight) || 0;
+      if (wUnit === 'lb' || wUnit === 'lbs') w = w * 0.45359237;
+      if (w > 0) meas.weight_est = Math.round(w);
+    }
+
+    meas.input = meas.input ?? {};
+    meas.input.source = 'manual';
+    const h = meas.height_est ?? onboarding?.height;
+    const w = meas.weight_est ?? onboarding?.weight;
+    const bmi = computeBmi(h as any, w as any);
+    if (bmi != null) meas.bmi = bmi;
+
+    navigation.navigate('Result' as any, { measurements: meas, rawResponse: null, source: 'Manual' });
   };
 
   return (
@@ -212,8 +170,8 @@ export default function InputBodyScreen({ navigation }: Props) {
                 if (navigation.canGoBack && navigation.canGoBack()) navigation.goBack();
                 return;
               }
-            } catch {}
-            try { setStep(6); } catch {}
+            } catch { }
+            try { setStep(6); } catch { }
             navigation.navigate('Onboarding' as any);
           }}
           style={styles.backBtn}
@@ -237,14 +195,17 @@ export default function InputBodyScreen({ navigation }: Props) {
               <View className="w-64 h-80 relative items-center justify-center ">
                 <Image source={require('../../../assets/bodygram.png')} style={styles.silhouetteImage as any} resizeMode="contain" />
 
-                <View style={styles.tagWrap1}>
-                  <MeasurementTag label="Vai" value={onboarding?.shoulder} unit="cm" onPress={() => openModal('shoulder')} />
-                </View>
                 <View style={styles.tagWrap2}>
                   <MeasurementTag label="Eo" value={onboarding?.waist} unit="cm" onPress={() => openModal('waist')} />
                 </View>
+                <View style={styles.tagWrap5}>
+                  <MeasurementTag label="Ngực" value={onboarding?.bust} unit="cm" onPress={() => openModal('bust')} />
+                </View>
                 <View style={styles.tagWrap3}>
                   <MeasurementTag label="Hông" value={onboarding?.hip} unit="cm" onPress={() => openModal('hip')} />
+                </View>
+                <View style={styles.tagWrap6}>
+                  <MeasurementTag label="Bắp Tay" value={onboarding?.bicep} unit="cm" onPress={() => openModal('bicep')} />
                 </View>
                 <View style={styles.tagWrap4}>
                   <MeasurementTag label="Đùi" value={onboarding?.thigh} unit="cm" onPress={() => openModal('thigh')} />
@@ -284,103 +245,71 @@ export default function InputBodyScreen({ navigation }: Props) {
               </View>
             </View>
             <View className="w-1/2 px-2 mb-3">
-              <View style={styles.statCard}>
-                <Text className="text-sm text-secondaryText">Ghi chú</Text>
-                <Text style={styles.statValue}>{onboarding?.notes ?? '—'}</Text>
-              </View>
+              <Pressable onPress={() => openModal('calf')}>
+                <View style={styles.statCard}>
+                  <Text className="text-sm text-secondaryText">Bắp chân</Text>
+                  <Text style={styles.statValue}>{onboarding?.calf ?? '—'}</Text>
+                </View>
+              </Pressable>
             </View>
           </View>
 
           <View className="flex-row space-x-3 mb-8">
-            {/* InBody Scan button */}
-            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('InBodyScan' as any)} style={[styles.outlineBtn, styles.centerContent]}>
-              <Text style={styles.outlineBtnText}>InBody Scan</Text>
+            {/* InBody Scan button (changed to brown as requested) */}
+            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('InBodyScan' as any)} style={[styles.fillBtn, styles.centerContent]}>
+              <Text style={styles.fillBtnText}>InBody Scan</Text>
             </Pressable>
 
-            {/* Camera body scan */}
-            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('BodyScanFlow' as any)} style={[styles.outlineBtn, styles.centerContent]}>
-              <Text style={styles.outlineBtnText}>Dùng camera Quét cơ thể</Text>
-            </Pressable>
-
-            {/* Preview/continue */}
-            <Pressable
-              style={styles.fillBtn}
-              onPress={() => {
-                console.log('Preview Result pressed. Onboarding store:', onboarding);
-                const meas: any = {};
-                if (onboarding?.shoulder) meas.shoulder = onboarding.shoulder;
-                if (onboarding?.waist) meas.waist = onboarding.waist;
-                if (onboarding?.hip) meas.hip = onboarding.hip;
-                if (onboarding?.thigh) meas.thigh = onboarding.thigh;
-                if (onboarding?.bicep) meas.bicep = onboarding.bicep;
-                if (onboarding?.calf) meas.calf = onboarding.calf;
-                if (onboarding?.height && onboarding.heightUnit === 'cm') meas.height_est = onboarding.height;
-                if (onboarding?.weight && onboarding.weightUnit === 'kg') meas.weight_est = onboarding.weight;
-
-                if (onboarding?.bodyFatPercent != null) {
-                  meas.bodyFatPercent = onboarding.bodyFatPercent;
-                  meas.bodyFatPercentage = meas.bodyFatPercentage ?? onboarding.bodyFatPercent;
-                }
-                if (onboarding?.muscleMass != null) {
-                  meas.muscleMass = onboarding.muscleMass;
-                  meas.muscleMassKg = meas.muscleMassKg ?? onboarding.muscleMass;
-                }
-
-                // ensure height/weight are filled from onboarding with simple unit conversions
-                if (!meas.height_est && onboarding?.height != null) {
-                  const hUnit = (onboarding.heightUnit ?? 'cm') as string;
-                  let h = Number(onboarding.height) || 0;
-                  if (hUnit === 'm') h = h * 100; // meters -> cm
-                  else if (hUnit === 'in' || hUnit === 'inch') h = h * 2.54; // inches -> cm
-                  // default assumes cm
-                  if (h > 0) meas.height_est = Math.round(h);
-                }
-                if (!meas.weight_est && onboarding?.weight != null) {
-                  const wUnit = (onboarding.weightUnit ?? 'kg') as string;
-                  let w = Number(onboarding.weight) || 0;
-                  if (wUnit === 'lb' || wUnit === 'lbs') w = w * 0.45359237; // lb -> kg
-                  // default assumes kg
-                  if (w > 0) meas.weight_est = Math.round(w);
-                }
-
-                // mark this preview as coming from manual input so Result can handle context
-                meas.input = meas.input ?? {};
-                meas.input.source = 'manual';
-
-                const h = meas.height_est ?? onboarding?.height;
-                const w = meas.weight_est ?? onboarding?.weight;
-                const bmi = computeBmi(h as any, w as any);
-                if (bmi != null) meas.bmi = bmi;
-
-                navigation.navigate('Result' as any, { measurements: meas, rawResponse: null, source: 'Manual' });
-              }}
-            >
-              <Text style={styles.fillBtnText}>Tiếp tục</Text>
+            {/* Camera body scan (changed to brown) */}
+            <Pressable className="flex-1 mr-2" onPress={() => navigation.navigate('BodyScanFlow' as any)} style={[styles.fillBtn, styles.centerContent]}>
+              <Text style={styles.fillBtnText}>Dùng camera Quét cơ thể</Text>
             </Pressable>
           </View>
-
-      
-          {loading ? <LoadingOverlay /> : null}
-          <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
-
-          <MeasurementModal
-            visible={modal.visible}
-            label={labelMap[modal.key] ?? modal.key}
-            initialValue={undefined}
-            onClose={closeModal}
-            onSave={save}
-            unit={modal.key === 'muscleMass' ? 'kg' : modal.key === 'bodyFatPercent' ? '%' : 'cm'}
-            subtitle={modal.key === 'bodyFatPercent' ? 'Nhập tỷ lệ phần trăm, ví dụ 18.5' : modal.key === 'muscleMass' ? 'Nhập khối lượng cơ bằng kg' : 'Ước lượng gần đúng. Nhập số theo cm.'}
-            placeholder={modal.key === 'bodyFatPercent' ? 'Ví dụ: 18.5' : modal.key === 'muscleMass' ? 'Ví dụ: 55' : 'Ví dụ: 72'}
-          />
         </ScrollView>
+
+        {/* Bottom Continue bar - requires all fields filled before navigating */}
+        <View className="my-auto mx-4">
+          <Pressable
+            disabled={!allFilled}
+            onPress={handleContinue}
+            style={[
+              styles.fillBtn,
+              styles.centerContent,
+              !allFilled && styles.fillBtnDisabled
+            ]}
+          >
+            <Text style={styles.fillBtnText}>Tiếp tục</Text>
+          </Pressable>
+        </View>
+
+        {loading ? <LoadingOverlay /> : null}
+        <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+
+        <MeasurementModal
+          visible={modal.visible}
+          label={labelMap[modal.key] ?? modal.key}
+          initialValue={onboarding?.[modal.key]}
+          onClose={closeModal}
+          onSave={save}
+          unit={modal.key === 'muscleMass' ? 'kg' : modal.key === 'bodyFatPercent' ? '%' : 'cm'}
+          subtitle={modal.key === 'bodyFatPercent' ? 'Nhập tỷ lệ phần trăm, ví dụ 18.5' : modal.key === 'muscleMass' ? 'Nhập khối lượng cơ bằng kg' : 'Ước lượng gần đúng. Nhập số theo cm.'}
+          placeholder={modal.key === 'bodyFatPercent' ? 'Ví dụ: 18.5' : modal.key === 'muscleMass' ? 'Ví dụ: 55' : 'Ví dụ: 72'}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
+// helper to check required measurements
+function allMeasurementsFilled(onboarding: any) {
+  if (!onboarding) return false;
+  const required = ['waist', 'bust', 'hip', 'thigh', 'bicep', 'calf', 'height', 'weight'];
+  return required.every((k) => onboarding[k] != null && onboarding[k] !== '');
+}
+
 const styles = StyleSheet.create({
-  tagWrap1: { position: 'absolute', top: 36, left: -12 },
+  tagWrap5: { position: 'absolute', top: 56, left: 10 },
+  tagWrap6: { position: 'absolute', top: 36, right: 6 },
   tagWrap2: { position: 'absolute', top: 120, left: 10 },
   tagWrap3: { position: 'absolute', top: 124, right: 8 },
   tagWrap4: { position: 'absolute', bottom: 36, left: 20 },
@@ -390,6 +319,7 @@ const styles = StyleSheet.create({
   tipText: { color: '#555', textAlign: 'center' },
   flex: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
+  centerBtnWidth: { width: '60%', alignSelf: 'center' },
   backBtn: { position: 'absolute', left: 8, top: 8, padding: 12, zIndex: 2000 },
   backIcon: { fontSize: 20, color: '#1f2937', fontWeight: '700', lineHeight: 20 },
   headerContainer: { position: 'relative', paddingTop: 8 },
@@ -402,7 +332,14 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800', marginTop: 8 },
   outlineBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   outlineBtnText: { color: 'rgba(0,0,0,0.85)', fontWeight: '700' },
+  // Accent outline for inline continue (different from brown fill)
+  outlineAccent: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  outlineAccentDisabled: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.06)', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', opacity: 0.8 },
+  outlineAccentText: { color: '#111827', fontWeight: '700', fontSize: 16 },
+  outlineAccentTextDisabled: { color: 'rgba(17,24,39,0.6)', fontWeight: '700', fontSize: 16 },
   centerContent: { alignItems: 'center', justifyContent: 'center' },
-  fillBtn: { backgroundColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  fillBtnText: { color: '#fff', fontWeight: '700' },
+  fillBtn: { backgroundColor: '#b5651d', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, minHeight: 48 },
+  fillBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  fillBtnDisabled: { backgroundColor: '#b5651d', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, minHeight: 48, borderWidth: 0, opacity: 0.75 },
+  fillBtnTextDisabled: { color: '#9CA3AF' },
 });

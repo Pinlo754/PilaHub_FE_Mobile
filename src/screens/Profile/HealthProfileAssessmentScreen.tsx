@@ -70,13 +70,8 @@ export default function HealthProfileAssessmentScreen() {
     <SafeAreaView className="flex-1 bg-background">
   <View className="flex-row items-center px-4 py-4 bg-white border-b border-gray-100">
 
-  {/* Back button */}
-  <Pressable
-    onPress={() => navigation.goBack()}
-    className="w-10 items-center justify-center"
-  >
-    <Text className="text-xl">‹</Text>
-  </Pressable>
+  {/* Left spacer (no back button) */}
+  <View className="w-10" />
 
   {/* Title */}
   <Text

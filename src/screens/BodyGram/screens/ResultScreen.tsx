@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text, ScrollView, View, TouchableOpacity, ActivityIndicator, Image, StyleSheet } from 'react-native';
+import { Text, ScrollView, View, TouchableOpacity, ActivityIndicator, Image, StyleSheet, Pressable } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useOnboardingStore } from '../../../store/onboarding.store';
@@ -11,6 +11,7 @@ import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 import { getProfile } from '../../../services/auth';
 import { setBodySavedFor } from '../../../utils/bodyCache';
+import ModalPopup from '../../../components/ModalPopup';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
@@ -39,19 +40,24 @@ export default function ResultScreen({ route, navigation }: Props) {
     const heightFromStore = onboarding?.height && (onboarding.heightUnit === 'cm' ? onboarding.height : undefined);
     const weightFromStore = onboarding?.weight && (onboarding.weightUnit === 'kg' ? onboarding.weight : undefined);
 
+    // if the screen received a manual measurements object (not array), prefer values from it
+    const measurementsObj = rawMeasurements && !Array.isArray(rawMeasurements) ? rawMeasurements : undefined;
+
     const entry = rawResponse?.entry ?? rawResponse ?? {};
     const input = entry?.input?.photoScan ?? entry?.input ?? {};
 
-    const hRaw = input?.height ?? input?.heightMm ?? null;
-    const wRaw = input?.weight ?? input?.weightG ?? null;
+    const hRaw = input?.height ?? input?.heightMm ?? measurementsObj?.height_est ?? measurementsObj?.height ?? null;
+    const wRaw = input?.weight ?? input?.weightG ?? measurementsObj?.weight_est ?? measurementsObj?.weight ?? null;
 
     const height = heightFromStore ?? (typeof hRaw === 'number' ? (hRaw > 1000 ? mmToCm(hRaw) : hRaw) : undefined);
     const weight = weightFromStore ?? (typeof wRaw === 'number' ? (wRaw > 500 ? gToKg(wRaw) : wRaw) : undefined);
     const age = input?.age ?? onboarding?.age ?? undefined;
-    const gender = input?.gender ?? onboarding?.gender ?? undefined;
+    const genderRaw = input?.gender ?? onboarding?.gender ?? undefined;
+    // translate common english gender tokens to Vietnamese for display
+    const gender = (genderRaw === 'male' ? 'Nam' : genderRaw === 'female' ? 'Nữ' : genderRaw) as any;
 
     return { height, weight, age, gender };
-  }, [rawResponse, onboarding]);
+  }, [rawMeasurements, rawResponse, onboarding]);
 
   // normalize measurement array into friendly keys (cm)
   const display = useMemo(() => {
@@ -117,6 +123,25 @@ export default function ResultScreen({ route, navigation }: Props) {
 
   const whr = display.waist && display.hip ? (display.waist / display.hip).toFixed(2) : undefined;
 
+  const [loading, setLoading] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  // modal popup state (used instead of Alert)
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState<'noti' | 'confirm' | 'toast'>('noti');
+  const [modalTitle, setModalTitle] = useState<string | undefined>(undefined);
+  const [modalContent, setModalContent] = useState<string>('');
+  const [modalConfirmHandler, setModalConfirmHandler] = useState<(() => void) | undefined>(undefined);
+  const showModal = (opts: { title?: string; content: string; mode?: 'noti' | 'confirm' | 'toast'; onConfirm?: (() => void) }) => {
+    setModalTitle(opts.title);
+    setModalContent(opts.content);
+    setModalMode(opts.mode ?? 'noti');
+    setModalConfirmHandler(opts.onConfirm);
+    setModalVisible(true);
+  };
+  const hideModal = () => setModalVisible(false);
+
   const saveMeasurements = async () => {
     try {
       // Map common fields back to onboarding store
@@ -131,24 +156,21 @@ export default function ResultScreen({ route, navigation }: Props) {
       if (Object.keys(map).length > 0) {
         setData(map);
         await AsyncStorage.setItem('bodygram:savedMeasurements', JSON.stringify(display));
-        Alert.alert('Lưu thành công', 'Số đo đã được lưu vào hồ sơ.');
+        showModal({ title: 'Lưu thành công', content: 'Số đo đã được lưu vào hồ sơ.', mode: 'noti', onConfirm: () => { hideModal(); } });
       } else {
-        Alert.alert('Không có số đo', 'Không tìm thấy số đo hợp lệ để lưu.');
+        showModal({ title: 'Không có số đo', content: 'Không tìm thấy số đo hợp lệ để lưu.', mode: 'noti' });
       }
     } catch (e) {
       console.log('Save measurements error', e);
-      Alert.alert('Lỗi', 'Không thể lưu số đo.');
+      showModal({ title: 'Lỗi', content: 'Không thể lưu số đo.', mode: 'noti' });
     }
   };
   
-  const [loading, setLoading] = useState(false);
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
-
   const handleSubmitAll = async () => {
     setToastVisible(false);
     setLoading(true);
+    // show AI processing modal
+    showModal({ title: 'Đang xử lý', content: 'AI đang xử lý dữ liệu, vui lòng chờ...', mode: 'noti' });
     try {
       // prefer the normalized display measurements for API payloads
       const entry = rawResponse?.entry ?? rawResponse ?? {};
@@ -182,7 +204,8 @@ export default function ResultScreen({ route, navigation }: Props) {
           setToastType('error');
           setToastMsg(`Lỗi khi tạo hồ sơ cá nhân: ${errMsg}`);
           setToastVisible(true);
-          Alert.alert('Lỗi', errMsg);
+          hideModal();
+          showModal({ title: 'Lỗi', content: errMsg, mode: 'noti' });
           return;
         }
       }
@@ -225,6 +248,8 @@ export default function ResultScreen({ route, navigation }: Props) {
         setToastType('success');
         setToastMsg('Lưu hồ sơ thành công');
         setToastVisible(true);
+        hideModal();
+        showModal({ title: 'Lưu hồ sơ thành công', content: 'Hồ sơ đã được lưu thành công.', mode: 'noti', onConfirm: () => { hideModal(); } });
         const profileId = hRes.data?.id ?? hRes.data?.profileId ?? hRes.data?.healthProfileId ?? null;
         setTimeout(() => {
           if (profileId) {
@@ -243,7 +268,8 @@ export default function ResultScreen({ route, navigation }: Props) {
         setToastType('error');
         setToastMsg(`Lỗi khi lưu: ${msg}`);
         setToastVisible(true);
-        Alert.alert('Lỗi', msg);
+        hideModal();
+        showModal({ title: 'Lỗi', content: msg, mode: 'noti' });
       }
     } catch (e: any) {
       setLoading(false);
@@ -252,118 +278,144 @@ export default function ResultScreen({ route, navigation }: Props) {
       setToastType('error');
       setToastMsg(`Lỗi khi lưu: ${msg}`);
       setToastVisible(true);
-      Alert.alert('Lỗi', msg);
+      hideModal();
+      showModal({ title: 'Lỗi', content: msg, mode: 'noti' });
     }
   };
  console.log('Rendered ResultScreen with measurements:', saveMeasurements);
    return (
-     <SafeAreaView className="flex-1 bg-background"><ScrollView className="flex-1  p-4">
-      {/* HEADER SUMMARY */}
-      <View className="bg-amber-100 rounded-md p-3 mb-4">
-        <Text className="text-sm text-gray-700">{`Chiều cao: ${summary.height ?? '-'}cm   Cân nặng: ${summary.weight ?? '-'}kg   ${summary.age ?? ''} tuổi   ${summary.gender ?? ''}`}</Text>
-      </View>
+     <SafeAreaView className="flex-1 bg-background">
+      <ScrollView className="flex-1  p-4">
+        {/* Header summary with back button (matches health card color) */}
+        <View className="bg-amber-100 rounded-xl p-4 mb-4 flex-row items-center justify-between">
+          <Pressable
+            className="p-2"
+            onPress={() => {
+              try {
+                if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  // no back available — reset to main tabs
+                  (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+                }
+              } catch (err) {
+                try { (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } catch { /* noop */ }
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
+          >
+            <Text className="text-2xl text-gray-700">‹</Text>
+          </Pressable>
+          <Text className="text-center text-gray-700 flex-1 px-2">{`Chiều cao: ${summary.height ?? '-'}cm   Cân nặng: ${summary.weight ?? '-'}kg   ${summary.age ?? ''} tuổi   ${summary.gender ?? ''}`}</Text>
+          <View className="w-8" />
+        </View>
 
-      {/* SILHOUETTE CARD */}
-      <View className="bg-white rounded-xl p-4 items-center mb-4">
-        <View className="w-64 h-80 items-center justify-center">
-          {/* If you add a 3D image asset at src/assets/body_3d.png you can replace the overlay with:
-              <Image source={require('../../../assets/body_3d.png')} className="w-full h-full" resizeMode="contain" />
-              For now use the SVG overlay to avoid missing-asset crashes.
-          */}
-          {/* <BodySilhouetteOverlay mode="front" /> */}
+        {/* SILHOUETTE CARD */}
+        <View className="bg-white rounded-xl p-4 items-center mb-4">
+          <View className="w-64 h-80 items-center justify-center">
 
-          {/* use the provided body image asset */}
-          <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
+            <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
 
-          {/* bubbles positioned approx; adjust with design */}
-          <View className="absolute top-8 left-3">
-            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-              <Text className="text-xs text-gray-800">Ngực</Text>
-              <Text className="text-lg font-extrabold">{display.bust ?? '-'}cm</Text>
+            {/* bubbles positioned approx; adjust with design */}
+            <View className="absolute top-8 left-3">
+              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                <Text className="text-xs text-gray-800">Ngực</Text>
+                <Text className="text-lg font-extrabold">{display.bust ?? '-'}cm</Text>
+              </View>
             </View>
-          </View>
 
-          <View className="absolute top-24 left-4">
-            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-              <Text className="text-xs text-gray-800">Eo</Text>
-              <Text className="text-lg font-extrabold">{display.waist ?? '-'}cm</Text>
+            <View className="absolute top-24 left-4">
+              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                <Text className="text-xs text-gray-800">Eo</Text>
+                <Text className="text-lg font-extrabold">{display.waist ?? '-'}cm</Text>
+              </View>
             </View>
-          </View>
 
-          <View className="absolute top-24 right-4">
-            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-              <Text className="text-xs text-gray-800">Hông</Text>
-              <Text className="text-lg font-extrabold">{display.hip ?? '-'}cm</Text>
+            <View className="absolute top-24 right-4">
+              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                <Text className="text-xs text-gray-800">Hông</Text>
+                <Text className="text-lg font-extrabold">{display.hip ?? '-'}cm</Text>
+              </View>
             </View>
-          </View>
 
-          <View className="absolute bottom-9 left-7">
-            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-              <Text className="text-xs text-gray-800">Đùi</Text>
-              <Text className="text-lg font-extrabold">{display.thigh ?? '-'}cm</Text>
+            <View className="absolute bottom-9 left-7">
+              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                <Text className="text-xs text-gray-800">Đùi</Text>
+                <Text className="text-lg font-extrabold">{display.thigh ?? '-'}cm</Text>
+              </View>
             </View>
-          </View>
 
-          <View className="absolute top-9 right-7">
-            <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
-              <Text className="text-xs text-gray-800">Bắp tay</Text>
-              <Text className="text-lg font-extrabold">{display.bicep ?? '-'}cm</Text>
+            <View className="absolute top-9 right-7">
+              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                <Text className="text-xs text-gray-800">Bắp tay</Text>
+                <Text className="text-lg font-extrabold">{display.bicep ?? '-'}cm</Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* HEALTH CARD */}
-      <View className="bg-amber-100 rounded-xl p-4 mb-4">
-        <Text className="text-base font-semibold mb-2">Chỉ số sức khỏe</Text>
-        <View className="flex-row justify-between items-center">
-          <Text className="text-sm text-gray-700">Waist-to-Hip Ratio</Text>
-          <Text className="text-xl font-extrabold">{whr ?? '-'}</Text>
-        </View>
-      </View>
-
-      {/* DETAIL TILES */}
-      <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
-      <View className="flex-row flex-wrap -m-2">
-        {[
-          { key: 'bust', label: 'Ngực' },
-          { key: 'waist', label: 'Eo' },
-          { key: 'hip', label: 'Hông' },
-          { key: 'bicep', label: 'Bắp tay' },
-          { key: 'thigh', label: 'Đùi' },
-          { key: 'calf', label: 'Bắp chân' },
-        ].map((t) => (
-          <View key={t.key} className="w-1/2 p-2">
-            <View className="bg-background-sub2 rounded-xl p-4 shadow">
-              <Text className="text-sm text-gray-700">{t.label}</Text>
-              <Text className="text-2xl font-extrabold mt-2">{display[t.key] ?? '-'}cm</Text>
-            </View>
+        {/* HEALTH CARD */}
+        <View className="bg-amber-100 rounded-xl p-4 mb-4">
+          <Text className="text-base font-semibold mb-2">Chỉ số sức khỏe</Text>
+          <View className="flex-row justify-between items-center">
+            <Text className="text-sm text-gray-700">Waist-to-Hip Ratio</Text>
+            <Text className="text-xl font-extrabold">{whr ?? '-'}</Text>
           </View>
-        ))}
-      </View>
+        </View>
 
-      {/* ACTIONS */}
-      <View className="mt-6">
-        <TouchableOpacity
-          onPress={handleSubmitAll}
-          disabled={loading}
-          style={[styles.saveBtn, loading ? styles.saveBtnDisabled : null]}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveBtnText}>Lưu kết quả</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        {/* DETAIL TILES */}
+        <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
+        <View className="flex-row flex-wrap -m-2">
+          {[
+            { key: 'bust', label: 'Ngực' },
+            { key: 'waist', label: 'Eo' },
+            { key: 'hip', label: 'Hông' },
+            { key: 'bicep', label: 'Bắp tay' },
+            { key: 'thigh', label: 'Đùi' },
+            { key: 'calf', label: 'Bắp chân' },
+          ].map((t) => (
+            <View key={t.key} className="w-1/2 p-2">
+              <View className="bg-background-sub2 rounded-xl p-4 shadow">
+                <Text className="text-sm text-gray-700">{t.label}</Text>
+                <Text className="text-2xl font-extrabold mt-2">{display[t.key] ?? '-'}cm</Text>
+              </View>
+            </View>
+          ))}
+        </View>
 
-      {loading ? <LoadingOverlay /> : null}
-      <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+        {/* ACTIONS */}
+        <View className="mt-6">
+          <TouchableOpacity
+            onPress={handleSubmitAll}
+            disabled={loading}
+            style={[styles.saveBtn, loading ? styles.saveBtnDisabled : null]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveBtnText}>Lưu kết quả</Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
-     </ScrollView></SafeAreaView>
-     
-   );
- }
+        {loading ? <LoadingOverlay /> : null}
+        <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+        <ModalPopup
+          {...({
+            visible: modalVisible,
+            mode: modalMode,
+            onClose: () => setModalVisible(false),
+            titleText: modalTitle,
+            contentText: modalContent,
+            confirmBtnText: 'Đóng',
+            onConfirm: modalConfirmHandler,
+          } as any)}
+        />
+      </ScrollView>
+    </SafeAreaView>
+    );
+  }
 
 const styles = StyleSheet.create({
   saveBtn: {

@@ -34,23 +34,23 @@ export const useWeightLogic = () => {
   /** scroll to saved weight on mount */
   const didInitScroll = useRef(false);
 
-useEffect(() => {
-  if (didInitScroll.current) return;
+  useEffect(() => {
+    if (didInitScroll.current) return;
 
-  const index = weights.findIndex(
-    (w) => w === round1(savedWeight)
-  );
+    const index = weights.findIndex(
+      (w) => w === round1(savedWeight)
+    );
 
-  if (index >= 0) {
-    setTimeout(() => {
-      listRef.current?.scrollToOffset({
-        offset: index * ITEM_WIDTH,
-        animated: false,
-      });
-      didInitScroll.current = true;
-    }, 20);
-  }
-}, [savedWeight, weights]);
+    if (index >= 0) {
+      setTimeout(() => {
+        listRef.current?.scrollToOffset({
+          offset: index * ITEM_WIDTH,
+          animated: false,
+        });
+        didInitScroll.current = true;
+      }, 20);
+    }
+  }, [savedWeight, weights]);
 
 
   /** realtime scroll listener */
@@ -103,6 +103,9 @@ useEffect(() => {
   const onNext = () => setStep(step + 1);
   const onBack = () => step > 0 && setStep(step - 1);
 
+  // only allow continue if a weight has been saved into onboarding store
+  const canContinue = typeof data.weight === 'number' && !isNaN(data.weight);
+
   return {
     weights,
     unit,
@@ -113,5 +116,6 @@ useEffect(() => {
     onMomentumEnd,
     onNext,
     onBack,
+    canContinue,
   };
 };
