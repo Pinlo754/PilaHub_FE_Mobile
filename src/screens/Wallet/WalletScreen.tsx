@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TouchableHighlight, ActivityIndicator, Modal, FlatList, Alert, Image, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, TouchableHighlight, ActivityIndicator, Modal, FlatList, Image, TextInput, StyleSheet } from 'react-native';
 import BalanceCard from './components/BalanceCard';
 import ActionButtons from './components/ActionButtons.tsx';
 import TransactionChart from './components/TransactionChart';
 import TransactionItem from './components/TransactionItem';
 import { getMyTransactions, getTransactionsByType } from '../../services/transaction';
-import { fetchMyWallet, getMyWithdrawals, getMyWithdrawalById, updateMyWithdrawal, cancelMyWithdrawal } from '../../services/wallet';
+import { fetchMyWallet, getMyWithdrawals, getMyWithdrawalById, cancelMyWithdrawal } from '../../services/wallet';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import ModalPopup from '../../components/ModalPopup';
 
 type Transaction = {
     transactionId: string;
@@ -19,6 +21,7 @@ type Transaction = {
 const TRANSACTION_TYPES: string[] = [
     'WALLET_TOP_UP',
     'WALLET_WITHDRAWAL',
+    'ORDER',
     'SUBSCRIPTION_PACKAGE',
     'SUBSCRIPTION_PRORATION_REFUND',
     'SUBSCRIPTION_UPGRADE',
@@ -32,6 +35,7 @@ const TRANSACTION_TYPES: string[] = [
 const TYPE_LABELS: Record<string, string> = {
     WALLET_TOP_UP: 'Nạp ví',
     WALLET_WITHDRAWAL: 'Rút ví',
+    ORDER: 'Đơn hàng',
     SUBSCRIPTION_PACKAGE: 'Gói đăng ký',
     SUBSCRIPTION_PRORATION_REFUND: 'Hoàn tiền đăng ký',
     SUBSCRIPTION_UPGRADE: 'Nâng cấp đăng ký',
@@ -55,14 +59,14 @@ const styles = StyleSheet.create({
 const WithdrawalsSeparator = () => <View style={styles.sep} />;
 
 export default function WalletScreen() {
-    const navigation = useNavigation<any>();
-    const [balance, setBalance] = useState<number>(0);
-    const [wallet, setWallet] = useState<any | null>(null);
-    const [walletLoading, setWalletLoading] = useState<boolean>(true);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [filtered, setFiltered] = useState<Transaction[]>([]);
-    const [selectedType, setSelectedType] = useState<string | null>(null);
-    const [_loading, setLoading] = useState(false);
+     const navigation = useNavigation<any>();
+     const [balance, setBalance] = useState<number>(0);
+     const [wallet, setWallet] = useState<any | null>(null);
+     const [walletLoading, setWalletLoading] = useState<boolean>(true);
+     const [transactions, setTransactions] = useState<Transaction[]>([]);
+     const [filtered, setFiltered] = useState<Transaction[]>([]);
+     const [selectedType, setSelectedType] = useState<string | null>(null);
+     const [_loading, setLoading] = useState(false);
 
     // withdrawals minimal state
     const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -73,8 +77,21 @@ export default function WalletScreen() {
     const [selectedWithdrawal, setSelectedWithdrawal] = useState<any | null>(null);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
-    const [editAmount, setEditAmount] = useState('');
-    const [editNote, setEditNote] = useState('');
+
+    const [modalProps, setModalProps] = useState<any>({ visible: false });
+
+    function showModal(title: string, message?: string, mode: string = 'noti', onConfirm?: () => void) {
+        const normalizedMode = mode === 'notify' ? 'noti' : mode;
+        setModalProps({
+            visible: true,
+            mode: normalizedMode,
+            titleText: title,
+            contentText: message ?? '',
+            onClose: () => setModalProps({ visible: false }),
+            ...(onConfirm ? { onConfirm } : {}),
+            ...(normalizedMode === 'confirm' ? { onCancel: () => setModalProps({ visible: false }) } : {}),
+        });
+    }
 
     const loadWithdrawals = useCallback(async () => {
         setWithdrawalsLoading(true);
@@ -152,6 +169,19 @@ export default function WalletScreen() {
         }, [loadWallet, loadTransactions, loadWithdrawals])
     );
 
+    // translate withdrawal status to Vietnamese
+    const translateStatus = (s?: string | null) => {
+        if (!s) return '';
+        switch ((s || '').toUpperCase()) {
+            case 'PENDING': return 'Đang xử lý';
+            case 'COMPLETED': return 'Hoàn thành';
+            case 'CANCELLED': return 'Đã hủy';
+            case 'REJECTED': return 'Bị từ chối';
+            case 'FAILED': return 'Thất bại';
+            default: return s;
+        }
+    };
+
     useEffect(() => {
         if (!selectedType) {
             setFiltered(transactions);
@@ -166,58 +196,32 @@ export default function WalletScreen() {
         navigation.navigate('TransactionDetail', { transactionId: tx.transactionId });
     }
 
-    function formatNumberInput(value: string) {
-        const cleaned = (value || '').toString().replace(/[^0-9]/g, '');
-        if (!cleaned) return '';
-        try { return Number(cleaned).toLocaleString('vi-VN'); } catch { return cleaned; }
-    }
-
     async function openWithdrawalDetail(withdrawalId: string) {
         setDetailLoading(true);
         try {
             const res = await getMyWithdrawalById(withdrawalId);
-            if (!res.ok) { Alert.alert('Lỗi', res.error?.message ?? 'Không thể tải chi tiết'); return; }
+            if (!res.ok) { showModal('Lỗi', res.error?.message ?? 'Không thể tải chi tiết'); return; }
             const d = res.data;
             setSelectedWithdrawal(d);
-            setEditAmount(Number(d.amount || 0).toLocaleString('vi-VN'));
-            setEditNote(d.note ?? '');
             setDetailModalVisible(true);
         } catch (e) { console.warn('open withdrawal detail', e); }
         finally { setDetailLoading(false); }
     }
 
-    async function handleUpdateSelected() {
-        if (!selectedWithdrawal) return;
-        const cleaned = Number((editAmount || '').toString().replace(/[^0-9]/g, '')) || 0;
-        if (cleaned <= 0) { Alert.alert('Lỗi', 'Số tiền không hợp lệ'); return; }
-        setDetailLoading(true);
-        try {
-            const res = await updateMyWithdrawal(selectedWithdrawal.walletWithdrawalId, { amount: cleaned, note: editNote });
-            if (!res.ok) { Alert.alert('Lỗi', res.error?.message ?? 'Không thể cập nhật'); return; }
-            Alert.alert('Thành công', 'Yêu cầu đã được cập nhật');
-            await loadWithdrawals();
-            setSelectedWithdrawal(res.data);
-        } catch (e) { console.warn('update selected err', e); Alert.alert('Lỗi', 'Có lỗi xảy ra'); }
-        finally { setDetailLoading(false); }
-    }
-
     async function handleCancelSelected() {
         if (!selectedWithdrawal) return;
-        Alert.alert('Hủy yêu cầu', 'Bạn có chắc muốn hủy yêu cầu này?', [
-            { text: 'Không', style: 'cancel' },
-            { text: 'Có', onPress: async () => {
-                setDetailLoading(true);
-                try {
-                    const res = await cancelMyWithdrawal(selectedWithdrawal.walletWithdrawalId);
-                    if (!res.ok) { Alert.alert('Lỗi', res.error?.message ?? 'Không thể hủy'); return; }
-                    Alert.alert('Đã hủy', 'Yêu cầu đã được hủy');
-                    await loadWithdrawals();
-                    setDetailModalVisible(false);
-                    setSelectedWithdrawal(null);
-                } catch (e) { console.warn('cancel err', e); Alert.alert('Lỗi', 'Có lỗi xảy ra'); }
-                finally { setDetailLoading(false); }
-            } }
-        ]);
+        showModal('Hủy yêu cầu', 'Bạn có chắc muốn hủy yêu cầu này?', 'confirm', async () => {
+            setDetailLoading(true);
+            try {
+                const res = await cancelMyWithdrawal(selectedWithdrawal.walletWithdrawalId);
+                if (!res.ok) { showModal('Lỗi', res.error?.message ?? 'Không thể hủy'); return; }
+                showModal('Đã hủy', 'Yêu cầu đã được hủy');
+                await loadWithdrawals();
+                setDetailModalVisible(false);
+                setSelectedWithdrawal(null);
+            } catch (e) { console.warn('cancel err', e); showModal('Lỗi', 'Có lỗi xảy ra'); }
+            finally { setDetailLoading(false); }
+        });
     }
 
     const filterItems = React.useMemo(() => [{ key: 'ALL', label: 'Tất cả', value: null }, ...TRANSACTION_TYPES.map(t => ({ key: t, label: TYPE_LABELS[t] ?? t, value: t }))], []);
@@ -291,7 +295,19 @@ export default function WalletScreen() {
             {/* Main scrollable content: use a single FlatList for transactions and a header component */}
             <FlatList
                 contentContainerStyle={styles.listContent}
-                data={filtered.map(f => ({ id: f.transactionId, title: TYPE_LABELS[f.transactionType] ?? f.transactionType, amount: f.amount, date: f.transactionDate.slice(0, 10), type: (f.transactionType === 'WALLET_TOP_UP' ? 'deposit' : 'withdraw') as 'deposit'|'withdraw', raw: f }))}
+                data={filtered.map(f => {
+                    // treat these types as credits (deposit)
+                    const creditTypes = ['WALLET_TOP_UP', 'REFUND', 'SUBSCRIPTION_PRORATION_REFUND', 'BOOKING_COACH_REFUND'];
+                    const isDeposit = creditTypes.includes(f.transactionType);
+                    return {
+                        id: f.transactionId,
+                        title: TYPE_LABELS[f.transactionType] ?? f.transactionType,
+                        amount: Math.abs(Number(f.amount || 0)),
+                        date: f.transactionDate.slice(0, 10),
+                        type: (isDeposit ? 'deposit' : 'withdraw') as 'deposit'|'withdraw',
+                        raw: f,
+                    };
+                })}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => <TransactionItem tx={{ ...item, type: item.type }} onPress={() => onTransactionPress(item.raw)} />}
                 ListEmptyComponent={renderEmpty}
@@ -300,10 +316,10 @@ export default function WalletScreen() {
 
             {/* improved withdrawals modal */}
             <Modal visible={withdrawalsModalVisible} animationType="slide" onRequestClose={() => setWithdrawalsModalVisible(false)}>
-                <View className="flex-1 bg-white p-4">
+                <View className="flex-1 bg-[#FFFAF0] p-4">
                     <View className="flex-row items-center mb-3">
-                        <TouchableOpacity onPress={() => setWithdrawalsModalVisible(false)}>
-                            <Text className="text-lg">←</Text>
+                        <TouchableOpacity onPress={() => setWithdrawalsModalVisible(false)} className="bg-[#FFFAF0] p-2 rounded-full shadow mr-3">
+                            <Ionicons name="arrow-back" size={20} color="#111" />
                         </TouchableOpacity>
                         <Text className="flex-1 text-center font-bold">Yêu cầu rút tiền</Text>
                         <View className="w-8" />
@@ -336,7 +352,7 @@ export default function WalletScreen() {
 
                                     <View className="items-end">
                                         <View className={`px-2 py-1 rounded-full ${item.status === 'PENDING' ? 'bg-yellow-100' : item.status === 'COMPLETED' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                                            <Text className={`${item.status === 'PENDING' ? 'text-yellow-700' : item.status === 'COMPLETED' ? 'text-green-700' : 'text-gray-700'} text-xs font-semibold`}>{item.status}</Text>
+                                            <Text className={`${item.status === 'PENDING' ? 'text-yellow-700' : item.status === 'COMPLETED' ? 'text-green-700' : 'text-gray-700'} text-xs font-semibold`}>{translateStatus(item.status)}</Text>
                                         </View>
                                         <Text className="text-xs text-gray-400 mt-2">{new Date(item.requestedAt).toLocaleString()}</Text>
                                     </View>
@@ -347,12 +363,12 @@ export default function WalletScreen() {
                 </View>
             </Modal>
 
-            {/* withdrawal detail & edit modal */}
+            {/* withdrawal detail (read-only) modal */}
             <Modal visible={detailModalVisible} animationType="slide" onRequestClose={() => { setDetailModalVisible(false); setSelectedWithdrawal(null); }}>
-                <View className="flex-1 bg-white p-4">
+                <View className="flex-1 bg-[#FFFAF0] p-4">
                     <View className="flex-row items-center mb-3">
-                        <TouchableOpacity onPress={() => { setDetailModalVisible(false); setSelectedWithdrawal(null); }}>
-                            <Text className="text-lg">←</Text>
+                        <TouchableOpacity onPress={() => { setDetailModalVisible(false); setSelectedWithdrawal(null); }} className="bg-[#FFFAF0] p-2 rounded-full shadow mr-3">
+                            <Ionicons name="arrow-back" size={20} color="#111" />
                         </TouchableOpacity>
                         <Text className="flex-1 text-center font-bold">Chi tiết yêu cầu</Text>
                         <View className="w-8" />
@@ -381,33 +397,31 @@ export default function WalletScreen() {
 
                             <View className="mb-3">
                                 <Text className="text-sm text-gray-500">Số tiền (VND)</Text>
-                                <TextInput value={editAmount} onChangeText={(t) => setEditAmount(formatNumberInput(t))} keyboardType="numeric" className="border border-gray-200 rounded p-3 bg-white text-lg mt-2" />
+                                <Text className="font-semibold text-lg mt-2">{new Intl.NumberFormat('vi-VN').format(Number(selectedWithdrawal.amount || 0))}₫</Text>
                             </View>
 
                             <View className="mb-3">
                                 <Text className="text-sm text-gray-500">Ghi chú</Text>
-                                <TextInput value={editNote} onChangeText={setEditNote} multiline className="border border-gray-200 rounded p-3 bg-white text-sm mt-2" />
+                                <Text className="text-sm mt-2">{selectedWithdrawal.note ?? '—'}</Text>
                             </View>
 
                             <View className="mb-4">
                                 <Text className="text-sm text-gray-500">Trạng thái</Text>
-                                <Text className="font-semibold mt-1">{selectedWithdrawal.status}</Text>
+                                <Text className="font-semibold mt-1">{translateStatus(selectedWithdrawal.status)}</Text>
                                 <Text className="text-xs text-gray-400 mt-2">Yêu cầu lúc: {new Date(selectedWithdrawal.requestedAt).toLocaleString()}</Text>
                             </View>
 
                             <View className="flex-row ">
-                                <TouchableOpacity disabled={selectedWithdrawal.status !== 'PENDING' || detailLoading} onPress={handleUpdateSelected} className={`flex-1 py-3 mr-2 ${selectedWithdrawal.status === 'PENDING' ? 'bg-yellow-500' : 'bg-gray-300'} rounded items-center`}>
-                                    <Text className="text-white font-semibold">Cập nhật</Text>
-                                </TouchableOpacity>
-
                                 <TouchableOpacity disabled={selectedWithdrawal.status !== 'PENDING' || detailLoading} onPress={handleCancelSelected} className={`flex-1 py-3 ${selectedWithdrawal.status === 'PENDING' ? 'bg-red-600' : 'bg-gray-300'} rounded items-center`}>
                                     <Text className="text-white font-semibold">Hủy</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    ) : null}
-                </View>
-            </Modal>
+                     ) : null}
+                 </View>
+             </Modal>
+
+            <ModalPopup {...(modalProps as any)} />
          </View>
      );
  }

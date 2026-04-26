@@ -1,8 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, Dimensions, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, Dimensions, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { getActivePackages, subscribeToPackage, getMySubscriptions, upgradeSubscription, getUpgradeablePackages } from '../../hooks/apiClient';
+import { fetchMyWallet } from '../../services/wallet';
+import ModalPopup from '../../components/ModalPopup';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = Math.round(width * 0.78);
@@ -12,7 +15,7 @@ const SPACING = 16;
 
 // New cleaner card design (full-width, separated) with prominent buy button
 type ActionType = 'OWNED' | 'UPGRADE' | 'SUBSCRIBE';
-const Card: React.FC<{ plan: any; onDetail: () => void; actionType: ActionType; onPrimary: () => void; buyLoading?: boolean; upgradeInfo?: any }> = ({ plan, onDetail, actionType, onPrimary, buyLoading = false, upgradeInfo }) => {
+const Card: React.FC<{ plan: any; actionType: ActionType; onPrimary: () => void; buyLoading?: boolean; upgradeInfo?: any }> = ({ plan, actionType, onPrimary, buyLoading = false, upgradeInfo }) => {
   const raw = plan.raw ?? {};
   const priceNum = typeof raw.price === 'number' ? raw.price : parseFloat(plan.price as any) || 0;
   const formatCurrency = (v: number) => {
@@ -64,34 +67,18 @@ const Card: React.FC<{ plan: any; onDetail: () => void; actionType: ActionType; 
       </View>
 
       <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.learnButton} onPress={onDetail}>
-          <Text style={styles.learnButtonText}>Chi tiết</Text>
-        </TouchableOpacity>
-
-        {actionType === 'OWNED' && (
-          <TouchableOpacity style={[styles.payButtonSmall, styles.buttonDisabled]} disabled>
-            <Text style={styles.payButtonTextSmall}>Đã sở hữu</Text>
-          </TouchableOpacity>
-        )}
-
-        {actionType === 'SUBSCRIBE' && (
-          <TouchableOpacity style={[styles.payButtonSmall, buyLoading && styles.buttonDisabled]} onPress={onPrimary} disabled={buyLoading}>
-            {buyLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payButtonTextSmall}>Thanh toán</Text>}
-          </TouchableOpacity>
-        )}
-
-        {actionType === 'UPGRADE' && (
-          <TouchableOpacity style={[styles.payButtonSmall, buyLoading && styles.buttonDisabled]} onPress={onPrimary} disabled={buyLoading}>
-            {buyLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payButtonTextSmall}>Nâng cấp</Text>}
-          </TouchableOpacity>
-        )}
+        {/* Details and small payment buttons removed per request */}
       </View>
 
-      {actionType !== 'OWNED' ? (
+      {actionType === 'OWNED' ? (
+        <TouchableOpacity style={[styles.buyNowButton, styles.buttonDisabled]} disabled>
+          <Text style={styles.buyNowText}>Đã sở hữu</Text>
+        </TouchableOpacity>
+      ) : (
         <TouchableOpacity style={[styles.buyNowButton, buyLoading && styles.buttonDisabled]} onPress={onPrimary} disabled={buyLoading}>
           {buyLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buyNowText}>{actionType === 'UPGRADE' ? '🔼 Nâng cấp ngay' : '🔥 Mua ngay'}</Text>}
         </TouchableOpacity>
-      ) : null}
+      )}
     </View>
   );
 };
@@ -107,12 +94,49 @@ const UpgradePlanScreen: React.FC = () => {
   const [activeSubscription, setActiveSubscription] = useState<any | null>(null);
   const [upgradeablePackages, setUpgradeablePackages] = useState<any[]>([]);
 
+  // modal props for confirmations/noti
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
+  const showModal = (p: any) => setModalProps({ ...p, visible: true });
+
   useEffect(() => {
     let mounted = true;
-    const fetchPlans = async () => {
+    const fetchPlans = async (activeSub: any = null) => {
       try {
         const mapped = await getActivePackages();
-        if (mounted) setPlans(mapped);
+        let result = (mapped || []);
+
+        // dedupe plans by package id (item.id or raw.packageId) to avoid duplicate cards
+        const seen = new Set<string>();
+        const deduped: any[] = [];
+        for (const p of result) {
+          const itemPkgId = p.id ?? p.raw?.packageId ?? null;
+          const key = String(itemPkgId ?? p.id ?? '');
+          if (!seen.has(key)) {
+            seen.add(key);
+            deduped.push(p);
+          }
+        }
+        result = deduped;
+
+        if (activeSub) {
+          try {
+            const subscribedPkg = activeSub?.subscribedPackage ?? activeSub;
+            const pkgId = subscribedPkg?.packageId ?? subscribedPkg?.id ?? null;
+            if (pkgId) {
+              let found = false;
+              result = result.map((p: any) => {
+                const itemPkgId = p.id ?? p.raw?.packageId ?? null;
+                if (!found && itemPkgId && String(itemPkgId) === String(pkgId)) {
+                  found = true;
+                  return { ...p, _owned: true };
+                }
+                return p;
+              });
+            }
+          } catch { /* ignore mapping errors */ }
+        }
+
+        if (mounted) setPlans(result);
       } catch (err) {
         console.warn('Fetch active packages failed', err);
       } finally {
@@ -121,17 +145,17 @@ const UpgradePlanScreen: React.FC = () => {
     };
 
     const load = async () => {
+      let active: any = null;
       try {
         const subs = await getMySubscriptions();
-        // pick first active subscription if any
-        const active = (subs || []).find((s: any) => s.status === 'ACTIVE' || s.subscribedPackage?.isActive);
+        active = (subs || []).find((s: any) => s.status === 'ACTIVE' || s.subscribedPackage?.isActive) ?? null;
         if (mounted) setActiveSubscription(active ?? null);
         if (active && mounted) {
           try {
             const up = await getUpgradeablePackages();
             if (mounted) setUpgradeablePackages(up);
-          } catch (e) {
-            console.warn('getUpgradeablePackages failed', e);
+          } catch {
+            console.warn('getUpgradeablePackages failed');
           }
         } else {
           if (mounted) setUpgradeablePackages([]);
@@ -139,115 +163,157 @@ const UpgradePlanScreen: React.FC = () => {
       } catch (err) {
         console.warn('getMySubscriptions failed', err);
       }
-      await fetchPlans();
+      await fetchPlans(active);
     };
 
     load();
     return () => { mounted = false; };
   }, []);
 
-  const openDetail = (id: string) => {
-    setSelectedId(id);
-    Animated.timing(expandAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-  };
-  const closeDetail = () => {
-    Animated.timing(expandAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setSelectedId(null));
-  };
-
-  const selectedPlan = plans.find(p => p.id === selectedId);
   const formatCurrency = (v: number) => {
     try { return new Intl.NumberFormat('vi-VN').format(v) + 'đ'; } catch { return String(v); }
   };
 
+  // translate some common server messages to Vietnamese for better UX
+  const translateServerMessage = (msg?: string | null) => {
+    if (!msg) return null;
+    const m = String(msg || '').toLowerCase();
+    const map: Record<string, string> = {
+      'subscription created successfully': 'Đăng ký gói thành công',
+      'subscription created': 'Đăng ký gói thành công',
+      'subscription upgraded': 'Nâng cấp gói thành công',
+      'upgrade successful': 'Nâng cấp gói thành công',
+      'insufficient balance': 'Số dư không đủ',
+      'insufficient funds': 'Số dư không đủ',
+      'already subscribed': 'Bạn đã có gói đang hoạt động',
+    };
+
+    for (const k of Object.keys(map)) {
+      if (m.includes(k)) return map[k];
+    }
+    // fallback: return original message (prefer Vietnamese if already)
+    return msg;
+  };
+
+  // buy flow: fetch wallet, show confirm modal, then call subscribe/upgrade
+  const handleBuyFlow = async (packageId: string, action: 'subscribe' | 'upgrade') => {
+    if (buyLoading) return;
+    setBuyLoading(true);
+    try {
+      showModal({ mode: 'noti', titleText: 'Đang kiểm tra số dư', contentText: 'Vui lòng chờ...' });
+      const w = await fetchMyWallet();
+      let balance = 0;
+      if (w?.ok) balance = Number(w.data?.balanceVND ?? w.data?.balance ?? 0);
+      else balance = Number((w as any)?.balance ?? 0);
+
+      const plan = plans.find(p => p.id === packageId) ?? null;
+      const price = Number(plan?.raw?.price ?? plan?.price ?? 0);
+      const newBalance = balance - price;
+
+      // show confirm modal
+      showModal({
+        mode: 'confirm',
+        titleText: 'Xác nhận mua gói',
+        contentText: `Giá: ${formatCurrency(price)}\nSố dư hiện tại: ${formatCurrency(balance)}\nSố dư sau khi trừ: ${formatCurrency(newBalance)}`,
+        onCancel: () => setModalProps({ visible: false }),
+        onConfirm: async () => {
+          setModalProps({ visible: false });
+          setBuyLoading(true);
+          try {
+            if (action === 'subscribe') {
+              const res = await subscribeToPackage(packageId);
+
+              // Immediately reflect ownership in UI
+              const subscription = (res as any)?.data ?? (res as any)?.subscription ?? null;
+              if (subscription) {
+                try {
+                  setActiveSubscription(subscription);
+                  setPlans(prev => prev.map(p => {
+                    const pkgId = subscription?.subscribedPackage?.packageId ?? subscription?.subscribedPackage?.id ?? null;
+                    const itemPkgId = p.id ?? p.raw?.packageId ?? null;
+                    if (pkgId && itemPkgId && String(pkgId) === String(itemPkgId)) return { ...p, _owned: true };
+                    return p;
+                  }));
+                } catch { /* ignore UI sync errors */ }
+              }
+
+              showModal({ mode: 'noti', titleText: 'Thành công', contentText: translateServerMessage(res?.message) ?? 'Đăng ký gói thành công', onClose: () => { setModalProps({ visible: false }); try { navigation.navigate('SubscriptionSuccess', { subscription: res?.data ?? null } as never); } catch { } } });
+            } else {
+              const res = await upgradeSubscription(packageId);
+
+              // Immediately reflect ownership in UI after upgrade
+              const subscription = (res as any)?.data ?? (res as any)?.subscription ?? null;
+              if (subscription) {
+                try {
+                  setActiveSubscription(subscription);
+                  setPlans(prev => prev.map(p => {
+                    const pkgId = subscription?.subscribedPackage?.packageId ?? subscription?.subscribedPackage?.id ?? null;
+                    const itemPkgId = p.id ?? p.raw?.packageId ?? null;
+                    if (pkgId && itemPkgId && String(pkgId) === String(itemPkgId)) return { ...p, _owned: true };
+                    return p;
+                  }));
+                } catch { /* ignore UI sync errors */ }
+              }
+
+              showModal({ mode: 'noti', titleText: 'Thành công', contentText: translateServerMessage(res?.message) ?? 'Nâng cấp gói thành công', onClose: () => { setModalProps({ visible: false }); try { navigation.navigate('SubscriptionSuccess', { subscription: res?.data ?? null } as never); } catch { } } });
+            }
+
+            // refresh state
+            try { const subs = await getMySubscriptions(); setActiveSubscription((subs || []).find((s:any)=>s.status==='ACTIVE') ?? null); } catch { console.warn('refresh subscriptions failed'); }
+            try { const mapped = await getActivePackages(); setPlans(mapped); } catch { console.warn('refresh packages failed'); }
+            try { const up = await getUpgradeablePackages(); setUpgradeablePackages(up); } catch { /* ignore */ }
+          } catch (err: any) {
+            const serverMsg = err?.response?.data?.message ?? err?.message ?? null;
+            if (serverMsg && /insufficient balance/i.test(serverMsg)) {
+              showModal({ mode: 'confirm', titleText: 'Số dư không đủ', contentText: translateServerMessage(serverMsg) ?? serverMsg, onConfirm: () => { setModalProps({ visible: false }); navigation.navigate('Wallet' as never); }, onCancel: () => setModalProps({ visible: false }) });
+              console.warn('purchase failed', err);
+              return;
+            }
+
+            if (serverMsg) {
+              showModal({ mode: 'noti', titleText: 'Lỗi', contentText: translateServerMessage(serverMsg) ?? 'Thao tác thất bại' });
+            } else {
+              showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Thao tác thất bại' });
+            }
+            console.warn('purchase failed', err);
+          } finally {
+            setBuyLoading(false);
+          }
+        }
+      });
+
+    } catch (err) {
+      console.warn('check wallet failed', err);
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Không thể kiểm tra số dư' });
+    } finally {
+      setBuyLoading(false);
+    }
+  };
+
+  // detail sheet handled by selecting an item via list; openDetail removed because cards no longer show 'Chi tiết'
+   const closeDetail = () => { Animated.timing(expandAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setSelectedId(null)); };
+
+  const selectedPlan = plans.find(p => p.id === selectedId);
   const detailTranslate = expandAnim.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
   const backdropOpacity = expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] });
-
-  const handleSubscribe = async (packageId: string) => {
-    if (buyLoading) return;
-    try {
-      setBuyLoading(true);
-      // If user already has activePackageType equal to new package, server will reject.
-      const res = await subscribeToPackage(packageId);
-      Alert.alert('Thành công', res?.message ?? 'Đăng ký gói thành công');
-      // navigate to subscription success screen
-      try { navigation.navigate('SubscriptionSuccess', { subscription: res?.data ?? null } as never); } catch (e) { console.warn('navigate subscription success failed', e); }
-      setSelectedId(null);
-      // refresh subscriptions and packages
-      try { const subs = await getMySubscriptions(); setActiveSubscription((subs || []).find((s:any)=>s.status==='ACTIVE') ?? null); } catch(e){ console.warn('refresh subscriptions failed', e); }
-      try { const mapped = await getActivePackages(); setPlans(mapped); } catch(e){ console.warn('refresh packages failed', e); }
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const data = err?.response?.data;
-      let msg = 'Đăng ký thất bại';
-
-      const serverMsg = (data && typeof data.message === 'string') ? data.message : undefined;
-      const serverErrorCode = data?.errorCode;
-
-      // If insufficient balance, prompt to top up
-      if (serverMsg && /insufficient balance/i.test(serverMsg)) {
-        Alert.alert('Số dư không đủ', serverMsg, [
-          { text: 'Nạp tiền', onPress: () => navigation.navigate('Wallet' as never) },
-          { text: 'Hủy', style: 'cancel' },
-        ]);
-        console.warn('subscribe insufficient balance', err);
-        return;
-      }
-
-      if (status === 400 && (serverErrorCode === 'ALREADY_SUBSCRIBED' || (serverMsg && /already|active|exists/i.test(serverMsg)))) {
-        msg = 'Bạn đã có gói đang hoạt động.';
-      } else if (status === 403) {
-        msg = 'Bạn cần quyền Trainee để mua gói.';
-      } else if (status === 404) {
-        msg = 'Gói hoặc tài khoản không tìm thấy.';
-      } else if (serverMsg) {
-        msg = serverMsg;
-      } else if (err?.message) {
-        msg = err.message;
-      }
-
-      Alert.alert('Lỗi', msg);
-      console.warn('subscribe failed', err);
-    } finally {
-      setBuyLoading(false);
-    }
-  };
-
-  const handleUpgrade = async (newPackageId: string) => {
-    if (buyLoading) return;
-    try {
-      setBuyLoading(true);
-      const res = await upgradeSubscription(newPackageId);
-      Alert.alert('Nâng cấp thành công', res?.message ?? 'Nâng cấp gói thành công');
-      // navigate to subscription success
-      try { navigation.navigate('SubscriptionSuccess', { subscription: res?.data ?? null } as never); } catch (e) { console.warn('navigate subscription success failed', e); }
-      setSelectedId(null);
-      // refresh subscriptions and upgradeable list
-      try { const subs = await getMySubscriptions(); const active = (subs || []).find((s:any)=>s.status==='ACTIVE') ?? null; setActiveSubscription(active); } catch(e){ console.warn('refresh subscriptions failed', e); }
-      try { const up = await getUpgradeablePackages(); setUpgradeablePackages(up); } catch(e){ console.warn('getUpgradeablePackages failed', e); }
-      try { const mapped = await getActivePackages(); setPlans(mapped); } catch(e){ console.warn('refresh packages failed', e); }
-    } catch (err: any) {
-      const serverMsg = err?.response?.data?.message ?? err?.message ?? null;
-      // If insufficient balance, offer to top up
-      if (serverMsg && /insufficient balance/i.test(serverMsg)) {
-        Alert.alert('Số dư không đủ', serverMsg, [
-          { text: 'Nạp tiền', onPress: () => navigation.navigate('Wallet' as never) },
-          { text: 'Hủy', style: 'cancel' },
-        ]);
-        console.warn('upgrade insufficient balance', err);
-        return;
-      }
-
-      const msg = serverMsg ?? 'Nâng cấp thất bại';
-      Alert.alert('Lỗi', msg);
-      console.warn('upgrade failed', err);
-    } finally {
-      setBuyLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#FEF6ED]">
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            try {
+              if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('Home' as never);
+            } catch {
+              try { navigation.goBack(); } catch { /* ignore */ }
+            }
+          }}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+               <Ionicons name="chevron-back" size={28} color="#A0522D" />
+        </TouchableOpacity>
         <Text className="text-lg font-semibold text-[#A0522D]">Gói nâng cấp AI</Text>
       </View>
 
@@ -279,32 +345,40 @@ const UpgradePlanScreen: React.FC = () => {
               const translateY = scrollX.interpolate({ inputRange, outputRange: [14, 0, 14], extrapolate: 'clamp' });
               const opacity = scrollX.interpolate({ inputRange, outputRange: [0.6, 1, 0.6], extrapolate: 'clamp' });
 
-              const userHasActive = !!activeSubscription;
-              const isOwned = userHasActive && activeSubscription?.subscribedPackage?.packageType && item.raw?.packageType && activeSubscription.subscribedPackage.packageType === item.raw.packageType;
-              // Only mark upgradeable when backend says so
+              // More robust ownership detection: prefer explicit packageId, fall back to packageType, or local _owned flag
+              const subscribedPkg = activeSubscription?.subscribedPackage ?? activeSubscription;
+              const subPkgId = subscribedPkg?.packageId ?? subscribedPkg?.id ?? null;
+
+              const itemPkgId = item.id ?? item.raw?.packageId ?? null;
+
+              const isOwned = Boolean(
+                item._owned ||
+                (subPkgId && itemPkgId && String(subPkgId) === String(itemPkgId))
+              );
+
               const canUpgrade = upgradeablePackages.some(u => u.packageInfo?.packageId === item.id || u.packageInfo?.packageId === item.raw?.packageId || u.packageId === item.id);
-              const actionType: ActionType = isOwned ? 'OWNED' : (userHasActive ? (canUpgrade ? 'UPGRADE' : 'OWNED') : 'SUBSCRIBE');
+              // Chỉ trả 'OWNED' khi isOwned === true. Nếu không owned nhưng có thể nâng cấp thì 'UPGRADE', còn lại 'SUBSCRIBE'.
+              const actionType: ActionType = isOwned ? 'OWNED' : (canUpgrade ? 'UPGRADE' : 'SUBSCRIBE');
               const upgradeInfo = upgradeablePackages.find(u => u.packageInfo?.packageId === item.id || u.packageId === item.id || u.packageInfo?.packageId === item.raw?.packageId) ?? null;
 
               return (
                 <Animated.View style={{ width: CARD_WIDTH, marginRight: SPACING, transform: [{ scale }, { translateY }], opacity }}>
                   <Card
                     plan={item}
-                    onDetail={() => openDetail(item.id)}
                     actionType={actionType}
                     onPrimary={() => {
                       if (actionType === 'OWNED') return;
-                      if (actionType === 'UPGRADE') return handleUpgrade(item.id);
-                      return handleSubscribe(item.id);
+                      if (actionType === 'UPGRADE') return handleBuyFlow(item.id, 'upgrade');
+                      return handleBuyFlow(item.id, 'subscribe');
                     }}
                     buyLoading={buyLoading}
                     upgradeInfo={upgradeInfo}
                   />
                 </Animated.View>
-                 );
-             }}
-           />
-         )}
+              );
+            }}
+          />
+        )}
       </View>
 
       {/* Backdrop */}
@@ -320,7 +394,6 @@ const UpgradePlanScreen: React.FC = () => {
           <Text style={styles.detailPrice}>{selectedPlan?.price} vnd / tháng</Text>
           <Text style={styles.detailDesc}>{selectedPlan?.desc}</Text>
 
-          {/* If selected plan is upgradeable, show final price and proration */}
           {selectedPlan && (() => {
             const selUp = upgradeablePackages.find(u => u.packageInfo?.packageId === selectedPlan.id || u.packageId === selectedPlan.id || u.packageInfo?.packageId === selectedPlan.raw?.packageId);
             if (selUp) {
@@ -335,7 +408,8 @@ const UpgradePlanScreen: React.FC = () => {
             return null;
           })()}
 
-          <TouchableOpacity style={[styles.payButton, buyLoading && styles.buttonDisabled]} onPress={() => selectedPlan && handleSubscribe(selectedPlan.id)} disabled={buyLoading}>
+          {/* Buy via modal flow */}
+          <TouchableOpacity style={[styles.payButton, buyLoading && styles.buttonDisabled]} onPress={() => selectedPlan && handleBuyFlow(selectedPlan.id, 'subscribe')} disabled={buyLoading}>
             {buyLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payButtonText}>Thanh toán</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={styles.skipButton} onPress={closeDetail}>
@@ -343,6 +417,8 @@ const UpgradePlanScreen: React.FC = () => {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      <ModalPopup {...(modalProps as any)} />
     </SafeAreaView>
    );
 };
@@ -407,7 +483,7 @@ const styles = StyleSheet.create({
   skipButtonText: { color: '#A0522D', fontWeight: '700' },
 
   // Buy now button (new styles)
-  buyNowButton: { marginTop: 12, backgroundColor: '#FF7A45', paddingVertical: 14, borderRadius: 12, alignItems: 'center', shadowColor: '#FF7A45', shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
+  buyNowButton: { marginTop: 12, backgroundColor: '#A0522D', paddingVertical: 14, borderRadius: 12, alignItems: 'center', shadowColor: '#A0522D', shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
   buyNowText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 
   // carousel
@@ -419,6 +495,7 @@ const styles = StyleSheet.create({
   upgradeDetailTitle: { color: '#059669', fontWeight: '700' },
   upgradeDetailFinalPrice: { marginTop: 6, fontSize: 18, color: '#A0522D', fontWeight: '800' },
   upgradeDetailProration: { fontSize: 12, color: '#6B7280' },
+  backButton: { position: 'absolute', left: 12, top: 12 },
 });
 
 export default UpgradePlanScreen;

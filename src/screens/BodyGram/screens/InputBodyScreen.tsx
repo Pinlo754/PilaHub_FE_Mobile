@@ -26,7 +26,25 @@ export default function InputBodyScreen({ navigation }: Props) {
     weight: 'Cân Nặng'
   };
   const [modal, setModal] = useState<{ key: string; visible: boolean }>({ key: '', visible: false });
-  const onboarding = useOnboardingStore((s) => s.data);
+  // typed onboarding data to avoid dynamic indexing runtime errors
+  type OnboardingData = {
+    waist?: number;
+    bust?: number;
+    hip?: number;
+    thigh?: number;
+    bicep?: number;
+    calf?: number;
+    bodyFatPercent?: number;
+    muscleMass?: number;
+    height?: number;
+    weight?: number;
+    heightUnit?: string;
+    weightUnit?: string;
+    bmi?: number;
+    [k: string]: any;
+  };
+
+  const onboarding = useOnboardingStore((s) => s.data) as OnboardingData;
   const setData = useOnboardingStore((s) => s.setData);
   const setStep = useOnboardingStore((s) => s.setStep);
   const [loading, _setLoading] = useState(false);
@@ -89,9 +107,16 @@ export default function InputBodyScreen({ navigation }: Props) {
   const openModal = (key: string) => setModal({ key, visible: true });
   const closeModal = () => setModal({ key: '', visible: false });
 
+  // type-safe accessor and saver for onboarding fields
+  function getOnboardingValue<K extends keyof OnboardingData>(key: K) {
+    return onboarding?.[key];
+  }
+
   const save = (value: number | undefined) => {
     if (modal.key) {
-      setData({ [modal.key]: value } as any);
+      const key = modal.key as keyof OnboardingData;
+      // cast to any to satisfy store typing (weightUnit in store is a narrower union)
+      setData({ [key]: value } as any);
     }
   };
 
@@ -288,7 +313,7 @@ export default function InputBodyScreen({ navigation }: Props) {
         <MeasurementModal
           visible={modal.visible}
           label={labelMap[modal.key] ?? modal.key}
-          initialValue={onboarding?.[modal.key]}
+          initialValue={getOnboardingValue(modal.key as keyof OnboardingData)}
           onClose={closeModal}
           onSave={save}
           unit={modal.key === 'muscleMass' ? 'kg' : modal.key === 'bodyFatPercent' ? '%' : 'cm'}

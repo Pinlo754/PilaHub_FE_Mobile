@@ -4,7 +4,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useOnboardingStore } from '../../../store/onboarding.store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { buildTraineeProfilePayload, submitTraineeProfile, submitPersonalInjuries, submitHealthProfile } from '../../../services/profile';
 import LoadingOverlay from '../../../components/LoadingOverlay';

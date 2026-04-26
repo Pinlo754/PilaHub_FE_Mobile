@@ -1,7 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Image, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Modal, Image, ScrollView, StyleSheet } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { fetchWithdrawalBanks, createWalletWithdrawal, fetchMyWallet } from '../../services/wallet';
+import ModalPopup from '../../components/ModalPopup';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function WithdrawScreen() {
   const navigation = useNavigation<any>();
@@ -10,28 +13,45 @@ export default function WithdrawScreen() {
   const [selectedBank, setSelectedBank] = useState<any | null>(null);
   const [recipientName, setRecipientName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [amountRaw, setAmountRaw] = useState('');
   const [amount, setAmount] = useState('');
+  const [amountSelection, setAmountSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [amountError, setAmountError] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [wallet, setWallet] = useState<any | null>(null);
   const [bankModalVisible, setBankModalVisible] = useState(false);
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
 
-  useEffect(() => {
-    loadBanks();
-    loadWallet();
-  }, []);
-
-  async function loadBanks() {
+  const loadBanks = useCallback(async () => {
     setLoadingBanks(true);
     try {
       const res = await fetchWithdrawalBanks();
       if (res.ok) setBanks(res.data);
-      else Alert.alert('Lỗi', res.error?.message ?? 'Không thể tải danh sách ngân hàng');
+      else showModal('Lỗi', res.error?.message ?? 'Không thể tải danh sách ngân hàng');
     } catch (e) {
       console.warn(e);
     } finally {
       setLoadingBanks(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadBanks();
+    loadWallet();
+  }, [loadBanks]);
+
+  function showModal(title: string, message?: string, mode: string = 'noti', onConfirm?: () => void) {
+    const normalizedMode = mode === 'notify' ? 'noti' : mode;
+    setModalProps({
+      visible: true,
+      mode: normalizedMode,
+      titleText: title,
+      contentText: message ?? '',
+      onClose: () => setModalProps({ visible: false }),
+      ...(onConfirm ? { onConfirm } : {}),
+      ...(normalizedMode === 'confirm' ? { onCancel: () => setModalProps({ visible: false }) } : {}),
+    });
   }
 
   async function loadWallet() {
@@ -46,12 +66,12 @@ export default function WithdrawScreen() {
   const balance = useMemo(() => wallet?.availableVND ?? wallet?.available ?? 0, [wallet]);
 
   async function submit() {
-    const amt = Number(amount.replace(/[^0-9]/g, '')) || 0;
-    if (!recipientName) return Alert.alert('Lỗi', 'Nhập tên người nhận');
-    if (!accountNumber) return Alert.alert('Lỗi', 'Nhập số tài khoản');
-    if (!selectedBank) return Alert.alert('Lỗi', 'Chọn ngân hàng');
-    if (!amt || amt <= 0) return Alert.alert('Lỗi', 'Nhập số tiền hợp lệ');
-    if (amt > balance) return Alert.alert('Lỗi', 'Số dư không đủ');
+    const amt = Number((amountRaw || '')) || 0;
+    if (!recipientName) return showModal('Lỗi', 'Nhập tên người nhận');
+    if (!accountNumber) return showModal('Lỗi', 'Nhập số tài khoản');
+    if (!selectedBank) return showModal('Lỗi', 'Chọn ngân hàng');
+    if (!amt || amt <= 0) return showModal('Lỗi', 'Nhập số tiền hợp lệ');
+    if (amt > balance) return showModal('Lỗi', 'Số dư không đủ');
 
     setSubmitting(true);
     try {
@@ -67,25 +87,46 @@ export default function WithdrawScreen() {
 
       const res = await createWalletWithdrawal(payload);
       if (!res.ok) {
-        Alert.alert('Lỗi', res.error?.message ?? 'Không thể tạo yêu cầu rút tiền');
+        showModal('Lỗi', res.error?.message ?? 'Không thể tạo yêu cầu rút tiền');
         return;
       }
 
-      // success - navigate to result or refresh
-      Alert.alert('Yêu cầu rút tiền đã được tạo', 'Trạng thái: PENDING', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      // success - show modal and go back on confirm (translate status)
+      showModal('Yêu cầu rút tiền đã được tạo', 'Trạng thái: Đang xử lý', 'noti', () => navigation.goBack());
     } catch (e) {
       console.warn(e);
-      Alert.alert('Lỗi', 'Không thể tạo yêu cầu rút tiền');
+      showModal('Lỗi', 'Không thể tạo yêu cầu rút tiền');
     } finally {
       setSubmitting(false);
     }
   }
 
+  const numericAccountChange = (text: string) => setAccountNumber(text.replace(/[^0-9]/g, ''));
+
+  // validate amount against balance whenever it changes; keep raw digits and formatted display
+  const handleAmountChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setAmountRaw(cleaned);
+    const formatted = cleaned ? Number(cleaned).toLocaleString('vi-VN') : '';
+    setAmount(formatted);
+    // keep cursor at end for simplicity
+    setAmountSelection({ start: formatted.length, end: formatted.length });
+    const amt = Number(cleaned || 0);
+    if (amt > (balance || 0)) setAmountError('Số tiền lớn hơn số dư khả dụng');
+    else setAmountError('');
+  };
+
+  const canSubmit = !!recipientName && !!accountNumber && !!selectedBank && Number(amountRaw || 0) > 0 && Number(amountRaw || 0) <= (balance || 0) && !submitting && !amountError;
+
   return (
-    <View className="flex-1 bg-[#FFFAF0] p-4">
-      <Text className="text-lg font-semibold mb-3">Rút tiền</Text>
+    <SafeAreaView className="flex-1 bg-[#FFFAF0] p-4">
+      <View className="flex-row items-center mb-3">
+       <TouchableOpacity onPress={() => navigation.goBack()} className="bg-white p-2 rounded-full shadow mr-3">
+          <Ionicons name="arrow-back" size={20} color="#111" />
+
+        </TouchableOpacity>
+        <Text className="text-lg font-semibold">Rút tiền</Text>
+      </View>
 
       <View className="mb-3">
         <Text className="text-sm text-gray-500">Số dư khả dụng</Text>
@@ -143,12 +184,20 @@ export default function WithdrawScreen() {
 
       <View className="mb-3">
         <Text className="text-sm text-gray-500 mb-1">Số tài khoản</Text>
-        <TextInput value={accountNumber} onChangeText={setAccountNumber} className="border border-gray-200 rounded p-2 bg-white" />
+        <TextInput value={accountNumber} keyboardType="numeric" onChangeText={numericAccountChange} className="border border-gray-200 rounded p-2 bg-white" />
       </View>
 
       <View className="mb-3">
         <Text className="text-sm text-gray-500 mb-1">Số tiền</Text>
-        <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" className="border border-gray-200 rounded p-2 bg-white" />
+        <TextInput
+          value={amount}
+          onChangeText={handleAmountChange}
+          keyboardType="numeric"
+          selection={amountSelection}
+          onSelectionChange={({ nativeEvent }) => setAmountSelection(nativeEvent.selection)}
+          className="border border-gray-200 rounded p-2 bg-white"
+        />
+        {amountError ? <Text className="text-sm text-red-600 mt-1">{amountError}</Text> : null}
       </View>
 
       <View className="mb-3">
@@ -157,11 +206,13 @@ export default function WithdrawScreen() {
       </View>
 
       <View className="mt-4">
-        <TouchableOpacity className="py-3 rounded bg-teal-500 items-center" onPress={submit} disabled={submitting}>
-          {submitting ? <ActivityIndicator color="white" /> : <Text className="text-white font-semibold">Gửi yêu cầu rút tiền</Text>}
+        <TouchableOpacity className={`py-3 rounded items-center ${canSubmit ? 'bg-[#A0522D]' : 'bg-gray-300'}`} onPress={submit} disabled={!canSubmit}>
+          {submitting ? <ActivityIndicator color="white" /> : <Text className={`text-white font-semibold`}>Gửi yêu cầu rút tiền</Text>}
         </TouchableOpacity>
       </View>
-    </View>
+
+      <ModalPopup {...(modalProps as any)} />
+    </SafeAreaView>
   );
 }
 

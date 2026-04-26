@@ -23,7 +23,15 @@ export default function SubscriptionSuccessScreen() {
           <Text style={styles.viewOrderText}>Quay lại Gói</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Home' as never)} style={styles.homeBtn}>
+        <TouchableOpacity onPress={() => {
+          try {
+            // reset stack so TabNavigator is the root and open Home tab
+            navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Home' } }] });
+          } catch {
+            // fallback: navigate to MainTabs
+            try { navigation.navigate('MainTabs' as never, { screen: 'Home' } as never); } catch { navigation.navigate('Home' as never); }
+          }
+        }} style={styles.homeBtn}>
           <Text style={styles.homeBtnText}>Về trang chính</Text>
         </TouchableOpacity>
       </View>

@@ -164,11 +164,11 @@ export default function DepositScreen() {
       </View>
 
       {/* Provider selector */}
-      <View className="mb-4 flex-row items-center space-x-3">
-        <TouchableOpacity onPress={() => setProvider('vnpay')} className={`px-4 py-2 rounded ${provider === 'vnpay' ? 'bg-teal-500' : 'bg-gray-100'}`}>
+      <View className="mb-4 flex-row items-center space-x-3 ">
+        <TouchableOpacity onPress={() => setProvider('vnpay')} className={`px-4 py-2 mr-2 rounded ${provider === 'vnpay' ? 'bg-[#A0522D]' : 'bg-gray-100'}`}>
           <Text className={`${provider === 'vnpay' ? 'text-white' : 'text-gray-700'}`}>VNPay</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setProvider('momo')} className={`px-4 py-2 rounded ${provider === 'momo' ? 'bg-teal-500' : 'bg-gray-100'}`}>
+        <TouchableOpacity onPress={() => setProvider('momo')} className={`px-4 py-2 rounded ${provider === 'momo' ? 'bg-[#A0522D]' : 'bg-gray-100'}`}>
           <Text className={`${provider === 'momo' ? 'text-white' : 'text-gray-700'}`}>MoMo</Text>
         </TouchableOpacity>
       </View>
@@ -177,7 +177,7 @@ export default function DepositScreen() {
         <TouchableOpacity
           onPress={submit}
           disabled={!canSubmit}
-          className={`py-3 rounded-lg items-center ${canSubmit ? 'bg-teal-500' : 'bg-gray-300'}`}>
+          className={`py-3 rounded-lg items-center ${canSubmit ? 'bg-[#A0522D]' : 'bg-gray-300'}`}>
           {loading ? (
             <ActivityIndicator color={canSubmit ? 'white' : '#6b7280'} />
           ) : (

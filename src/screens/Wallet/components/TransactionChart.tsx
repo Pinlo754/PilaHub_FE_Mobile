@@ -81,13 +81,13 @@ export default function TransactionChart({
 
   return (
     <View className="bg-white rounded-xl p-4 shadow mb-3">
-      <Text className="text-sm text-gray-500">Tổng quan thu - chi</Text>
+      <Text className="text-sm text-gray-500">Tổng quan nạp - chi</Text>
 
       <View className="flex-row items-center mt-4">
 
         {/* LEFT INFO */}
         <View className="flex-1 pr-4">
-          <Text className="text-xs text-gray-400">Tổng thu</Text>
+          <Text className="text-xs text-gray-400">Tổng nạp</Text>
           <Text className="text-lg font-bold text-green-600 mt-1">
             {totalIncome.toLocaleString("vi-VN")}₫
           </Text>
