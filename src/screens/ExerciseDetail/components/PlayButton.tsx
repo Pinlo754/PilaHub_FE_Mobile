@@ -6,9 +6,14 @@ import { colors } from '../../../theme/colors';
 type Props = {
   isVideoPlay: boolean;
   togglePlayButton: () => void;
+  hasAccess?: boolean;
 };
 
-const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
+const PlayButton = ({
+  isVideoPlay,
+  togglePlayButton,
+  hasAccess = true,
+}: Props) => {
   return (
     <>
       <View className="absolute -top-12 w-full">
@@ -22,12 +27,12 @@ const PlayButton = ({ isVideoPlay, togglePlayButton }: Props) => {
       </View>
       <Pressable
         onPress={togglePlayButton}
-        className={`absolute self-center -top-[65px] z-20 w-16 h-16 rounded-full bg-background items-center justify-center ${!isVideoPlay && 'pl-1'}`}
+        className={`absolute self-center -top-[65px] z-20 w-16 h-16 rounded-full items-center justify-center ${!isVideoPlay && 'pl-1'} ${hasAccess ? 'bg-background' : 'bg-inactive-lighter'}`}
       >
         <Ionicons
           name={isVideoPlay ? 'pause' : 'play'}
           size={38}
-          color={colors.foreground}
+          color={hasAccess ? colors.foreground : colors.inactive.darker}
         />
       </Pressable>
     </>

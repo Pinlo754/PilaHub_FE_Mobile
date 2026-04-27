@@ -1,10 +1,9 @@
-import { ReportReason } from "../constants/reportOption";
-
 export type LiveSessionReportType = {
   liveSessionId: string;
   reporterId: string;
   reportedUserId: string;
-  reason: ReportReason;
+  reason: string;
+  reasonName: string;
   description: string | null;
   createdAt: string;
   resolvedAt: string | null;

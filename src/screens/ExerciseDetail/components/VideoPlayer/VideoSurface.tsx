@@ -6,6 +6,7 @@ type Props = {
   videoRef: any;
   source: string;
   paused: boolean;
+  repeat?: boolean;
   onLoad: (data: OnLoadData) => void;
   onProgress: (data: OnProgressData) => void;
   onEnd?: () => void;
@@ -15,6 +16,7 @@ export function VideoSurface({
   videoRef,
   source,
   paused,
+  repeat,
   onLoad,
   onProgress,
   onEnd,
@@ -25,6 +27,7 @@ export function VideoSurface({
         ref={videoRef}
         source={{ uri: source }}
         paused={paused}
+        repeat={repeat}
         resizeMode="cover"
         style={{ width: '100%', height: '100%' }}
         onLoad={d => {

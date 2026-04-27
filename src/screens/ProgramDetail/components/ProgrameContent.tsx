@@ -15,6 +15,8 @@ type Props = {
   traineeCourseId: string | null;
   completedLessonIds: string[];
   activePackage: PackageType | null;
+  source: string;
+  programId: string;
 };
 
 const ProgrameContent = ({
@@ -25,9 +27,18 @@ const ProgrameContent = ({
   traineeCourseId,
   completedLessonIds,
   activePackage,
+  source,
+  programId,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
+
+  // VARIABLE
+  const currentLessonIndex = data.findIndex(
+    lesson => !completedLessonIds.includes(lesson.courseLessonId),
+  );
+  const safeCurrentIndex =
+    currentLessonIndex === -1 ? data.length - 1 : currentLessonIndex;
 
   // RENDER
   const renderItem = ({
@@ -47,6 +58,9 @@ const ProgrameContent = ({
         traineeCourseId={traineeCourseId}
         completedLessonIds={completedLessonIds}
         activePackage={activePackage}
+        source={source}
+        programId={programId}
+        currentLessonIndex={safeCurrentIndex}
       />
     );
   };

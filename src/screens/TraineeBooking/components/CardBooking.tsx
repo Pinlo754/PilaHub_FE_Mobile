@@ -6,21 +6,26 @@ import { CoachBookingType } from '../../../utils/CoachBookingType';
 import { BOOKING_UI_CONFIG } from '../../../constants/bookingTab';
 import { getBookingStatusConfig } from '../../../utils/uiMapper';
 import { formatDurationDateTime } from '../../../utils/day';
+import { LiveSessionReportType } from '../../../utils/LiveSessionReportType';
 
 type Props = {
   item: CoachBookingType;
+  existingReport: LiveSessionReportType | null;
   onPressBtn: () => void;
   onPressCard: () => void;
   onPressRecord: () => void;
   onPressReport: () => void;
+  onPressViewReport: () => void;
 };
 
 const CardBooking = ({
   item,
+  existingReport,
   onPressBtn,
   onPressCard,
   onPressRecord,
   onPressReport,
+  onPressViewReport,
 }: Props) => {
   // VARIABLE
   const config = BOOKING_UI_CONFIG[item.status];
@@ -32,15 +37,19 @@ const CardBooking = ({
   const bookingType =
     item.bookingType === 'SINGLE' ? 'Đặt lịch riêng' : 'Lịch trong lộ trình';
 
-  const canReport = (() => {
-    if (!config.showReportButton) return false;
+  const withinReportWindow = (() => {
     const start = new Date(item.startTime).getTime();
     const now = Date.now();
     const diffDays = (now - start) / (1000 * 60 * 60 * 24);
     return diffDays <= 7;
   })();
 
-  const showFooter = config.showButton || canReport;
+  const canReport =
+    config.showReportButton && withinReportWindow && !existingReport;
+  const showViewReport = !!existingReport && config.showReportButton;
+  const showReportBtn = canReport || showViewReport;
+
+  const showFooter = config.showButton || showReportBtn;
 
   return (
     <Pressable
@@ -165,6 +174,18 @@ const CardBooking = ({
 
             {/* Hàng 2: Báo cáo (căn phải) + button chính nếu không phải COMPLETED */}
             <View className="flex-row justify-between">
+              {showViewReport && (
+                <Button
+                  text="Xem báo cáo"
+                  onPress={onPressViewReport}
+                  colorType="sub1"
+                  rounded="xl"
+                  showArrow={true}
+                  width={config.buttonWidth}
+                  height={40}
+                />
+              )}
+              
               {canReport && (
                 <Button
                   text="Báo cáo"

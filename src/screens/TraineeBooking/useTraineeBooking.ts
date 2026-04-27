@@ -6,6 +6,8 @@ import { LiveSessionType } from '../../utils/LiveSessionType';
 import LiveSessionService from '../../hooks/liveSession.service';
 import { SessionAssessmentType } from '../../utils/SessionAssessmentType';
 import { SessionAssessmentService } from '../../hooks/sessionAssessment.service';
+import { LiveSessionReportType } from '../../utils/LiveSessionReportType';
+import { liveSessionReportService } from '../../hooks/liveSessionReport.service';
 
 type DataByTab = {
   [K in BookingTab]: CoachBookingType[];
@@ -32,6 +34,9 @@ export const useTraineeBooking = () => {
     [BookingTab.Ready]: [],
     [BookingTab.History]: [],
   });
+  const [reportMap, setReportMap] = useState<
+    Record<string, LiveSessionReportType>
+  >({});
   const [liveSessionDetail, setLiveSessionDetail] =
     useState<LiveSessionType | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -42,6 +47,9 @@ export const useTraineeBooking = () => {
   const [showRecord, setShowRecord] = useState<boolean>(false);
   const [recordUrl, setRecordUrl] = useState<string | null>(null);
   const [showReportList, setShowReportList] = useState<boolean>(false);
+  const [showReportDetail, setShowReportDetail] = useState<boolean>(false);
+  const [selectedReport, setSelectedReport] =
+    useState<LiveSessionReportType | null>(null);
   const [assessment, setAssessment] = useState<SessionAssessmentType | null>(
     null,
   );
@@ -51,12 +59,21 @@ export const useTraineeBooking = () => {
     setIsLoading(true);
 
     try {
-      const res = await coachBookingService.getAllBookingOfTrainee();
+      const [bookings, reports] = await Promise.all([
+        coachBookingService.getAllBookingOfTrainee(),
+        liveSessionReportService.getAllCreated(),
+      ]);
+
+      const map: Record<string, LiveSessionReportType> = {};
+      reports.forEach(r => {
+        map[r.liveSessionId] = r;
+      });
+      setReportMap(map);
 
       const filterData: DataByTab = {
-        [BookingTab.Scheduled]: filterBookings(res, BookingTab.Scheduled),
-        [BookingTab.Ready]: filterBookings(res, BookingTab.Ready),
-        [BookingTab.History]: filterBookings(res, BookingTab.History),
+        [BookingTab.Scheduled]: filterBookings(bookings, BookingTab.Scheduled),
+        [BookingTab.Ready]: filterBookings(bookings, BookingTab.Ready),
+        [BookingTab.History]: filterBookings(bookings, BookingTab.History),
       };
 
       setDataByTab(filterData);
@@ -182,6 +199,16 @@ export const useTraineeBooking = () => {
     setShowReportList(false);
   };
 
+  const openReportDetail = (report: LiveSessionReportType) => {
+    setSelectedReport(report);
+    setShowReportDetail(true);
+  };
+
+  const closeReportDetail = () => {
+    setSelectedReport(null);
+    setShowReportDetail(false);
+  };
+
   const openErrorModal = (msg: string) => {
     setErrorMsg(msg);
     setShowErrorModal(true);
@@ -221,5 +248,10 @@ export const useTraineeBooking = () => {
     openReportList,
     closeReportList,
     assessment,
+    showReportDetail,
+    openReportDetail,
+    closeReportDetail,
+    selectedReport,
+    reportMap,
   };
 };

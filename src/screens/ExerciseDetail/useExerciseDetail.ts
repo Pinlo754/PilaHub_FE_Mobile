@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ExerciseTab } from '../../constants/exerciseTab';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
@@ -31,15 +31,18 @@ type Props = {
 };
 
 export const useExerciseDetail = ({ route, navigation }: Props) => {
-  // PARAM
+  // ─── PARAMS ───────────────────────────────────────────────────────────────
   const { exercise_id, allowedPractice, allowedTheory } = route.params;
   const practicePayload = route.params.practicePayload ?? null;
   const lessonExerciseIdParam = route.params.lessonExerciseId ?? null;
+  const source = route.params?.source;
 
-  // CONSTANT
+  // ─── CONSTANTS ────────────────────────────────────────────────────────────
   const TIMEOUT = 3010;
+  const COUNTDOWN_START = 5;
+  const COUNTDOWN_REST = 15;
 
-  // STATE
+  // ─── STATE ────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ExerciseTab>(ExerciseTab.Theory);
   const [exerciseDetail, setExerciseDetail] = useState<ExerciseType>();
   const [currentExercise, setCurrentExercise] = useState<ExerciseType>();
@@ -60,6 +63,11 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [recommendMsg, setRecommendMsg] = useState<string>('');
+  const [recommendAction, setRecommendAction] = useState<
+    'UPGRADE' | 'LIST' | null
+  >(null);
+  const [showRecommendModal, setShowRecommendModal] = useState<boolean>(false);
   const [activePackage, setActivePackage] = useState<PackageType | null>(null);
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSessionType[]>(
     [],
@@ -67,24 +75,125 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [exerciseEquipments, setExerciseEquipments] = useState<
     ExerciseEquipment[]
   >([]);
+  // Countdown states
+  const [showStartCountdown, setShowStartCountdown] = useState<boolean>(false);
+  const [showRestCountdown, setShowRestCountdown] = useState<boolean>(false);
+  const [restCountdownDuration, setRestCountdownDuration] =
+    useState<number>(COUNTDOWN_REST);
+
+  // Exercise duration countdown
+  const [exerciseTimeLeft, setExerciseTimeLeft] = useState<number>(0);
+  const [isExerciseRunning, setIsExerciseRunning] = useState<boolean>(false);
+
+  // ─── REFS ─────────────────────────────────────────────────────────────────
+  const exerciseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentExerciseIndexRef = useRef<number>(0);
+  const exerciseTimeLeftRef = useRef<number>(0);
+  const timerStartedRef = useRef<boolean>(false);
+  const workoutSessionRef = useRef<WorkoutSessionType | undefined>(undefined);
 
   // CHECK
+  const isFromList = source === 'List';
+  const isFromSearch = source === 'Search';
   const isPracticeTab = activeTab === ExerciseTab.Practice;
   const id = route.params.exercise_id;
-  const canPractice = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
+  const isPaidUser = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
     activePackage as PackageType,
-  )
-    ? true
-    : (allowedPractice ?? false);
-  const canPlayTheory = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
-    activePackage as PackageType,
-  )
-    ? true
-    : (allowedTheory ?? false);
+  );
   const isCourseFlow = !!practicePayload;
   const isEnrolledCourse = practicePayload?.isEnrolled;
+  const hasAccess = Boolean(isPaidUser || isEnrolledCourse);
+  // const canPractice = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
+  //   activePackage as PackageType,
+  // )
+  //   ? true
+  //   : (allowedPractice ?? false);
 
-  // FETCH
+  //   const canPractice = (() => {
+  //   // 3. Tập lẻ → luôn true
+  //   if (!isCourseFlow) return true;
+
+  //   // fallback nếu không có source
+  //   if (!source) return true;
+
+  //   // 1. Từ Search → cần có gói
+  //   if (isFromSearch) return isPaidUser;
+
+  //   // 2. Từ List → dùng allowedPractice
+  //   if (isFromList) return allowedPractice ?? false;
+
+  //   return false;
+  // })();
+  const canPractice = allowedPractice ?? true;
+  const canPlayTheory = isPaidUser || (allowedTheory ?? false);
+
+  // ─── HELPERS ──────────────────────────────────────────────────────────────
+  /** Lấy duration (giây) cho bài hiện tại.
+   *  - Course flow → lessonDurations[index]
+   *  - Single flow  → exercise.duration
+   */
+  const getCurrentDuration = (index: number): number => {
+    if (practicePayload) {
+      return (
+        practicePayload.lessonDurations?.[index] ??
+        practicePayload.durations?.[index] ??
+        60
+      );
+    }
+    return exerciseDetail?.duration ?? 60;
+  };
+
+  const clearExerciseTimer = () => {
+    if (exerciseTimerRef.current) {
+      clearInterval(exerciseTimerRef.current);
+      exerciseTimerRef.current = null;
+    }
+  };
+
+  const createTimerInterval = () => {
+    exerciseTimerRef.current = setInterval(() => {
+      exerciseTimeLeftRef.current -= 1;
+      setExerciseTimeLeft(exerciseTimeLeftRef.current);
+
+      if (exerciseTimeLeftRef.current <= 0) {
+        clearInterval(exerciseTimerRef.current!);
+        exerciseTimerRef.current = null;
+        setIsExerciseRunning(false);
+        timerStartedRef.current = false;
+        handleExerciseDone();
+      }
+    }, 1000);
+  };
+
+  const startExerciseTimer = (durationSec: number) => {
+    clearExerciseTimer();
+    exerciseTimeLeftRef.current = durationSec;
+    setExerciseTimeLeft(durationSec);
+    setIsExerciseRunning(true);
+    timerStartedRef.current = true;
+    createTimerInterval();
+  };
+
+  const pauseExerciseTimer = () => {
+    clearExerciseTimer();
+    setIsExerciseRunning(false);
+  };
+
+  const resumeExerciseTimer = () => {
+    if (!timerStartedRef.current) return;
+    if (exerciseTimeLeftRef.current <= 0) return;
+    if (exerciseTimerRef.current) return;
+
+    setIsExerciseRunning(true);
+    createTimerInterval();
+  };
+
+  const setWorkoutSessionSynced = (session: WorkoutSessionType | undefined) => {
+    workoutSessionRef.current = session;
+    setWorkoutSession(session);
+  };
+
+  // ─── FETCH ────────────────────────────────────────────────────────────────
   const fetchInformation = async () => {
     try {
       const res = await getProfile();
@@ -120,111 +229,10 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     }
   };
 
-  const startWorkoutExerciseFree = async () => {
-    if (!id) return;
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const payload: WorkoutExerciseReq = {
-        exerciseId: id,
-        haveAITracking: false,
-        haveIOTDeviceTracking: false,
-      };
-
-      const res = await workoutSessionService.startFreeWorkout(payload);
-
-      setWorkoutSession(res);
-    } catch (err: any) {
-      if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
-      } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const startWorkoutExerciseAI = async () => {
-    if (!exercise_id) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const payload: WorkoutExerciseReq = {
-        exerciseId: id,
-        haveAITracking: true,
-        haveIOTDeviceTracking: false,
-      };
-
-      const res = await workoutSessionService.startFreeWorkout(payload);
-
-      setWorkoutSession(res);
-
-      return res;
-    } catch (err: any) {
-      if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
-      } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const startWorkoutForLessonExercise = async (index?: number) => {
-    if (!practicePayload) return Promise.reject('No payload');
-    if (!practicePayload?.isEnrolled) return;
-
-    const currentIndex = index ?? currentExerciseIndex;
-    const lessonExerciseId = practicePayload.lessonExerciseIds[currentIndex];
-
-    const payload: WorkoutLessonExerciseReq = {
-      courseLessonProgressId: practicePayload.progressId,
-      lessonExerciseId,
-      haveAITracking,
-      haveIOTDeviceTracking,
-    };
-
-    return workoutSessionService.startWorkoutForLessonExercise(payload);
-  };
-
-  const startCourseLessonProgress = async () => {
-    if (!practicePayload) return Promise.reject('No payload');
-    if (!practicePayload?.isEnrolled) return;
-
-    return courseLessonProgressService.startLesson(practicePayload.progressId);
-  };
-
-  const endWorkout = async () => {
-    if (!workoutSession) return Promise.reject('No workout session');
-    const recordUrl =
-      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-
-    return workoutSessionService.endWorkout(
-      workoutSession?.workoutSessionId,
-      recordUrl,
-    );
-  };
-
-  const endCourseLessonProgress = async () => {
-    if (!practicePayload) return Promise.reject('No payload');
-    if (!practicePayload?.isEnrolled) return;
-
-    return courseLessonProgressService.completeLesson(
-      practicePayload.progressId,
-    );
-  };
-
   const fetchWorkoutHistory = async () => {
     if (!exercise_id) return;
     try {
       const params: GetByExerciseIdParams = {};
-
-      console.log('lessonExerciseIdParam', lessonExerciseIdParam);
 
       const lessonExerciseId =
         lessonExerciseIdParam ??
@@ -296,7 +304,228 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     }
   };
 
-  // HANDLERS
+  // ─── WORKOUT SESSION ───────────────────────────────────────────────────────
+  const startWorkoutExerciseFree = async (exerciseIdParam?: string) => {
+    const exerciseId = exerciseIdParam ?? id;
+
+    if (!exerciseId) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const payload: WorkoutExerciseReq = {
+        exerciseId,
+        haveAITracking: false,
+        haveIOTDeviceTracking: false,
+      };
+
+      const res = await workoutSessionService.startFreeWorkout(payload);
+
+      setWorkoutSessionSynced(res);
+      return res;
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
+      } else {
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startWorkoutExerciseAI = async () => {
+    if (!exercise_id) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const payload: WorkoutExerciseReq = {
+        exerciseId: id,
+        haveAITracking: true,
+        haveIOTDeviceTracking: false,
+      };
+
+      const res = await workoutSessionService.startFreeWorkout(payload);
+
+      setWorkoutSessionSynced(res);
+
+      return res;
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        setError(err.message);
+      } else {
+        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startWorkoutForLessonExercise = async (index?: number) => {
+    if (!practicePayload) return Promise.reject('No payload');
+    if (!practicePayload?.isEnrolled) return;
+
+    const currentIndex = index ?? currentExerciseIndex;
+    const lessonExerciseId = practicePayload.lessonExerciseIds[currentIndex];
+
+    const payload: WorkoutLessonExerciseReq = {
+      courseLessonProgressId: practicePayload.progressId,
+      lessonExerciseId,
+      haveAITracking,
+      haveIOTDeviceTracking,
+    };
+
+    const res =
+      await workoutSessionService.startWorkoutForLessonExercise(payload);
+    setWorkoutSessionSynced(res);
+    return res;
+  };
+
+  const startCourseLessonProgress = async () => {
+    if (!practicePayload) return Promise.reject('No payload');
+    if (!practicePayload?.isEnrolled) return;
+
+    return courseLessonProgressService.startLesson(practicePayload.progressId);
+  };
+
+  const endWorkout = async () => {
+    const session = workoutSessionRef.current;
+    if (!session) return Promise.reject('No workout session');
+    const recordUrl =
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
+    return workoutSessionService.endWorkout(
+      session.workoutSessionId,
+      recordUrl,
+    );
+  };
+
+  const endCourseLessonProgress = async () => {
+    if (!practicePayload) return Promise.reject('No payload');
+    if (!practicePayload?.isEnrolled) return;
+
+    return courseLessonProgressService.completeLesson(
+      practicePayload.progressId,
+    );
+  };
+
+  // ─── CORE LOGIC: bắt đầu tập (sau countdown) ──────────────────────────────
+  /** Được gọi sau khi CountdownModal đếm ngược xong → hiện video + bắt đầu đếm duration */
+  const onStartCountdownFinished = () => {
+    setShowStartCountdown(false);
+    setIsVideoVisible(true);
+    setIsPlaying(true);
+    setIsVideoExpand(true);
+
+    if (isPracticeTab) {
+      const duration = getCurrentDuration(currentExerciseIndexRef.current);
+      startExerciseTimer(duration);
+    }
+  };
+
+  /** Được gọi sau khi CountdownModal nghỉ giữa bài xong → chuyển bài tiếp */
+  const onRestCountdownFinished = async () => {
+    setShowRestCountdown(false);
+    await doTransitionToNextExercise();
+  };
+
+  // ─── LOGIC CHUYỂN BÀI ────────────────────────────────────────────────────
+  /**
+   * Gọi khi đếm ngược duration hết.
+   * Xử lý tất cả các TH: lẻ / course-paid / course-enrolled
+   */
+  const handleExerciseDone = async () => {
+    try {
+      // THEORY
+      if (!isPracticeTab) {
+        openSuccessModal('Bạn đã xem xong lý thuyết.');
+        if (isVideoExpand) {
+          setTimeout(() => toggleVideoExpand(), TIMEOUT);
+        }
+        return;
+      }
+
+      // BÀI TẬP LẺ
+      if (!isCourseFlow) {
+        await endWorkout();
+        openSuccessModal('Bạn đã hoàn thành bài tập.');
+        setTimeout(() => navigatePracticeTab(), TIMEOUT);
+        return;
+      }
+      // COURSE FLOW
+      const isLast =
+        currentExerciseIndexRef.current ===
+        practicePayload!.exerciseIds.length - 1;
+
+      await endWorkout();
+
+      if (!isLast) {
+        const rest =
+          practicePayload!.restSeconds?.[currentExerciseIndexRef.current] ??
+          COUNTDOWN_REST;
+        setRestCountdownDuration(rest);
+        setShowRestCountdown(true);
+      } else {
+        // Hết tất cả bài trong lesson
+        if (isEnrolledCourse) {
+          await endCourseLessonProgress();
+          openSuccessModal('Bạn đã hoàn thành buổi tập.');
+          setTimeout(() => {
+            navigation.navigate('ProgramDetail', {
+              program_id: practicePayload!.programId,
+              traineeCourseId: practicePayload!.traineeCourseId ?? undefined,
+              source: 'List',
+            });
+          }, TIMEOUT);
+        } else {
+          // Mua gói
+          openSuccessModal('Bạn đã hoàn thành buổi tập.');
+          setTimeout(() => {
+            navigation.navigate('ProgramDetail', {
+              program_id: practicePayload!.programId,
+              source: 'Search',
+            });
+          }, TIMEOUT);
+        }
+      }
+    } catch (err) {
+      console.error('handleExerciseDone error:', err);
+      setError('Có lỗi khi kết thúc bài tập');
+    }
+  };
+
+  /** Thực sự chuyển sang bài tiếp theo (sau rest countdown) */
+  const doTransitionToNextExercise = async () => {
+    const nextIndex = currentExerciseIndexRef.current + 1;
+    const nextExerciseId = practicePayload!.exerciseIds[nextIndex];
+
+    currentExerciseIndexRef.current = nextIndex;
+    setCurrentExerciseIndex(nextIndex);
+
+    const [nextExercise, nextTutorial] = await Promise.all([
+      exerciseService.getById(nextExerciseId),
+      tutorialService.getById(nextExerciseId),
+    ]);
+    setCurrentExercise(nextExercise);
+    setCurrentTutorial(nextTutorial);
+
+    if (isEnrolledCourse) {
+      await startWorkoutForLessonExercise(nextIndex);
+    } else {
+      await startWorkoutExerciseFree(nextExerciseId);
+    }
+
+    // Bắt đầu đếm ngược duration bài tiếp
+    const duration =
+      practicePayload!.lessonDurations?.[nextIndex] ??
+      practicePayload!.durations?.[nextIndex] ??
+      60;
+    startExerciseTimer(duration);
+  };
+
+  // ─── HANDLERS ─────────────────────────────────────────────────────────────
   const onChangeTab = (tabId: ExerciseTab) => {
     if (tabId === ExerciseTab.Practice) {
       hideVideo();
@@ -315,6 +544,18 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const togglePlayButton = () => {
+    if (!hasAccess) {
+      if (practicePayload) {
+        openRecommendModal(
+          'Bạn cần mua gói hoặc mua khóa học để xem bài này!',
+          'UPGRADE',
+        );
+      } else {
+        openRecommendModal('Bạn cần mua gói để xem bài này!', 'UPGRADE');
+      }
+      return;
+    }
+
     setIsVideoVisible(true);
     setIsPlaying(prev => !prev);
   };
@@ -329,7 +570,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     });
   };
 
-  const navigatePracticeTab = () => {
+  const navigatePracticeTab = async () => {
+    clearExerciseTimer();
+    timerStartedRef.current = false;
     setIsShowFlag(false);
     setIsVideoVisible(false);
     setIsPlaying(false);
@@ -337,6 +580,10 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setCurrentExercise(exerciseDetail);
     setCurrentTutorial(tutorial);
     setCurrentExerciseIndex(0);
+    currentExerciseIndexRef.current = 0;
+    if (isPracticeTab) {
+      await fetchWorkoutHistory();
+    }
   };
 
   const onPressStartCourseLesson = async () => {
@@ -354,8 +601,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
         setWorkoutSession(workoutRes);
       } else {
-        return;
+        await startWorkoutExerciseFree();
       }
+      setShowStartCountdown(true);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
         setError(err.message);
@@ -368,12 +616,69 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   };
 
   const onPressPractice = async () => {
+    // FROM LIST → luôn cho chạy
+    if (isFromList) {
+      await onPressStartCourseLesson();
+      return;
+    }
+
+    // FROM SEARCH
+    if (isFromSearch) {
+      // đã có gói → cho chạy
+      if (isPaidUser) {
+        if (isEnrolledCourse) {
+          openRecommendModal(
+            "Bạn cần chuyển sang 'Danh sách của tôi' để tập!",
+            'LIST',
+          );
+          return;
+        }
+        await onPressStartCourseLesson();
+        return;
+      }
+
+      // chưa có gói
+      if (isEnrolledCourse) {
+        openRecommendModal(
+          "Bạn cần chuyển sang 'Danh sách của tôi' để tập!",
+          'LIST',
+        );
+      } else {
+        openRecommendModal(
+          'Bạn cần mua gói hoặc mua khóa học để tập bài này!',
+          'UPGRADE',
+        );
+      }
+
+      return;
+    }
+
+    // fallback
+    if (!hasAccess) {
+      if (practicePayload) {
+        openRecommendModal(
+          'Bạn cần mua gói hoặc mua khóa học để tập bài này!',
+          'UPGRADE',
+        );
+      } else {
+        openRecommendModal('Bạn cần mua gói để tập bài này!', 'UPGRADE');
+      }
+      return;
+    }
+
     await onPressStartCourseLesson();
-    toggleVideoExpand();
   };
 
   const onPressAIPractice = async () => {
     if (!exerciseDetail || !tutorial) return;
+
+    if (activePackage !== PackageType.VIP_MEMBER) {
+      openRecommendModal(
+        'Tính năng này chỉ dành cho gói VIP. Bạn có muốn tham khảo thử không?',
+        'UPGRADE',
+      );
+      return;
+    }
 
     setHaveAITracking(true);
 
@@ -397,92 +702,19 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     }
   };
 
+  // ─── VIDEO END (giữ lại cho TH Theory dùng video end) ────────────────────
+  /** Chỉ xử lý khi ở Theory tab – Practice tab dùng timer riêng */
   const handleVideoEnd = async () => {
-    try {
-      // THEORY
-      if (!isPracticeTab) {
-        openSuccessModal('Bạn đã xem xong lý thuyết.');
+    if (isPracticeTab) return; // Practice đã xử lý bởi timer
 
-        if (isVideoExpand) {
-          setTimeout(() => {
-            toggleVideoExpand();
-          }, TIMEOUT);
-        }
-        return;
-      }
-
-      // NOT ENROLLED
-      if (isCourseFlow && !isEnrolledCourse) {
-        const isLast =
-          currentExerciseIndex ===
-          (practicePayload?.exerciseIds.length ?? 0) - 1;
-
-        if (!isLast) {
-          const nextIndex = currentExerciseIndex + 1;
-          const nextExerciseId = practicePayload!.exerciseIds[nextIndex];
-
-          setCurrentExerciseIndex(nextIndex);
-
-          const [nextExercise, nextTutorial] = await Promise.all([
-            exerciseService.getById(nextExerciseId),
-            tutorialService.getById(nextExerciseId),
-          ]);
-
-          setCurrentExercise(nextExercise);
-          setCurrentTutorial(nextTutorial);
-        } else {
-          openSuccessModal('Bạn đã hoàn thành bài tập.');
-          setTimeout(() => navigatePracticeTab(), TIMEOUT);
-        }
-
-        return;
-      }
-
-      // ENROLLED
-      await endWorkout();
-
-      if (!practicePayload) {
-        openSuccessModal('Bạn đã hoàn thành bài tập.');
-        setTimeout(() => {
-          navigatePracticeTab();
-        }, TIMEOUT);
-      } else {
-        const isLast =
-          currentExerciseIndex === practicePayload.exerciseIds.length - 1;
-
-        if (!isLast) {
-          const nextIndex = currentExerciseIndex + 1;
-          const nextExerciseId = practicePayload.exerciseIds[nextIndex];
-
-          setCurrentExerciseIndex(nextIndex);
-
-          // Fetch tutorial mới
-          const [nextExercise, nextTutorial] = await Promise.all([
-            exerciseService.getById(nextExerciseId),
-            tutorialService.getById(nextExerciseId),
-          ]);
-          setCurrentExercise(nextExercise);
-          setCurrentTutorial(nextTutorial);
-
-          // Start workout mới
-          const newWorkout = await startWorkoutForLessonExercise(nextIndex);
-          setWorkoutSession(newWorkout);
-        } else {
-          // Hoàn thành lesson
-          await endCourseLessonProgress();
-
-          openSuccessModal('Bạn đã hoàn thành buổi tập.');
-          setTimeout(() => {
-            navigation.navigate('MainTabs', { screen: 'Home' });
-          }, TIMEOUT);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Có lỗi khi chuyển bài tập');
+    // THEORY
+    openSuccessModal('Bạn đã xem xong lý thuyết!');
+    if (isVideoExpand) {
+      setTimeout(() => toggleVideoExpand(), TIMEOUT);
     }
   };
 
+  // ─── MODALS ───────────────────────────────────────────────────────────────
   const openSuccessModal = (msg: string) => {
     setSuccessMsg(msg);
     setShowSuccessModal(true);
@@ -508,7 +740,36 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     navigatePracticeTab();
   };
 
-  // USE EFFECT
+  const openRecommendModal = (msg: string, action: 'UPGRADE' | 'LIST') => {
+    setRecommendMsg(msg);
+    setRecommendAction(action);
+    setShowRecommendModal(true);
+  };
+
+  const closeRecommendModal = () => {
+    setRecommendMsg('');
+    setShowRecommendModal(false);
+  };
+
+  const onConfirmRecommendModal = () => {
+    closeRecommendModal();
+
+    if (recommendAction === 'UPGRADE') {
+      navigation.navigate('UpgradePlan');
+    }
+
+    if (recommendAction === 'LIST') {
+      navigation.navigate('MainTabs', {
+        screen: 'List',
+      });
+    }
+  };
+
+  // ─── EFFECTS ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    currentExerciseIndexRef.current = currentExerciseIndex;
+  }, [currentExerciseIndex]);
+
   useEffect(() => {
     if (!exercise_id) return;
 
@@ -527,6 +788,22 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     fetchAll();
   }, [exercise_id]);
 
+  useEffect(() => {
+    if (!isPracticeTab) return;
+    if (!timerStartedRef.current) return;
+
+    if (isPlaying) {
+      resumeExerciseTimer();
+    } else {
+      pauseExerciseTimer();
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    return () => clearExerciseTimer();
+  }, []);
+
+  // ─── RETURN ───────────────────────────────────────────────────────────────
   return {
     activeTab,
     exerciseEquipments,
@@ -571,5 +848,23 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     workoutHistory,
     canPlayTheory,
     fetchAISummary,
+    openRecommendModal,
+    recommendMsg,
+    closeRecommendModal,
+    onConfirmRecommendModal,
+    showRecommendModal,
+    hasAccess,
+    isFromList,
+    isFromSearch,
+    // countdown
+    showStartCountdown,
+    onStartCountdownFinished,
+    showRestCountdown,
+    restCountdownDuration,
+    onRestCountdownFinished,
+    // exercise timer
+    exerciseTimeLeft,
+    isExerciseRunning,
+    COUNTDOWN_START,
   };
 };

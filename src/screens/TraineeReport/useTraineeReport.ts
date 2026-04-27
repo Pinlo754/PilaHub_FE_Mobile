@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react';
-import {
-  COACH_OPTIONS,
-  LIVESESSION_OPTIONS,
-  optionType,
-  VIDEO_OPTIONS,
-} from '../../constants/reportOption';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
 import { liveSessionReportService } from '../../hooks/liveSessionReport.service';
+import { ReportReasonType } from '../../utils/ReportReasonType';
+import { ReportReasonService } from '../../hooks/reportReason.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'TraineeReport'>;
@@ -25,8 +21,10 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   const liveSessionIdParam = route.params?.liveSessionId ?? null;
 
   // STATE
-  const [options, setOptions] = useState<optionType[] | null>(null);
-  const [selectedOption, setSelectedOption] = useState<number>(0);
+  const [reasons, setReasons] = useState<ReportReasonType[]>([]);
+  const [selectedReason, setSelectedReason] = useState<ReportReasonType | null>(
+    null,
+  );
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [description, setDescription] = useState<string>('');
@@ -37,18 +35,23 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
 
   // API
+  const fetchReasons = async () => {
+    try {
+      const data = await ReportReasonService.getAll();
+      setReasons(data);
+    } catch (err: any) {
+      openErrorModal('Không thể tải danh sách lý do báo cáo!');
+    }
+  };
+
   const createReport = async () => {
     setIsLoading(true);
     try {
-      if (!liveSessionIdParam) return;
-
-      const selectedReason = options?.find(o => o.id === selectedOption)?.value;
-
-      if (!selectedReason) return;
+      if (!liveSessionIdParam || !selectedReason) return;
 
       await liveSessionReportService.createReport(
         liveSessionIdParam,
-        selectedReason,
+        selectedReason.code,
         description.trim() || undefined,
       );
 
@@ -69,6 +72,11 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   };
 
   // HANDLERS
+  const onSelectReason = (reason: ReportReasonType) => {
+    setSelectedReason(reason);
+    setDescription('');
+  };
+
   const openSuccessModal = (msg: string) => {
     setSuccessMsg(msg);
     setShowSuccessModal(true);
@@ -109,20 +117,13 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   };
 
   // CHECK
-  const isOtherReason = liveSessionIdParam && selectedOption === 6;
+  const isOtherReason = !!selectedReason?.requiresDescription;
   const isValid =
-    selectedOption > 0 && (!isOtherReason || description.trim().length > 0);
-
+    !!selectedReason && (!isOtherReason || description.trim().length > 0);
   // USE EFFECT
   useEffect(() => {
-    setOptions(
-      selectedCoachId
-        ? COACH_OPTIONS
-        : selectedExerciseId
-          ? VIDEO_OPTIONS
-          : LIVESESSION_OPTIONS,
-    );
-  }, [selectedCoachId, selectedExerciseId]);
+    fetchReasons();
+  }, []);
 
   useEffect(() => {
     if (!isOtherReason) {
@@ -131,11 +132,11 @@ export const useTraineeReport = ({ route, navigation }: Props) => {
   }, [isOtherReason]);
 
   return {
-    options,
+    reasons,
+    selectedReason,
+    onSelectReason,
     onPressSubmit,
     isValid,
-    selectedOption,
-    setSelectedOption,
     showSuccessModal,
     successMsg,
     closeSuccessModal,

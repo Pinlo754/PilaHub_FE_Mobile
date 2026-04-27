@@ -13,6 +13,7 @@ type Props = {
   workoutHistory?: WorkoutSessionType[];
   canPlayTheory: boolean;
   fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
+  isFromList: boolean;
 };
 
 const Description = ({
@@ -21,6 +22,7 @@ const Description = ({
   workoutHistory = [],
   canPlayTheory,
   fetchAISummary,
+  isFromList,
 }: Props) => {
   // USE REF
   const scrollRef = useRef<ScrollView>(null);
@@ -72,7 +74,11 @@ const Description = ({
                 size={24}
                 color={colors.foreground}
               />
-              <Text className="text-foreground font-semibold">Lịch sử tập</Text>
+              <Text className="text-foreground font-semibold">
+                {isFromList
+                  ? 'Lịch sử tập trong khóa học'
+                  : 'Lịch sử tập buổi lẻ'}
+              </Text>
             </View>
 
             {/* Table */}

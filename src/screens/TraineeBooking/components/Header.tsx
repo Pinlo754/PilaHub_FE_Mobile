@@ -31,12 +31,12 @@ const Header = ({ navigation, openReportList }: Props) => {
         Gọi video
       </Text>
 
-      <Pressable
+      {/* <Pressable
         className="absolute top-1 right-4 z-10"
         onPress={openReportList}
       >
         <Ionicons name="flag-outline" size={24} color={colors.foreground} />
-      </Pressable>
+      </Pressable> */}
     </View>
   );
 };

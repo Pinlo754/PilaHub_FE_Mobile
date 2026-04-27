@@ -18,10 +18,10 @@ export const formatShortVND = (value: number): string => {
   if (billion > 0) {
     result += `${billion}t`;
     if (million > 0) result += `${million.toString().padStart(3, '0')}tr`;
-    if (thousand > 0) result += `${thousand.toString().padStart(3, '0')}k`;
+    if (thousand > 0) result += `${thousand.toString().padStart(3, '0')}`;
   } else if (million > 0) {
     result += `${million}tr`;
-    if (thousand > 0) result += `${thousand.toString().padStart(3, '0')}k`;
+    if (thousand > 0) result += `${thousand.toString().padStart(3, '0')}`;
   } else if (thousand > 0) {
     result += `${thousand}k`;
   } else {
