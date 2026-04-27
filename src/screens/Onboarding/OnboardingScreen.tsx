@@ -12,7 +12,18 @@ import InjuryUI from './steps/injury/Injury.ui'
 import InformationUI from './steps/infor/Information.ui'
 import { submitTraineeProfile } from '../../services/profile';
 import LoadingOverlay from '../../components/LoadingOverlay';
-import { Alert } from 'react-native';
+import ModalPopup from '../../components/ModalPopup';
+import Toast from '../../components/Toast';
+
+type ModalState = {
+  visible: boolean;
+  mode: 'noti' | 'toast' | 'confirm';
+  title?: string;
+  message: string;
+  iconName?: string;
+  iconBgColor?: any;
+};
+
 const STEPS = [
   GenderUI,
   AgeUI,
@@ -32,6 +43,13 @@ const OnboardingScreen = () => {
   const [creatingTrainee, setCreatingTrainee] = useState(false);
   const prevStepRef = useRef<number>(step);
   const INJURY_STEP = STEPS.indexOf(InjuryUI);
+
+  // modal state for inline errors and toast — declare before effects to keep hooks order stable
+  const [modalState, setModalState] = useState<ModalState>({ visible: false, mode: 'noti', message: '' });
+  // use existing Toast component for lightweight success messages
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success'|'error'|'info'>('success');
 
   useEffect(() => {
     loadOnboarding().then((saved) => {
@@ -84,10 +102,12 @@ const OnboardingScreen = () => {
             // build user-friendly messages and navigate to first missing step
             const labels: Record<string, string> = { gender: 'Giới tính', age: 'Tuổi', fullName: 'Họ và tên', workoutLevel: 'Mức độ tập luyện', workoutFrequency: 'Tần suất tập luyện' };
             const msgs = missingFields.map((f) => `${labels[f] ?? f} bị thiếu`).join('\n');
-            try { Alert.alert('Thiếu thông tin bắt buộc', msgs, [{ text: 'OK' }]); } catch {}
+            try { /* show modal instead of Alert */ } catch {}
             const first = missingFields[0];
             const targetStep = FIELD_TO_STEP[first] ?? 0;
             try { setStep(targetStep); } catch {}
+            // show modal with missing fields
+            setModalState({ visible: true, mode: 'noti', title: 'Thiếu thông tin bắt buộc', message: msgs, iconName: 'warning', iconBgColor: 'yellow' });
             return;
           }
 
@@ -100,25 +120,28 @@ const OnboardingScreen = () => {
 
             // nicer success popup
             try {
-              Alert.alert('Tạo hồ sơ thành công', 'Hồ sơ cá nhân đã được lưu. Mời bạn tiếp tục chọn chấn thương.', [{ text: 'Tiếp tục' }]);
+              setToastMsg('Đã lưu hồ sơ');
+              setToastType('success');
+              setToastVisible(true);
             } catch {}
           } else {
             // parse validation details first
             const details = parseValidationDetails(res.error);
             if (details.length > 0) {
               const first = details[0];
-              try { Alert.alert('Lỗi xác thực', `${first.field}: ${first.message}`, [{ text: 'OK' }]); } catch {}
+              try { /* show validation modal inline */ } catch {}
               const targetStep = FIELD_TO_STEP[first.field] ?? prev;
               try { setStep(targetStep); } catch {}
+              setModalState({ visible: true, mode: 'noti', title: 'Lỗi xác thực', message: `${first.field}: ${first.message}`, iconName: 'alert-circle', iconBgColor: 'red' });
             } else {
               const friendly = extractApiErrorMessage(res.error);
               const low = (friendly || '').toLowerCase();
 
               // treat "already exists" as non-blocking: show friendly notice and allow continue
               if (low.includes('already exist') || low.includes('already exists') || low.includes('exists')) {
-                try { Alert.alert('Hồ sơ đã tồn tại', 'Hồ sơ cá nhân đã tồn tại cho tài khoản này. Bạn có thể tiếp tục.', [{ text: 'Tiếp tục' }]); } catch {}
+                try { setModalState({ visible: true, mode: 'noti', title: 'Hồ sơ đã tồn tại', message: 'Hồ sơ cá nhân đã tồn tại cho tài khoản này. Bạn có thể tiếp tục.', iconName: 'information-circle', iconBgColor: 'grey' }); } catch {}
               } else {
-                try { Alert.alert('Lỗi khi tạo hồ sơ', friendly, [{ text: 'OK' }]); } catch {}
+                try { setModalState({ visible: true, mode: 'noti', title: 'Lỗi khi tạo hồ sơ', message: friendly, iconName: 'alert-circle', iconBgColor: 'red' }); } catch {}
                 try { setStep(prev); } catch {}
               }
             }
@@ -127,12 +150,13 @@ const OnboardingScreen = () => {
           const details = parseValidationDetails(err);
           if (details.length > 0) {
             const first = details[0];
-            try { Alert.alert('Lỗi xác thực', `${first.field}: ${first.message}`, [{ text: 'OK' }]); } catch {}
+            try { /* show validation modal */ } catch {}
             const targetStep = FIELD_TO_STEP[first.field] ?? prev;
             try { setStep(targetStep); } catch {}
+            setModalState({ visible: true, mode: 'noti', title: 'Lỗi xác thực', message: `${first.field}: ${first.message}`, iconName: 'alert-circle', iconBgColor: 'red' });
           } else {
             const friendly = extractApiErrorMessage(err);
-            try { Alert.alert('Lỗi', `Không thể tạo hồ sơ: ${friendly}`, [{ text: 'OK' }]); } catch {}
+            try { setModalState({ visible: true, mode: 'noti', title: 'Lỗi', message: `Không thể tạo hồ sơ: ${friendly}`, iconName: 'alert-circle', iconBgColor: 'red' }); } catch {}
             try { setStep(prev); } catch {}
           }
         } finally {
@@ -144,6 +168,8 @@ const OnboardingScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, data]);
 
+  const closeModal = () => setModalState((s: ModalState) => ({ ...s, visible: false }));
+
   if (!StepComponent) {
     // avoid rendering undefined component
     return null;
@@ -153,6 +179,13 @@ const OnboardingScreen = () => {
   <SafeAreaView className='flex-1 bg-background justify-center items-center px-6'>
     <StepComponent />
     {creatingTrainee ? <LoadingOverlay /> : null}
+    <ModalPopup
+      {...(modalState as any)}
+      titleText={modalState.title}
+      contentText={modalState.message}
+      onClose={closeModal}
+    />
+    <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
   </SafeAreaView>
   )
 }
@@ -216,7 +249,7 @@ function extractApiErrorMessage(err: any): string {
         if (d.error) return String(d.error);
       }
     }
-  } catch (e) {
+  } catch {
     // fallback
   }
   try { return String(JSON.stringify(err)); } catch { return 'Lỗi không xác định'; }

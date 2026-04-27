@@ -23,6 +23,7 @@ export default function WeightUI() {
     onMomentumEnd,
     onNext,
     onBack,
+    canContinue,
   } = useWeightLogic()
 
   return (
@@ -137,7 +138,8 @@ export default function WeightUI() {
       <View className="flex-1 justify-end mb-8">
         <Pressable
           onPress={onNext}
-          className="h-14 rounded-xl bg-foreground items-center justify-center"
+          disabled={!canContinue}
+          className={`h-14 rounded-xl ${!canContinue ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
         >
           <Text className="text-white font-semibold text-lg">
             Tiếp tục

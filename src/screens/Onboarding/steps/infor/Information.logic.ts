@@ -16,13 +16,16 @@ export const useInformationLogic = () => {
   const [fullName, setFullName] = useState(data.fullName ?? '');
   const [email, setEmail] = useState(data.email ?? '');
   const [phone, setPhone] = useState(data.phone ?? '');
+  // fields are persisted into onboarding store; submission is handled by OnboardingScreen
 
   // keep local state in sync when store changes elsewhere
   useEffect(() => {
     if ((data.avatar ?? null) !== (avatar ?? null)) setAvatar(data.avatar);
-    if ((data.fullName ?? '') !== fullName) setFullName(data.fullName ?? '');
-    if ((data.email ?? '') !== email) setEmail(data.email ?? '');
-    if ((data.phone ?? '') !== phone) setPhone(data.phone ?? '');
+    // only sync fields that are explicitly present in the store to avoid
+    // clobbering local edits when another part writes a partial update (e.g. avatar)
+    if (typeof data.fullName !== 'undefined' && (data.fullName ?? '') !== fullName) setFullName(data.fullName ?? '');
+    if (typeof data.email !== 'undefined' && (data.email ?? '') !== email) setEmail(data.email ?? '');
+    if (typeof data.phone !== 'undefined' && (data.phone ?? '') !== phone) setPhone(data.phone ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.avatar, data.fullName, data.email, data.phone]);
 
@@ -109,14 +112,14 @@ export const useInformationLogic = () => {
   const lastPickRef = useRef<number>(0);
 
   const onNext = () => {
-    // persist current form into onboarding store immediately
+    // persist current form into onboarding store immediately; actual trainee creation
+    // will be performed by OnboardingScreen when entering the Injury step
     setData({
       avatar,
       fullName,
       email,
       phone,
     });
-    // advance step
     setStep(step + 1);
   };
 

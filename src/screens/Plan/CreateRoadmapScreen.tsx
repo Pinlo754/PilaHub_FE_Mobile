@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import axios from '../../hooks/axiosInstance';
@@ -8,6 +8,7 @@ import { useRoadmapStore } from '../../store/roadmap.store';
 import GoalPicker from './components/GoalPicker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Calendar } from 'react-native-calendars';
+import ModalPopup from '../../components/ModalPopup';
 
 const WEEKDAY_LABELS_VN: Record<string, string> = {
   MONDAY: 'Thứ 2',
@@ -39,16 +40,20 @@ const CreateRoadmapScreen: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // modal props for confirmations/notifications
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
+  const showModal = (p: any) => setModalProps({ ...p, visible: true });
+
   const toggleDay = (d: string) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d]);
 
   const onSubmit = async () => {
     console.log('CreateRoadmap onSubmit invoked, primaryGoalId:', primaryGoalIdState, 'workoutLevel:', workoutLevel, 'startDate:', startDate);
     if (!primaryGoalIdState) {
-      Alert.alert('Lỗi', 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.');
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.' });
       return;
     }
     if (trainingDays.length === 0) {
-      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một ngày trong tuần để tập luyện.');
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Vui lòng chọn ít nhất một ngày trong tuần để tập luyện.' });
       return;
     }
     setSubmitting(true);
@@ -115,8 +120,23 @@ const CreateRoadmapScreen: React.FC = () => {
 
     } catch (err: any) {
       console.error('CreateRoadmap error:', err);
-      const message = err?.response?.data?.message || err?.message || 'Tạo lộ trình thất bại.';
-      Alert.alert('Lỗi', message);
+      const isServerError = err?.response?.status === 500;
+      if (isServerError) {
+        // AI busy: allow retry or cancel
+        showModal({
+          mode: 'confirm',
+          titleText: 'AI đang bận',
+          contentText: 'AI đang bận vui lòng thử lại sau',
+          onConfirm: async () => {
+            setModalProps({ visible: false });
+            try { await onSubmit(); } catch { /* ignore */ }
+          },
+          onCancel: () => setModalProps({ visible: false })
+        });
+      } else {
+        const message = err?.response?.data?.message || err?.message || 'Tạo lộ trình thất bại.';
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: message });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -193,6 +213,7 @@ const CreateRoadmapScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <ModalPopup {...(modalProps as any)} />
     </SafeAreaView>
   );
 };

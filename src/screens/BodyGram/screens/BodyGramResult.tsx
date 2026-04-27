@@ -6,8 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from '../../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { useOnboardingStore } from '../../../store/onboarding.store';
-import { submitHealthProfile, submitPersonalInjuries } from '../../../services/profile';
+import { submitHealthProfile } from '../../../services/profile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyGramResult'>;
 
@@ -27,7 +26,6 @@ function gToKg(g?: number | null) {
 export default function BodyGramResult({ route, navigation: _navigation }: Props) {
   const nav = useNavigation();
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
-  const onboarding = useOnboardingStore((s) => s.data);
   const [saving, setSaving] = useState(false);
 
   // DEBUG: log incoming route params and parsed result to help investigate missing measurements
@@ -369,10 +367,9 @@ export default function BodyGramResult({ route, navigation: _navigation }: Props
                 // 1) Create trainee profile skipped for InBodyResult (skipCreateTrainee: true)
                 try {
                   // best-effort: don't create trainee here
-                } catch (e) { /* noop */ }
+                } catch { /* noop */ }
 
-                // 2) Submit personal injuries (best-effort)
-                try { await submitPersonalInjuries(onboarding); } catch { console.warn('submitPersonalInjuries fail'); }
+                // 2) Submit personal injuries (removed - not needed here)
 
                 // 3) Submit health profile
                 const hRes = await submitHealthProfile(bodyGramForApi, 'InBody');

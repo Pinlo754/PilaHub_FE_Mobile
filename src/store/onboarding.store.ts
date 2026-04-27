@@ -17,6 +17,7 @@ export type OnboardingData = {
   // body measurement fields (optional) — added so screens can store measurements
   shoulder?: number; // vai
   waist?: number;    // eo
+  bust?: number;
   hip?: number;      // hông
   thigh?: number;    // đùi
   bicep?: number;    // bắp tay

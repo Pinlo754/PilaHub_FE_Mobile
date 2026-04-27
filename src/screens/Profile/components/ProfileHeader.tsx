@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, Image, Text, View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { Pressable, Image, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { fetchMyWallet, openMyWallet } from '../../../services/wallet';
 import { getMyActiveSubscription } from '../../../hooks/apiClient';
+import ModalPopup from '../../../components/ModalPopup';
 
 type Props = {
   profile: any;
@@ -28,6 +29,9 @@ export default function ProfileHeader({ profile, onEdit, onAvatarPress, onAvatar
 
   // state for opening wallet action
   const [openingWallet, setOpeningWallet] = useState<boolean>(false);
+  const [modalProps, setModalProps] = useState<any>({ visible: false, mode: 'noti' });
+
+  const showModal = (props: any) => setModalProps({ ...props, visible: true });
 
   const handleOpenWallet = async () => {
     setOpeningWallet(true);
@@ -41,13 +45,13 @@ export default function ProfileHeader({ profile, onEdit, onAvatarPress, onAvatar
         } catch (e) {
           console.warn('reload wallet after open failed', e);
         }
-        Alert.alert('Thành công', 'Ví đã được mở');
+        showModal({ mode: 'noti', titleText: 'Thành công', contentText: 'Ví đã được mở', onClose: () => setModalProps({ ...modalProps, visible: false }) });
       } else {
-        Alert.alert('Lỗi', res.error?.message || 'Không thể mở ví');
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: res.error?.message || 'Không thể mở ví', onClose: () => setModalProps({ ...modalProps, visible: false }) });
       }
     } catch (e) {
       console.warn('openMyWallet failed', e);
-      Alert.alert('Lỗi', 'Có lỗi khi mở ví');
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Có lỗi khi mở ví', onClose: () => setModalProps({ ...modalProps, visible: false }) });
     } finally {
       setOpeningWallet(false);
     }
@@ -175,6 +179,7 @@ export default function ProfileHeader({ profile, onEdit, onAvatarPress, onAvatar
           )}
          </View>
        </View>
+       <ModalPopup {...(modalProps as any)} />
      </View>
    );
 }

@@ -45,8 +45,10 @@ export default function DepositWebViewScreen() {
     }
 
     const code = params.vnp_ResponseCode ?? params.vnp_TransactionStatus ?? params.RspCode ?? params.rspCode ?? params.respCode ?? params.respCode;
+    const clientHasCode = typeof code !== 'undefined' && code !== null && String(code).length > 0;
     const clientSuccess = code === '00' || code === '0' || String(code).toLowerCase() === 'success';
-    const success = backendSuccess || clientSuccess;
+    // If client provided a responseCode, treat it as authoritative: non-'00' => failure.
+    const success = clientHasCode ? clientSuccess : (backendSuccess || clientSuccess);
 
     // For debugging: log results
     console.log('[DepositWebView] VNPay callback received:', { params, success, transactionId, orderCode });
@@ -71,6 +73,19 @@ export default function DepositWebViewScreen() {
   const onNavStateChange = useCallback((navState: any) => {
     const { url } = navState;
     if (!url) return;
+
+    const lowerUrl = String(url).toLowerCase();
+    // detect explicit cancel/fail keywords in redirect URLs
+    if (lowerUrl.includes('cancel') || lowerUrl.includes('paymentfailed') || lowerUrl.includes('payment_failure') || lowerUrl.includes('vnp_transactionstatus=cancel')) {
+      try {
+        const params = parseQuery(url);
+        // navigate to fail result
+        navigation.navigate('DepositResult', { success: false, transactionId, orderCode, params });
+      } catch (e) {
+        navigation.navigate('DepositResult', { success: false });
+      }
+      return;
+    }
 
     // Fallback: if URL has query params from VNPay or MoMo
     // VNPay uses vnp_ResponseCode / vnp_TransactionStatus
@@ -130,14 +145,23 @@ export default function DepositWebViewScreen() {
         onShouldStartLoadWithRequest={(request) => {
           const url = request?.url || '';
           console.log('[DepositWebView] shouldStartLoad:', url);
+          const lower = String(url).toLowerCase();
+          if (lower.includes('cancel') || lower.includes('paymentfailed') || lower.includes('vnp_transactionstatus=cancel')) {
+            const params = parseQuery(url);
+            try {
+              navigation.navigate('DepositResult', { success: false, transactionId, orderCode, params });
+            } catch {}
+            return false;
+          }
+
           if (url.includes('vnp_ResponseCode=') || url.includes('vnp_TransactionStatus=')) {
             const params = parseQuery(url);
             handleCallbackData(params);
             // prevent WebView from navigating to the callback URL (avoids showing error page)
             return false;
           }
-          return true;
-        }}
+           return true;
+         }}
         onError={(e) => {
           console.warn('[DepositWebView] webview error', e.nativeEvent);
           try {

@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Camera, useCameraDevice, CameraPermissionStatus } from 'react-native-vision-camera';
+import { useNavigation } from '@react-navigation/native';
 import BodySilhouetteOverlay from './BodySilhouetteOverlay';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Props = {
   onCapture: (photoPath: string) => void;
@@ -12,6 +14,7 @@ export default function BodyScanCamera({ onCapture, mode }: Props) {
   
   // default to back camera for full-body shots
   const [useFront, setUseFront] = useState(false);
+  const nav = useNavigation();
   // support both shapes: devices can be array or object with front/back
   const device = useCameraDevice(useFront ? 'front' : 'back');
 
@@ -94,7 +97,15 @@ export default function BodyScanCamera({ onCapture, mode }: Props) {
   }
 
   return (
-    <View className="flex-1 bg-black">
+    <SafeAreaView className="flex-1 bg-black">
+      {/* back button */}
+      <Pressable
+        onPress={() => (nav as any).canGoBack ? (nav as any).goBack() : null}
+        className="absolute top-6 left-4 z-50 bg-white/20 px-3 py-2 rounded-xl"
+      >
+        <Text className="text-white">← Quay lại</Text>
+      </Pressable>
+
       <Camera
         ref={cameraRef}
         style={{ flex: 1 }}
@@ -148,6 +159,6 @@ export default function BodyScanCamera({ onCapture, mode }: Props) {
           {countdown > 0 ? `Tự động chụp sau ${countdown}s` : `Nhấn để chụp ảnh ${mode === 'front' ? 'mặt trước' : 'bên hông'}`}
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
 import { fetchInjuries, submitPersonalInjuries } from '../../../../services/profile';
 import { Alert } from 'react-native';
@@ -19,6 +19,13 @@ export const useInjuryLogic = () => {
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
+  // modal state for errors
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalIconName, setModalIconName] = useState<string | undefined>(undefined);
+  const [modalIconBg, setModalIconBg] = useState<'grey'|'red'|'green'|'blue'|'yellow'>('red');
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info', duration = 3000) => {
     setToastMsg(message);
     setToastType(type);
@@ -29,6 +36,14 @@ export const useInjuryLogic = () => {
       }, duration);
     }
   };
+
+  const showModal = useCallback((title: string, message: string, iconName?: string, iconBg: 'grey'|'red'|'green'|'blue'|'yellow' = 'red') => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalIconName(iconName);
+    setModalIconBg(iconBg);
+    setModalVisible(true);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -82,7 +97,7 @@ export const useInjuryLogic = () => {
   };
 
   const onNext = async () => {
-    if (!selected || selected.length === 0) return Alert.alert('Vui lòng chọn chấn thương hoặc bỏ qua');
+    if (!selected || selected.length === 0) return showModal('Thiếu thông tin', 'Vui lòng chọn chấn thương hoặc bỏ qua', 'warning', 'yellow');
     try {
       setLoading(true);
 
@@ -101,17 +116,18 @@ export const useInjuryLogic = () => {
         } else {
           console.warn('submitPersonalInjuries immediate returned error', injRes.error);
           const msg = typeof injRes.error === 'string' ? injRes.error : JSON.stringify(injRes.error);
-          showToast(`Lỗi khi lưu chấn thương: ${msg}`, 'error', 5000);
+          // show modal on error
+          showModal('Lỗi khi lưu chấn thương', String(msg), 'alert-circle', 'red');
         }
       } catch (e) {
         console.warn('submitPersonalInjuries immediate thrown', e);
-        showToast('Không thể lưu chấn thương. Vui lòng thử lại sau.', 'error');
+        showModal('Lỗi', 'Không thể lưu chấn thương. Vui lòng thử lại sau.', 'alert-circle', 'red');
       }
 
       setStep(step + 1);
     } catch (e) {
       console.log('Error saving personal injury locally', e);
-      Alert.alert('Lỗi', 'Có lỗi xảy ra. Vui lòng thử lại.');
+      showModal('Lỗi', 'Có lỗi xảy ra. Vui lòng thử lại.', 'alert-circle', 'red');
     } finally {
       setLoading(false);
     }
@@ -136,5 +152,12 @@ export const useInjuryLogic = () => {
     toastMsg,
     toastType,
     setToastVisible,
+    // modal state for UI
+    modalVisible,
+    modalTitle,
+    modalMessage,
+    modalIconName,
+    modalIconBg,
+    setModalVisible,
   };
 };

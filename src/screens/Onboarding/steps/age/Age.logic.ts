@@ -36,7 +36,7 @@ export const useAgeLogic = () => {
           // fallback to scrollToOffset
           listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_WIDTH, animated: false });
         }
-      } catch (err) {
+      } catch {
         // ignore index errors (may occur if list not yet populated)
         // fallback to offset after small delay
         setTimeout(() => {
@@ -64,7 +64,8 @@ export const useAgeLogic = () => {
   const onNext = () => setStep(step + 1);
   const onBack = () => step > 0 && setStep(step - 1);
 
-  const canContinue = selectedAge != null;
+  // only allow continue when age has been saved into onboarding store (persisted)
+  const canContinue = typeof data.age === 'number' && !isNaN(data.age);
 
   return {
     ages,
