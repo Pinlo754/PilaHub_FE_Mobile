@@ -79,6 +79,7 @@ const OverviewSection = ({
           onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
           activePackage={activePackage}
+          haveAIsupported={exerciseDetail.haveAIsupported}
         />
       )}
     </View>

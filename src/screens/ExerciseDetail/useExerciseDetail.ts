@@ -156,9 +156,10 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const payload: WorkoutExerciseReq = {
         exerciseId: id,
         haveAITracking: true,
-        haveIOTDeviceTracking: false,
+        haveIOTDeviceTracking: true,
       };
 
+      console.log('startWorkoutExerciseAI payload', payload);
       const res = await workoutSessionService.startFreeWorkout(payload);
 
       setWorkoutSession(res);
@@ -386,6 +387,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       imgUrl: exerciseDetail.imageUrl,
       videoUrl: tutorial.practiceVideoUrl,
       workoutSessionId: session.workoutSessionId,
+      nameAITracking: exerciseDetail.nameInModelAI || "",
     });
   };
 

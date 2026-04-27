@@ -50,11 +50,13 @@ const VideoCall = (props: Props) => {
     route: props.route,
   });
 
+  
   // HEART RATE INTEGRATION
   const [role, setRole] = React.useState<string | null>(null);
   // trainee visible bpm for manual send
   const [traineeBpm, setTraineeBpm] = React.useState<number | null>(null);
   const [lastSentAt, setLastSentAt] = React.useState<number | null>(null);
+  
 
   // simple throttle without external deps
   const bleThrottleRef = React.useRef<{ last: number }>({ last: 0 });
@@ -97,7 +99,7 @@ const VideoCall = (props: Props) => {
       );
     }
   }, [latestHeartRate]);
-
+  
   React.useEffect(() => {
     let unsub: (() => void) | null = null;
     let mounted = true;
@@ -115,10 +117,11 @@ const VideoCall = (props: Props) => {
         // derive backend base from axios instance if available
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const api = require('../../hooks/axiosInstance').default;
+        const endId = id ? id.replace(/^"|"$/g, '') : null;
         const base = api?.defaults?.baseURL
           ? String(api.defaults.baseURL).replace(/\/api\/?$/, '')
-          : 'http://localhost:8080';
-        const wsUrl = `${base}/ws/heartrate`;
+          : 'http://192.168.2.242:8080';
+        const wsUrl = `http://192.168.2.242:8080/ws/heartrate`;
 
         hrConnect({ url: wsUrl, token: token ?? undefined, useSockJS: true });
 
@@ -156,10 +159,10 @@ const VideoCall = (props: Props) => {
       mounted = false;
       try {
         if (unsub) unsub();
-      } catch {}
+      } catch { }
       try {
         hrDisconnect();
-      } catch {}
+      } catch { }
     };
   }, [liveSessionDetail, hrConnect, hrDisconnect, subscribeToCoach]);
 
@@ -167,23 +170,39 @@ const VideoCall = (props: Props) => {
   const handleBleHr = React.useCallback(
     (bpm: number) => {
       console.log('[VideoCall] BLE heart rate received:', bpm);
+
       if (!bpm || role === 'COACH') return;
+
+      // Vẫn cập nhật UI cho Trainee thấy bpm hiện tại
       setTraineeBpm(bpm);
+
       const now = Date.now();
       if (now - bleThrottleRef.current.last < 1000) return; // 1s throttle
       bleThrottleRef.current.last = now;
+
+      // Kiểm tra xem đã có liveSessionId chưa
       const liveId = liveSessionDetail?.liveSessionId ?? '';
-      if (!liveId) return;
+      if (!liveId) {
+        console.warn('[VideoCall] Bỏ qua gửi HR: Chưa có liveSessionId');
+        return;
+      }
+
+      // Kiểm tra xem WebSocket đã sẵn sàng chưa
+      if (!hrIsConnected) {
+        console.warn('[VideoCall] Bỏ qua gửi HR: WebSocket chưa kết nối');
+        return;
+      }
+
       try {
+        console.log(`[VideoCall] Đang gửi HR: ${bpm} cho session: ${liveId}`);
         sendHeartRate({ liveSessionId: liveId, heartRate: bpm });
         setLastSentAt(Date.now());
-      } catch {}
+      } catch (error) {
+        console.error('[VideoCall] Bị lỗi trong quá trình sendHeartRate:', error);
+      }
     },
-    [role, liveSessionDetail, sendHeartRate],
+    [role, liveSessionDetail, sendHeartRate, hrIsConnected], // <-- Đừng quên thêm hrIsConnected
   );
-
-  // add simulator state
-  const [simInput, setSimInput] = React.useState<string>('');
 
   // Separate views for clarity
   const CoachView = () => (

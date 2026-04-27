@@ -211,6 +211,7 @@ const ListChatScreen = ({ navigation }: any) => {
         onPress={() => navigation.navigate('ChatScreen', {
           receiverId: item.otherUserId,
           receiverName: userInfo.fullName,
+          receiverAvatar: userInfo.avatarUrl,
           conversationId: item.conversationId
         })}
         className="flex-row items-center px-4 py-4 bg-white border-b border-gray-50"
@@ -218,7 +219,7 @@ const ListChatScreen = ({ navigation }: any) => {
         {/* Avatar */}
         <View>
           <Image
-            source={{ uri: userInfo.avatarUrl || 'https://via.placeholder.com/100' }}
+            source={{ uri: userInfo.avatarUrl || 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png?_=20150327203541' }}
             className="w-14 h-14 rounded-full bg-gray-200"
           />
           {item.unreadCount > 0 && (

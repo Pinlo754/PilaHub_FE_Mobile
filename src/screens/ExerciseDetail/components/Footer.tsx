@@ -6,14 +6,15 @@ type Props = {
   onPress: () => void;
   onPressAIPractice: () => void;
   activePackage: PackageType | null;
+  haveAIsupported: boolean;
 };
 
-const Footer = ({ onPress, onPressAIPractice, activePackage }: Props) => {
+const Footer = ({ onPress, onPressAIPractice, activePackage, haveAIsupported }: Props) => {
   const isVip = activePackage === PackageType.VIP_MEMBER;
 
   return (
     <>
-      {isVip ? (
+      {isVip && haveAIsupported ? (
         <View className="pt-2 flex-row justify-between">
           <View className="w-[46%]">
             <Button
