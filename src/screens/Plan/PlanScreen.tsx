@@ -3,7 +3,6 @@ import {
   ScrollView,
   Text,
   View,
-  Alert,
   StyleSheet,
   Modal,
 } from "react-native";
@@ -19,6 +18,7 @@ import StageCarousel from "./components/StageCarousel";
 import axios from "../../hooks/axiosInstance";
 import { getProfile } from "../../services/auth";
 import StageRendererApi from "./components/StageRendererApi";
+import ModalPopup from "../../components/ModalPopup";
 
 const PlanScreen = () => {
   const route: any = useRoute();
@@ -92,6 +92,9 @@ const PlanScreen = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
+  const showModal = (opts: any) => setModalProps({ visible: true, ...opts });
+  const closeModal = () => setModalProps({ visible: false });
   const nav: any = useNavigation();
 
   const handleSelectDate = (date: string | null) => {
@@ -131,11 +134,15 @@ const PlanScreen = () => {
         : null;
 
       if (role === "COACH") {
-        Alert.alert(
-          "Chú ý",
-          "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi lưu lộ trình."
-        );
-        setSaving(false);
+        showModal({
+          titleText: "Chú ý",
+          contentText: "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi lưu lộ trình.",
+          mode: "noti",
+          onClose: () => {
+            setSaving(false);
+            closeModal();
+          },
+        });
         return;
       }
 
@@ -148,9 +155,15 @@ const PlanScreen = () => {
       const secondaryGoalIds = paramAdded?.secondaryGoalIds ?? roadmap?.secondaryGoalIds ?? null;
 
       if (!primaryGoalId) {
-        // avoid server validation error and guide user to set primary goal
-        Alert.alert('Thiếu mục tiêu chính', 'Vui lòng chọn mục tiêu chính trước khi lưu lộ trình lên server.');
-        setSaving(false);
+        showModal({
+          titleText: 'Thiếu mục tiêu chính',
+          contentText: 'Vui lòng chọn mục tiêu chính trước khi lưu lộ trình lên server.',
+          mode: 'noti',
+          onClose: () => {
+            setSaving(false);
+            closeModal();
+          },
+        });
         return;
       }
 
@@ -173,14 +186,30 @@ const PlanScreen = () => {
         createdAt: Date.now(),
       });
 
-      Alert.alert("Thành công", "Lộ trình đã được lưu.", [
-        { text: 'OK', onPress: () => { (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Roadmap' } }] }); } }
-      ]);
+      const goToRoadmap = () => {
+        closeModal();
+        (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Roadmap' } }] });
+      };
+
+      showModal({
+        titleText: "Thành công",
+        contentText: "Lộ trình đã được lưu.",
+        mode: "noti",
+        onConfirm: goToRoadmap,
+        onClose: goToRoadmap,
+      });
     } catch (e: any) {
       console.error("Save roadmap error:", e);
       const message =
         e?.response?.data?.message || e?.message || "Không thể lưu lộ trình.";
-      Alert.alert("Lưu thất bại", message);
+      showModal({
+        titleText: "Lưu thất bại",
+        contentText: message,
+        mode: "noti",
+        onClose: () => {
+          closeModal();
+        },
+      });
     } finally {
       setSaving(false);
     }
@@ -236,7 +265,7 @@ const PlanScreen = () => {
                 </View>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                   {selectedSchedule ? (
-                    <ScheduleDetail schedule={selectedSchedule} />
+                    <ScheduleDetail schedule={selectedSchedule} isPreview={Boolean(paramAdded)} onVideoModalChange={() => {}} />
                   ) : (
                     <View style={styles.emptyModalContent}>
                       <Text style={styles.modalEmptyTitle}>Không có lịch cho ngày này.</Text>
@@ -254,6 +283,19 @@ const PlanScreen = () => {
       </ScrollView>
 
       <BottomActionBar onSave={handleSaveToServer} saving={saving} />
+
+      {/* ModalPopup: use modalProps to show notifications / confirmations */}
+      {modalProps?.visible ? (
+        <ModalPopup
+          visible={modalProps.visible}
+          titleText={modalProps.titleText}
+          contentText={modalProps.contentText}
+          mode={modalProps.mode}
+          onConfirm={() => { modalProps.onConfirm?.(); }}
+          onCancel={() => { modalProps.onCancel?.(); closeModal(); }}
+          onClose={() => { modalProps.onClose?.(); closeModal(); }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 };

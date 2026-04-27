@@ -345,7 +345,7 @@ const UpgradePlanScreen: React.FC = () => {
               const translateY = scrollX.interpolate({ inputRange, outputRange: [14, 0, 14], extrapolate: 'clamp' });
               const opacity = scrollX.interpolate({ inputRange, outputRange: [0.6, 1, 0.6], extrapolate: 'clamp' });
 
-              // More robust ownership detection: prefer explicit packageId, fall back to packageType, or local _owned flag
+              // More robust ownership detection: prefer explicit packageId or local _owned flag
               const subscribedPkg = activeSubscription?.subscribedPackage ?? activeSubscription;
               const subPkgId = subscribedPkg?.packageId ?? subscribedPkg?.id ?? null;
 
