@@ -21,9 +21,13 @@ type Props = {
   workoutHistory: WorkoutSessionType[];
   canPlayTheory: boolean;
   fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
+  hasAccess: boolean;
+  isFromList: boolean;
+  isFromSearch: boolean;
 };
 
 const OverviewSection = ({
+  hasAccess,
   activeTab,
   exerciseDetail,
   onChangeTab,
@@ -37,16 +41,19 @@ const OverviewSection = ({
   workoutHistory,
   canPlayTheory,
   fetchAISummary,
+  isFromList,
+  isFromSearch,
 }: Props) => {
   return (
     <View
-      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${!canPlayTheory || isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
+      className={`absolute px-4 pb-6 w-full bottom-0 flex bg-background ${isPracticeTab ? 'h-[55%] rounded-t-3xl' : 'h-[50%]'}`}
     >
       {/* Play Button */}
-      {!isPracticeTab && canPlayTheory && (
+      {!isPracticeTab && (
         <PlayButton
           isVideoPlay={isVideoPlay}
           togglePlayButton={togglePlayButton}
+          hasAccess={hasAccess}
         />
       )}
 
@@ -71,6 +78,7 @@ const OverviewSection = ({
         workoutHistory={workoutHistory}
         canPlayTheory={canPlayTheory}
         fetchAISummary={fetchAISummary}
+        isFromList={isFromList}
       />
 
       {/* Btn */}
@@ -79,6 +87,9 @@ const OverviewSection = ({
           onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
           activePackage={activePackage}
+          hasAccess={hasAccess}
+          isFromList={isFromList}
+          isFromSearch={isFromSearch}
         />
       )}
     </View>

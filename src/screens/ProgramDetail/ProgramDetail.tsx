@@ -42,6 +42,8 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     progressOfCourse,
     completedLessonIds,
     activePackage,
+    source,
+    onPressBack,
   } = useProgramDetail({
     route,
     navigation,
@@ -58,7 +60,7 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
   return (
     <View className="w-full flex-1 bg-background">
       {/* Header */}
-      <Header navigation={navigation} />
+      <Header navigation={navigation} onPressBack={onPressBack} />
       <ImageProgram
         imgUrl={programDetail.imageUrl}
         programName={programDetail.name}
@@ -81,6 +83,8 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         traineeCourseId={traineeCourseId}
         completedLessonIds={completedLessonIds}
         activePackage={activePackage}
+        source={source}
+        programId={programDetail.courseId}
       />
 
       {!isEnrolled ? (

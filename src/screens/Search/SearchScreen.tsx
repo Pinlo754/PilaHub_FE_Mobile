@@ -11,7 +11,7 @@ import FilterModal from './components/FilterModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
-const SearchScreen: React.FC<Props> = ({ navigation }) => {
+const SearchScreen: React.FC<Props> = ({ navigation, route }) => {
   // HOOK
   const {
     activeTab,
@@ -25,7 +25,8 @@ const SearchScreen: React.FC<Props> = ({ navigation }) => {
     searchQuery,
     isFilterVisible,
     isSearching,
-  } = useSearchScreen();
+    onPressBack,
+  } = useSearchScreen({ route, navigation });
 
   return (
     <>
@@ -38,6 +39,7 @@ const SearchScreen: React.FC<Props> = ({ navigation }) => {
           searchQuery={searchQuery}
           onSearch={handleSearch}
           onOpenFilter={() => setIsFilterVisible(true)}
+          onPressBack={onPressBack}
         />
 
         {/* Tabs */}

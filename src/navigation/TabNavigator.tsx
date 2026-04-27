@@ -32,7 +32,7 @@ const TabNavigator: React.FC = () => {
           tabBarStyle: {
             height: 80,
             position: 'absolute',
-            backgroundColor: colors.background.DEFAULT,
+            backgroundColor: 'transparent',
             elevation: 0,
             shadowColor: 'transparent',
             borderTopWidth: 0,
@@ -77,7 +77,7 @@ const TabNavigator: React.FC = () => {
             tabBarButton: RenderCenterTabBtn,
           }}
         />
-            <Tab.Screen
+        <Tab.Screen
           name="Shop"
           component={ShopScreen}
           options={{
@@ -93,7 +93,6 @@ const TabNavigator: React.FC = () => {
             tabBarIcon: TabIcon('person-circle-outline', 'person-circle', 28),
           }}
         />
-    
       </Tab.Navigator>
     </AppLayout>
   );

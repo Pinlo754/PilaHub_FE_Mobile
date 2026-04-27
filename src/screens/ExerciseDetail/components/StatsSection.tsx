@@ -11,6 +11,8 @@ type Props = {
   isVideoPlay: boolean;
   togglePlayButton: () => void;
   exerciseDuration: number;
+  exerciseTimeLeft: number;
+  isExerciseRunning: boolean;
 };
 
 const StatsSection = ({
@@ -19,6 +21,7 @@ const StatsSection = ({
   isVideoPlay,
   togglePlayButton,
   exerciseDuration,
+  exerciseTimeLeft,
 }: Props) => {
   // STATE
   const [remainingTime, setRemainingTime] = useState(exerciseDuration);
@@ -48,10 +51,12 @@ const StatsSection = ({
   return (
     <View className="absolute px-4 h-[8%] w-full bottom-0 flex bg-background">
       {/* Play button */}
+      {/* {!isPracticeTab && ( */}
       <PlayButton
         isVideoPlay={isVideoPlay}
         togglePlayButton={togglePlayButton}
       />
+      {/* )} */}
 
       {isPracticeTab ? (
         <>
@@ -78,7 +83,7 @@ const StatsSection = ({
               />
               <View className="flex-row gap-1 items-end">
                 <Text className="color-foreground font-bold">
-                  {secondsToTime(remainingTime, { pad: true })}
+                  {secondsToTime(exerciseTimeLeft, { pad: true })}
                 </Text>
               </View>
             </View>

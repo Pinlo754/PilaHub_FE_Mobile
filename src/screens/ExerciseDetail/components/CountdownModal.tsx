@@ -19,7 +19,9 @@ const CountdownModal = ({ visible, duration = 5, onFinish }: Props) => {
       setCount(prev => {
         if (prev === 1) {
           clearInterval(interval);
-          onFinish?.();
+          setTimeout(() => {
+            onFinish?.();
+          }, 1000);
           return 0;
         }
         return prev - 1;
@@ -30,7 +32,12 @@ const CountdownModal = ({ visible, duration = 5, onFinish }: Props) => {
   }, [visible]);
 
   return (
-    <Modal transparent visible={visible} animationType="fade">
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+    >
       <View className="flex-1 justify-center items-center">
         <View className="absolute inset-0 bg-black/40" />
 

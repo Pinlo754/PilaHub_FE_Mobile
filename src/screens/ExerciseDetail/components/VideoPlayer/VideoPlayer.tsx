@@ -34,12 +34,12 @@ export default function VideoPlayer({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 100); 
+    const t = setTimeout(() => setReady(true), 100);
     return () => clearTimeout(t);
   }, [source]);
 
   useEffect(() => {
-    player.reset(); 
+    player.reset();
   }, [source]);
 
   return (
@@ -53,6 +53,7 @@ export default function VideoPlayer({
           videoRef={player.videoRef}
           source={source}
           paused={player.paused}
+          repeat={isPracticeTab}
           onLoad={d => {
             const duration = d.duration;
             if (!isFinite(duration) || duration <= 0 || duration > 100000)
@@ -80,7 +81,7 @@ export default function VideoPlayer({
               player.setDuration(p.seekableDuration);
             }
           }}
-          onEnd={onVideoEnd}
+          onEnd={isPracticeTab ? undefined : onVideoEnd}
         />
       )}
 

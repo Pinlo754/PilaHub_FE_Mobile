@@ -10,6 +10,7 @@ import StatsSection from './components/StatsSection';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import ModalPopup from '../../components/ModalPopup';
+import CountdownModal from './components/CountdownModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 
@@ -47,6 +48,21 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     canPlayTheory,
     exerciseEquipments,
     fetchAISummary,
+    closeRecommendModal,
+    onConfirmRecommendModal,
+    recommendMsg,
+    showRecommendModal,
+    hasAccess,
+    isFromList,
+    isFromSearch,
+    showStartCountdown,
+    onStartCountdownFinished,
+    showRestCountdown,
+    restCountdownDuration,
+    onRestCountdownFinished,
+    exerciseTimeLeft,
+    isExerciseRunning,
+    COUNTDOWN_START,
   } = useExerciseDetail({
     route,
     navigation,
@@ -99,6 +115,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               isVideoPlay={isPlaying}
               togglePlayButton={togglePlayButton}
               exerciseDuration={currentExercise.duration}
+              exerciseTimeLeft={exerciseTimeLeft}
+              isExerciseRunning={isExerciseRunning}
             />
           ) : (
             <OverviewSection
@@ -115,6 +133,9 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               workoutHistory={workoutHistory}
               canPlayTheory={canPlayTheory}
               fetchAISummary={fetchAISummary}
+              hasAccess={hasAccess}
+              isFromList={isFromList}
+              isFromSearch={isFromSearch}
             />
           )}
 
@@ -145,6 +166,38 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             onConfirm={onConfirmModal}
             onClose={closeConfirmModal}
             modalWidth={355}
+          />
+
+          {/* Recommend Modal */}
+          <ModalPopup
+            visible={showRecommendModal}
+            mode="confirm"
+            contentText={recommendMsg}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="yellow"
+            confirmBtnText="Chuyển trang"
+            confirmBtnColor="green"
+            cancelBtnText="Đóng"
+            cancelBtnColor="grey"
+            onConfirm={onConfirmRecommendModal}
+            onClose={closeRecommendModal}
+            modalWidth={355}
+            btnWidth={110}
+          />
+
+          {/* Countdown bắt đầu bài tập (5s, chỉ xuất hiện 1 lần đầu) */}
+          <CountdownModal
+            visible={showStartCountdown}
+            duration={COUNTDOWN_START}
+            onFinish={onStartCountdownFinished}
+          />
+
+          {/* Countdown nghỉ giữa các bài (chỉ trong course flow) */}
+          <CountdownModal
+            visible={showRestCountdown}
+            duration={restCountdownDuration}
+            onFinish={onRestCountdownFinished}
           />
         </>
       )}

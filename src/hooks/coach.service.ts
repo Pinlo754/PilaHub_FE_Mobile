@@ -122,10 +122,10 @@ export const CoachService = {
   },
 
   // GET BY NAME
-  getByName: async (name: string): Promise<CoachType[]> => {
+  getByName: async (q: string): Promise<CoachType[]> => {
     const res = await api.get<ApiResponse<CoachType[]>>(`/coaches/search`, {
       params: {
-        name,
+        q,
       },
     });
 
