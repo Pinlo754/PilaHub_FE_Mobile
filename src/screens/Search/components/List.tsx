@@ -56,13 +56,14 @@ const List = <K extends SearchTab>({
           item={item}
           isLast={index === data.length - 1}
           onPress={() => {
-            console.log('ID: ', id);
-            navigation.navigate(
-              config.screen as any,
-              {
-                [config.paramKey]: id,
-              } as any,
-            );
+            const params: any = {
+              [config.paramKey]: id,
+            };
+            if (config.screen === 'ProgramDetail') {
+              params.source = 'Search';
+            }
+
+            navigation.navigate(config.screen as any, params);
           }}
         />
       );

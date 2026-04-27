@@ -6,21 +6,20 @@ import { colors } from '../../../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ProgramDetail'>;
+  onPressBack: () => void;
 };
 
-const Header = ({ navigation }: Props) => {
+const Header = ({ onPressBack }: Props) => {
   return (
     <>
       <Pressable
-        className="absolute top-16 left-4 z-10"
-        onPress={() => {
-          navigation.goBack();
-        }}
+        className="absolute top-16 left-4 z-10 bg-black/40 rounded-full w-10 h-10 flex justify-center items-center"
+        onPress={onPressBack}
       >
         <Ionicons
           name="chevron-back-outline"
           size={24}
-          color={colors.foreground}
+          color={colors.background.DEFAULT}
         />
       </Pressable>
     </>

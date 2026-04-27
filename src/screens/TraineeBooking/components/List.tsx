@@ -9,25 +9,30 @@ import {
 } from '../../../utils/CoachBookingType';
 import CardBooking from './CardBooking';
 import EmptyData from './EmptyData';
+import { LiveSessionReportType } from '../../../utils/LiveSessionReportType';
 
 type Props = {
   isLoading: boolean;
   data: CoachBookingType[];
+  reportMap: Record<string, LiveSessionReportType>;
   navigation: NativeStackNavigationProp<RootStackParamList, 'TraineeBooking'>;
   openDetailModal: (bookingId: string) => void;
   openFeedbackModal: (bookingId: string) => void;
   openVideoRecord: (bookingId: string) => void;
   onPressReport: (bookingId: string) => void;
+  onPressViewReport: (report: LiveSessionReportType) => void;
 };
 
 const List = ({
   isLoading,
   data,
+  reportMap,
   navigation,
   openDetailModal,
   openFeedbackModal,
   openVideoRecord,
   onPressReport,
+  onPressViewReport,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
@@ -41,6 +46,8 @@ const List = ({
 
   // RENDER
   const renderItem = ({ item }: { item: CoachBookingType }) => {
+    const existingReport = reportMap[item.id] ?? null;
+
     const handlePress = (status: BookingStatus) => {
       switch (status) {
         case 'READY':
@@ -81,10 +88,14 @@ const List = ({
     return (
       <CardBooking
         item={item}
+        existingReport={existingReport}
         onPressBtn={() => handlePress(item.status)}
         onPressCard={() => handlePressCard(item.status)}
         onPressRecord={() => openVideoRecord(item.id)}
         onPressReport={() => onPressReport(item.id)}
+        onPressViewReport={() =>
+          existingReport && onPressViewReport(existingReport)
+        }
       />
     );
   };

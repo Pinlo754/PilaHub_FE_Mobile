@@ -27,9 +27,9 @@ export function VideoControls({
   return (
     <View className={`px-4  ${isFullscreen ? 'pb-20 mb-2' : 'pb-14'}`}>
       {/* Arrows */}
-      {isPracticeTab && (
+      {/* {isPracticeTab && (
         <View className="flex-row justify-around items-center gap-10 mb-3">
-          {/* Back */}
+       
           <Pressable className="flex-row items-center gap-1">
             <Ionicons
               name="chevron-back-outline"
@@ -41,7 +41,7 @@ export function VideoControls({
             </Text>
           </Pressable>
 
-          {/* Forward */}
+       
           <Pressable className="flex-row items-center gap-1">
             <Text className="color-background text-sm font-medium">
               Động tác sau
@@ -53,7 +53,7 @@ export function VideoControls({
             />
           </Pressable>
         </View>
-      )}
+      )} */}
 
       {/* Progress Bar */}
       <VideoProgress

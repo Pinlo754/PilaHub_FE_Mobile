@@ -5,6 +5,11 @@ import { exerciseService } from '../../hooks/exercise.service';
 import { courseService } from '../../hooks/course.service';
 import { CoachService } from '../../hooks/coach.service';
 import { LevelType } from '../../utils/CourseType';
+import { fetchTraineeProfile } from '../../services/profile';
+import { traineeCourseService } from '../../hooks/traineeCourse.service';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type DataByTab = {
   [K in SearchTab]: TabTypeMap[K][];
@@ -21,7 +26,15 @@ export type FilterOptions = {
   level: LevelType | null;
 };
 
-export const useSearchScreen = () => {
+type Props = {
+  route: RouteProp<RootStackParamList, 'Search'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Search'>;
+};
+
+export const useSearchScreen = ({ navigation, route }: Props) => {
+  // PARAM
+  const isNavigateHome = route.params?.navigateHome ?? null;
+
   // STATE
   const [activeTab, setActiveTab] = useState<SearchTab>(SearchTab.Exercise);
   const [dataByTab, setDataByTab] = useState<DataByTab>({
@@ -38,8 +51,41 @@ export const useSearchScreen = () => {
   const [filter, setFilter] = useState<FilterOptions>({ level: null });
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [traineeId, setTraineeId] = useState<string | null>(null);
+  const [errorMsg, openErrorModalMsg] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // FETCH
+  const fetchTrainee = async () => {
+    setIsLoading(true);
+    try {
+      const resTrainee = await fetchTraineeProfile();
+
+      if (resTrainee.ok) {
+        setTraineeId(resTrainee.data.traineeId);
+
+        const resTraineeCourse = await traineeCourseService.getAll(
+          resTrainee.data.traineeId,
+        );
+
+        const ids = new Set(resTraineeCourse.map(item => item.course.courseId));
+        setEnrolledCourseIds(ids);
+      }
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchAllData = async (tab: SearchTab) => {
     // Nếu đã có data thì không fetch lại
     if (dataByTab[tab].length > 0) return;
@@ -58,7 +104,12 @@ export const useSearchScreen = () => {
           break;
 
         case SearchTab.Course:
-          result = await courseService.getAll();
+          const courses = await courseService.getAll();
+
+          result = courses.map(course => ({
+            ...course,
+            isEnrolled: enrolledCourseIds.has(course.courseId),
+          }));
           break;
 
         case SearchTab.Coach:
@@ -115,7 +166,12 @@ export const useSearchScreen = () => {
           result = await exerciseService.getByName(q);
           break;
         case SearchTab.Course:
-          result = await courseService.getByName(q);
+          const courses = await courseService.getByName(q);
+
+          result = courses.map(course => ({
+            ...course,
+            isEnrolled: enrolledCourseIds.has(course.courseId),
+          }));
           break;
         case SearchTab.Coach:
           result = await CoachService.getByName(q);
@@ -166,7 +222,12 @@ export const useSearchScreen = () => {
           result = await exerciseService.getByLevel(options.level);
           break;
         case SearchTab.Course:
-          result = await courseService.getByLevel(options.level);
+          const courses = await courseService.getByLevel(options.level);
+
+          result = courses.map(course => ({
+            ...course,
+            isEnrolled: enrolledCourseIds.has(course.courseId),
+          }));
           break;
         case SearchTab.Coach:
           // Coach không có filter
@@ -194,6 +255,16 @@ export const useSearchScreen = () => {
     }
   };
 
+  const onPressBack = () => {
+    if (isNavigateHome === true) {
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    } else if (isNavigateHome === false) {
+      navigation.navigate('MainTabs', { screen: 'List' });
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const onChangeTab = (tab: SearchTab) => {
     if (isSearching) {
       setDataByTab(prev => ({ ...prev, [activeTab]: [] }));
@@ -210,11 +281,32 @@ export const useSearchScreen = () => {
     setDataByTab(prev => ({ ...prev, [activeTab]: [] }));
   };
 
+  const openErrorModal = (msg: string) => {
+    openErrorModalMsg(msg);
+    setShowErrorModal(true);
+  };
+
+  const closeErrorModal = () => {
+    openErrorModalMsg('');
+    setShowErrorModal(false);
+  };
+
   // USE EFFECT
   useEffect(() => {
+    fetchTrainee();
+  }, []);
+
+  useEffect(() => {
     if (isSearching) return;
+    if (activeTab === SearchTab.Course && enrolledCourseIds.size === 0) return;
     fetchAllData(activeTab);
-  }, [activeTab, dataByTab[activeTab].length, isSearching]);
+  }, [
+    activeTab,
+    dataByTab[activeTab].length,
+    isSearching,
+    traineeId,
+    enrolledCourseIds,
+  ]);
 
   return {
     activeTab,
@@ -232,5 +324,6 @@ export const useSearchScreen = () => {
     isFilterVisible,
     setIsFilterVisible,
     isSearching,
+    onPressBack,
   };
 };

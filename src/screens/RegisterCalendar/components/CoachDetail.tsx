@@ -2,6 +2,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { View, Text, Image } from 'react-native';
 import { colors } from '../../../theme/colors';
 import { CoachType } from '../../../utils/CoachType';
+import { formatShortVND } from '../../../utils/number';
 
 type Props = {
   coach: CoachType;
@@ -54,6 +55,13 @@ const CoachDetail = ({ coach }: Props) => {
               <Ionicons name="ribbon" size={18} color={colors.info.darker} />
               <Text className="color-secondaryText font-medium">
                 {coach.yearsOfExperience} năm
+              </Text>
+            </View>
+            {/* Price */}
+            <View className="flex-row gap-2 items-center">
+              <Ionicons name="card" size={18} color={colors.success.DEFAULT} />
+              <Text className="color-secondaryText font-medium">
+                {formatShortVND(coach.pricePerHour)}/1h
               </Text>
             </View>
           </View>

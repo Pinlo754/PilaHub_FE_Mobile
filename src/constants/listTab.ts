@@ -42,6 +42,7 @@ export const LIST_CONFIG: { [K in ListTab]: TabConfigItem<K> } = {
       traineeCourseId: item.traineeCourseId,
       program_id: item.course.courseId,
       traineeId: extra?.traineeId,
+      source: 'List',
     }),
     emptyTitle: 'Chưa có khóa học nào',
     emptySubtitle: 'Mua khóa học để bắt đầu hành trình luyện tập ngay!',
