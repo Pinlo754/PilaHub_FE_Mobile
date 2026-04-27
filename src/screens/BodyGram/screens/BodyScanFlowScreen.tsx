@@ -3,11 +3,12 @@ import {
   View,
   Image,
   Text,
-  Button,
   ScrollView,
   ActivityIndicator,
-  Alert,
+  TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
+import ModalPopup from '../../../components/ModalPopup';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadOnboarding } from '../../../utils/storage';
@@ -26,6 +27,21 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
   const [side, setSide] = useState<string | null>(null);
   const [screenStep, setScreenStep] = useState<'front' | 'side' | 'review'>('front');
   const [loading, setLoading] = useState(false);
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
+
+  function showModal(title: string, message?: string, mode: string = 'noti', onConfirm?: () => void) {
+    // ModalPopup expects: visible, mode('confirm'|'noti'|'toast'), onClose, titleText, contentText, onConfirm/onCancel
+    const normalizedMode = mode === 'notify' ? 'noti' : mode;
+    setModalProps({
+      visible: true,
+      mode: normalizedMode,
+      titleText: title,
+      contentText: message ?? '',
+      onClose: () => setModalProps({ visible: false }),
+      ...(onConfirm ? { onConfirm } : {}),
+      ...(normalizedMode === 'confirm' ? { onCancel: () => setModalProps({ visible: false }) } : {}),
+    });
+  }
 
   const onboardingData = useOnboardingStore((s) => s.data);
   const setData = useOnboardingStore((s) => s.setData);
@@ -109,10 +125,7 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
       body = normalizeForBodygram(source);
       console.log('DEBUG normalized body for Bodygram:', JSON.stringify(body, null, 2));
     } catch (err: any) {
-      Alert.alert(
-        'Thiếu thông tin',
-        err.message || 'Vui lòng hoàn tất onboarding trước khi quét.'
-      );
+      showModal('Thiếu thông tin', err.message || 'Vui lòng hoàn tất onboarding trước khi quét.');
       return;
     }
 
@@ -125,27 +138,39 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
 
       // ------------------ extract entry and measurements (do NOT store avatar)
       const entry = res.entry ?? res;
+      // if backend returns an explicit error code, surface a friendly message in modal and offer retry
+      const errorCode = (entry && (entry as any).error && (entry as any).error.code) || undefined;
+      if (errorCode) {
+        const friendly: Record<string, string> = {
+          personNotDetected: 'Không phát hiện người trong ảnh. Hãy chụp lại đảm bảo toàn thân vào khung.',
+          lowQuality: 'Chất lượng ảnh thấp, vui lòng chụp lại ảnh rõ hơn.',
+          tooFar: 'Bạn ở quá xa camera, hãy tiến lại gần hơn.',
+        };
+        const msg = friendly[errorCode] ?? `Lỗi: ${errorCode}`;
+        showModal('Quét thất bại', msg, 'confirm', () => {
+          setFront(null);
+          setSide(null);
+          setScreenStep('front');
+        });
+        return;
+      }
+
       const measurements: Measurements = entry.measurements ?? {};
 
       // If server didn't return measurements, prompt user to retake photos
       const hasMeasurements = measurements && Object.keys(measurements).length > 0;
       if (!hasMeasurements) {
         console.warn('Bodygram returned no measurements', res);
-        Alert.alert('Quét thất bại', 'Không nhận được số đo từ server. Bạn muốn chụp lại ảnh để thử lại?', [
-          {
-            text: 'Chụp lại',
-            onPress: () => {
-              // reset photos and go back to capture
-              setFront(null);
-              setSide(null);
-              setScreenStep('front');
-            },
-          },
-          {
-            text: 'Đóng',
-            style: 'cancel',
-          },
-        ]);
+        showModal(
+          'Quét thất bại',
+          'Không nhận được số đo từ server. Bạn muốn chụp lại ảnh để thử lại?',
+          'confirm',
+          () => {
+            setFront(null);
+            setSide(null);
+            setScreenStep('front');
+          }
+        );
         return;
       }
 
@@ -192,20 +217,11 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
       });
     } catch (e) {
       console.log('Upload error', e);
-      Alert.alert('Lỗi quét', 'Không quét được số đo. Bạn muốn chụp lại ảnh?', [
-        {
-          text: 'Chụp lại',
-          onPress: () => {
-            setFront(null);
-            setSide(null);
-            setScreenStep('front');
-          },
-        },
-        {
-          text: 'Đóng',
-          style: 'cancel',
-        },
-      ]);
+      showModal('Lỗi quét', 'Không quét được số đo. Bạn muốn chụp lại ảnh?', 'confirm', () => {
+        setFront(null);
+        setSide(null);
+        setScreenStep('front');
+      });
     } finally {
       setLoading(false);
     }
@@ -218,46 +234,52 @@ export default function BodyScanFlowScreen({ navigation }: Props) {
   console.log('Onboarding data used for Bodygram:', onboardingData);
   // 🔍 REVIEW + SUBMIT
   return (
-    <ScrollView className="flex-1 p-4 mt-10 bg-slate-50">
+    <ScrollView style={styles.container}>
       <Text className="text-2xl font-bold mb-4 text-center">Xem lại ảnh</Text>
 
       {front && (
         <Image
           source={{ uri: 'file://' + front }}
-          className="w-full h-80 rounded-xl mb-4"
+          style={styles.imgStyle}
         />
       )}
 
       {side && (
         <Image
           source={{ uri: 'file://' + side }}
-          className="w-full h-80 rounded-xl mb-4"
+          style={styles.imgStyle}
         />
       )}
 
       {loading ? (
-        <View className="items-center mt-4">
+        <View style={styles.centerView}>
           <ActivityIndicator size="large" />
-          <Text className="mt-2">Đang gửi Bodygram...</Text>
+          <Text style={styles.loadingText}>Đang gửi Bodygram...</Text>
         </View>
       ) : (
         <>
-          <Button title="Gửi Bodygram để lấy số đo" onPress={handleSendBodygram} />
+          <TouchableOpacity onPress={handleSendBodygram} style={styles.sendButton}>
+            <Text style={styles.sendButtonText}>Gửi Bodygram để lấy số đo</Text>
+          </TouchableOpacity>
 
-          <View className="mt-3">
-            <Button
-              title="Xem raw response (debug)"
-              onPress={() => {
-                // show a compact preview of the last response if present
-                Alert.alert(
-                  'Debug',
-                  'Sau khi gửi, bạn sẽ thấy raw response ở màn Kết quả.'
-                );
-              }}
-            />
-          </View>
+          <TouchableOpacity onPress={() => { setFront(null); setSide(null); setScreenStep('front'); }} style={styles.retakeButton}>
+            <Text style={styles.retakeButtonText}>Chụp lại</Text>
+          </TouchableOpacity>
         </>
       )}
+      {/* modal popup replaces Alert.alert usage */}
+      <ModalPopup {...(modalProps as any)} />
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, marginTop: 40, backgroundColor: '#FFFAF0' },
+  sendButton: { backgroundColor: '#A0522D', paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginBottom: 12 },
+  sendButtonText: { color: '#fff', fontWeight: '700' },
+  retakeButton: { borderColor: '#A0522D', borderWidth: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  retakeButtonText: { color: '#A0522D', fontWeight: '700' },
+  imgStyle: { width: '100%', height: 320, borderRadius: 12, marginBottom: 16 },
+  centerView: { alignItems: 'center', marginTop: 16 },
+  loadingText: { marginTop: 8 },
+});

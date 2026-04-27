@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { useInjuryLogic } from './Injury.logic';
 import Toast from '../../../../components/Toast';
+import ModalPopup from '../../../../components/ModalPopup';
 
 export default function InjuryUI() {
-  const { filteredInjuries, selected, selectInjury, notes, setNotes, loading, searchText, setSearchText, onBack, onSkip, onNext, toastVisible, toastMsg, toastType, setToastVisible } = useInjuryLogic();
+  const { filteredInjuries, selected, selectInjury, notes, setNotes, loading, searchText, setSearchText, onBack, onSkip, onNext, toastVisible, toastMsg, toastType, setToastVisible, modalVisible, modalTitle, modalMessage, modalIconName, modalIconBg, setModalVisible } = useInjuryLogic();
 
   return (
     <View className="flex-1 bg-background w-full">
@@ -68,6 +69,15 @@ export default function InjuryUI() {
       </View>
 
       <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+      <ModalPopup
+        visible={modalVisible}
+        mode="noti"
+        titleText={modalTitle}
+        contentText={modalMessage}
+        iconName={modalIconName}
+        iconBgColor={modalIconBg as any}
+        onClose={() => setModalVisible(false)}
+      />
 
     </View>
   );

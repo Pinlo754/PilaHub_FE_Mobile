@@ -95,8 +95,6 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
         <View className="mt-4 bg-white rounded-xl p-4 shadow">
           <Row label="Mã giao dịch" value={tx.transactionId} />
           <Row label="Thời gian" value={dateText} />
-          <Row label="Reference" value={tx.referenceId ?? '-'} />
-          <Row label="Account ID" value={tx.accountId ?? '-'} />
         </View>
 
        

@@ -12,7 +12,7 @@ type Props = {
 
 const CardExercise = ({ item, onPress }: Props) => {
   return (
-    <Pressable className="flex-row gap-4 mb-3 px-4" onPress={onPress}>
+    <Pressable className="flex-row gap-4 mb-5 px-4" onPress={onPress}>
       {/* Image */}
       <View className="w-32 h-24 rounded-lg overflow-hidden">
         <Image
@@ -31,36 +31,50 @@ const CardExercise = ({ item, onPress }: Props) => {
           {item.name}
         </Text>
 
-        {/* Duration */}
-        <Text className="color-secondaryText font-medium text-lg">
-          {secondsToTime(item.duration)}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          {/* Duration */}
+          <Text className="color-secondaryText font-medium text-lg w-[110px]">
+            {secondsToTime(item.duration)}
+          </Text>
 
-        <View className="flex-row items-center">
           {/* Difficult Level */}
-          <View className="flex-row w-[100px] items-center gap-1">
-            {Array.from({ length: getLevelNumber(item.difficultyLevel) }).map(
-              (_, index) => (
-                <Ionicons
-                  key={index}
-                  name="star"
-                  size={18}
-                  color={colors.warning.DEFAULT}
-                />
-              ),
-            )}
-          </View>
+          <View className="flex-row items-center gap-2">
+            <Text className="color-secondaryText font-medium text-lg">
+              Độ khó:
+            </Text>
 
-          {/* Require Equipment */}
-          {item.equipmentRequired && (
-            <View className="px-2 py-1 rounded-full mr-4">
-              <Ionicons
-                name="barbell-outline"
-                size={22}
-                color={colors.secondaryText}
-              />
+            <View className="flex-row items-center gap-1">
+              {Array.from({ length: getLevelNumber(item.difficultyLevel) }).map(
+                (_, index) => (
+                  <Ionicons
+                    key={index}
+                    name="star"
+                    size={18}
+                    color={colors.warning.DEFAULT}
+                  />
+                ),
+              )}
             </View>
-          )}
+          </View>
+        </View>
+        {/* Require Equipment */}
+        <View className="flex-row items-center gap-1">
+          {/* <Ionicons
+            name="barbell-outline"
+            size={22}
+            color={colors.secondaryText}
+          /> */}
+          <Text className="color-secondaryText font-medium">Dụng cụ tập:</Text>
+
+          <Ionicons
+            name={item.equipmentRequired ? 'checkmark-circle' : 'close-circle'}
+            size={20}
+            color={
+              item.equipmentRequired
+                ? colors.success.DEFAULT
+                : colors.danger.DEFAULT
+            }
+          />
         </View>
       </View>
     </Pressable>

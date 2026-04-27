@@ -13,6 +13,10 @@ export type CourseType = {
   totalLesson: number;
 };
 
+export type CourseWithEnroll = CourseType & {
+  isEnrolled?: boolean;
+};
+
 export type CourseDetailType = {
   course: CourseType;
   lessons: CourseLessonDetailType[];

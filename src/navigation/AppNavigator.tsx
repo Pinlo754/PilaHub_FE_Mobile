@@ -91,7 +91,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   Onboarding: undefined;
   Startup: undefined;
-  Search: undefined;
+  Search: { navigateHome: boolean } | undefined;
   SearchResult: { q?: string; showFilter?: boolean } | undefined;
   ShopSearchResult: { q?: string } | undefined;
   Checkout: undefined;
@@ -117,6 +117,7 @@ export type RootStackParamList = {
     allowedTheory?: boolean;
     allowedPractice?: boolean;
     practicePayload?: PracticePayload;
+    source?: string;
   };
   ProductDetail: { productId: string };
   Cart: undefined;
@@ -135,6 +136,7 @@ export type RootStackParamList = {
     program_id: string;
     traineeCourseId?: string;
     traineeId?: string;
+    source?: string;
   };
   TestNavigateScreen: undefined;
   CoachScreen: undefined;
@@ -162,20 +164,24 @@ export type RootStackParamList = {
   List: undefined;
   DailyTask: undefined;
   RegisterCalendar:
-  | { coach_id?: string | null; pricePerHour?: number }
-  | undefined;
+    | { coach_id?: string | null; pricePerHour?: number }
+    | undefined;
   TraineeFeedback: { liveSessionId?: string } | undefined;
   TraineeReport:
-  | { coach_id?: string | null; exercise_id?: string | null }
-  | undefined;
+    | {
+        coach_id?: string | null;
+        exercise_id?: string | null;
+        liveSessionId?: string | null;
+      }
+    | undefined;
   AISummary:
-  | {
-    feedback: any;
-    videoUrl: string;
-    mistakeLog: any;
-    heartRateLogs?: { heartRate: number; recordedAt: number }[];
-  }
-  | undefined;
+    | {
+        feedback: any;
+        videoUrl: string;
+        mistakeLog: any;
+        heartRateLogs?: { heartRate: number; recordedAt: number }[];
+      }
+    | undefined;
 
   AIPractice: {
     exercise_id: string;
@@ -195,13 +201,13 @@ export type RootStackParamList = {
   SendRequestScreen: { coach_id: string; pricePerHour: number | undefined };
   ListRequest: undefined;
   TraineeHealthProfileResult:
-  | { measurements: Measurements; avatar?: string; rawResponse?: any }
-  | undefined;
+    | { measurements: Measurements; avatar?: string; rawResponse?: any }
+    | undefined;
   ForgotPassword: undefined;
   Wallet: { transactionId?: string } | undefined;
   DepositWebView:
-  | { paymentUrl: string; transactionId?: string; orderCode?: string }
-  | undefined;
+    | { paymentUrl: string; transactionId?: string; orderCode?: string }
+    | undefined;
   DepositResult: { success: boolean; data?: any } | undefined;
   MomoResult: { orderId?: string; previousBalance?: number } | undefined;
   Deposit: undefined;
@@ -211,13 +217,13 @@ export type RootStackParamList = {
   MyDevices: undefined;
   TraineeBooking: undefined;
   SchedulePlayer:
-  | {
-    queue: { ex: any; videoSrc?: string | null }[];
-    startIndex?: number;
-    scheduleId?: string;
-    title?: string;
-  }
-  | undefined;
+    | {
+        queue: { ex: any; videoSrc?: string | null }[];
+        startIndex?: number;
+        scheduleId?: string;
+        title?: string;
+      }
+    | undefined;
   CreatePostScreen: undefined;
   ChatScreen: { id: string };
   MyBlogScreen: undefined;
@@ -416,27 +422,33 @@ const AppNavigator: React.FC = () => {
               name="DepositResult"
               component={DepositResultScreen}
             />
-            <Stack.Screen
-              name="Deposit"
-              component={DepositScreen}
-            />
+            <Stack.Screen name="Deposit" component={DepositScreen} />
 
-            <Stack.Screen
-              name="MomoResult"
-              component={MomoResultScreen}
-            />
+            <Stack.Screen name="MomoResult" component={MomoResultScreen} />
             <Stack.Screen
               name="TransactionDetail"
               component={TransactionDetailScreen}
             />
             <Stack.Screen name="TraineeBooking" component={TraineeBooking} />
-            <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
+            <Stack.Screen
+              name="CreatePostScreen"
+              component={CreatePostScreen}
+            />
             <Stack.Screen name="ChatScreen" component={ChatScreen} />
             <Stack.Screen name="MyBlogScreen" component={MyBlogScreen} />
             <Stack.Screen name="ListChatScreen" component={ListChatScreen} />
-            <Stack.Screen name="TraineeDetailScreen" component={TraineeDetailScreen} />
-            <Stack.Screen name="MyInjuries" component={require('../screens/Profile/MyInjuriesScreen').default} />
-            <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
+            <Stack.Screen
+              name="TraineeDetailScreen"
+              component={TraineeDetailScreen}
+            />
+            <Stack.Screen
+              name="MyInjuries"
+              component={require('../screens/Profile/MyInjuriesScreen').default}
+            />
+            <Stack.Screen
+              name="NotificationScreen"
+              component={NotificationScreen}
+            />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

@@ -12,9 +12,16 @@ type Props = {
   searchQuery: string;
   onSearch: (query: string) => void;
   onOpenFilter: () => void;
+  onPressBack: () => void;
 };
 
-const Header = ({ activeTab, searchQuery, onSearch, onOpenFilter }: Props) => {
+const Header = ({
+  activeTab,
+  searchQuery,
+  onSearch,
+  onOpenFilter,
+  onPressBack,
+}: Props) => {
   // NAVIGATION
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -34,7 +41,7 @@ const Header = ({ activeTab, searchQuery, onSearch, onOpenFilter }: Props) => {
     <View className="flex-row justify-between items-center px-4">
       {/* Back */}
       <View className="">
-        <Pressable onPress={() => navigation.goBack()}>
+        <Pressable onPress={onPressBack}>
           <Ionicons
             name="chevron-back-outline"
             size={24}

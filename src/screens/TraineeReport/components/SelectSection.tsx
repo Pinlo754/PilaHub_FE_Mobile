@@ -1,28 +1,29 @@
 import { Pressable, Text, View } from 'react-native';
-import { optionType } from '../../../constants/reportOption';
+import { ReportReasonType } from '../../../utils/ReportReasonType';
 
 type Props = {
-  options: optionType[];
-  selectedOption: number;
-  onChange: (option_id: number) => void;
+  reasons: ReportReasonType[];
+  selectedReason: ReportReasonType | null;
+  onChange: (reason: ReportReasonType) => void;
 };
 
-const SelectSection = ({ options, selectedOption, onChange }: Props) => {
+const SelectSection = ({ reasons, selectedReason, onChange }: Props) => {
   return (
     <View className="mx-4">
-      {options.map(op => {
-        const isSelected = selectedOption === op.id;
+      {reasons.map(reason => {
+        const isSelected =
+          selectedReason?.reportReasonId === reason.reportReasonId;
         return (
           <Pressable
-            key={op.id}
+            key={reason.reportReasonId}
             className="flex-row items-center gap-2 mb-2"
-            onPress={() => onChange(op.id)}
+            onPress={() => onChange(reason)}
           >
             <View
               className={`w-5 h-5 rounded-full border-2 border-foreground ${isSelected && 'bg-foreground'}`}
             />
             <Text className="color-foreground font-semibold text-lg">
-              {op.label}
+              {reason.name}
             </Text>
           </Pressable>
         );

@@ -319,7 +319,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 <Ionicons name="cart-outline" size={22} color={colors.foreground} />
               </TouchableOpacity>
               {totalItems > 0 && (
-                <View style={stylesHeader?.badgeWrap ?? { position: 'absolute', right: -2, top: -4, backgroundColor: '#F59E0B', minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={localStyles.badgeWrap}>
                   <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{totalItems > 99 ? '99+' : totalItems}</Text>
                 </View>
               )}
@@ -445,6 +445,7 @@ const localStyles = StyleSheet.create({
   mainImage: { width: width - 32, height: IMAGE_HEIGHT - 20, borderRadius: 14, backgroundColor: COLORS.card },
   stickyBarShadow: { backgroundColor: COLORS.card, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, elevation: 6 },
   cartWrap: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
+  badgeWrap: { position: 'absolute', right: -2, top: -4, backgroundColor: '#F59E0B', minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default ProductDetailScreen;

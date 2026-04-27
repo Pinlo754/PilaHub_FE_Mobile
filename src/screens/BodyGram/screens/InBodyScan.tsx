@@ -1,22 +1,35 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { extractInBodyScanFile, uploadInBodyScan, createTraineeProfile, createPersonalInjury } from '../../../services/profile';
-import { useOnboardingStore } from '../../../store/onboarding.store';
+import { uploadInBodyScan } from '../../../services/profile';
 import storage from '@react-native-firebase/storage';
 import { useNavigation } from '@react-navigation/native';
+import ModalPopup from '../../../components/ModalPopup';
 
 export default function InBodyScan() {
   const nav = useNavigation();
-  const onboarding = useOnboardingStore((s) => s.data);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
+
+  function showModal(title: string, message?: string, mode: string = 'notify', onConfirm?: () => void) {
+    setModalProps({
+      visible: true,
+      title,
+      message,
+      mode,
+      onConfirm: () => {
+        setModalProps({ visible: false });
+        if (onConfirm) onConfirm();
+      },
+    });
+  }
 
   async function pickFromCamera() {
     const res = await launchCamera({ mediaType: 'photo', quality: 0.7 });
     if (res.didCancel) return;
     if (res.errorCode) {
-      Alert.alert('Lỗi', res.errorMessage || 'Không thể mở camera');
+      showModal('Lỗi', res.errorMessage || 'Không thể mở camera');
       return;
     }
     const uri = res.assets?.[0]?.uri;
@@ -27,110 +40,50 @@ export default function InBodyScan() {
     const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.7 });
     if (res.didCancel) return;
     if (res.errorCode) {
-      Alert.alert('Lỗi', res.errorMessage || 'Không thể mở thư viện');
+      showModal('Lỗi', res.errorMessage || 'Không thể mở thư viện');
       return;
     }
     const uri = res.assets?.[0]?.uri;
     if (uri) setImageUri(uri);
   }
 
-  async function submit() {
-    if (!imageUri) { Alert.alert('Chưa chọn ảnh', 'Vui lòng chụp hoặc chọn ảnh InBody.'); return; }
+  async function continueToExtract() {
     try {
       setUploading(true);
-      // If onboarding data exists, attempt to create trainee and personal injuries first
-      let traineeCreated = false;
-      let traineeError: any = null;
-      let injuriesCreated = 0;
-      let injuriesFailed = 0;
+      // first upload to Firebase to obtain rawScanId (public URL)
+      let rawScanId: string | undefined;
       try {
-        if (onboarding && Object.keys(onboarding).length > 0) {
-          const t = await createTraineeProfile(onboarding);
-          if (!t.ok) {
-            console.warn('createTraineeProfile (InBody flow) returned error', t.error);
-            traineeError = t.error;
-          } else {
-            traineeCreated = true;
-            console.log('Created/updated trainee before InBody extract:', t.data);
-          }
-
-          const injuries = (onboarding as any)?.personalInjuries ?? (onboarding as any)?.injuries ?? [];
-          if (Array.isArray(injuries) && injuries.length > 0) {
-            for (const inj of injuries) {
-              const injuryId = inj?.injuryId ?? inj?.id ?? inj?.injury?.id ?? null;
-              const notes = inj?.notes ?? inj?.note ?? null;
-              if (!injuryId) continue;
-              try {
-                const p = await createPersonalInjury({ injuryId, notes });
-                if (!p.ok) {
-                  injuriesFailed += 1;
-                  console.warn('createPersonalInjury failed', p.error);
-                } else {
-                  injuriesCreated += 1;
-                  console.log('Created personal injury', p.data);
-                }
-              } catch (err) {
-                injuriesFailed += 1;
-                console.warn('createPersonalInjury thrown', err);
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Pre-InBody create trainee/injuries step failed', err);
-        traineeError = traineeError ?? err;
+        const path = `inbody/${Date.now()}.jpg`;
+        const ref = storage().ref(path);
+        await ref.putFile(imageUri!);
+        rawScanId = await ref.getDownloadURL();
+      } catch (uploadErr) {
+        console.log('Firebase upload failed, will proceed without rawScanId', uploadErr);
+        // fallthrough: still attempt backend call without rawScanId
       }
 
-      // prepare a human-friendly message and continue only after user acknowledges
-      const preMsgParts: string[] = [];
-      if (traineeCreated) preMsgParts.push('Tạo tài khoản/ hồ sơ thành công.');
-      else if (traineeError) preMsgParts.push('Không thể tạo tài khoản/hồ sơ.');
-      if (injuriesCreated > 0) preMsgParts.push(`Tạo ${injuriesCreated} chấn thương thành công.`);
-      if (injuriesFailed > 0) preMsgParts.push(`${injuriesFailed} chấn thương không tạo được.`);
-      const preMsg = preMsgParts.length > 0 ? preMsgParts.join(' ') : 'Không có dữ liệu hồ sơ để tạo.';
+      const img = { uri: imageUri!, name: 'inbody.jpg', type: 'image/jpeg' };
+      // call the backend inbody-extract endpoint
+      const res = await uploadInBodyScan(img, rawScanId);
+      if (res.ok) {
+        (nav as any).navigate('BodyGramResult', { measurements: res.data?.measurements ?? null, rawResponse: { entry: res.data ?? {} } });
+      } else {
+        const err = res.error;
+        showModal('Lỗi', typeof err === 'string' ? err : JSON.stringify(err));
+      }
+    } catch (e: any) {
+      console.log('InBody API call error', e);
+      showModal('Lỗi', 'Không thể gọi InBody API');
+    } finally {
+      setUploading(false);
+    }
+  }
 
-      const continueToExtract = async () => {
-        try {
-          // first upload to Firebase to obtain rawScanId (public URL)
-          let rawScanId: string | undefined;
-          try {
-            const path = `inbody/${Date.now()}.jpg`;
-            const ref = storage().ref(path);
-            await ref.putFile(imageUri);
-            rawScanId = await ref.getDownloadURL();
-          } catch (uploadErr) {
-            console.log('Firebase upload failed, will proceed without rawScanId', uploadErr);
-            // fallthrough: still attempt backend call without rawScanId
-          }
-
-          const img = { uri: imageUri, name: 'inbody.jpg', type: 'image/jpeg' };
-          // prefer new uploadInBodyScan helper which accepts rawScanId
-          const res = await (uploadInBodyScan ? uploadInBodyScan(img, rawScanId) : extractInBodyScanFile(img));
-          if (res.ok) {
-            (nav as any).navigate('BodyGramResult', { measurements: res.data?.measurements ?? null, rawResponse: { entry: res.data ?? {} } });
-          } else {
-            const err = res.error;
-            Alert.alert('Lỗi', typeof err === 'string' ? err : JSON.stringify(err));
-          }
-        } catch (e: any) {
-          console.log('InBody API call error', e);
-          Alert.alert('Lỗi', 'Không thể gọi InBody API');
-        } finally {
-          setUploading(false);
-        }
-      };
-
-      // show result then continue when user presses 'Tiếp tục'
-      Alert.alert('Kết quả chuẩn bị hồ sơ', preMsg, [{ text: 'Tiếp tục', onPress: continueToExtract }]);
-      return; // wait for user to press button before proceeding
-     } catch (e: any) {
-       console.log('InBody API call error', e);
-       Alert.alert('Lỗi', 'Không thể gọi InBody API');
-     } finally {
-      // if we returned early to wait for user confirmation, do not clear uploading here
-      // setUploading(false) is handled in continueToExtract finally
-     }
-   }
+  async function submit() {
+    if (!imageUri) { showModal('Chưa chọn ảnh', 'Vui lòng chụp hoặc chọn ảnh InBody.'); return; }
+    // ask for confirmation before sending
+    showModal('Xác nhận', 'Bạn có chắc muốn gửi ảnh để trích xuất không?', 'confirm', continueToExtract);
+  }
 
   return (
     <View style={styles.container}>
@@ -153,6 +106,8 @@ export default function InBodyScan() {
       <TouchableOpacity style={[styles.btn, styles.upload]} onPress={submit} disabled={uploading}>
         {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Gửi để trích xuất</Text>}
       </TouchableOpacity>
+      {/* modal popup replaces Alert.alert usage */}
+      <ModalPopup {...(modalProps as any)} />
     </View>
   );
 }

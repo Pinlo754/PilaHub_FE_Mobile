@@ -15,11 +15,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'TraineeReport'>;
 const TraineeReport = (props: Props) => {
   // HOOK
   const {
-    options,
+    reasons,
+    selectedReason,
+    onSelectReason,
     onPressSubmit,
     isValid,
-    selectedOption,
-    setSelectedOption,
     showSuccessModal,
     successMsg,
     closeSuccessModal,
@@ -40,9 +40,6 @@ const TraineeReport = (props: Props) => {
 
   // STATE
   const [focused, setFocused] = useState<boolean>(false);
-
-  // ERROR
-  if (!options) return null;
 
   return (
     <>
@@ -65,9 +62,9 @@ const TraineeReport = (props: Props) => {
 
           {/* Select Section */}
           <SelectSection
-            options={options}
-            selectedOption={selectedOption}
-            onChange={setSelectedOption}
+            reasons={reasons}
+            selectedReason={selectedReason}
+            onChange={onSelectReason}
           />
 
           {isOtherReason && (

@@ -11,6 +11,7 @@ import FeedbackModal from './components/FeedbackModal';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import ModalPopup from '../../components/ModalPopup';
 import ReportList from './ReportList/ReportList';
+import ReportDetailModal from './components/ReportDetailModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TraineeBooking'>;
 
@@ -39,6 +40,11 @@ const TraineeBooking = (props: Props) => {
     openReportList,
     showReportList,
     assessment,
+    reportMap,
+    showReportDetail,
+    openReportDetail,
+    closeReportDetail,
+    selectedReport,
   } = useTraineeBooking();
 
   return (
@@ -56,6 +62,7 @@ const TraineeBooking = (props: Props) => {
         <List
           isLoading={isLoading}
           data={dataByTab[activeTab]}
+          reportMap={reportMap}
           navigation={props.navigation}
           openDetailModal={openDetailModal}
           openFeedbackModal={openFeedbackModal}
@@ -65,6 +72,7 @@ const TraineeBooking = (props: Props) => {
               liveSessionId: bookingId,
             })
           }
+          onPressViewReport={openReportDetail}
         />
 
         {/* Detail Modal */}
@@ -94,6 +102,18 @@ const TraineeBooking = (props: Props) => {
 
         {/* Report List Modal */}
         <ReportList visible={showReportList} onClose={closeReportList} />
+
+        {/* Report Detail Modal */}
+        {selectedReport && (
+          <>
+            <View className="absolute inset-0 bg-black/40" />
+            <ReportDetailModal
+              visible={showReportDetail}
+              onClose={closeReportDetail}
+              report={selectedReport}
+            />
+          </>
+        )}
 
         {/* Error Modal */}
         <ModalPopup

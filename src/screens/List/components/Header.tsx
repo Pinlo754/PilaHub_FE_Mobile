@@ -18,7 +18,7 @@ const Header = ({ navigation }: Props) => {
 
       {/* Search */}
       <Pressable
-        onPress={() => navigation.navigate('Search')}
+        onPress={() => navigation.navigate('Search', { navigateHome: false })}
         className="absolute right-4 top-1 z-10"
       >
         <Ionicons name="search-outline" size={24} color={colors.foreground} />

@@ -24,6 +24,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   // PARAM
   const { program_id } = route.params;
   const traineeCourseId = route.params.traineeCourseId ?? null;
+  const source = route.params?.source ?? '';
 
   // CONSTANT
   const TIMEOUT = 3010;
@@ -46,6 +47,10 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [selectedStartDate, setSelectedStartDate] = useState<string>('');
   const [activePackage, setActivePackage] = useState<PackageType | null>(null);
+
+  // VARIABLE
+  const isFromList = source === 'List';
+  const isFromSearch = source === 'Search';
 
   // FETCH
   const fetchInformation = async () => {
@@ -182,6 +187,21 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const onPress = () => {
     setShowSchedule(true);
   };
+
+  const onPressBack = () => {
+    if (isFromList) {
+      navigation.navigate('MainTabs', {
+        screen: 'List',
+      });
+
+      return;
+    } else if (isFromSearch) {
+      navigation.navigate('Search', { navigateHome: true });
+      return;
+    }
+    navigation.goBack();
+  };
+
   const openSuccessModal = (msg: string) => {
     setSuccessMsg(msg);
     setShowSuccessModal(true);
@@ -285,5 +305,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     progressOfCourse,
     completedLessonIds,
     activePackage,
+    source,
+    onPressBack,
   };
 };

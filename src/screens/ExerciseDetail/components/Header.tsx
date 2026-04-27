@@ -1,6 +1,6 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { colors } from '../../../theme/colors';
 import { ExerciseTab } from '../../../constants/exerciseTab';
@@ -33,7 +33,7 @@ const Header = ({
   const shouldHideBack = activeTab === ExerciseTab.Theory && isVideoExpand;
   const showBack = !shouldHideBack && (!isVideoPlay || isShowFlag);
   const showFlag = isShowFlag;
-  const showEquipmentIcon = !isShowFlag;
+  const showEquipmentIcon = !isShowFlag && exerciseEquipments.length > 0;
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
   const onPressReport = () => {
@@ -41,16 +41,16 @@ const Header = ({
   };
 
   return (
-    <>
+    <View className="bg-black/40">
       {showBack && (
         <Pressable
-          className="absolute top-16 left-4 z-10"
+          className="absolute top-16 left-4 z-10 bg-black/40 rounded-full w-10 h-10 flex justify-center items-center"
           onPress={onPressBack}
         >
           <Ionicons
             name="chevron-back-outline"
             size={24}
-            color={isShowFlag ? colors.background.DEFAULT : colors.foreground}
+            color={colors.background.DEFAULT}
           />
         </Pressable>
       )}
@@ -70,13 +70,13 @@ const Header = ({
 
       {showEquipmentIcon && (
         <Pressable
-          className="absolute top-16 right-4 z-10"
+          className="absolute top-16 right-4 z-10 bg-black/40 rounded-full w-10 h-10 flex justify-center items-center"
           onPress={() => setShowEquipmentModal(true)}
         >
           <Ionicons
             name="barbell-outline"
-            size={24}
-            color={colors.foreground}
+            size={22}
+            color={colors.background.DEFAULT}
           />
         </Pressable>
       )}
@@ -86,7 +86,7 @@ const Header = ({
         onClose={() => setShowEquipmentModal(false)}
         equipments={exerciseEquipments}
       />
-    </>
+    </View>
   );
 };
 

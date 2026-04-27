@@ -40,15 +40,15 @@ export default function InformationUI() {
       
 
       {/* LARGE AVATAR — moved to top and enlarged */}
-      <View className="items-center mt-6 mb-6">
+      <View className="items-center mt-16 mb-12">
         <Pressable onPress={pickAvatar} className="relative items-center justify-center">
           <Image
             source={{ uri: avatar ?? 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e' }}
-            className="w-44 h-44 rounded-full border-2 border-white"
+            className="w-64 h-64 rounded-full border-4 border-white"
           />
 
-          <View className="absolute right-2 bottom-2 w-9 h-9 bg-white rounded-full items-center justify-center shadow">
-            <Text className="text-foreground text-base">✎</Text>
+          <View className="absolute right-5 bottom-5 w-14 h-14 bg-white rounded-full items-center justify-center shadow">
+            <Text className="text-foreground text-2xl">✎</Text>
           </View>
 
           {uploading && (
@@ -60,7 +60,7 @@ export default function InformationUI() {
       </View>
 
       {/* FORM (name input placed below avatar) */}
-      <View className="mt-2 px-6 space-y-4">
+      <View className="mt-12 px-6 space-y-4">
         <Input label="Họ và tên" value={fullName} onChange={setFullName} />
         {validationMessage ? <Text className="text-red-500">{validationMessage}</Text> : null}
       </View>
