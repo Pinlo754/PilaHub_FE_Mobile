@@ -87,6 +87,7 @@ const OverviewSection = ({
           onPress={onPressPractice}
           onPressAIPractice={onPressAIPractice}
           activePackage={activePackage}
+          haveAIsupported={exerciseDetail.haveAIsupported}
           hasAccess={hasAccess}
           isFromList={isFromList}
           isFromSearch={isFromSearch}

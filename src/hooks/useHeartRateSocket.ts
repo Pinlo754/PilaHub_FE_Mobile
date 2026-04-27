@@ -40,7 +40,9 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
       heartbeatOutgoing: 10000,
       reconnectDelay: 5000,
       debug: (msg: string) => console.log('[STOMP DEBUG]', msg),
-      connectHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+      connectHeaders: {
+        Authorization: `Bearer ${token}`
+      },
       onConnect: () => {
         console.log('[HeartRateSocket] connected');
         connectingRef.current = false;
@@ -108,6 +110,7 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
     connectingRef.current = true;
     client.activate();
     clientRef.current = client;
+
   }, []);
 
   const disconnect = useCallback(() => {
@@ -116,7 +119,7 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
     subsRef.current = {};
 
     // 2. XÓA SẠCH hàng đợi pending (để đảm bảo trạng thái hoàn toàn mới khi mount lại)
-    pendingSubsRef.current = []; 
+    pendingSubsRef.current = [];
 
     // 3. Ngắt kết nối socket
     if (clientRef.current) {
@@ -128,16 +131,16 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
       clientRef.current = null;
       connectingRef.current = false;
     }
-    
+
     setIsConnected(false);
     console.log('[HeartRateSocket] disconnected and cleaned up completely');
   }, []);
 
   useEffect(() => {
-  return () => {
-    disconnect(); // Tự động chạy khi rời trang
-  };
-}, [disconnect]);
+    return () => {
+      disconnect(); // Tự động chạy khi rời trang
+    };
+  }, [disconnect]);
 
   const sendHeartRate = useCallback((payload: HeartRatePayload) => {
     const client = clientRef.current;
@@ -156,11 +159,12 @@ export const useHeartRateSocket = (): UseHeartRateSocket => {
 
   const subscribeToCoach = useCallback((coachAccountId: string, cb: (payload: HeartRatePayload) => void) => {
     const client = clientRef.current;
+    const endId = coachAccountId ? coachAccountId.replace(/^"|"$/g, '') : null;
     // Use user-specific destination that Spring maps to the coach's session
-    const destination = `/user/queue/heartrate`;
-    
+    const destination = `/queue/heartrate/${endId}`;
+
     console.log('[HeartRateSocket] subscribeToCoach called, client:', client ? 'exists' : 'null', 'active:', client?.active ?? 'N/A');
-    
+
     // If client not yet created or not active, queue subscription until connected
     if (!client || !client.active) {
       console.log('[HeartRateSocket] queuing subscribe until connected for', destination);

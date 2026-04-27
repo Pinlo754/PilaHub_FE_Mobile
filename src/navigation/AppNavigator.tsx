@@ -188,6 +188,7 @@ export type RootStackParamList = {
     imgUrl: string;
     videoUrl: string;
     workoutSessionId: string;
+    nameAITracking: string;
   };
   AITracking: {
     workoutSessionId: string;

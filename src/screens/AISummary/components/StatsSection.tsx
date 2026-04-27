@@ -9,6 +9,7 @@ type Props = {
 };
 
 const StatsSection = ({ feedback }: Props) => {
+  console.log('feedback in stats section', feedback);
   return (
     <View className="mt-4 p-4">
       <View className="flex-row flex-wrap justify-between gap-2">
@@ -19,24 +20,6 @@ const StatsSection = ({ feedback }: Props) => {
           colorBg={colors.info[20]}
           iconName="time"
           iconSize={26}
-        />
-
-        <CardStat
-          title="Calo"
-          value="~342"
-          colorIcon={colors.danger.DEFAULT}
-          colorBg={colors.danger[20]}
-          iconName="flame"
-          iconSize={26}
-        />
-
-        <CardStat
-          title="Động tác"
-          value="12/12"
-          colorIcon={colors.warning.DEFAULT}
-          colorBg={colors.warning[20]}
-          iconName="accessibility"
-          iconSize={24}
         />
 
         <CardStat

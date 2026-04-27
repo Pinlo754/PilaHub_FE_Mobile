@@ -42,6 +42,8 @@ export type ExerciseType = {
   contraindications: string | null;
   active: boolean;
   duration: number;
+  haveAIsupported: boolean;
+  nameInModelAI: string | null;
 };
 
 export type TutorialType = {

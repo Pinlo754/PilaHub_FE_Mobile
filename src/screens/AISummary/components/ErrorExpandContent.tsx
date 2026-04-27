@@ -43,7 +43,7 @@ const ErrorExpandContent = ({ item, onPlayVideo }: Props) => {
           />
         ) : (
           <Text className="text-secondaryText italic">
-            Không có ảnh minh họa
+            
           </Text>
         )}
 
