@@ -9,6 +9,7 @@ type Props = {
   onLoad?: (d: OnLoadData) => void;
   onProgress?: (p: OnProgressData) => void;
   onEnd?: () => void;
+  repeat?: boolean;
 };
 
 export default function RoadmapVideoSurface({
@@ -18,6 +19,7 @@ export default function RoadmapVideoSurface({
   onLoad,
   onProgress,
   onEnd,
+  repeat = false,
 }: Props) {
   if (!source) return <View style={styles.container} />;
 
@@ -27,6 +29,7 @@ export default function RoadmapVideoSurface({
         ref={videoRef}
         source={{ uri: source }}
         paused={paused}
+        repeat={repeat}
         resizeMode="cover"
         style={styles.video}
         onLoad={(d) => onLoad && onLoad(d)}
