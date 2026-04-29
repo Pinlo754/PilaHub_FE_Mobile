@@ -9,6 +9,7 @@ import { fetchMyWallet, getMyWithdrawals, getMyWithdrawalById, cancelMyWithdrawa
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ModalPopup from '../../components/ModalPopup';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Transaction = {
     transactionId: string;
@@ -281,7 +282,7 @@ export default function WalletScreen() {
     ), [balance, wallet, walletLoading, withdrawals.length, selectedType, filterItems, transactions, navigation]);
 
     return (
-        <View className="flex-1 bg-[#FFFAF0]">
+        <SafeAreaView className="flex-1 bg-[#FFFAF0]">
             
             {/* Header with back button */}
             <View className="flex-row items-center px-4 py-3 bg-white">
@@ -422,6 +423,6 @@ export default function WalletScreen() {
              </Modal>
 
             <ModalPopup {...(modalProps as any)} />
-         </View>
+         </SafeAreaView>
      );
  }

@@ -26,13 +26,13 @@ export default function MomoResultScreen() {
             setStatus('SUCCESS');
             setMessage('Giao dịch được xác nhận thành công.');
             // navigate to DepositResult with server data
-            navigation.replace('DepositResult', { success: true, data: body });
+            navigation.replace('DepositResult', { success: true, data: { params: { ...(body?.params ?? {}), ...body, method: 'MoMo' } } });
             return true;
           }
           if (s === 'FAILED' || s === 'ERROR') {
             setStatus('FAILED');
             setMessage('Giao dịch xác định là thất bại.');
-            navigation.replace('DepositResult', { success: false, data: body });
+            navigation.replace('DepositResult', { success: false, data: { params: { ...(body?.params ?? {}), ...body, method: 'MoMo' } } });
             return true;
           }
           setMessage('Giao dịch chưa được xác nhận trên máy chủ.');
@@ -51,7 +51,7 @@ export default function MomoResultScreen() {
         if (current > prev) {
           setStatus('SUCCESS');
           setMessage('Số dư ví đã tăng, giao dịch thành công.');
-          navigation.replace('DepositResult', { success: true, data: { transactionId: orderId, orderCode: orderId } });
+          navigation.replace('DepositResult', { success: true, data: { params: { transactionId: orderId, orderCode: orderId, method: 'MoMo' } } });
           return true;
         }
         setMessage('Số dư chưa thay đổi.');

@@ -6,6 +6,65 @@ import { fetchHealthProfileAssessment } from '../../services/profile';
 import ProgressCircle from '../../components/ProgressCircle';
 import IconInfo from './components/IconInfo';
 
+// translation maps for Vietnamese labels
+const RISK_TYPE_MAP: Record<string,string> = {
+  INJURY: 'Chấn thương',
+  HEALTH: 'Sức khỏe',
+  PERFORMANCE: 'Hiệu suất tập luyện',
+};
+const SEVERITY_MAP: Record<string,string> = {
+  LOW: 'Thấp',
+  MODERATE: 'Trung bình',
+  HIGH: 'Cao',
+  CRITICAL: 'Cấp thiết',
+};
+const RECOMM_KEY_MAP: Record<string,string> = {
+  training: 'Tập luyện',
+  nutrition: 'Dinh dưỡng',
+  lifestyle: 'Lối sống',
+  injuryPrevention: 'Phòng tránh chấn thương',
+};
+const LEVEL_MAP: Record<string,string> = {
+  POOR: 'Cần cải thiện',
+  AVERAGE: 'Trung bình',
+  GOOD: 'Tốt',
+  EXCELLENT: 'Xuất sắc',
+};
+
+function translateAssessment(raw: any) {
+  const d = raw?.data ?? raw ?? {};
+  const score = d?.score ?? null;
+  const level = LEVEL_MAP[String(d?.healthProfileLevel)] ?? d?.healthProfileLevel ?? null;
+  const highlights = (d?.highlights ?? []).map((h: any) => ({
+    title: h?.title ?? '',
+    description: h?.description ?? '',
+    relatedMetrics: h?.relatedMetrics ?? [],
+  }));
+  const risks = (d?.risks ?? []).map((r: any) => ({
+    riskType: RISK_TYPE_MAP[String(r?.riskType)] ?? r?.riskType ?? '',
+    severity: SEVERITY_MAP[String(r?.severity)] ?? r?.severity ?? '',
+    description: r?.description ?? '',
+    affectedBodyParts: r?.affectedBodyParts ?? [],
+  }));
+  const recommendationsRaw = d?.recommendations ?? {};
+  const recommendations: Record<string, any[]> = {};
+  Object.keys(recommendationsRaw || {}).forEach((k) => {
+    const vk = RECOMM_KEY_MAP[k] ?? k;
+    recommendations[vk] = Array.isArray(recommendationsRaw[k]) ? recommendationsRaw[k] : [];
+  });
+  return {
+    score,
+    level,
+    highlights,
+    risks,
+    recommendations,
+    explanations: d?.explanations ?? null,
+    confidenceScore: d?.confidenceScore ?? null,
+    aiModel: d?.aiModel ?? null,
+    assessedAt: d?.assessedAt ?? null,
+  };
+}
+
 type RouteParams = { healthProfileId: string };
 
 function ScoreCard({ score, level }: { score: number | null; level?:string | null }) {
@@ -60,11 +119,12 @@ export default function HealthProfileAssessmentScreen() {
     })();
     return () => { mounted = false; };
   }, [healthProfileId]);
-  const level = data ? (data.healthProfileLevel?? data.data?.healthProfileLevel?? null): null;
-  const score = data ? (data.score ?? data.data?.score ?? null) : null;
-  const highlights = data ? (data.data?.highlights ?? data.highlights ?? []) : [];
-  const risks = data ? (data.data?.risks ?? data.risks ?? []) : [];
-  const recommendations = data ? (data.data?.recommendations ?? data.recommendations ?? {}) : {};
+  const translated = translateAssessment(data);
+  const level = translated?.level ?? null;
+  const score = translated?.score ?? null;
+  const highlights = translated?.highlights ?? [];
+  const risks = translated?.risks ?? [];
+  const recommendations = translated?.recommendations ?? {};
 
   return (
     <SafeAreaView className="flex-1 bg-background">

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ScrollView,
   Text,
@@ -32,20 +32,29 @@ const RoadMap = () => {
   const navigation: any = useNavigation();
 
   const paramAdded = route.params?.addedRoadmap ?? null;
-  const roadmap = paramAdded?.roadmap ?? route.params?.roadmap ?? storeList?.[0]?.roadmap ?? null;
-  const stages = paramAdded?.stages ?? route.params?.stages ?? storeList?.[0]?.stages ?? [];
+
+  const roadmap =
+    paramAdded?.roadmap ??
+    route.params?.roadmap ??
+    storeList?.[0]?.roadmap ??
+    null;
+
+  const stages =
+    paramAdded?.stages ??
+    route.params?.stages ??
+    storeList?.[0]?.stages ??
+    [];
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedScheduleData, setSelectedScheduleData] = useState<any | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // --- STATE CHO ROADMAP HIỆN TẠI (CURRENT) ---
   const [currentRoadmapData, setCurrentRoadmapData] = useState<any | null>(roadmap);
   const [currentStagesData, setCurrentStagesData] = useState<any[]>(stages);
   const [currentSupplementsData, setCurrentSupplementsData] = useState<any[]>([]);
 
-  // --- STATE CHO ROADMAP ĐANG XỬ LÝ (PENDING/PROCESSING) ---
   const [pendingRoadmapData, setPendingRoadmapData] = useState<any | null>(null);
   const [pendingStagesData, setPendingStagesData] = useState<any[]>([]);
   const [pendingSupplementsData, setPendingSupplementsData] = useState<any[]>([]);
@@ -56,31 +65,143 @@ const RoadMap = () => {
   const [coachRequests, setCoachRequests] = useState<any[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  /**
+   * Supabase thường lưu timestamp UTC.
+   * Việt Nam UTC+7.
+   *
+   * Ví dụ:
+   * 2026-04-27T17:00:00Z + 7h = 2026-04-28 00:00 Việt Nam
+   */
+  const toVietnamDateKey = useCallback((dateInput: string | Date | null | undefined) => {
+    if (!dateInput) return null;
+
+    const date = new Date(dateInput);
+
+    if (isNaN(date.getTime())) return null;
+
+    const vietnamDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+
+    const year = vietnamDate.getUTCFullYear();
+    const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const getScheduleDateKey = useCallback(
+    (scheduleWrapper: any) => {
+      const rawDate =
+        scheduleWrapper?.scheduledDate ??
+        scheduleWrapper?.schedule?.scheduledDate ??
+        null;
+
+      return toVietnamDateKey(rawDate);
+    },
+    [toVietnamDateKey]
+  );
+
+  /**
+   * Merge wrapper + schedule bên trong.
+   * Vì có data nằm ở wrapper như:
+   * - scheduledDate
+   * - personalScheduleId
+   * - completed
+   * - exercises
+   */
+  const getScheduleObject = useCallback((scheduleWrapper: any) => {
+    if (!scheduleWrapper) return null;
+
+    const innerSchedule = scheduleWrapper?.schedule ?? {};
+
+    return {
+      ...innerSchedule,
+      ...scheduleWrapper,
+
+      schedule: innerSchedule,
+
+      scheduledDate:
+        scheduleWrapper?.scheduledDate ??
+        innerSchedule?.scheduledDate ??
+        null,
+
+      exercises:
+        scheduleWrapper?.exercises ??
+        innerSchedule?.exercises ??
+        [],
+
+      personalScheduleId:
+        scheduleWrapper?.personalScheduleId ??
+        innerSchedule?.personalScheduleId ??
+        scheduleWrapper?.id ??
+        innerSchedule?.id ??
+        null,
+
+      completed:
+        scheduleWrapper?.completed ??
+        innerSchedule?.completed ??
+        false,
+
+      scheduleName:
+        scheduleWrapper?.scheduleName ??
+        innerSchedule?.scheduleName ??
+        innerSchedule?.name ??
+        'Lịch tập',
+
+      dayOfWeek:
+        scheduleWrapper?.dayOfWeek ??
+        innerSchedule?.dayOfWeek ??
+        '',
+
+      durationMinutes:
+        scheduleWrapper?.durationMinutes ??
+        innerSchedule?.durationMinutes ??
+        0,
+
+      description:
+        scheduleWrapper?.description ??
+        innerSchedule?.description ??
+        '',
+    };
+  }, []);
+
+  const isScheduleCompleted = useCallback((scheduleWrapper: any) => {
+    const schedule = scheduleWrapper?.schedule ?? scheduleWrapper;
+
+    return (
+      scheduleWrapper?.completed === true ||
+      schedule?.completed === true ||
+      scheduleWrapper?.status === 'COMPLETED' ||
+      schedule?.status === 'COMPLETED'
+    );
+  }, []);
+
   const fetchCoachRequests = async () => {
     try {
       const res = await RoadmapApi.getMyCoachRequests();
       const data = res?.data ?? res ?? [];
       setCoachRequests(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.warn("Không lấy được coach requests", err);
+      console.warn('Không lấy được coach requests', err);
       setCoachRequests([]);
     }
   };
 
   const handleAcceptRoadmap = () => {
-    // Sẽ validate với canonical currentRoadmap phía dưới
     setShowConfirmModal(true);
   };
 
-  // --- LẤY DỮ LIỆU TAB CURRENT ---
   const fetchNewest = useCallback(async () => {
     try {
       setSaving(true);
+
       const newestData = await RoadmapApi.getNewest();
       console.log('roadmap newest response', newestData);
-      
+
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
-      const stagesFromServer = newestData?.stages ?? (Array.isArray(newestData) ? newestData : []) ?? [];
+      const stagesFromServer =
+        newestData?.stages ??
+        (Array.isArray(newestData) ? newestData : []) ??
+        [];
 
       if (!roadmapFromServer) {
         console.log('fetchNewest: no roadmap in response');
@@ -91,7 +212,11 @@ const RoadMap = () => {
         return;
       }
 
-      const roadmapId = roadmapFromServer?.id ?? roadmapFromServer?.roadmapId ?? roadmapFromServer?._id ?? null;
+      const roadmapId =
+        roadmapFromServer?.id ??
+        roadmapFromServer?.roadmapId ??
+        roadmapFromServer?._id ??
+        null;
 
       if (roadmapId) {
         try {
@@ -131,23 +256,24 @@ const RoadMap = () => {
     }
   }, []);
 
-  // --- LẤY DỮ LIỆU TAB PROCESSING ---
   const fetchProcessing = useCallback(async () => {
     try {
       setSaving(true);
+
       const processingResponse = await RoadmapApi.getPending();
       console.log('roadmap processing response', processingResponse);
-      
-      // 1. Trích xuất lõi dữ liệu an toàn bất kể cấu hình của Axios
+
       let responseData = processingResponse;
+
       if (processingResponse?.data?.data) {
         responseData = processingResponse.data.data;
       } else if (processingResponse?.data) {
         responseData = processingResponse.data;
       }
 
-      // 2. Nếu trả về mảng, lấy phần tử đầu tiên (đề phòng API trả về list)
-      const actualData = Array.isArray(responseData) ? responseData[0] : responseData;
+      const actualData = Array.isArray(responseData)
+        ? responseData[0]
+        : responseData;
 
       if (!actualData || Object.keys(actualData).length === 0) {
         console.log('fetchProcessing: Dữ liệu pending trống');
@@ -158,12 +284,14 @@ const RoadMap = () => {
         return;
       }
 
-      // 3. Trích xuất đích danh roadmap và stages từ actualData
       const roadmapFromServer = actualData?.roadmap ?? actualData ?? null;
       const stagesFromServer = actualData?.stages ?? [];
 
-      // 4. Kiểm tra ID của roadmap (JSON của bạn dùng trường roadmapId)
-      const roadmapId = roadmapFromServer?.id ?? roadmapFromServer?.roadmapId ?? roadmapFromServer?._id ?? null;
+      const roadmapId =
+        roadmapFromServer?.id ??
+        roadmapFromServer?.roadmapId ??
+        roadmapFromServer?._id ??
+        null;
 
       if (!roadmapId) {
         console.warn('fetchProcessing: Không tìm thấy roadmapId trong object', roadmapFromServer);
@@ -174,7 +302,6 @@ const RoadMap = () => {
         return;
       }
 
-      // 5. Fetch thêm Equipment và Supplements
       try {
         const [eqRes, supplementsRes] = await Promise.allSettled([
           RoadmapApi.getEquipment(roadmapId),
@@ -198,10 +325,8 @@ const RoadMap = () => {
         setPendingSupplementsData([]);
       }
 
-      // 6. Lưu vào state Pending
       setPendingRoadmapData(roadmapFromServer);
       setPendingStagesData(Array.isArray(stagesFromServer) ? stagesFromServer : []);
-      
     } catch (err: any) {
       console.warn('fetchProcessing error', err);
       setLastError(String(err?.message ?? err));
@@ -213,7 +338,7 @@ const RoadMap = () => {
   useFocusEffect(
     useCallback(() => {
       console.log('[useFocusEffect] activeTab changed to:', activeTab);
-      
+
       if (activeTab === 'CURRENT') {
         console.log('[useFocusEffect] Fetching CURRENT roadmap');
         fetchNewest();
@@ -221,16 +346,17 @@ const RoadMap = () => {
         console.log('[useFocusEffect] Fetching PROCESSING roadmap');
         fetchProcessing();
       }
-      
+
       fetchCoachRequests();
+
       return () => {};
     }, [fetchNewest, fetchProcessing, activeTab])
   );
 
-  // If the screen receives a newly created roadmap via params, fetch its equipment/supplements right away
   const fetchEquipmentAndSupplements = useCallback(async (rm: any) => {
     try {
       const roadmapId = rm?.id ?? rm?.roadmapId ?? rm?._id ?? null;
+
       if (!roadmapId) return;
 
       const [eqRes, supplementsRes] = await Promise.allSettled([
@@ -240,17 +366,29 @@ const RoadMap = () => {
 
       const normalizePayload = (res: any) => {
         if (!res) return [];
+
         const val = res?.data ?? res;
+
         if (Array.isArray(val)) return val;
-        // axios may wrap value inside .data (object) or return object directly
+
         return Array.isArray(res) ? res : (val ?? []);
       };
 
-      const equipment = eqRes.status === 'fulfilled' ? normalizePayload(eqRes.value) : [];
-      const supplements = supplementsRes.status === 'fulfilled' ? normalizePayload(supplementsRes.value) : [];
+      const equipment =
+        eqRes.status === 'fulfilled'
+          ? normalizePayload(eqRes.value)
+          : [];
 
-      // update local copies so UI reflects fetched equipment/supplements immediately
-      setCurrentRoadmapData((prev: any) => ({ ...(prev ?? rm), equipment }));
+      const supplements =
+        supplementsRes.status === 'fulfilled'
+          ? normalizePayload(supplementsRes.value)
+          : [];
+
+      setCurrentRoadmapData((prev: any) => ({
+        ...(prev ?? rm),
+        equipment,
+      }));
+
       setCurrentSupplementsData(supplements);
     } catch (err) {
       console.warn('fetchEquipmentAndSupplements error', err);
@@ -258,26 +396,122 @@ const RoadMap = () => {
   }, []);
 
   useEffect(() => {
-    // prefer the freshly added roadmap passed as param
     const target = paramAdded?.roadmap ?? roadmap;
-    // only fetch when we have a fresh roadmap and equipment isn't already present
+
     if (target && (!target.equipment || target.equipment.length === 0)) {
       fetchEquipmentAndSupplements(target);
     }
   }, [paramAdded, roadmap, fetchEquipmentAndSupplements]);
 
-  // --- DYNAMIC BINDING UI BIẾN DỰA TRÊN TAB ---
-  const activeDataRoadmap = activeTab === 'CURRENT' ? currentRoadmapData : pendingRoadmapData;
-  const activeDataStages = activeTab === 'CURRENT' ? currentStagesData : pendingStagesData;
-  const activeDataSupplements = activeTab === 'CURRENT' ? currentSupplementsData : pendingSupplementsData;
+  const activeDataRoadmap =
+    activeTab === 'CURRENT' ? currentRoadmapData : pendingRoadmapData;
 
-  const currentRoadmap = activeDataRoadmap ?? (activeTab === 'CURRENT' ? roadmap : null);
-  const currentStages = activeDataStages?.length ? activeDataStages : (activeTab === 'CURRENT' ? stages : []);
-  const currentSupplements = activeDataSupplements?.length ? activeDataSupplements : (currentRoadmap?.supplements ?? []);
+  const activeDataStages =
+    activeTab === 'CURRENT' ? currentStagesData : pendingStagesData;
 
-  const isApiShaped = Array.isArray(currentStages) && currentStages.length > 0 && Boolean(currentStages[0]?.stage || currentStages[0]?._raw);
+  const activeDataSupplements =
+    activeTab === 'CURRENT'
+      ? currentSupplementsData
+      : pendingSupplementsData;
 
-  // Handle empty state
+  const currentRoadmap =
+    activeDataRoadmap ??
+    (activeTab === 'CURRENT' ? roadmap : null);
+
+  const currentStages =
+    activeDataStages?.length
+      ? activeDataStages
+      : activeTab === 'CURRENT'
+        ? stages
+        : [];
+
+  const currentSupplements =
+    activeDataSupplements?.length
+      ? activeDataSupplements
+      : currentRoadmap?.supplements ?? [];
+
+  const isApiShaped =
+    Array.isArray(currentStages) &&
+    currentStages.length > 0 &&
+    Boolean(currentStages[0]?.stage || currentStages[0]?._raw);
+
+  const selectedStage =
+    currentStages?.[selectedStageIndex] ??
+    currentStages?.[0] ??
+    null;
+
+  const completedDateMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+
+    const schedules = selectedStage?.schedules ?? [];
+
+    schedules.forEach((item: any) => {
+      const dateKey = getScheduleDateKey(item);
+
+      if (dateKey && isScheduleCompleted(item)) {
+        map[dateKey] = true;
+      }
+    });
+
+    return map;
+  }, [selectedStage, getScheduleDateKey, isScheduleCompleted]);
+
+  const selectedStageId =
+    selectedStage?.id ??
+    selectedStage?.personalStageId ??
+    selectedStage?.stage?.id ??
+    null;
+
+  const selectedStageSupplements = selectedStageId
+    ? currentSupplements.filter((sp: any) => sp.personalStageId === selectedStageId)
+    : currentSupplements;
+
+  const allSchedules = currentStages.flatMap((st: any) =>
+    st.schedules?.map((s: any) => s.schedule ?? s) ?? []
+  );
+
+  const totalSessions = allSchedules.length;
+  const firstSchedule = allSchedules[0];
+  const lastSchedule = allSchedules[allSchedules.length - 1];
+
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('vi-VN');
+  const totalAmount = currentRoadmap?.totalAmount ?? 0;
+
+  /**
+   * QUAN TRỌNG:
+   * StageCalendar đã truyền scheduleWrapper đúng theo ngày đã render.
+   * RoadMap không tự find selectedSchedule nữa.
+   */
+  const handleSelectDate = (date: string | null, scheduleWrapperFromCalendar?: any) => {
+    console.log('[RoadMap] selected date:', date);
+    console.log('[RoadMap] wrapper from calendar:', scheduleWrapperFromCalendar);
+
+    setSelectedDate(date);
+    setSelectedScheduleData(null);
+
+    if (!scheduleWrapperFromCalendar) {
+      console.log('[RoadMap] no schedule for selected date:', date);
+      setShowScheduleModal(true);
+      return;
+    }
+
+    const scheduleObject = getScheduleObject(scheduleWrapperFromCalendar);
+
+    console.log('[RoadMap] final selected schedule:', {
+      selectedDate: date,
+      dateKey: getScheduleDateKey(scheduleWrapperFromCalendar),
+      scheduledDate: scheduleObject?.scheduledDate,
+      scheduleName: scheduleObject?.scheduleName,
+      dayOfWeek: scheduleObject?.dayOfWeek,
+      personalScheduleId: scheduleObject?.personalScheduleId,
+      completed: scheduleObject?.completed,
+      exercisesLength: scheduleObject?.exercises?.length,
+    });
+
+    setSelectedScheduleData(scheduleObject);
+    setShowScheduleModal(true);
+  };
+
   if (!currentRoadmap || !currentStages?.length) {
     if (saving) {
       return (
@@ -292,11 +526,12 @@ const RoadMap = () => {
       <SafeAreaView style={[styles.screen, styles.centeredContainer]}>
         <View style={styles.tabsContainer}>
           <TouchableOpacity
-            onPress={() => { 
+            onPress={() => {
               console.log('[Empty State] Switching to CURRENT');
-              setActiveTab('CURRENT'); 
+              setActiveTab('CURRENT');
               setSelectedStageIndex(0);
-              // useFocusEffect will handle fetching
+              setSelectedDate(null);
+              setSelectedScheduleData(null);
             }}
             style={[styles.tabButton, activeTab === 'CURRENT' && styles.tabButtonActive]}
           >
@@ -304,12 +539,14 @@ const RoadMap = () => {
               Roadmap hiện tại
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            onPress={() => { 
+            onPress={() => {
               console.log('[Empty State] Switching to PROCESSING');
-              setActiveTab('PROCESSING'); 
+              setActiveTab('PROCESSING');
               setSelectedStageIndex(0);
-              // useFocusEffect will handle fetching
+              setSelectedDate(null);
+              setSelectedScheduleData(null);
             }}
             style={[styles.tabButton, activeTab === 'PROCESSING' && styles.tabButtonActive]}
           >
@@ -320,11 +557,16 @@ const RoadMap = () => {
         </View>
 
         <Text style={styles.emptyTitle}>
-          {activeTab === 'CURRENT' ? 'Bạn chưa có lộ trình' : 'Không có lộ trình nào đang xử lý'}
+          {activeTab === 'CURRENT'
+            ? 'Bạn chưa có lộ trình'
+            : 'Không có lộ trình nào đang xử lý'}
         </Text>
 
         {activeTab === 'CURRENT' && (
-          <TouchableOpacity onPress={() => navigation.navigate('CreateRoadmap')} style={styles.buttonPrimary}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CreateRoadmap')}
+            style={styles.buttonPrimary}
+          >
             <Text style={styles.buttonPrimaryText}>Tạo lộ trình mới</Text>
           </TouchableOpacity>
         )}
@@ -332,39 +574,17 @@ const RoadMap = () => {
     );
   }
 
-  // --- VARIABLES FOR RENDER ---
-  const selectedStage = currentStages[selectedStageIndex] || currentStages[0];
-  const selectedSchedule = selectedStage?.schedules?.find((s: any) => selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false) ?? null;
-  const selectedStageId = selectedStage?.id ?? selectedStage?.personalStageId ?? selectedStage?.stage?.id ?? null;
-
-  const selectedStageSupplements = selectedStageId
-    ? currentSupplements.filter((sp: any) => sp.personalStageId === selectedStageId)
-    : currentSupplements;
-
-  const allSchedules = currentStages.flatMap((st: any) => st.schedules?.map((s: any) => s.schedule) ?? []);
-  const totalSessions = allSchedules.length;
-  const firstSchedule = allSchedules[0];
-  const lastSchedule = allSchedules[allSchedules.length - 1];
-
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('vi-VN');
-  const totalAmount = currentRoadmap?.totalAmount ?? 0;
-
-  const handleSelectDate = (date: string | null) => {
-    setSelectedDate(date);
-    setShowScheduleModal(true);
-  };
-
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Tabs */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
             onPress={() => {
               console.log('[Tab Click] Switching to CURRENT');
               setActiveTab('CURRENT');
-              setSelectedStageIndex(0); // Reset index
-              // useFocusEffect will handle fetching
+              setSelectedStageIndex(0);
+              setSelectedDate(null);
+              setSelectedScheduleData(null);
             }}
             style={[styles.tabButton, activeTab === 'CURRENT' && styles.tabButtonActive]}
           >
@@ -377,8 +597,9 @@ const RoadMap = () => {
             onPress={() => {
               console.log('[Tab Click] Switching to PROCESSING');
               setActiveTab('PROCESSING');
-              setSelectedStageIndex(0); // Reset index
-              // useFocusEffect will handle fetching
+              setSelectedStageIndex(0);
+              setSelectedDate(null);
+              setSelectedScheduleData(null);
             }}
             style={[styles.tabButton, activeTab === 'PROCESSING' && styles.tabButtonActive]}
           >
@@ -388,62 +609,119 @@ const RoadMap = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Header */}
         <View style={styles.sectionWrap}>
           <View style={styles.card}>
             <View style={styles.headerRow}>
               <View style={styles.headerTextWrap}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{currentRoadmap.title}</Text>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {currentRoadmap.title}
+                </Text>
+
                 {currentRoadmap.description ? (
-                  <Text style={styles.cardSubtitle} numberOfLines={2}>{currentRoadmap.description}</Text>
+                  <Text style={styles.cardSubtitle} numberOfLines={2}>
+                    {currentRoadmap.description}
+                  </Text>
                 ) : null}
               </View>
+
               <View style={styles.statBox}>
                 <Text style={styles.statText}>
                   {`${Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)}%`}
                 </Text>
               </View>
             </View>
+
             <View style={styles.progressWrap}>
               <View style={styles.progressBarBg}>
                 <View
-                  style={[styles.progressBarFill, { width: `${Math.max(0, Math.min(100, Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)))}%` }]}
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${Math.max(
+                        0,
+                        Math.min(
+                          100,
+                          Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)
+                        )
+                      )}%`,
+                    },
+                  ]}
                 />
               </View>
             </View>
           </View>
         </View>
 
-       
-
-        {/* Stage selector */}
         <View style={styles.stageSelector}>
           {isApiShaped ? (
             <StageRendererApi apiStages={currentStages} roadmap={currentRoadmap} />
           ) : (
-            <StageCarousel stages={currentStages} onChangeIndex={setSelectedStageIndex} />
+            <StageCarousel
+              stages={currentStages}
+              onChangeIndex={(idx: number) => {
+                setSelectedStageIndex(idx);
+                setSelectedDate(null);
+                setSelectedScheduleData(null);
+              }}
+            />
           )}
         </View>
 
-        {/* Calendar / Schedule / Supplement */}
         {!isApiShaped && (
           <>
-            <StageCalendar stage={selectedStage} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+            <StageCalendar
+              stage={selectedStage}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+              completedDateMap={completedDateMap}
+            />
 
-            <Modal visible={showScheduleModal} animationType="slide" onRequestClose={() => setShowScheduleModal(false)}>
+            <Modal
+              visible={showScheduleModal}
+              animationType="slide"
+              presentationStyle="fullScreen"
+              onRequestClose={() => {
+                setShowScheduleModal(false);
+                setSelectedScheduleData(null);
+              }}
+            >
               <SafeAreaView style={styles.modalContainer as any}>
                 <View style={styles.modalHeader}>
-                  <TouchableOpacity onPress={() => setShowScheduleModal(false)}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowScheduleModal(false);
+                      setSelectedScheduleData(null);
+                    }}
+                  >
                     <Text style={styles.closeText}>Đóng</Text>
                   </TouchableOpacity>
                 </View>
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                  {selectedSchedule ? (
-                    <ScheduleDetail schedule={selectedSchedule} />
+
+                <ScrollView
+                  style={styles.modalScroll}
+                  contentContainerStyle={styles.modalScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {selectedScheduleData ? (
+                    <ScheduleDetail
+                      key={
+                        selectedScheduleData?.personalScheduleId ??
+                        selectedScheduleData?.scheduledDate ??
+                        selectedDate
+                      }
+                      schedule={selectedScheduleData}
+                      onScheduleCompleted={async () => {
+                        await fetchNewest();
+                      }}
+                    />
                   ) : (
                     <View style={styles.modalEmpty}>
                       <Text style={styles.modalEmptyTitle}>Không có lịch cho ngày này.</Text>
-                      <Text style={styles.modalEmptySubtitle}>Vui lòng chọn ngày có lịch để xem bài tập.</Text>
+                      <Text style={styles.modalEmptySubtitle}>
+                        Vui lòng chọn ngày có lịch để xem bài tập.
+                      </Text>
                     </View>
                   )}
                 </ScrollView>
@@ -454,66 +732,139 @@ const RoadMap = () => {
           </>
         )}
 
-        {/* Equipment */}
-        {currentRoadmap?.equipment && Array.isArray(currentRoadmap.equipment) && currentRoadmap.equipment.length > 0 && (
-          <View style={styles.sectionWrap}>
-            <Text style={styles.equipmentTitle}>Thiết bị tập luyện</Text>
-            {currentRoadmap.equipment.map((eq: any, idx: number) => (
-              <TouchableOpacity
-                key={idx}
-                style={styles.itemCard}
-                onPress={() => {
-                  const q = eq.equipmentName ?? eq.name ?? '';
-                  navigation.navigate('ShopSearchResult' as any, { q, roadmapFilter: { category: 'Thiết bị', equipmentName: q } });
-                }}
-              >
-                <View style={styles.itemRow}>
-                  {eq.imageUrl || eq.image || eq.thumbnailUrl || eq.equipmentImageUrl || eq.photo ? (
-                    <Image
-                      source={{ uri: eq.imageUrl || eq.image || eq.thumbnailUrl || eq.equipmentImageUrl || eq.photo }}
-                      style={styles.itemImage} resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.itemImage} />
-                  )}
-                  <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>{eq.equipmentName ?? eq.name ?? 'Thiết bị'}</Text>
-                    {eq.description && <Text style={styles.itemSubtitle}>{eq.description}</Text>}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        {currentRoadmap?.equipment &&
+          Array.isArray(currentRoadmap.equipment) &&
+          currentRoadmap.equipment.length > 0 && (
+            <View style={styles.sectionWrap}>
+              <Text style={styles.equipmentTitle}>Thiết bị tập luyện</Text>
 
-        {/* Supplements */}
+              {currentRoadmap.equipment.map((eq: any, idx: number) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.itemCard}
+                  onPress={() => {
+                    const q = eq.equipmentName ?? eq.name ?? '';
+
+                    navigation.navigate('ShopSearchResult' as any, {
+                      q,
+                      roadmapFilter: {
+                        category: 'Thiết bị',
+                        equipmentName: q,
+                      },
+                    });
+                  }}
+                >
+                  <View style={styles.itemRow}>
+                    {eq.imageUrl ||
+                    eq.image ||
+                    eq.thumbnailUrl ||
+                    eq.equipmentImageUrl ||
+                    eq.photo ? (
+                      <Image
+                        source={{
+                          uri:
+                            eq.imageUrl ||
+                            eq.image ||
+                            eq.thumbnailUrl ||
+                            eq.equipmentImageUrl ||
+                            eq.photo,
+                        }}
+                        style={styles.itemImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.itemImage} />
+                    )}
+
+                    <View style={styles.itemContent}>
+                      <Text style={styles.itemTitle}>
+                        {eq.equipmentName ?? eq.name ?? 'Thiết bị'}
+                      </Text>
+
+                      {eq.description && (
+                        <Text style={styles.itemSubtitle}>{eq.description}</Text>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
         {(selectedStageSupplements?.length > 0 || currentSupplements?.length > 0) && (
           <View style={styles.sectionWrap}>
             <Text style={styles.supplementTitle}>Thực phẩm chức năng</Text>
-            {(selectedStageSupplements?.length > 0 ? selectedStageSupplements : currentSupplements).map((sp: any, idx: number) => (
+
+            {(selectedStageSupplements?.length > 0
+              ? selectedStageSupplements
+              : currentSupplements
+            ).map((sp: any, idx: number) => (
               <TouchableOpacity
-                key={sp.personalStageSupplementId ?? idx} style={styles.itemCard}
+                key={sp.personalStageSupplementId ?? idx}
+                style={styles.itemCard}
                 onPress={() => {
                   const q = sp.supplementName ?? 'Supplement';
-                  navigation.navigate('ShopSearchResult' as any, { q, roadmapFilter: { category: 'Thực phẩm chức năng', supplementName: q } });
+
+                  navigation.navigate('ShopSearchResult' as any, {
+                    q,
+                    roadmapFilter: {
+                      category: 'Thực phẩm chức năng',
+                      supplementName: q,
+                    },
+                  });
                 }}
               >
                 <View style={styles.itemRow}>
                   {sp.supplementImageUrl ? (
-                    <Image source={{ uri: sp.supplementImageUrl }} style={styles.itemImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: sp.supplementImageUrl }}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={styles.itemImage} />
                   )}
+
                   <View style={styles.itemContent}>
                     <View style={styles.itemHeaderRow}>
-                      <Text style={styles.itemTitle}>{sp.supplementName ?? 'Supplement'}</Text>
-                      {sp.priority && <View style={styles.badge}><Text style={styles.badgeText}>{sp.priority}</Text></View>}
+                      <Text style={styles.itemTitle}>
+                        {sp.supplementName ?? 'Supplement'}
+                      </Text>
+
+                      {sp.priority && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{sp.priority}</Text>
+                        </View>
+                      )}
                     </View>
-                    {sp.recommendedTiming && <Text style={styles.itemSubtitle}>Thời điểm: {sp.recommendedTiming}</Text>}
-                    {sp.dosage && <Text style={styles.itemSubtitle}>Liều dùng: {sp.dosage}</Text>}
-                    {sp.reason && <Text style={styles.itemSubtitle}>Lý do: {sp.reason}</Text>}
-                    {sp.notes && <Text style={styles.itemSubtitle}>Ghi chú: {sp.notes}</Text>}
-                    <Text style={styles.smallText}>Optional: {sp.optional ? 'Yes' : 'No'}</Text>
+
+                    {sp.recommendedTiming && (
+                      <Text style={styles.itemSubtitle}>
+                        Thời điểm: {sp.recommendedTiming}
+                      </Text>
+                    )}
+
+                    {sp.dosage && (
+                      <Text style={styles.itemSubtitle}>
+                        Liều dùng: {sp.dosage}
+                      </Text>
+                    )}
+
+                    {sp.reason && (
+                      <Text style={styles.itemSubtitle}>
+                        Lý do: {sp.reason}
+                      </Text>
+                    )}
+
+                    {sp.notes && (
+                      <Text style={styles.itemSubtitle}>
+                        Ghi chú: {sp.notes}
+                      </Text>
+                    )}
+
+                    <Text style={styles.smallText}>
+                      Optional: {sp.optional ? 'Yes' : 'No'}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -522,7 +873,6 @@ const RoadMap = () => {
         )}
       </ScrollView>
 
-      {/* Bottom Action Bar for Processing Tab */}
       {activeTab === 'PROCESSING' && (
         <View style={styles.bottomBar}>
           <BottomActionBar
@@ -534,7 +884,6 @@ const RoadMap = () => {
         </View>
       )}
 
-      {/* Confirm Modal */}
       {showConfirmModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModal}>
@@ -544,7 +893,8 @@ const RoadMap = () => {
 
             {firstSchedule && lastSchedule && (
               <Text style={styles.confirmText}>
-                📅 Thời gian: {formatDate(firstSchedule.scheduledDate)} - {formatDate(lastSchedule.scheduledDate)}
+                📅 Thời gian: {formatDate(firstSchedule.scheduledDate)} -{' '}
+                {formatDate(lastSchedule.scheduledDate)}
               </Text>
             )}
 
@@ -553,7 +903,10 @@ const RoadMap = () => {
             </Text>
 
             <View style={styles.confirmButtons}>
-              <TouchableOpacity onPress={() => setShowConfirmModal(false)} style={styles.cancelButton}>
+              <TouchableOpacity
+                onPress={() => setShowConfirmModal(false)}
+                style={styles.cancelButton}
+              >
                 <Text style={styles.cancelText}>Huỷ</Text>
               </TouchableOpacity>
 
@@ -561,14 +914,22 @@ const RoadMap = () => {
                 onPress={async () => {
                   try {
                     setSaving(true);
-                    const roadmapId = currentRoadmap?.roadmapId ?? currentRoadmap?.id ?? currentRoadmap?._id;
 
-                    const coachRequest = coachRequests.find((req: any) => req.coachId === currentRoadmap?.coachId);
-                    const trainingDaySchedules = coachRequest?.trainingDaySchedules ?? [];
+                    const roadmapId =
+                      currentRoadmap?.roadmapId ??
+                      currentRoadmap?.id ??
+                      currentRoadmap?._id;
+
+                    const coachRequest = coachRequests.find(
+                      (req: any) => req.coachId === currentRoadmap?.coachId
+                    );
+
+                    const trainingDaySchedules =
+                      coachRequest?.trainingDaySchedules ?? [];
 
                     const bookingSlots = currentStages.flatMap((st: any) =>
                       st.schedules?.map((scheduleWrapper: any) => {
-                        const schedule = scheduleWrapper.schedule;
+                        const schedule = scheduleWrapper.schedule ?? scheduleWrapper;
                         const scheduledDate = new Date(schedule.scheduledDate);
 
                         const year = scheduledDate.getUTCFullYear();
@@ -576,48 +937,67 @@ const RoadMap = () => {
                         const day = String(scheduledDate.getUTCDate()).padStart(2, '0');
 
                         const dayOfWeekMap: any = {
-                          'THỨ HAI': 'MONDAY', 'THỨ BA': 'TUESDAY', 'THỨ TƯ': 'WEDNESDAY',
-                          'THỨ NĂM': 'THURSDAY', 'THỨ SÁU': 'FRIDAY', 'THỨ BẢY': 'SATURDAY', 'CHỦ NHẬT': 'SUNDAY'
+                          'THỨ HAI': 'MONDAY',
+                          'THỨ BA': 'TUESDAY',
+                          'THỨ TƯ': 'WEDNESDAY',
+                          'THỨ NĂM': 'THURSDAY',
+                          'THỨ SÁU': 'FRIDAY',
+                          'THỨ BẢY': 'SATURDAY',
+                          'CHỦ NHẬT': 'SUNDAY',
                         };
 
                         const dayOfWeekEng = dayOfWeekMap[schedule.dayOfWeek] || 'MONDAY';
-                        const trainingSchedule = trainingDaySchedules.find((tds: any) => tds.dayOfWeek === dayOfWeekEng);
-                        const startTimeStr = trainingSchedule?.startTime ?? '08:00';
 
+                        const trainingSchedule = trainingDaySchedules.find(
+                          (tds: any) => tds.dayOfWeek === dayOfWeekEng
+                        );
+
+                        const startTimeStr = trainingSchedule?.startTime ?? '08:00';
                         const [hours, minutes] = startTimeStr.split(':');
-                        const startDateTime = `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
+
+                        const startDateTime =
+                          `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:` +
+                          `${String(minutes).padStart(2, '0')}:00Z`;
 
                         const startDateTimeObj = new Date(startDateTime);
                         const start = new Date(startDateTimeObj.getTime() - 7 * 60 * 60 * 1000);
                         const durationMs = 60 * 60 * 1000;
                         const end = new Date(start.getTime() + durationMs);
 
-                        return { startTime: start.toISOString(), endTime: end.toISOString() };
+                        return {
+                          startTime: start.toISOString(),
+                          endTime: end.toISOString(),
+                        };
                       }) ?? []
                     );
 
                     const payload1 = {
                       coachId: currentRoadmap?.coachId,
-                      bookingSlots: bookingSlots,
-                      bookingType: "PERSONAL_TRAINING_PACKAGE",
+                      bookingSlots,
+                      bookingType: 'PERSONAL_TRAINING_PACKAGE',
                       recurringGroupId: roadmapId,
-                    }
+                    };
 
-                    console.log("Payload for booking", payload1);
+                    console.log('Payload for booking', payload1);
+
                     await RoadmapApi.createBatch(payload1);
                     await RoadmapApi.approveRoadmap(roadmapId);
 
                     setShowConfirmModal(false);
-                    Alert.alert("Thành công", "Đã chấp nhận lộ trình");
-                    
-                    // Sau khi thanh toán xong, fetch lại data cả 2 bên và chuyển về màn hình CURRENT
+                    Alert.alert('Thành công', 'Đã chấp nhận lộ trình');
+
                     await fetchNewest();
                     await fetchProcessing();
-                    setActiveTab("CURRENT");
-                    setSelectedStageIndex(0);
 
+                    setActiveTab('CURRENT');
+                    setSelectedStageIndex(0);
+                    setSelectedDate(null);
+                    setSelectedScheduleData(null);
                   } catch (err: any) {
-                    Alert.alert("Lỗi", err?.response?.data?.message ?? "Không thể chấp nhận roadmap");
+                    Alert.alert(
+                      'Lỗi',
+                      err?.response?.data?.message ?? 'Không thể chấp nhận roadmap'
+                    );
                   } finally {
                     setSaving(false);
                   }
@@ -643,74 +1023,220 @@ const styles = StyleSheet.create({
   errorText: { color: 'red' },
 
   tabsContainer: {
-    flexDirection: 'row', paddingHorizontal: 16, marginTop: 16, marginBottom: 8,
-    borderRadius: 12, backgroundColor: '#F3EDE3', borderWidth: 1, borderColor: '#8B4513',
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    backgroundColor: '#F3EDE3',
+    borderWidth: 1,
+    borderColor: '#8B4513',
   },
-  tabButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
   tabButtonActive: { backgroundColor: '#8B4513' },
   tabText: { fontSize: 14, fontWeight: '600', color: '#6B6B6B' },
   tabTextActive: { color: '#FFF' },
 
   card: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#eee',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerTextWrap: { flex: 1, paddingRight: 8 },
   cardTitle: { color: '#3A2A1A', fontSize: 18, fontWeight: '700' },
   cardSubtitle: { color: '#6B6B6B', marginTop: 4, fontSize: 13 },
-  statBox: { minWidth: 48, height: 32, borderRadius: 8, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center' },
+  statBox: {
+    minWidth: 48,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F3EDE3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statText: { color: '#8B4513', fontWeight: '700' },
   progressWrap: { marginTop: 10 },
+  progressBarBg: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#F3EDE3',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
+
   stageSelector: { marginTop: 12 },
   sectionWrap: { paddingHorizontal: 16, marginTop: 24 },
-  equipmentTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#8B4513' },
-  supplementTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#8B4513' },
+
+  equipmentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#8B4513',
+  },
+  supplementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#8B4513',
+  },
 
   itemCard: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#eee',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
   },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  itemImage: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#f3f4f6' },
+  itemImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
   itemContent: { flex: 1 },
-  itemHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  itemHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   itemTitle: { fontSize: 16, color: '#3A2A1A', fontWeight: '700' },
   itemSubtitle: { fontSize: 13, color: '#6B6B6B', marginTop: 6 },
-  badge: { backgroundColor: '#F3EDE3', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  badge: {
+    backgroundColor: '#F3EDE3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
   badgeText: { color: '#8B4513', fontWeight: '700', fontSize: 11 },
   smallText: { fontSize: 12, color: '#8B8B8B', marginTop: 6 },
 
-  centeredContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  centeredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
   loadingText: { marginTop: 12, fontSize: 16, color: '#8B4513' },
-  emptyTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16, textAlign: 'center', color: '#3A2A1A', marginTop: 20 },
-  buttonPrimary: { backgroundColor: '#8B4513', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#3A2A1A',
+    marginTop: 20,
+  },
+  buttonPrimary: {
+    backgroundColor: '#8B4513',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
   buttonPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 16 },
 
-  progressBarBg: { width: '100%', height: 10, backgroundColor: '#F3EDE3', borderRadius: 6, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
-
   modalContainer: { flex: 1, backgroundColor: '#FFFAF0' },
-  modalHeader: { height: 56, paddingHorizontal: 16, alignItems: 'flex-end', justifyContent: 'center' },
+  modalHeader: {
+    height: 56,
+    paddingHorizontal: 16,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
   closeText: { color: '#8B4513', fontWeight: '600' },
+  modalScroll: { flex: 1 },
+  modalScrollContent: { paddingBottom: 180 },
   modalEmpty: { padding: 20 },
   modalEmptyTitle: { color: '#3A2A1A', fontSize: 16 },
   modalEmptySubtitle: { color: '#6B6B6B', marginTop: 8 },
 
-  bottomBar: { position: 'absolute', bottom: 20, left: 0, right: 0 },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+  },
 
-  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  confirmModal: { backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 400 },
-  confirmTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 16, color: '#3A2A1A' },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  confirmModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 16,
+    color: '#3A2A1A',
+  },
   confirmText: { fontSize: 16, marginBottom: 8, color: '#3A2A1A' },
   confirmTextWhite: { fontSize: 16, color: '#FFF', fontWeight: '600' },
-  confirmButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  cancelButton: { flex: 1, marginRight: 8, paddingVertical: 12, backgroundColor: '#f3f4f6', borderRadius: 8, alignItems: 'center' },
+  confirmButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  cancelButton: {
+    flex: 1,
+    marginRight: 8,
+    paddingVertical: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
   cancelText: { color: '#6B6B6B', fontWeight: '600' },
-  confirmButton: { flex: 1, marginLeft: 8, paddingVertical: 12, backgroundColor: '#8B4513', borderRadius: 8, alignItems: 'center' },
+  confirmButton: {
+    flex: 1,
+    marginLeft: 8,
+    paddingVertical: 12,
+    backgroundColor: '#8B4513',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
 
   recreateButton: {
-    backgroundColor: '#8B4513', paddingVertical: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#8B4513',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recreateText: { color: '#FFF', fontWeight: '500', fontSize: 14 },
 });

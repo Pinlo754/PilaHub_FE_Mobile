@@ -21,12 +21,44 @@ export default function DepositResultScreen() {
   }, [data, params]);
 
   const amount = useMemo(() => {
-    // Support MoMo params (amount), VNPay (vnp_Amount) and others
-    const amtRaw = Number(params.vnp_Amount ?? params.amount ?? params.vnpAmount ?? params.amount ?? 0) || 0;
-    if (!amtRaw) return '-';
-    const normalized = amtRaw >= 1000000 && amtRaw % 100 === 0 ? Math.round(amtRaw / 100) : amtRaw; // VNPay sometimes sends amount*100
-    return new Intl.NumberFormat('vi-VN').format(normalized) + '₫';
-  }, [params]);
+    // Debug log to inspect incoming params/data
+    try { console.log('DEBUG DepositResult params:', params, 'data:', data, 'route.params:', route.params); } catch {}
+
+    // Build a combined lookup object that prefers params but also includes route.params and data top-level
+    const combined: Record<string, any> = { ...(params || {}) };
+    try {
+      if (route?.params && typeof route.params === 'object') Object.assign(combined, route.params);
+    } catch {}
+    try {
+      if (data && typeof data === 'object') Object.assign(combined, data.params ?? data);
+    } catch {}
+
+    // Robust amount extraction: try several common keys and sanitize non-digit chars
+    const keysToTry = ['vnp_Amount', 'vnpAmount', 'amount', 'totalAmount', 'total', 'payAmount', 'amountVND', 'grossAmount', 'transactionAmount', 'value', 'transId', 'amountVN'];
+    let amtRaw = 0;
+    for (const k of keysToTry) {
+      const v = combined[k];
+      if (v == null) continue;
+      const n = Number(String(v).replace(/[^0-9.-]/g, ''));
+      if (!Number.isNaN(n) && n !== 0) { amtRaw = n; break; }
+    }
+    // fallback: if data contains top-level amount fields
+    if (!amtRaw && data) {
+      const cand = data.transactionAmount ?? data.amount ?? data.total ?? data.orderAmount ?? data.amount;
+      if (cand != null) {
+        const n = Number(String(cand).replace(/[^0-9.-]/g, ''));
+        if (!Number.isNaN(n) && n !== 0) amtRaw = n;
+      }
+    }
+    if (!amtRaw) {
+      try { console.log('DEBUG DepositResult amount not found, combined keys:', Object.keys(combined || {})); } catch {}
+      return '-';
+    }
+    // VNPay sometimes sends amount*100 (e.g., 1000000 -> 10000.00 *100), detect and normalize
+    if (amtRaw >= 1000000 && amtRaw % 100 === 0) amtRaw = Math.round(amtRaw / 100);
+    try { console.log('DEBUG DepositResult computed amountRaw:', amtRaw); } catch {}
+    return new Intl.NumberFormat('vi-VN').format(amtRaw) + '₫';
+  }, [params, data, route.params]);
 
   const payDate = useMemo(() => {
     const raw = params.vnp_PayDate ?? params.payDate ?? params.vnp_PayDate ?? null;
@@ -53,7 +85,7 @@ export default function DepositResultScreen() {
   return (
     <View className="flex-1 bg-[#FFFAF0] p-6">
       <View className="flex-row items-center">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="bg-white p-2 rounded-full shadow">
+        <TouchableOpacity onPress={() => { try { (navigation as any).replace('Wallet'); } catch { navigation.navigate('Wallet' as any); } }} className="bg-white p-2 rounded-full shadow">
           <Text className="text-lg">←</Text>
         </TouchableOpacity>
       </View>
@@ -77,20 +109,32 @@ export default function DepositResultScreen() {
           <Text className="text-sm font-semibold text-gray-800">{txnId ?? '-'}</Text>
         </View>
 
-        <View className="flex-row justify-between items-center py-2">
-          <Text className="text-sm text-gray-500">Thời gian</Text>
-          <Text className="text-sm text-gray-800">{payDate ?? '-'}</Text>
-        </View>
+        {/* Thời gian và Tổng tiền ẩn khi phương thức là MoMo (deep-link đã trả info khác) */}
+        {String(method ?? '').toLowerCase() !== 'momo' ? (
+          <>
+            <View className="flex-row justify-between items-center py-2">
+              <Text className="text-sm text-gray-500">Thời gian</Text>
+              <Text className="text-sm font-semibold text-gray-800">{payDate ?? '-'}</Text>
+            </View>
 
-        <View className="flex-row justify-between items-center py-2">
-          <Text className="text-sm text-gray-500">Phương thức</Text>
-          <Text className="text-sm text-gray-800">{method}</Text>
-        </View>
+            <View className="flex-row justify-between items-center py-2">
+              <Text className="text-sm text-gray-500">Phương thức</Text>
+              <Text className="text-sm font-semibold text-gray-800">{method}</Text>
+            </View>
 
-        <View className="border-t border-gray-100 pt-4 mt-2">
-          <Text className="text-sm text-gray-500">Tổng tiền</Text>
-          <Text className="text-xl font-bold text-green-600 mt-1">{amount}</Text>
-        </View>
+            <View className="border-t border-gray-100 pt-4 mt-2">
+              <Text className="text-sm text-gray-500">Tổng tiền</Text>
+              <Text className="text-xl font-bold text-green-600 mt-1">{amount}</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <View className="flex-row justify-between items-center py-2">
+              <Text className="text-sm text-gray-500">Phương thức</Text>
+              <Text className="text-sm font-semibold text-gray-800">MoMo</Text>
+            </View>
+          </>
+        )}
       </View>
 
     
