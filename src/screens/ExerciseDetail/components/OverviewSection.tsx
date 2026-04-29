@@ -5,7 +5,7 @@ import Description from './Description';
 import { ExerciseType, PackageType } from '../../../utils/ExerciseType';
 import Footer from './Footer';
 import PlayButton from './PlayButton';
-import { WorkoutSessionType } from '../../../utils/WorkoutSessionType';
+import { ExerciseEquipment } from '../../../utils/EquipmentType';
 
 type Props = {
   activeTab: ExerciseTab;
@@ -18,12 +18,11 @@ type Props = {
   canPractice: boolean;
   onPressPractice: () => void;
   activePackage: PackageType | null;
-  workoutHistory: WorkoutSessionType[];
   canPlayTheory: boolean;
-  fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
   hasAccess: boolean;
   isFromList: boolean;
   isFromSearch: boolean;
+  equipments: ExerciseEquipment[];
 };
 
 const OverviewSection = ({
@@ -38,11 +37,10 @@ const OverviewSection = ({
   canPractice,
   onPressPractice,
   activePackage,
-  workoutHistory,
   canPlayTheory,
-  fetchAISummary,
   isFromList,
   isFromSearch,
+  equipments,
 }: Props) => {
   return (
     <View
@@ -75,10 +73,9 @@ const OverviewSection = ({
       <Description
         exerciseDetail={exerciseDetail}
         isPracticeTab={isPracticeTab}
-        workoutHistory={workoutHistory}
         canPlayTheory={canPlayTheory}
-        fetchAISummary={fetchAISummary}
         isFromList={isFromList}
+        equipments={equipments}
       />
 
       {/* Btn */}

@@ -11,6 +11,7 @@ import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import ModalPopup from '../../components/ModalPopup';
 import CountdownModal from './components/CountdownModal';
+import WorkoutHistoryScreen from './components/WorkoutHistoryScreen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 
@@ -63,6 +64,11 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     exerciseTimeLeft,
     isExerciseRunning,
     COUNTDOWN_START,
+    closeNotiModal,
+    notiMsg,
+    showNotiModal,
+    setShowWorkoutHistory,
+    showWorkoutHistory,
   } = useExerciseDetail({
     route,
     navigation,
@@ -85,7 +91,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             navigation={navigation}
             exerciseId={currentExercise.exerciseId}
             onPressBack={onPressBack}
-            exerciseEquipments={exerciseEquipments}
+            workoutHistory={workoutHistory}
+            onPressWorkoutHistory={() => setShowWorkoutHistory(true)}
           />
 
           {/* Image / Video */}
@@ -130,12 +137,11 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               canPractice={canPractice}
               onPressPractice={onPressPractice}
               activePackage={activePackage}
-              workoutHistory={workoutHistory}
               canPlayTheory={canPlayTheory}
-              fetchAISummary={fetchAISummary}
               hasAccess={hasAccess}
               isFromList={isFromList}
               isFromSearch={isFromSearch}
+              equipments={exerciseEquipments}
             />
           )}
 
@@ -186,6 +192,20 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             btnWidth={110}
           />
 
+          {/* Noti Modal */}
+          <ModalPopup
+            visible={showNotiModal}
+            mode="noti"
+            contentText={notiMsg}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="yellow"
+            onClose={closeNotiModal}
+            modalWidth={355}
+            confirmBtnText="Đóng"
+            confirmBtnColor="grey"
+          />
+
           {/* Countdown bắt đầu bài tập (5s, chỉ xuất hiện 1 lần đầu) */}
           <CountdownModal
             visible={showStartCountdown}
@@ -198,6 +218,13 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             visible={showRestCountdown}
             duration={restCountdownDuration}
             onFinish={onRestCountdownFinished}
+          />
+
+          <WorkoutHistoryScreen
+            visible={showWorkoutHistory}
+            onClose={() => setShowWorkoutHistory(false)}
+            workoutHistory={workoutHistory}
+            fetchAISummary={fetchAISummary}
           />
         </>
       )}

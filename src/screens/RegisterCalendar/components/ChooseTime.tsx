@@ -61,7 +61,7 @@ const ChooseTime = ({
     if (!startTime) return [];
 
     return getAvailableEndTimes(slots, startTime, bookingSlots);
-  }, [slots, startTime, bookingSlots]);
+  }, [slots, startTime]);
 
   // USE EFFECT
   useEffect(() => {

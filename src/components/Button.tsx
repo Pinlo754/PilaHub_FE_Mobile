@@ -110,7 +110,7 @@ const Button = ({
 
       {/* Label */}
       <Text
-        className={`text-lg font-semibold ${iconName ? '' : 'flex-grow text-center'}`}
+        className={`text-lg font-semibold ${iconName ? 'flex-grow' : 'flex-grow text-center'}`}
         style={{ color: color.textColor }}
       >
         {text}

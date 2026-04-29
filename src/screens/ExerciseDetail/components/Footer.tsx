@@ -12,16 +12,21 @@ type Props = {
   isFromSearch: boolean;
 };
 
-const Footer = ({ onPress, onPressAIPractice, activePackage, haveAIsupported, isFromList,  isFromSearch}: Props) => {
-
-
+const Footer = ({
+  onPress,
+  onPressAIPractice,
+  activePackage,
+  haveAIsupported,
+  isFromList,
+  isFromSearch,
+}: Props) => {
   const isVip = activePackage === PackageType.VIP_MEMBER;
   const isPaidUser =
     activePackage === PackageType.VIP_MEMBER ||
     activePackage === PackageType.MEMBER;
-  const isPracticeDisabled = (() => {    
+  const isPracticeDisabled = (() => {
     if (isFromList) return false; // luôn enable
-    if (!haveAIsupported) return true;
+
     if (isFromSearch) return !isPaidUser; // chỉ disable nếu chưa mua gói
 
     return !isPaidUser; // fallback
@@ -29,42 +34,42 @@ const Footer = ({ onPress, onPressAIPractice, activePackage, haveAIsupported, is
 
   return (
     <>
-      {/* {isVip ? ( */}
-      <View className="pt-2 flex-row justify-between">
-        <View className="w-[46%]">
-          <Button
-            text="Tự tập"
-            onPress={onPress}
-            colorType={isPracticeDisabled ? 'grey' : 'sub1'}
-            rounded="xl"
-            iconName="log-in-outline"
-            iconSize={26}
-          />
-        </View>
+      {haveAIsupported ? (
+        <View className="pt-2 flex-row justify-between">
+          <View className="w-[46%]">
+            <Button
+              text="Tự tập"
+              onPress={onPress}
+              colorType={isPracticeDisabled ? 'grey' : 'sub1'}
+              rounded="xl"
+              iconName="log-in-outline"
+              iconSize={26}
+            />
+          </View>
 
-        <View className="w-[46%]">
-          <Button
-            text="Tập với AI"
-            onPress={onPressAIPractice}
-            colorType={isVip ? 'sub1' : 'grey'}
-            rounded="xl"
-            iconName="sparkles-outline"
-            iconSize={20}
-          />
+          <View className="w-[46%]">
+            <Button
+              text="Tập với AI"
+              onPress={onPressAIPractice}
+              colorType={isVip ? 'sub1' : 'grey'}
+              rounded="xl"
+              iconName="sparkles-outline"
+              iconSize={20}
+            />
+          </View>
         </View>
-      </View>
-      {/* ) : (
+      ) : (
         <View className="pt-2">
           <Button
             text="Bắt đầu buổi tập"
             onPress={onPress}
-            colorType="sub1"
+            colorType={isPracticeDisabled ? 'grey' : 'sub1'}
             rounded="full"
             iconName="log-in-outline"
             iconSize={26}
           />
         </View>
-      )} */}
+      )}
     </>
   );
 };

@@ -4,9 +4,7 @@ import { Pressable, View } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { colors } from '../../../theme/colors';
 import { ExerciseTab } from '../../../constants/exerciseTab';
-import { ExerciseEquipment } from '../../../utils/EquipmentType';
-import { useState } from 'react';
-import EquipmentModal from './EquipmentModal';
+import { WorkoutSessionType } from '../../../utils/WorkoutSessionType';
 
 type Props = {
   activeTab: ExerciseTab;
@@ -16,7 +14,8 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ExerciseDetail'>;
   exerciseId: string;
   onPressBack: () => void;
-  exerciseEquipments: ExerciseEquipment[];
+  workoutHistory: WorkoutSessionType[];
+  onPressWorkoutHistory: () => void;
 };
 
 const Header = ({
@@ -24,21 +23,19 @@ const Header = ({
   isVideoExpand,
   isVideoPlay,
   isShowFlag,
-  navigation,
-  exerciseId,
   onPressBack,
-  exerciseEquipments,
+  workoutHistory,
+  onPressWorkoutHistory,
 }: Props) => {
   // CHECK
   const shouldHideBack = activeTab === ExerciseTab.Theory && isVideoExpand;
   const showBack = !shouldHideBack && (!isVideoPlay || isShowFlag);
-  const showFlag = isShowFlag;
-  const showEquipmentIcon = !isShowFlag && exerciseEquipments.length > 0;
-  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const showWorkoutIcon =
+    !isVideoExpand && !isVideoPlay && workoutHistory.length > 0;
 
-  const onPressReport = () => {
-    navigation.navigate('TraineeReport', { exercise_id: exerciseId });
-  };
+  // const onPressReport = () => {
+  //   navigation.navigate('TraineeReport', { exercise_id: exerciseId });
+  // };
 
   return (
     <View className="bg-black/40">
@@ -68,24 +65,24 @@ const Header = ({
         </Pressable>
       )} */}
 
-      {showEquipmentIcon && (
+      {showWorkoutIcon && (
         <Pressable
           className="absolute top-16 right-4 z-10 bg-black/40 rounded-full w-10 h-10 flex justify-center items-center"
-          onPress={() => setShowEquipmentModal(true)}
+          onPress={onPressWorkoutHistory}
         >
           <Ionicons
-            name="barbell-outline"
+            name="timer-outline"
             size={22}
             color={colors.background.DEFAULT}
           />
         </Pressable>
       )}
 
-      <EquipmentModal
+      {/* <EquipmentModal
         visible={showEquipmentModal}
         onClose={() => setShowEquipmentModal(false)}
         equipments={exerciseEquipments}
-      />
+      /> */}
     </View>
   );
 };

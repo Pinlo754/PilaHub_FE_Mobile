@@ -14,6 +14,8 @@ import { fetchTraineeProfile } from '../../services/profile';
 import { formatVND } from '../../utils/number';
 import { PackageType } from '../../utils/ExerciseType';
 import { getProfile } from '../../services/auth';
+import { WalletType } from '../../utils/WalletType';
+import { WalletService } from '../../hooks/wallet.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
@@ -47,6 +49,15 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [selectedStartDate, setSelectedStartDate] = useState<string>('');
   const [activePackage, setActivePackage] = useState<PackageType | null>(null);
+  const [showResetSchedule, setShowResetSchedule] = useState<boolean>(false);
+  const [resetSelectedDays, setResetSelectedDays] = useState<TrainingDay[]>([]);
+  const [pendingReset, setPendingReset] = useState<{
+    startDate: string;
+    mode: 'full' | 'incomplete';
+  } | null>(null);
+  const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [isInsufficientBalance, setIsInsufficientBalance] =
+    useState<boolean>(false);
 
   // VARIABLE
   const isFromList = source === 'List';
@@ -183,6 +194,72 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     }
   };
 
+  const resetSchedule = async (startDate: string) => {
+    if (!traineeCourseId || resetSelectedDays.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      const payload: CreateScheduleReq = {
+        traineeCourseId,
+        trainingDays: resetSelectedDays,
+        startDate,
+      };
+
+      await courseLessonProgressService.resetSchedule(payload);
+      closeResetSchedule();
+      await fetchById();
+      openSuccessModal('Đặt lại lịch tập thành công!');
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetIncompleteLesson = async (startDate: string) => {
+    if (!traineeCourseId || resetSelectedDays.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      const payload: CreateScheduleReq = {
+        traineeCourseId,
+        trainingDays: resetSelectedDays,
+        startDate,
+      };
+
+      await courseLessonProgressService.resetIncompleteLesson(payload);
+      closeResetSchedule();
+      await fetchById();
+      openSuccessModal('Lên lịch lại các bài chưa hoàn thành thành công!');
+    } catch (err: any) {
+      if (err?.type === 'BUSINESS_ERROR') {
+        openErrorModal(err.message);
+      } else {
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchWallet = async () => {
+    try {
+      const res = await WalletService.getMyWallet();
+      setWallet(res);
+      if (programFullDetail) {
+        setIsInsufficientBalance(
+          res.availableVND < programFullDetail.course.price,
+        );
+      }
+    } catch (err: any) {
+      console.error('Fetch wallet error:', err);
+    }
+  };
+
   // HANDLERS
   const onPress = () => {
     setShowSchedule(true);
@@ -234,8 +311,21 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
   const onConfirmModal = () => {
     closeConfirmModal();
-    closeSchedule();
-    enrollCourse();
+
+    if (pendingReset) {
+      // Đây là confirm reset
+      const { startDate, mode } = pendingReset;
+      setPendingReset(null);
+      if (mode === 'full') {
+        resetSchedule(startDate);
+      } else {
+        resetIncompleteLesson(startDate);
+      }
+    } else {
+      // Đây là confirm đăng ký khóa học
+      closeSchedule();
+      enrollCourse();
+    }
   };
 
   const closeSchedule = () => {
@@ -261,6 +351,40 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     );
   };
 
+  const openResetSchedule = () => {
+    setShowResetSchedule(true);
+  };
+
+  const closeResetSchedule = () => {
+    setShowResetSchedule(false);
+    setResetSelectedDays([]);
+  };
+
+  const handleSelectResetDay = (day: TrainingDay) => {
+    if (resetSelectedDays.includes(day)) {
+      setResetSelectedDays(resetSelectedDays.filter(d => d !== day));
+    } else {
+      setResetSelectedDays([...resetSelectedDays, day]);
+    }
+  };
+
+  const onPressConfirmReset = (
+    startDate: string,
+    mode: 'full' | 'incomplete',
+  ) => {
+    if (mode === 'full') {
+      openConfirmModal(
+        'Bạn có chắc muốn đặt lại toàn bộ lịch tập? Tiến độ hiện tại sẽ bị xóa.',
+      );
+    } else {
+      openConfirmModal(
+        'Bạn có chắc muốn lên lịch lại các bài chưa hoàn thành?',
+      );
+    }
+    // Lưu tạm để dùng khi confirm
+    setPendingReset({ startDate, mode });
+  };
+
   // USE EFFECT
   useEffect(() => {
     if (!program_id) return;
@@ -268,8 +392,11 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     const fetchAll = async () => {
       setIsLoading(true);
       try {
-        await fetchInformation();
-        await fetchById();
+        await Promise.allSettled([
+          fetchInformation(),
+          fetchById(),
+          fetchWallet(),
+        ]);
       } finally {
         setIsLoading(false);
       }
@@ -277,6 +404,13 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
     fetchAll();
   }, [program_id]);
+
+  useEffect(() => {
+    if (!programFullDetail || !wallet) return;
+    setIsInsufficientBalance(
+      wallet.availableVND < programFullDetail.course.price,
+    );
+  }, [programFullDetail, wallet]);
 
   return {
     programFullDetail,
@@ -307,5 +441,14 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     activePackage,
     source,
     onPressBack,
+    showResetSchedule,
+    closeResetSchedule,
+    onPressConfirmReset,
+    openResetSchedule,
+    handleSelectResetDay,
+    resetSelectedDays,
+    isFromList,
+    wallet,
+    isInsufficientBalance,
   };
 };

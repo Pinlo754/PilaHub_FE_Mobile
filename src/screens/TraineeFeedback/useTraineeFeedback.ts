@@ -201,6 +201,10 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     setScores(prev => ({ ...prev, [criterionId]: value }));
   };
 
+  const skipFeedback = () => {
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  };
+
   // CHECK
   const isValid = config?.validate() ?? false;
   const showInfo = config?.showInfo ?? false;
@@ -245,5 +249,6 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     criteria,
     scores,
     onScoreChange,
+    skipFeedback,
   };
 };

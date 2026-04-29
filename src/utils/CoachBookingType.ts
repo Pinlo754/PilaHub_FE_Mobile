@@ -48,6 +48,14 @@ export type BookingSlot = {
   endTime: string;
 };
 
+export type BusyTimeSlotReq = {
+  coachId: string;
+  startTime: string;
+  endTime: string;
+};
+
+export type BusyTimeSlotRes = Omit<BusyTimeSlotReq, 'coachId'>;
+
 export type TraineeType = {
   traineeId: string;
   fullName: string;
