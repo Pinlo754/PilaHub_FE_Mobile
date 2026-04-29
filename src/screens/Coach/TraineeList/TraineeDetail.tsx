@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { TraineeType, HealthProfileType } from '../../../utils/CoachBookingType';
@@ -10,20 +10,20 @@ const TraineeDetailScreen = () => {
     const { traineeId } = route.params as { traineeId: string };
 
     const [trainee, setTrainee] = useState<TraineeType | null>(null);
-    const [health, setHealth] = useState<HealthProfileType | null>(null);
+    const [healthProfiles, setHealthProfiles] = useState<HealthProfileType[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
-                // Fetch song song để tối ưu tốc độ
                 const [traineeData, healthData] = await Promise.all([
                     TraineeService.getById(traineeId),
                     TraineeService.getHealthProfile(traineeId),
                 ]);
                 setTrainee(traineeData);
-                setHealth(healthData);
+                // Đảm bảo dữ liệu là mảng
+                setHealthProfiles(Array.isArray(healthData) ? healthData : []);
             } catch (error) {
                 console.error("Lỗi load chi tiết:", error);
             } finally {
@@ -33,41 +33,57 @@ const TraineeDetailScreen = () => {
         loadData();
     }, [traineeId]);
 
+    // Tự động tìm profile mới nhất để hiển thị
+    const latestProfile = useMemo(() => {
+        if (healthProfiles.length === 0) return null;
+        return [...healthProfiles].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0];
+    }, [healthProfiles]);
+
     if (loading) return <View className="flex-1 justify-center items-center"><ActivityIndicator size="large" /></View>;
 
     return (
-        <ScrollView className="flex-1 bg-background p-4">
+        <ScrollView className="flex-1 bg-gray-50 p-4">
             {/* Thông tin cá nhân */}
-            <View className="bg-white p-4 rounded-xl mb-4 shadow-sm">
-                <Image source={{ uri: trainee?.avatarUrl || 'https://via.placeholder.com/100' }} className="w-20 h-20 rounded-full mb-2" />
-                <Text className="text-xl font-bold">{trainee?.fullName}</Text>
-                <Text className="text-gray-500">Giới tính: {trainee?.gender}</Text>
-                <Text className="text-gray-500">Trình độ: {trainee?.workoutLevel}</Text>
+            <View className="bg-white p-5 rounded-2xl mb-4 shadow-sm border border-gray-100">
+                <Image source={{ uri: trainee?.avatarUrl || 'https://via.placeholder.com/100' }} className="w-20 h-20 rounded-full mb-3" />
+                <Text className="text-2xl font-bold text-gray-800">{trainee?.fullName}</Text>
+                <Text className="text-gray-500 mt-1">Giới tính: {trainee?.gender === 'FEMALE' ? 'Nữ' : 'Nam'}</Text>
+                <Text className="text-gray-500">Trình độ: <Text className="font-semibold text-primary">{trainee?.workoutLevel}</Text></Text>
             </View>
 
-            {/* Thông tin sức khỏe */}
-            <Text className="text-lg font-bold mb-2">Thông tin sức khỏe (InBody)</Text>
-            {health ? (
-                <View className="bg-white p-4 rounded-xl grid grid-cols-2 gap-4">
-                    {/* Sử dụng ?? 0 để đảm bảo luôn có giá trị trước khi gọi toString() */}
-                    <StatItem label="Chiều cao" value={`${(health.heightCm ?? 0).toString()} cm`} />
-                    <StatItem label="Cân nặng" value={`${(health.weightKg ?? 0).toString()} kg`} />
-                    <StatItem label="BMI" value={(health.bmi ?? 0).toString()} />
-                    <StatItem label="Mỡ cơ thể" value={`${(health.bodyFatPercentage ?? 0).toString()}%`} />
-                    <StatItem label="Khối lượng cơ" value={`${(health.muscleMassKg ?? 0).toString()} kg`} />
-                    <StatItem label="Vòng eo" value={`${(health.waistCm ?? 0).toString()} cm`} />
+            {/* Thông tin sức khỏe mới nhất */}
+            <Text className="text-lg font-bold mb-3 text-gray-800">Thông tin sức khỏe gần nhất</Text>
+            {latestProfile ? (
+                <View className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                    <View className="flex-row justify-between mb-4 border-b border-gray-100 pb-2">
+                        <Text className="font-bold text-gray-700">Nguồn: {latestProfile.source}</Text>
+                        <Text className="text-gray-400 text-xs">Cập nhật: {new Date(latestProfile.createdAt).toLocaleDateString()}</Text>
+                    </View>
+                    <View className="flex-row flex-wrap">
+                        <StatItem label="Chiều cao" value={`${latestProfile.heightCm || '--'} cm`} />
+                        <StatItem label="Cân nặng" value={`${latestProfile.weightKg || '--'} kg`} />
+                        <StatItem label="BMI" value={latestProfile.bmi ? latestProfile.bmi.toString() : '--'} />
+                        <StatItem label="Mỡ cơ thể" value={`${latestProfile.bodyFatPercentage || '--'}%`} />
+                        <StatItem label="Khối lượng cơ" value={`${latestProfile.muscleMassKg || '--'} kg`} />
+                        <StatItem label="Vòng eo" value={`${latestProfile.waistCm || '--'} cm`} />
+                    </View>
                 </View>
             ) : (
-                <Text className="text-gray-400">Chưa có dữ liệu sức khỏe</Text>
+                <View className="bg-white p-5 rounded-2xl items-center mb-6">
+                    <Text className="text-gray-400">Chưa có dữ liệu sức khỏe nào.</Text>
+                </View>
             )}
         </ScrollView>
     );
 };
 
+// Component con để hiển thị từng chỉ số
 const StatItem = ({ label, value }: { label: string, value: string }) => (
-    <View className="p-2 border-b border-gray-100">
-        <Text className="text-gray-400 text-xs">{label}</Text>
-        <Text className="font-semibold text-base">{value}</Text>
+    <View className="w-1/2 py-2">
+        <Text className="text-gray-400 text-xs uppercase tracking-wider">{label}</Text>
+        <Text className="font-bold text-gray-800 text-base">{value}</Text>
     </View>
 );
 
