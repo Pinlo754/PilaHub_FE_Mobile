@@ -10,6 +10,7 @@ import AITracking from '../AITracking/AITracking';
 import { useRef, useState, useEffect } from 'react';
 import { useBle } from '../../services/BleProvider';
 import ViewShot from 'react-native-view-shot';
+import AITracking1 from '../AITracking1/AITracking';
 type Props = NativeStackScreenProps<RootStackParamList, 'AIPractice'>;
 
 const AIPractice = (props: Props) => {
@@ -100,12 +101,21 @@ const AIPractice = (props: Props) => {
             bottom: 0,
           }}
         >
-          <AITracking
-            workoutSessionId={workoutSessionId}
-            onFeedback={setFeedback}
-            captureMistakeImage={captureMistakeImage}
-            nameAITracking={nameAITracking}
-          />
+          {nameAITracking === 'plank' ? (
+            <AITracking
+              workoutSessionId={workoutSessionId}
+              onFeedback={setFeedback}
+              captureMistakeImage={captureMistakeImage}
+              nameAITracking={nameAITracking}
+            />
+          ) : (
+            <AITracking1
+              workoutSessionId={workoutSessionId}
+              onFeedback={setFeedback}
+              captureMistakeImage={captureMistakeImage}
+              nameAITracking={nameAITracking}
+            />
+          )}
         </View>
         <View
           style={{

@@ -9,6 +9,7 @@ import {
 import { RNMediapipe } from '@thinksys/react-native-mediapipe';
 import { useTensorflowModel } from 'react-native-fast-tflite';
 import { LABELS, SCALER_MEAN, SCALER_SCALE } from '../../hooks/poseModel';
+import labelMappings from '../../assets/AITracking/label_mappings.json';
 import { useSoundManager } from './useSoundManager';
 import {
   useGlobalRecording,
@@ -38,16 +39,13 @@ type Props = {
 };
 
 
-export default function AITracking({ workoutSessionId, onFeedback, captureMistakeImage, nameAITracking }: Props) {
+export default function AITracking1({ workoutSessionId, onFeedback, captureMistakeImage, nameAITracking }: Props) {
+  console.log('AITracking1 props rendered:', { workoutSessionId, onFeedback, captureMistakeImage, nameAITracking });
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const plugin = useTensorflowModel(
-    require('../../assets/pose_correction_exercise_aware.tflite'),
-  );
-  const model = plugin.model;
-  const plugin1 = useTensorflowModel(
     require('../../assets/AITracking/pose_correction_exercise_aware.tflite'),
   );
-  const model1 = plugin1.model;
+  const model = plugin.model;
 
 
   const { loadSounds, play } = useSoundManager();
@@ -94,6 +92,9 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     "Left Elbow": [13],
     "Right Elbow": [14],
   };
+
+  const MODEL_BODY_PARTS = Object.values(labelMappings.body_parts) as string[];
+  const MODEL_SIDES = Object.values(labelMappings.sides) as string[];
 
   const LEFT_SHOULDER = 11;
   const RIGHT_SHOULDER = 12;
@@ -326,39 +327,39 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       }
 
 
-      // await Promise.all(
-      //   mistakeLogs.map(async log => {
-      //     try {
-      //       console.log('bắt đầu tải ảnh mistake')
-      //       if (!log.imagePath || typeof log.imagePath !== "string") {
-      //         console.log("skip upload (invalid path)", log.imagePath);
-      //         return log;
-      //       }
-      //       const ref = storage().ref(
-      //         `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
-      //       );
+      await Promise.all(
+        mistakeLogs.map(async log => {
+          try {
+            console.log('bắt đầu tải ảnh mistake')
+            if (!log.imagePath || typeof log.imagePath !== "string") {
+              console.log("skip upload (invalid path)", log.imagePath);
+              return log;
+            }
+            const ref = storage().ref(
+              `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
+            );
 
 
-      //       await ref.putFile(log.imagePath);
+            await ref.putFile(log.imagePath);
 
 
-      //       log.imageUrl = await ref.getDownloadURL();
+            log.imageUrl = await ref.getDownloadURL();
 
 
-      //       delete log.imagePath;
-      //     }
-      //     catch (e) {
-      //       console.log("Upload error", e);
-      //     }
-      //   }
-      //   )
-      // );
+            delete log.imagePath;
+          }
+          catch (e) {
+            console.log("Upload error", e);
+          }
+        }
+        )
+      );
 
 
       await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
 
 
-      if (mistakeLogs && mistakeLogs.length > 0) {
+      if (mistakeLogs) {
         const transformedMistakeLogs: MistakeLogReq[] = mistakeLogs.map(
           ({ bodyPart, side, recordedAtSecond, duration, imageUrl }) => ({
             bodyPartId: getBodyPartId(bodyPart) || '',
@@ -452,33 +453,30 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
           exArray[exIdx] = 1;
         }
 
+        const outputs = await model.run([exArray, kpArray]);
 
-
-        const selectedModel = exerciseName === 'plank' ? model : model1;
-
-        // Đảm bảo an toàn: Nếu model chưa kịp load thì ngưng thực thi để tránh crash
-        if (!selectedModel) {
-          isProcessing.current = false;
-          return;
-        }
-
-        // 3. Chạy model đã chọn
-        const outputs = await selectedModel.run([kpArray, exArray]);
-
+        let labelOutput: Float32Array | null = null;
         let bodyPartOutput: Float32Array | null = null;
+        let sideOutput: Float32Array | null = null;
 
         for (const out of outputs) {
           const arr = out as Float32Array;
-          if (arr.length === LABELS.body_parts.length) {
+          if (arr.length === 1) {
+            labelOutput = arr;
+            continue;
+          }
+          if (arr.length === MODEL_BODY_PARTS.length) {
             bodyPartOutput = arr;
+            continue;
+          }
+          if (arr.length === MODEL_SIDES.length) {
+            sideOutput = arr;
+            continue;
           }
         }
 
-        if (!bodyPartOutput) {
-          console.error('Lỗi: Không tìm thấy output body_part từ Model', {
-            isArray: Array.isArray(outputs),
-            outputsType: typeof outputs,
-            expectedBodyPartsLen: LABELS.body_parts.length,
+        if (!labelOutput || !bodyPartOutput) {
+          console.error('Lỗi: Không tìm thấy output model hợp lệ', {
             outputs: outputs.map((o, idx) => {
               const arr = o as Float32Array;
               return {
@@ -496,21 +494,33 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         const argMax = (arr: Float32Array) =>
           arr.reduce((best, val, idx) => (val > arr[best] ? idx : best), 0);
 
+        const errorProb = labelOutput[0];
+        const isIncorrect = errorProb > 0.5;
         const partIdx = argMax(bodyPartOutput);
-        let modelBodyPart = LABELS.body_parts[partIdx];
-        const finalBodyPart = ruleOverride(angles, modelBodyPart);
+        const modelBodyPart = MODEL_BODY_PARTS[partIdx] ?? 'none';
+        const sideIdx = sideOutput ? argMax(sideOutput) : 0;
+        const modelSide = MODEL_SIDES[sideIdx] ?? 'both';
+
+        const finalBodyPart = modelBodyPart === 'none'
+          ? 'none'
+          : ruleOverride(angles, modelBodyPart);
 
         console.log('AI model debug:', {
           scaledLength: scaled.length,
           kpArraySample: Array.from(kpArray.slice(0, 16)),
           exArray: Array.from(exArray),
-          outputShapes: [bodyPartOutput.length],
+          outputShapes: outputs.map(o => (o as Float32Array).length),
+          labelOutput: Array.from(labelOutput),
           bodyPartOutput: Array.from(bodyPartOutput),
+          sideOutput: sideOutput ? Array.from(sideOutput) : null,
           modelBodyPart,
+          modelSide,
+          errorProb,
+          isIncorrect,
           finalBodyPart,
         });
 
-        if (finalBodyPart === 'none') {
+        if (!isIncorrect || finalBodyPart === 'none') {
           if (activeMistake.current) {
             handleCorrect();
             return;
@@ -525,7 +535,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
             lastCorrectTime.current = now;
           }
         } else {
-          handleIncorrect(finalBodyPart, 'both');
+          handleIncorrect(finalBodyPart, modelSide);
         }
       } catch (err) {
         console.error(err);
