@@ -49,6 +49,57 @@ export const MyBlogScreen = () => {
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [isDetailVisible, setIsDetailVisible] = useState(false);
     const navigation = useNavigation<any>();
+    const [activePostId, setActivePostId] = useState<string | null>(null);
+    const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
+    const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
+
+    /* ============================ 
+   MODAL: TÙY CHỌN BÀI VIẾT (MORE OPTIONS)
+   ============================ */
+    const MoreOptionsModal = ({ visible, onClose, onEdit, onDelete }: any) => (
+        <Modal visible={visible} transparent animationType="fade">
+            <TouchableOpacity className="flex-1 bg-black/50 justify-end" onPress={onClose}>
+                <View className="bg-white rounded-t-3xl p-6 pt-4">
+                    <View className="w-12 h-1 bg-gray-300 rounded-full self-center mb-6" />
+                    <TouchableOpacity className="py-4 border-b border-gray-100 flex-row items-center" onPress={onEdit}>
+                        <Ionicons name="pencil-outline" size={20} color="#333" />
+                        <Text className="ml-3 text-lg font-medium text-gray-800">Chỉnh sửa bài viết</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity className="py-4 flex-row items-center" onPress={onDelete}>
+                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                        <Text className="ml-3 text-lg font-medium text-red-500">Xóa bài viết</Text>
+                    </TouchableOpacity>
+                </View>
+            </TouchableOpacity>
+        </Modal>
+    );
+
+    /* ============================ 
+       MODAL: XÁC NHẬN XÓA
+       ============================ */
+    const ConfirmationModal = ({ visible, onClose, onConfirm }: any) => (
+        <Modal visible={visible} transparent animationType="fade">
+            <View className="flex-1 bg-black/50 justify-center items-center px-6">
+                <View className="bg-white rounded-2xl p-6 w-full items-center">
+                    <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
+                        <Ionicons name="alert-circle-outline" size={32} color="#ef4444" />
+                    </View>
+                    <Text className="text-lg font-bold text-gray-900 mb-2">Xóa bài viết?</Text>
+                    <Text className="text-gray-500 text-center mb-8">Hành động này không thể hoàn tác. Bạn có chắc muốn xóa?</Text>
+
+                    <View className="flex-row w-full space-x-3">
+                        <TouchableOpacity className="flex-1 py-3 bg-gray-100 rounded-xl items-center" onPress={onClose}>
+                            <Text className="font-bold text-gray-700">Hủy</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity className="flex-1 py-3 bg-red-500 rounded-xl items-center" onPress={onConfirm}>
+                            <Text className="font-bold text-white">Xóa</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+
     const handleToggleReact = async (post: Post) => {
         // 1. Lưu giá trị cũ để rollback nếu lỗi
         const originalPosts = [...posts];
@@ -132,40 +183,34 @@ export const MyBlogScreen = () => {
 
     // 2. Xử lý More Action (Xóa/Sửa)
     const handleMoreAction = (postId: string) => {
-        Alert.alert(
-            "Tùy chọn bài viết",
-            "Chọn hành động bạn muốn thực hiện",
-            [
-                {
-                    text: "Xóa bài viết",
-                    onPress: () => confirmDelete(postId),
-                    style: "destructive"
-                },
-                {
-                    text: "Chỉnh sửa bài viết",
-                    onPress: () => console.log("Edit post:", postId)
-                },
-                {
-                    text: "Hủy",
-                    style: "cancel"
-                }
-            ]
-        );
+        setActivePostId(postId);
+        setIsOptionsModalVisible(true);
     };
 
-    const confirmDelete = (postId: string) => {
-        Alert.alert("Xác nhận", "Bạn có chắc chắn muốn xóa bài viết này?", [
-            { text: "Hủy", style: "cancel" },
-            {
-                text: "Xóa",
-                style: "destructive",
-                onPress: async () => {
-                    // Gọi service xóa tại đây (Giả định có PostService.deletePost)
-                    // await PostService.deletePost(postId);
-                    setPosts(prev => prev.filter(p => p.postId !== postId));
-                }
-            }
-        ]);
+    const initiateDelete = () => {
+        setIsOptionsModalVisible(false); // Đóng modal chọn
+        setTimeout(() => { // Đợi một chút để trải nghiệm mượt hơn
+            setIsConfirmDeleteVisible(true); // Mở modal xác nhận
+        }, 200);
+    };
+
+    // Logic xử lý khi nhấn "Edit" trong OptionsModal
+    const handleEdit = () => {
+        setIsOptionsModalVisible(false);
+        console.log("Edit post:", activePostId);
+        // Điều hướng tới màn hình sửa bài viết tại đây
+    };
+
+    // Logic thực hiện xóa thật sự
+    const executeDelete = async () => {
+        if (!activePostId) return;
+        try {
+            await PostService.deletePost(activePostId);
+            setPosts(prev => prev.filter(p => p.postId !== activePostId));
+            setIsConfirmDeleteVisible(false);
+        } catch (error) {
+            Alert.alert("Lỗi", "Không thể xóa bài viết");
+        }
     };
 
     const renderPostItem = ({ item }: { item: Post }) => (
@@ -275,6 +320,20 @@ export const MyBlogScreen = () => {
             ) : (
                 <FlatList data={posts} keyExtractor={(item) => item.postId} renderItem={renderPostItem} showsVerticalScrollIndicator={false} />
             )}
+
+            <MoreOptionsModal
+                visible={isOptionsModalVisible}
+                onClose={() => setIsOptionsModalVisible(false)}
+                onEdit={handleEdit}
+                onDelete={initiateDelete}
+            />
+
+            <ConfirmationModal
+                visible={isConfirmDeleteVisible}
+                onClose={() => setIsConfirmDeleteVisible(false)}
+                onConfirm={executeDelete}
+            />
+
             {selectedPost && <PostDetailModal visible={isDetailVisible} post={selectedPost} onClose={() => setIsDetailVisible(false)} onRefreshPost={() => fetchBlogPosts()} />}
 
         </View>
