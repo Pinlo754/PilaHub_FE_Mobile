@@ -762,3 +762,20 @@ export async function updatePersonalInjury(
     return { ok: false, error };
   }
 }
+export async function fetchLatestHealthProfile(): Promise<ServiceResult> {
+  try {
+    const res = await api.get('/health-profiles/my-profiles/latest');
+
+    const data = res.data?.data ?? res.data ?? res;
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (e: any) {
+    return {
+      ok: false,
+      error: e.response?.data ?? e.message ?? e,
+    };
+  }
+}

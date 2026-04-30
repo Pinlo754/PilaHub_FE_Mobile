@@ -21,7 +21,7 @@ export default function OrderSuccessScreen() {
 
       <View style={styles.actionsWrap}>
         {firstOrderId ? (
-          <TouchableOpacity onPress={() => navigation.navigate('OrderDetail' as never, { orderId: String(firstOrderId) } as never)} style={styles.viewOrderBtn}>
+          <TouchableOpacity onPress={() => navigation.navigate('Orders' as never, { orderId: String(firstOrderId) } as never)} style={styles.viewOrderBtn}>
             <Text style={styles.viewOrderText}>Xem đơn hàng</Text>
           </TouchableOpacity>
         ) : null}

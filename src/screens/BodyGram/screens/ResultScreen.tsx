@@ -24,6 +24,8 @@ import ModalPopup from '../../../components/ModalPopup';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
+type SourceType = 'Manual' | 'BodyGram' | 'InBody';
+
 function toNumber(value: any): number | null {
   if (value == null || value === '') return null;
 
@@ -140,8 +142,7 @@ function buildManualHealthProfilePayload(params: {
   const waistCm =
     toNumber(measurements?.waistCm) ?? toNumber(measurements?.waist);
 
-  const hipCm =
-    toNumber(measurements?.hipCm) ?? toNumber(measurements?.hip);
+  const hipCm = toNumber(measurements?.hipCm) ?? toNumber(measurements?.hip);
 
   const bustCm =
     toNumber(measurements?.bustCm) ?? toNumber(measurements?.bust);
@@ -189,13 +190,126 @@ function buildManualHealthProfilePayload(params: {
   };
 }
 
+function buildInBodyHealthProfilePayload(params: {
+  data: any;
+  onboarding: any;
+}) {
+  const { data, onboarding } = params;
+
+  const entry = data?.entry ?? data?.data ?? data ?? {};
+  const metadata = parseMetadata(entry?.metadata);
+
+  const heightCm =
+    toNumber(entry?.heightCm) ??
+    toNumber(entry?.height) ??
+    toNumber(metadata?.heightCm) ??
+    toNumber(metadata?.height) ??
+    toNumber(onboarding?.height);
+
+  const weightKg =
+    toNumber(entry?.weightKg) ??
+    toNumber(entry?.weight) ??
+    toNumber(metadata?.weightKg) ??
+    toNumber(metadata?.weight) ??
+    toNumber(onboarding?.weight);
+
+  const bmi =
+    toNumber(entry?.bmi) ??
+    toNumber(metadata?.bmi) ??
+    calculateBmi(heightCm, weightKg);
+
+  const bodyFatPercentage =
+    toNumber(entry?.bodyFatPercentage) ??
+    toNumber(entry?.bodyFatPercent) ??
+    toNumber(entry?.body_fat) ??
+    toNumber(metadata?.bodyFatPercentage) ??
+    toNumber(metadata?.bodyFatPercent);
+
+  const muscleMassKg =
+    toNumber(entry?.muscleMassKg) ??
+    toNumber(entry?.muscleMass) ??
+    toNumber(entry?.skeletalMuscleMassKg) ??
+    toNumber(metadata?.muscleMassKg) ??
+    toNumber(metadata?.muscleMass);
+
+  const waistCm =
+    toNumber(entry?.waistCm) ??
+    toNumber(entry?.waist) ??
+    toNumber(metadata?.waistCm) ??
+    toNumber(metadata?.waist);
+
+  const hipCm =
+    toNumber(entry?.hipCm) ??
+    toNumber(entry?.hip) ??
+    toNumber(metadata?.hipCm) ??
+    toNumber(metadata?.hip);
+
+  const bustCm =
+    toNumber(entry?.bustCm) ??
+    toNumber(entry?.bust) ??
+    toNumber(entry?.chestCm) ??
+    toNumber(metadata?.bustCm) ??
+    toNumber(metadata?.bust);
+
+  const bicepCm =
+    toNumber(entry?.bicepCm) ??
+    toNumber(entry?.bicep) ??
+    toNumber(entry?.armCm) ??
+    toNumber(metadata?.bicepCm) ??
+    toNumber(metadata?.bicep);
+
+  const thighCm =
+    toNumber(entry?.thighCm) ??
+    toNumber(entry?.thigh) ??
+    toNumber(metadata?.thighCm) ??
+    toNumber(metadata?.thigh);
+
+  const calfCm =
+    toNumber(entry?.calfCm) ??
+    toNumber(entry?.calf) ??
+    toNumber(metadata?.calfCm) ??
+    toNumber(metadata?.calf);
+
+  return {
+    heightCm,
+    weightKg,
+    bmi,
+    bodyFatPercentage,
+    muscleMassKg,
+    waistCm,
+    hipCm,
+    source: 'InBody',
+    metadata: JSON.stringify({
+      provider: 'InBody',
+      input: {
+        heightCm,
+        weightKg,
+        age: onboarding?.age ?? null,
+        gender: onboarding?.gender ?? null,
+      },
+      bodyComposition: {
+        bodyFatPercentage,
+        muscleMassKg,
+      },
+      extraMeasurements: {
+        bustCm,
+        bicepCm,
+        waistCm,
+        hipCm,
+        thighCm,
+        calfCm,
+      },
+      originalMetadata: metadata,
+      rawData: entry,
+    }),
+  };
+}
+
 function pickHealthProfileObject(rawResponse: any, rawMeasurements: any) {
   const entry = rawResponse?.entry ?? rawResponse ?? {};
   const data = rawResponse?.data ?? {};
   const rawObj =
-    rawMeasurements && !Array.isArray(rawMeasurements)
-      ? rawMeasurements
-      : {};
+    rawMeasurements && !Array.isArray(rawMeasurements) ? rawMeasurements : {};
 
   if (entry?.metadata || entry?.heightCm || entry?.weightKg) {
     return entry;
@@ -215,10 +329,23 @@ function pickHealthProfileObject(rawResponse: any, rawMeasurements: any) {
 export default function ResultScreen({ route, navigation }: Props) {
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
 
-  const source = (route.params as any)?.source ?? 'BodyGram';
+  const source = ((route.params as any)?.source ?? 'BodyGram') as SourceType;
+  const alreadySaved = Boolean((route.params as any)?.alreadySaved);
 
   const setData = useOnboardingStore((s) => s.setData);
   const onboarding = useOnboardingStore((s) => s.data);
+
+  const hasValue = (value: any) => {
+    return value !== null && value !== undefined && value !== '' && value !== '-';
+  };
+
+  const getFadedStyle = (value: any) => {
+    return hasValue(value) ? null : styles.fadedItem;
+  };
+
+  const renderValue = (value: any, unit = '') => {
+    return hasValue(value) ? `${value}${unit}` : '-';
+  };
 
   const summary = useMemo(() => {
     const profile = pickHealthProfileObject(rawResponse, rawMeasurements);
@@ -358,29 +485,38 @@ export default function ResultScreen({ route, navigation }: Props) {
     setIfExists('shoulder', 'acrossBackShoulderWidth');
     setIfExists('bicep', 'upperArmGirthR');
 
+    out.heightCm = out.heightCm ?? profile?.heightCm;
+    out.weightKg = out.weightKg ?? profile?.weightKg;
+    out.bmi = out.bmi ?? profile?.bmi;
+    out.bodyFatPercentage =
+      out.bodyFatPercentage ?? profile?.bodyFatPercentage;
+    out.muscleMassKg = out.muscleMassKg ?? profile?.muscleMassKg;
+
     out.waist = out.waist ?? profile?.waistCm;
     out.hip = out.hip ?? profile?.hipCm;
 
-    out.bust = out.bust ?? extra?.bustCm;
-    out.underBust = out.underBust ?? extra?.underBustCm;
-    out.bicep = out.bicep ?? extra?.bicepCm;
-    out.waist = out.waist ?? extra?.waistCm;
-    out.hip = out.hip ?? extra?.hipCm;
-    out.thigh = out.thigh ?? extra?.thighCm;
-    out.midThigh = out.midThigh ?? extra?.midThighCm;
-    out.shoulder = out.shoulder ?? extra?.shoulderCm;
-    out.neck = out.neck ?? extra?.neckCm;
-    out.neckBase = out.neckBase ?? extra?.neckBaseCm;
-    out.calf = out.calf ?? extra?.calfCm;
-    out.forearm = out.forearm ?? extra?.forearmCm;
-    out.wrist = out.wrist ?? extra?.wristCm;
-    out.knee = out.knee ?? extra?.kneeCm;
+    out.bust = out.bust ?? profile?.bustCm ?? extra?.bustCm;
+    out.underBust = out.underBust ?? profile?.underBustCm ?? extra?.underBustCm;
+    out.bicep = out.bicep ?? profile?.bicepCm ?? extra?.bicepCm;
+    out.waist = out.waist ?? profile?.waistCm ?? extra?.waistCm;
+    out.hip = out.hip ?? profile?.hipCm ?? extra?.hipCm;
+    out.thigh = out.thigh ?? profile?.thighCm ?? extra?.thighCm;
+    out.midThigh = out.midThigh ?? profile?.midThighCm ?? extra?.midThighCm;
+    out.shoulder = out.shoulder ?? profile?.shoulderCm ?? extra?.shoulderCm;
+    out.neck = out.neck ?? profile?.neckCm ?? extra?.neckCm;
+    out.neckBase = out.neckBase ?? profile?.neckBaseCm ?? extra?.neckBaseCm;
+    out.calf = out.calf ?? profile?.calfCm ?? extra?.calfCm;
+    out.forearm = out.forearm ?? profile?.forearmCm ?? extra?.forearmCm;
+    out.wrist = out.wrist ?? profile?.wristCm ?? extra?.wristCm;
+    out.knee = out.knee ?? profile?.kneeCm ?? extra?.kneeCm;
 
     console.log('ResultScreen source:', source);
+    console.log('ResultScreen alreadySaved:', alreadySaved);
+    console.log('ResultScreen profile:', profile);
     console.log('ResultScreen display:', out);
 
     return out;
-  }, [rawMeasurements, rawResponse, source]);
+  }, [rawMeasurements, rawResponse, source, alreadySaved]);
 
   const whr =
     display.waist && display.hip
@@ -439,7 +575,7 @@ export default function ResultScreen({ route, navigation }: Props) {
           return v;
         }),
       );
-    } catch (err) {
+    } catch (err ) {
       return '<non-serializable>';
     }
   };
@@ -476,29 +612,104 @@ export default function ResultScreen({ route, navigation }: Props) {
     }
   };
 
+  const goNextAfterSuccess = (profileId?: string | null) => {
+    hideModal();
+
+    if (profileId) {
+      try {
+        (navigation as any).reset({
+          index: 0,
+          routes: [
+            {
+              name: 'HealthProfileAssessment',
+              params: {
+                healthProfileId: String(profileId),
+              },
+            },
+          ],
+        });
+      } catch {
+        navigation.navigate(
+          'HealthProfileAssessment' as any,
+          {
+            healthProfileId: String(profileId),
+          } as any,
+        );
+      }
+
+      return;
+    }
+
+    try {
+      (navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+    } catch {
+      navigation.navigate('MainTabs' as any);
+    }
+  };
+
   const handleSubmitAll = async () => {
     setToastVisible(false);
     setLoading(true);
 
     showModal({
       title: 'Đang xử lý',
-      content: 'Đang lưu dữ liệu sức khỏe, vui lòng chờ...',
+      content: 'Đang xử lý dữ liệu sức khỏe, vui lòng chờ...',
       mode: 'noti',
     });
 
     try {
-      const isManual = source === 'Manual';
+      const profile = pickHealthProfileObject(rawResponse, rawMeasurements);
 
-      const healthProfilePayload = isManual
-        ? buildManualHealthProfilePayload({
-            measurements: rawMeasurements,
-            onboarding,
-          })
-        : mapBodygramToHealthProfilePayload({
-            bodyGram: rawResponse,
-            onboarding,
-            source: 'BodyGram',
-          });
+      if (
+        source === 'InBody' &&
+        (alreadySaved || profile?.healthProfileId || profile?.id)
+      ) {
+        setLoading(false);
+
+        await saveMeasurements();
+
+        setToastType('success');
+        setToastMsg('Kết quả InBody đã được lưu');
+        setToastVisible(true);
+        hideModal();
+
+        const profileId =
+          profile?.healthProfileId ??
+          profile?.id ??
+          profile?.profileId ??
+          null;
+
+        showModal({
+          title: 'Thành công',
+          content: 'Kết quả InBody đã được lưu.',
+          mode: 'noti',
+          onConfirm: () => {
+            goNextAfterSuccess(profileId);
+          },
+        });
+
+        return;
+      }
+
+      const healthProfilePayload =
+        source === 'Manual'
+          ? buildManualHealthProfilePayload({
+              measurements: rawMeasurements,
+              onboarding,
+            })
+          : source === 'InBody'
+            ? buildInBodyHealthProfilePayload({
+                data: rawResponse ?? rawMeasurements,
+                onboarding,
+              })
+            : mapBodygramToHealthProfilePayload({
+                bodyGram: rawResponse,
+                onboarding,
+                source: 'BodyGram',
+              });
 
       console.log('RESULT source:', source);
       console.log(
@@ -506,10 +717,6 @@ export default function ResultScreen({ route, navigation }: Props) {
         sanitizeForLog(healthProfilePayload),
       );
 
-      /**
-       * Chỉ còn 1 API call ở ResultScreen:
-       * POST /health-profiles/my-profiles
-       */
       const hRes = await submitHealthProfile(healthProfilePayload);
 
       setLoading(false);
@@ -533,60 +740,30 @@ export default function ResultScreen({ route, navigation }: Props) {
           content: 'Hồ sơ sức khỏe đã được lưu thành công.',
           mode: 'noti',
           onConfirm: () => {
-            hideModal();
-
-            if (profileId) {
-              try {
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [
-                    {
-                      name: 'HealthProfileAssessment',
-                      params: {
-                        healthProfileId: String(profileId),
-                      },
-                    },
-                  ],
-                });
-              } catch {
-                navigation.navigate(
-                  'HealthProfileAssessment' as any,
-                  {
-                    healthProfileId: String(profileId),
-                  } as any,
-                );
-              }
-            } else {
-              try {
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'MainTabs' }],
-                });
-              } catch {
-                navigation.navigate('MainTabs' as any);
-              }
-            }
+            goNextAfterSuccess(profileId);
           },
         });
-      } else {
-        const msg =
-          typeof hRes.error === 'string'
-            ? hRes.error
-            : JSON.stringify(hRes.error);
 
-        console.warn('submitHealthProfile error', hRes.error);
-
-        setToastType('error');
-        setToastMsg(`Lỗi khi lưu: ${msg}`);
-        setToastVisible(true);
-        hideModal();
-
-        showModal({
-          title: 'Lỗi',
-          content: msg,
-          mode: 'noti',
-        });
+        return;
       }
+
+      const msg =
+        typeof hRes.error === 'string'
+          ? hRes.error
+          : JSON.stringify(hRes.error);
+
+      console.warn('submitHealthProfile error', hRes.error);
+
+      setToastType('error');
+      setToastMsg(`Lỗi khi lưu: ${msg}`);
+      setToastVisible(true);
+      hideModal();
+
+      showModal({
+        title: 'Lỗi',
+        content: msg,
+        mode: 'noti',
+      });
     } catch (e: any) {
       setLoading(false);
 
@@ -606,6 +783,26 @@ export default function ResultScreen({ route, navigation }: Props) {
       });
     }
   };
+
+  const detailItems = [
+    { key: 'bmi', label: 'BMI', unit: '' },
+    {
+      key: 'bodyFatPercentage',
+      label: '% Mỡ cơ thể',
+      unit: '%',
+    },
+    {
+      key: 'muscleMassKg',
+      label: 'Khối lượng cơ',
+      unit: 'kg',
+    },
+    { key: 'bust', label: 'Ngực', unit: 'cm' },
+    { key: 'waist', label: 'Eo', unit: 'cm' },
+    { key: 'hip', label: 'Hông', unit: 'cm' },
+    { key: 'bicep', label: 'Bắp tay', unit: 'cm' },
+    { key: 'thigh', label: 'Đùi', unit: 'cm' },
+    { key: 'calf', label: 'Bắp chân', unit: 'cm' },
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -662,53 +859,71 @@ export default function ResultScreen({ route, navigation }: Props) {
             />
 
             <View className="absolute top-8 left-3">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={getFadedStyle(display.bust)}
+              >
                 <Text className="text-xs text-gray-800">Ngực</Text>
                 <Text className="text-lg font-extrabold">
-                  {display.bust ?? '-'}cm
+                  {renderValue(display.bust, 'cm')}
                 </Text>
               </View>
             </View>
 
             <View className="absolute top-24 left-4">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={getFadedStyle(display.waist)}
+              >
                 <Text className="text-xs text-gray-800">Eo</Text>
                 <Text className="text-lg font-extrabold">
-                  {display.waist ?? '-'}cm
+                  {renderValue(display.waist, 'cm')}
                 </Text>
               </View>
             </View>
 
             <View className="absolute top-24 right-4">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={getFadedStyle(display.hip)}
+              >
                 <Text className="text-xs text-gray-800">Hông</Text>
                 <Text className="text-lg font-extrabold">
-                  {display.hip ?? '-'}cm
+                  {renderValue(display.hip, 'cm')}
                 </Text>
               </View>
             </View>
 
             <View className="absolute bottom-9 left-7">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={getFadedStyle(display.thigh)}
+              >
                 <Text className="text-xs text-gray-800">Đùi</Text>
                 <Text className="text-lg font-extrabold">
-                  {display.thigh ?? '-'}cm
+                  {renderValue(display.thigh, 'cm')}
                 </Text>
               </View>
             </View>
 
             <View className="absolute top-9 right-7">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={getFadedStyle(display.bicep)}
+              >
                 <Text className="text-xs text-gray-800">Bắp tay</Text>
                 <Text className="text-lg font-extrabold">
-                  {display.bicep ?? '-'}cm
+                  {renderValue(display.bicep, 'cm')}
                 </Text>
               </View>
             </View>
           </View>
         </View>
 
-        <View className="bg-amber-100 rounded-xl p-4 mb-4">
+        <View
+          className="bg-amber-100 rounded-xl p-4 mb-4"
+          style={getFadedStyle(whr)}
+        >
           <Text className="text-base font-semibold mb-2">
             Chỉ số sức khỏe
           </Text>
@@ -719,32 +934,36 @@ export default function ResultScreen({ route, navigation }: Props) {
             </Text>
 
             <Text className="text-xl font-extrabold">
-              {whr ?? '-'}
+              {hasValue(whr) ? whr : '-'}
             </Text>
           </View>
         </View>
 
-        <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
+        <Text className="text-lg font-extrabold mb-3">
+          Số đo chi tiết
+        </Text>
 
         <View className="flex-row flex-wrap -m-2">
-          {[
-            { key: 'bust', label: 'Ngực' },
-            { key: 'waist', label: 'Eo' },
-            { key: 'hip', label: 'Hông' },
-            { key: 'bicep', label: 'Bắp tay' },
-            { key: 'thigh', label: 'Đùi' },
-            { key: 'calf', label: 'Bắp chân' },
-          ].map((t) => (
-            <View key={t.key} className="w-1/2 p-2">
-              <View className="bg-background-sub2 rounded-xl p-4 shadow">
-                <Text className="text-sm text-gray-700">{t.label}</Text>
+          {detailItems.map((t) => {
+            const value = display[t.key];
 
-                <Text className="text-2xl font-extrabold mt-2">
-                  {display[t.key] ?? '-'}cm
-                </Text>
+            return (
+              <View key={t.key} className="w-1/2 p-2">
+                <View
+                  className="bg-background-sub2 rounded-xl p-4 shadow"
+                  style={getFadedStyle(value)}
+                >
+                  <Text className="text-sm text-gray-700">
+                    {t.label}
+                  </Text>
+
+                  <Text className="text-2xl font-extrabold mt-2">
+                    {renderValue(value, t.unit)}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View className="mt-6">
@@ -759,7 +978,11 @@ export default function ResultScreen({ route, navigation }: Props) {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.saveBtnText}>Lưu kết quả</Text>
+              <Text style={styles.saveBtnText}>
+                {source === 'InBody' && alreadySaved
+                  ? 'Tiếp tục'
+                  : 'Lưu kết quả'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -806,5 +1029,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
+  },
+  fadedItem: {
+    opacity: 0.35,
   },
 });

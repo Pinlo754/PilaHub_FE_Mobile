@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
   getActivePackages,
   subscribeToPackage,
@@ -20,7 +19,7 @@ import {
 } from '../../hooks/apiClient';
 import { fetchMyWallet } from '../../services/wallet';
 import ModalPopup from '../../components/ModalPopup';
-
+import Ionicons from '@react-native-vector-icons/ionicons';
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = Math.round(width * 0.78);
 const SPACING = 16;
@@ -680,26 +679,19 @@ const UpgradePlanScreen: React.FC = () => {
     <SafeAreaView className="flex-1 bg-[#FEF6ED]">
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => {
-            try {
-              if (navigation?.canGoBack && navigation.canGoBack()) {
-                navigation.goBack();
-              } else {
-                navigation.navigate('Home' as never);
-              }
-            } catch {
-              try {
-                navigation.goBack();
-              } catch {
-                // ignore
-              }
-            }
-          }}
-          style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={28} color="#A0522D" />
-        </TouchableOpacity>
+  onPress={() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Profile' as never);
+    }
+  }}
+  style={styles.backButton}
+  activeOpacity={0.7}
+  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+>
+  <Ionicons name="arrow-back" size={24} color="#A0522D" />
+</TouchableOpacity>
 
         <Text className="text-lg font-semibold text-[#A0522D]">
           Gói nâng cấp AI

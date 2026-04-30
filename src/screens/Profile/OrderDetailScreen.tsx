@@ -1,138 +1,209 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Image, Pressable, Alert, ScrollView, Linking } from 'react-native';
-import { Modal, TextInput } from 'react-native';
-import { getOrderById, cancelOrder, requestOrderReturn } from '../../services/order';
-import { getOrderTracking } from '../../services/order';
-import { mapShipmentStatus } from '../../utils/shipmentStatus';
-import { useRoute } from '@react-navigation/native';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  Image,
+  Pressable,
+  ScrollView,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LayoutAnimation, Platform, UIManager } from 'react-native';
+import ModalPopup from '../../components/ModalPopup';
+
+import {
+  getOrderById,
+  cancelOrder,
+  requestOrderReturn,
+  getOrderTracking,
+} from '../../services/order';
 
 const placeholderImg = require('../../assets/placeholderAvatar.png');
 
-function statusColor(status?: string) {
+const COLORS = {
+  bg: '#FFF9F3',
+  card: '#FFFFFF',
+  text: '#0F172A',
+  muted: '#64748B',
+  primary: '#8B3F2D',
+  accent: '#CD853F',
+  border: '#F1E7DC',
+  danger: '#EF4444',
+  dangerBg: '#FEF2F2',
+  success: '#047857',
+  successBg: '#ECFDF5',
+  warning: '#B7791F',
+  warningBg: '#FEF3C7',
+  soft: '#FFF7ED',
+};
+
+const statusColor = (status?: string) => {
   switch (String(status)) {
-    case 'PROCESSING': return { backgroundColor: '#FFF7ED', color: '#D97706' };
-    case 'COMPLETED': return { backgroundColor: '#ECFDF5', color: '#065F46' };
-    case 'CANCELLED': return { backgroundColor: '#FFF1F2', color: '#BE123C' };
-    default: return { backgroundColor: '#F3F4F6', color: '#111827' };
+    case 'PROCESSING':
+    case 'PENDING':
+    case 'CONFIRMED':
+      return { backgroundColor: '#FFF7ED', color: '#D97706' };
+    case 'READY':
+    case 'SHIPPED':
+      return { backgroundColor: '#E0F2FE', color: '#0369A1' };
+    case 'DELIVERED':
+    case 'COMPLETED':
+      return { backgroundColor: '#ECFDF5', color: '#065F46' };
+    case 'CANCELLED':
+    case 'RETURNED':
+    case 'REFUNDED':
+    case 'FAILED_DELIVERY':
+      return { backgroundColor: '#FFF1F2', color: '#BE123C' };
+    default:
+      return { backgroundColor: '#F3F4F6', color: '#111827' };
   }
-}
+};
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFAF0' },
-  container: { padding: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerBadgesRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  orderStatusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  orderStatusText: { fontWeight: '700', color: '#333' },
-  shipmentCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#F0F0F3' },
-  shipmentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  shipmentMeta: { marginTop: 8 },
-  trackButton: { marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#E6F6FF', borderRadius: 8 },
-  eventTime: { color: '#999', fontSize: 12, marginTop: 4 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 },
-  badgeText: { fontWeight: '700' },
-  vendorTitle: { fontWeight: '700' },
-  trackButtonText: { color: '#055160' },
-  alignEnd: { alignItems: 'flex-end' },
-  rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  eventsWrap: { marginTop: 10 },
-  shippingAddress: { marginTop: 6, color: '#333' },
-  sectionTitle: { fontWeight: '700', marginBottom: 8 },
-  timelineItem: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 10 },
-  timelineDot: { width: 8, height: 8, borderRadius: 8, backgroundColor: '#0ea5a0', marginRight: 10, marginTop: 6 },
-  timelineText: { fontSize: 13, color: '#111' },
-  flex1: { flex: 1 },
-  badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  badgeTextProcessing: { color: '#0C4A6E' },
-  badgeTextDelivered: { color: '#065F46' },
-  shipmentBadge: { marginTop: 6 },
-  btn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, marginTop: 10 },
-  btnDanger: { backgroundColor: '#FFEBEB' },
-  btnDangerText: { color: '#C53030', fontWeight: '700' },
-  btnPrimary: { backgroundColor: '#E8F8EF' },
-  btnPrimaryText: { color: '#137547', fontWeight: '700' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  shipmentBox: { marginTop: 10 },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  modalCard: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  modalTitle: { fontWeight: '700', fontSize: 16, marginBottom: 8 },
-  modalInput: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 8, minHeight: 80, textAlignVertical: 'top' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
-  modalCancel: { padding: 10, marginRight: 8 },
-  modalSend: { backgroundColor: '#fff', padding: 16, borderRadius: 10 },
-  title: { fontSize: 18, fontWeight: '700' },
-  small: { color: '#6b7280', fontSize: 13 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  thumb: { width: 60, height: 60, borderRadius: 8, marginRight: 12 },
-  itemTitle: { fontSize: 15, fontWeight: '600' },
-  meta: { color: '#6b7280', marginTop: 4 },
-});
+const mapOrderStatusLabel = (status?: string) => {
+  switch (String(status)) {
+    case 'PENDING':
+      return 'Chờ xử lý';
+    case 'PROCESSING':
+      return 'Đang xử lý';
+    case 'CONFIRMED':
+      return 'Đã xác nhận';
+    case 'READY':
+      return 'Sẵn sàng giao';
+    case 'SHIPPED':
+      return 'Đang giao';
+    case 'DELIVERED':
+      return 'Đã giao';
+    case 'COMPLETED':
+      return 'Hoàn tất';
+    case 'CANCELLED':
+      return 'Đã huỷ';
+    case 'RETURNED':
+      return 'Đã trả hàng';
+    case 'REFUNDED':
+      return 'Đã hoàn tiền';
+    case 'FAILED_DELIVERY':
+      return 'Giao thất bại';
+    default:
+      return String(status ?? 'N/A');
+  }
+};
 
-function formatCurrency(amount: any) {
+const formatCurrency = (amount: any) => {
   try {
     const n = Number(amount ?? 0);
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(n);
   } catch {
-    return (amount ?? 0).toString();
+    return String(amount ?? 0);
   }
-}
+};
 
-function mapOrderStatusLabel(status?: string) {
-  switch (String(status)) {
-    case 'PROCESSING': return 'Đang xử lý';
-    case 'COMPLETED': return 'Hoàn tất';
-    case 'CANCELLED': return 'Đã huỷ';
-    default: return String(status ?? 'N/A');
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '—';
+
+  try {
+    return new Date(value).toLocaleString('vi-VN');
+  } catch {
+    return '—';
   }
-}
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '—';
+
+  try {
+    return new Date(value).toLocaleDateString('vi-VN');
+  } catch {
+    return '—';
+  }
+};
 
 const OrderDetailScreen: React.FC = () => {
   const route = useRoute();
+  const navigation: any = useNavigation();
   const { orderId } = (route.params as any) ?? { orderId: '' };
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<any | null>(null);
   const [tracking, setTracking] = useState<any | null>(null);
+
   const [reasonModalVisible, setReasonModalVisible] = useState(false);
   const [reasonForAction, setReasonForAction] = useState('');
-  const [pendingReturnDetailId, setPendingReturnDetailId] = useState<string | null>(null);
+  const [modalMode, setModalMode] = useState<'CANCEL' | 'RETURN'>('CANCEL');
+
   const [actionLoading, setActionLoading] = useState(false);
   const [expandedShipments, setExpandedShipments] = useState<Record<string, boolean>>({});
 
-  // dedupe order details by orderDetailId (hook must run unconditionally)
+  // ModalPopup state for alerts/notifications
+  const [modalState, setModalState] = useState<any>({ visible: false, mode: 'noti', message: '' });
+
+  const showModal = (opts: { title?: string; message: string; mode?: 'noti'|'confirm'|'toast'; onConfirm?: () => void; }) => {
+    setModalState({
+      visible: true,
+      mode: opts.mode ?? 'noti',
+      title: opts.title,
+      message: opts.message,
+      onConfirm: () => {
+        try { setModalState((s:any) => ({ ...s, visible: false })); } catch {}
+        if (opts.onConfirm) opts.onConfirm();
+      },
+    });
+  };
+
+  const closeModal = () => setModalState((s: any) => ({ ...s, visible: false }));
+
   const uniqueOrderDetails = React.useMemo(() => {
-    const arr = Array.isArray((order as any)?.orderDetails) ? (order as any).orderDetails : [];
+    const arr = Array.isArray(order?.orderDetails) ? order.orderDetails : [];
     const seen = new Set<string>();
     const out: any[] = [];
-    for (const d of arr) {
-      const id = String(d?.orderDetailId ?? d?.id ?? JSON.stringify(d));
+
+    for (const detail of arr) {
+      const id = String(detail?.orderDetailId ?? detail?.id ?? JSON.stringify(detail));
       if (seen.has(id)) continue;
+
       seen.add(id);
-      out.push(d);
+      out.push(detail);
     }
-    if (out.length !== arr.length) console.warn('[OrderDetail] deduped orderDetails', { original: arr.length, deduped: out.length });
+
+    if (out.length !== arr.length) {
+      console.warn('[OrderDetail] deduped orderDetails', {
+        original: arr.length,
+        deduped: out.length,
+      });
+    }
+
     return out;
   }, [order]);
 
-  // enable LayoutAnimation on Android
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-      try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch {}
+      try {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+      } catch {}
     }
   }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
+
     try {
       const data = await getOrderById(orderId);
       setOrder(data);
-      // try fetch tracking if orderNumber exists
+
       if (data?.orderNumber) {
         try {
-          const t = await getOrderTracking(data.orderNumber);
-          setTracking(t);
+          const trackingData = await getOrderTracking(data.orderNumber);
+          setTracking(trackingData);
         } catch (e) {
           console.warn('getOrderTracking', e);
           setTracking(null);
@@ -140,253 +211,973 @@ const OrderDetailScreen: React.FC = () => {
       }
     } catch (e) {
       console.warn('getOrderById', e);
-      Alert.alert('Lỗi', 'Không thể tải thông tin đơn hàng');
+      showModal({ title: 'Lỗi', message: 'Không thể tải thông tin đơn hàng', mode: 'noti' });
     } finally {
       setLoading(false);
     }
   }, [orderId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const handleCancel = () => {
+  const openCancelModal = () => {
+    setModalMode('CANCEL');
     setReasonForAction('');
     setReasonModalVisible(true);
   };
 
-  const handleRequestReturn = (orderDetailId?: string) => {
-    // we collect reason and call order-level return endpoint
-    setPendingReturnDetailId(orderDetailId ?? null);
+  const openReturnModal = () => {
+    setModalMode('RETURN');
     setReasonForAction('');
     setReasonModalVisible(true);
   };
 
   const performReturn = async () => {
-    const reason = (reasonForAction || '').trim();
-    if (!reason) { Alert.alert('Lỗi', 'Vui lòng nhập lý do'); return; }
+    const reason = reasonForAction.trim();
+
+    if (!reason) {
+      showModal({ title: 'Lỗi', message: 'Vui lòng nhập lý do', mode: 'noti' });
+      return;
+    }
+
     try {
       setActionLoading(true);
-      // call order-level return endpoint as backend handles returns per order
+
       await requestOrderReturn(order.orderId, reason);
-      Alert.alert('Đã gửi', 'Yêu cầu trả hàng đã được gửi (theo đơn)');
+
+      showModal({ title: 'Đã gửi', message: 'Yêu cầu trả hàng đã được gửi', mode: 'noti' });
       setReasonModalVisible(false);
-      setPendingReturnDetailId(null);
       await load();
     } catch (err: any) {
       console.error('requestOrderReturn', err);
-      Alert.alert('Lỗi', err?.response?.data?.message || 'Không thể gửi yêu cầu trả hàng');
+      showModal({ title: 'Lỗi', message: err?.response?.data?.message || 'Không thể gửi yêu cầu trả hàng', mode: 'noti' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const performCancelOrder = async () => {
+    const reason = reasonForAction.trim();
+
+    if (!reason) {
+      showModal({ title: 'Lỗi', message: 'Vui lòng nhập lý do', mode: 'noti' });
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      await cancelOrder(order.orderId, reason);
+
+      showModal({ title: 'Thành công', message: 'Đơn hàng đã được hủy', mode: 'noti' });
+      setReasonModalVisible(false);
+      await load();
+    } catch (err: any) {
+      console.error('cancelOrder', err);
+      showModal({ title: 'Lỗi', message: err?.response?.data?.message || 'Không thể hủy đơn', mode: 'noti' });
     } finally {
       setActionLoading(false);
     }
   };
 
   const performConfirm = async () => {
-    // Backend does not provide per-item confirm endpoint. Show informative message.
-    Alert.alert('Chưa hỗ trợ', 'Xác nhận nhận hàng từng sản phẩm chưa được backend hỗ trợ.');
+    showModal({ title: 'Chưa hỗ trợ', message: 'Xác nhận nhận hàng từng sản phẩm chưa được backend hỗ trợ.', mode: 'noti' });
   };
 
-  const performCancelOrder = async () => {
-    const reason = (reasonForAction || '').trim();
-    if (!reason) { Alert.alert('Lỗi', 'Vui lòng nhập lý do'); return; }
-    try {
-      setActionLoading(true);
-      await cancelOrder(order.orderId, reason);
-      Alert.alert('Thành công', 'Đơn hàng đã được hủy');
-      setReasonModalVisible(false);
-      await load();
-    } catch (err: any) {
-      console.error('cancelOrder', err);
-      Alert.alert('Lỗi', err?.response?.data?.message || 'Không thể hủy đơn');
-    } finally {
-      setActionLoading(false);
+  const submitReason = () => {
+    if (modalMode === 'RETURN') {
+      performReturn();
+      return;
     }
+
+    performCancelOrder();
   };
 
   const toggleShipment = (key: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedShipments(prev => ({ ...prev, [key]: !prev[key] }));
+    setExpandedShipments(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const copyToClipboard = async (text: string) => {
     try {
       let copied = false;
+
       try {
         const Clipboard = require('@react-native-clipboard/clipboard');
         Clipboard.setString(String(text));
         copied = true;
-      } catch {
-        // ignore
+      } catch {}
+
+      if (copied) {
+        showModal({ title: 'Đã sao chép', message: 'Mã vận đơn đã được sao chép', mode: 'noti' });
+      } else {
+        showModal({ title: 'Không hỗ trợ', message: 'Không thể sao chép trên thiết bị này', mode: 'noti' });
       }
-      if (copied) Alert.alert('Đã sao chép', 'Mã vận đơn đã được sao chép');
-      else Alert.alert('Không hỗ trợ', 'Không thể sao chép trên thiết bị này');
     } catch (e) {
       console.warn('copyToClipboard', e);
-      Alert.alert('Lỗi', 'Không thể sao chép');
+      showModal({ title: 'Lỗi', message: 'Không thể sao chép', mode: 'noti' });
     }
   };
 
-  if (loading) return (
-    <SafeAreaView style={styles.safe}><View style={styles.loadingContainer}><ActivityIndicator /></View></SafeAreaView>
-  );
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Text style={styles.loadingText}>Đang tải chi tiết đơn hàng...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  if (!order) return (
-    <SafeAreaView style={styles.safe}><View style={styles.container}><Text>Không tìm thấy đơn hàng</Text></View></SafeAreaView>
-  );
+  if (!order) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.headerWrap}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+              <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+            </TouchableOpacity>
+
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>Chi tiết đơn hàng</Text>
+              <Text style={styles.headerSub}>Không tìm thấy đơn hàng</Text>
+            </View>
+
+            <View style={styles.headerPlaceholder} />
+          </View>
+        </View>
+
+        <View style={styles.emptyWrap}>
+          <Ionicons name="receipt-outline" size={48} color={COLORS.accent} />
+          <Text style={styles.emptyTitle}>Không tìm thấy đơn hàng</Text>
+          <Text style={styles.emptyDesc}>Vui lòng quay lại và thử lại sau.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const orderStatus = statusColor(order.status);
+  const canCancel = String(order.status) === 'PROCESSING' || String(order.status) === 'PENDING';
+  const canReturn = String(order.status) === 'DELIVERED' || String(order.status) === 'COMPLETED';
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.title}>Đơn {order.orderNumber}</Text>
-              <Text style={styles.small}>Tạo: {new Date(order.createdAt).toLocaleString()}</Text>
+      <View style={styles.headerWrap}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+            <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Chi tiết đơn hàng</Text>
+            <Text style={styles.headerSub} numberOfLines={1}>
+              {order.orderNumber ?? order.orderId}
+            </Text>
+          </View>
+
+          <TouchableOpacity onPress={load} style={styles.refreshBtn}>
+            <Ionicons name="refresh" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={styles.heroOrderNo} numberOfLines={1}>
+                Đơn {order.orderNumber ?? order.orderId}
+              </Text>
+
+              <Text style={styles.heroDate}>
+                Tạo: {formatDateTime(order.createdAt)}
+              </Text>
             </View>
-            <View style={styles.headerBadgesRow}>
-              <View style={[styles.orderStatusBadge, { backgroundColor: statusColor(order.status).backgroundColor }]}> 
-                <Text style={[styles.orderStatusText, { color: statusColor(order.status).color }]}>{mapOrderStatusLabel(order.status)}</Text>
-              </View>
+
+            <View
+              style={[
+                styles.orderStatusBadge,
+                { backgroundColor: orderStatus.backgroundColor },
+              ]}
+            >
+              <Text style={[styles.orderStatusText, { color: orderStatus.color }]}>
+                {mapOrderStatusLabel(order.status)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.heroSummaryRow}>
+            <View style={styles.heroSummaryItem}>
+              <Text style={styles.summarySmall}>Tổng tiền</Text>
+              <Text style={styles.summaryStrong}>{formatCurrency(order.totalAmount)}</Text>
+            </View>
+
+            <View style={styles.heroDivider} />
+
+            <View style={styles.heroSummaryItem}>
+              <Text style={styles.summarySmall}>Thanh toán</Text>
+              <Text style={styles.summaryStrong}>
+                {order.paid ? 'Đã thanh toán' : 'Chưa thanh toán'}
+              </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Thông tin giao nhận</Text>
-          <Text style={styles.small}>{order.recipientName} • {order.recipientPhone}</Text>
-          <Text style={styles.shippingAddress}>{order.shippingAddress}</Text>
-          {/* Render all shipments (one per vendor) */}
-          {(order.shipments || []).map((s: any) => {
-            const sm = mapShipmentStatus(s?.status);
-            // try to find events specific to this shipment in tracking response
-            let events: any[] = [];
-            if (tracking) {
-              // if tracking.shipments array provided, match by trackingNumber
-              if (Array.isArray(tracking.shipments)) {
-                const matched = tracking.shipments.find((ts: any) => ts.trackingNumber === s.trackingNumber);
-                events = matched?.events ?? [];
-              }
-              // fallback to top-level events
-              if ((!events || events.length === 0) && Array.isArray(tracking.events)) events = tracking.events;
-            }
+          <View style={styles.sectionHeader}>
+            <Ionicons name="location-outline" size={19} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Thông tin giao nhận</Text>
+          </View>
 
-            const key = String(s.trackingNumber ?? s.shipmentId);
-            const expanded = !!expandedShipments[key];
-            return (
-              <View key={key} style={styles.shipmentCard}>
-                <Pressable onPress={() => toggleShipment(key)} style={styles.shipmentHeader}>
-                  <View>
-                    <Text style={styles.vendorTitle}>{s.vendorName ?? s.shippingProvider ?? 'Nhà vận chuyển'}</Text>
-                    <Text style={styles.small}>{s.trackingNumber ?? '—'}</Text>
-                  </View>
-                  <View style={styles.alignEnd}>
-                    <View style={[styles.badge, { backgroundColor: sm.bgColor }]}> 
-                      <Text style={[styles.badgeText, { color: sm.textColor }]}>{sm.label}</Text>
-                    </View>
-                    <Text style={styles.small}>{expanded ? 'Ẩn' : 'Xem'}</Text>
-                  </View>
-                </Pressable>
+          <Text style={styles.receiverText}>
+            {order.recipientName} • {order.recipientPhone}
+          </Text>
 
-                {expanded && (
-                  <View style={styles.shipmentMeta}>
-                    <Text style={styles.small}>Dự kiến: {s.estimatedDeliveryAt ? new Date(s.estimatedDeliveryAt).toLocaleString() : '—'}</Text>
-                    <Text style={styles.small}>Đã giao: {s.deliveredAt ? new Date(s.deliveredAt).toLocaleString() : '—'}</Text>
-                    <Text style={styles.small}>Hạn trả: {s.returnDeadline ? new Date(s.returnDeadline).toLocaleDateString() : '—'}</Text>
-                    <View style={styles.rowActions}>
-                      { (s.trackingUrl || s.trackingWebsite || (tracking && tracking.trackingUrl)) && (
-                        <Pressable style={styles.trackButton} onPress={() => {
-                          const url = s.trackingUrl ?? s.trackingWebsite ?? tracking.trackingUrl;
-                          if (url) Linking.openURL(url).catch(()=> Alert.alert('Lỗi', 'Không thể mở đường dẫn'));
-                        }}>
-                          <Text style={styles.trackButtonText}>Mở theo dõi</Text>
-                        </Pressable>
-                      )}
-                      {s.trackingNumber && (
-                        <Pressable style={styles.trackButton} onPress={() => copyToClipboard(s.trackingNumber)}>
-                          <Text style={styles.trackButtonText}>Sao chép mã</Text>
-                        </Pressable>
-                      )}
-                    </View>
-
-                    {events && events.length > 0 && (
-                      <View style={styles.eventsWrap}>
-                        <Text style={styles.sectionTitle}>Lịch sử vận chuyển</Text>
-                        {events.map((ev: any, i: number) => (
-                          <View key={i} style={styles.timelineItem}>
-                            <View style={styles.timelineDot} />
-                            <View style={styles.flex1}>
-                              <Text style={styles.timelineText}>{ev.status} {ev.location ? `• ${ev.location}` : ''}</Text>
-                              <Text style={styles.eventTime}>{ev.timestamp ? new Date(ev.timestamp).toLocaleString() : ''}</Text>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-            );
-          })}
+          <Text style={styles.shippingAddress}>
+            {order.shippingAddress}
+          </Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Sản phẩm</Text>
-          {uniqueOrderDetails.map((d: any) => (
-            <View key={d.orderDetailId} style={styles.itemRow}>
-              <Image source={d.productImageUrl ? { uri: d.productImageUrl } : placeholderImg} style={styles.thumb} />
-              <View style={styles.flex1}>
-                <Text style={styles.itemTitle}>{d.productName}</Text>
-                <Text style={styles.meta}>{d.quantity} × {formatCurrency(d.unitPrice)}</Text>
-                <Text style={styles.small}>Trạng thái: {String(d.status)}</Text>
+       
 
-                {d.status === 'DELIVERED' && (
-                  <View>
-                    <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => performConfirm()} disabled={actionLoading}>
-                      {actionLoading ? <ActivityIndicator /> : <Text style={styles.btnPrimaryText}>Xác nhận nhận hàng</Text>}
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bag-outline" size={19} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Sản phẩm</Text>
+          </View>
+
+          {uniqueOrderDetails.map((detail: any) => (
+            <View key={detail.orderDetailId} style={styles.itemRow}>
+              <Image
+                source={detail.productImageUrl ? { uri: detail.productImageUrl } : placeholderImg}
+                style={styles.thumb}
+              />
+
+              <View style={styles.flex1}>
+                <Text style={styles.itemTitle} numberOfLines={2}>
+                  {detail.productName}
+                </Text>
+
+                <Text style={styles.meta}>
+                  {detail.quantity} × {formatCurrency(detail.unitPrice)}
+                </Text>
+
+                <View style={styles.detailStatusPill}>
+                  <Text style={styles.detailStatusText}>
+                    {String(detail.status)}
+                  </Text>
+                </View>
+
+                {detail.installationRequest ? (
+                  <View style={styles.installPill}>
+                    <Ionicons name="construct-outline" size={13} color={COLORS.success} />
+                    <Text style={styles.installText}>Có yêu cầu lắp đặt</Text>
+                  </View>
+                ) : null}
+
+                {detail.status === 'DELIVERED' ? (
+                  <View style={styles.itemActions}>
+                    <Pressable
+                      style={[styles.btn, styles.btnPrimary]}
+                      onPress={performConfirm}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <ActivityIndicator />
+                      ) : (
+                        <Text style={styles.btnPrimaryText}>Xác nhận nhận hàng</Text>
+                      )}
                     </Pressable>
-                    <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleRequestReturn(d.orderDetailId)} disabled={actionLoading}>
-                      {actionLoading ? <ActivityIndicator /> : <Text style={styles.btnDangerText}>Yêu cầu trả hàng</Text>}
+
+                    <Pressable
+                      style={[styles.btn, styles.btnDanger]}
+                      onPress={openReturnModal}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <ActivityIndicator />
+                      ) : (
+                        <Text style={styles.btnDangerText}>Yêu cầu trả hàng</Text>
+                      )}
                     </Pressable>
                   </View>
-                )}
+                ) : null}
               </View>
             </View>
           ))}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Tóm tắt thanh toán</Text>
-          <Text style={styles.small}>Tổng tiền: {formatCurrency(order.totalAmount)}</Text>
-          <Text style={styles.small}>Phí vận chuyển: {formatCurrency(order.shippingFee)}</Text>
-          <Text style={styles.small}>Đã thanh toán: {order.paid ? 'Có' : 'Chưa'}</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="card-outline" size={19} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Tóm tắt thanh toán</Text>
+          </View>
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Tổng tiền</Text>
+            <Text style={styles.paymentValue}>{formatCurrency(order.totalAmount)}</Text>
+          </View>
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Phí vận chuyển</Text>
+            <Text style={styles.paymentValue}>{formatCurrency(order.shippingFee)}</Text>
+          </View>
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Phương thức</Text>
+            <Text style={styles.paymentValue}>{order.paymentMethod ?? '—'}</Text>
+          </View>
+
+          <View style={styles.paymentDivider} />
+
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentTotalLabel}>Trạng thái thanh toán</Text>
+            <Text style={styles.paymentTotalValue}>
+              {order.paid ? 'Đã thanh toán' : 'Chưa thanh toán'}
+            </Text>
+          </View>
         </View>
 
-        {order.status === 'PROCESSING' && (
+        {canCancel ? (
           <View style={styles.card}>
-            <Pressable style={[styles.btn, styles.btnDanger]} onPress={handleCancel} disabled={actionLoading}>
-              {actionLoading ? <ActivityIndicator /> : <Text style={styles.btnDangerText}>Hủy đơn</Text>}
+            <Pressable
+              style={[styles.fullDangerBtn]}
+              onPress={openCancelModal}
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <ActivityIndicator />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={18} color="#C53030" />
+                  <Text style={styles.fullDangerText}>Hủy đơn</Text>
+                </>
+              )}
             </Pressable>
           </View>
-        )}
+        ) : null}
 
-        <Modal visible={reasonModalVisible} animationType="slide" transparent={true} onRequestClose={() => setReasonModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Lý do</Text>
-              <TextInput placeholder='Nhập lý do...' value={reasonForAction} onChangeText={setReasonForAction} style={styles.modalInput} multiline />
-              <View style={styles.modalActions}>
-                <Pressable onPress={() => setReasonModalVisible(false)} style={styles.modalCancel}>
-                  <Text>Hủy</Text>
-                </Pressable>
-                <Pressable onPress={pendingReturnDetailId ? performReturn : performCancelOrder} style={styles.modalSend} disabled={actionLoading}>
-                  {actionLoading ? <ActivityIndicator /> : <Text>Gửi</Text>}
-                </Pressable>
-               </View>
-             </View>
-           </View>
-         </Modal>
+        {canReturn ? (
+          <View style={styles.card}>
+            <Pressable
+              style={[styles.fullWarningBtn]}
+              onPress={openReturnModal}
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <ActivityIndicator />
+              ) : (
+                <>
+                  <Ionicons name="arrow-undo-outline" size={18} color={COLORS.warning} />
+                  <Text style={styles.fullWarningText}>Yêu cầu trả hàng</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+      </ScrollView>
 
-     </ScrollView>
-   </SafeAreaView>
- );
+      <Modal
+        visible={reasonModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReasonModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {modalMode === 'CANCEL' ? 'Lý do hủy đơn' : 'Lý do trả hàng'}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setReasonModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              placeholder="Nhập lý do..."
+              value={reasonForAction}
+              onChangeText={setReasonForAction}
+              style={styles.modalInput}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setReasonModalVisible(false)}
+                style={styles.modalCancel}
+              >
+                <Text style={styles.modalCancelText}>Hủy</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={submitReason}
+                style={styles.modalSend}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalSendText}>Gửi</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <ModalPopup
+        {...(modalState as any)}
+        titleText={modalState.title}
+        contentText={modalState.message}
+        onClose={closeModal}
+      />
+    </SafeAreaView>
+  );
 };
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  container: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+
+  headerWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.bg,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBackBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerCenter: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  headerTitle: {
+    color: COLORS.text,
+    fontWeight: '900',
+    fontSize: 20,
+  },
+  headerSub: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 3,
+    fontWeight: '600',
+  },
+  refreshBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerPlaceholder: {
+    width: 42,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.muted,
+    fontWeight: '600',
+  },
+
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  emptyDesc: {
+    marginTop: 6,
+    color: COLORS.muted,
+    textAlign: 'center',
+  },
+
+  heroCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  heroOrderNo: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  heroDate: {
+    marginTop: 5,
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  orderStatusBadge: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  orderStatusText: {
+    fontWeight: '900',
+    fontSize: 11,
+  },
+  heroSummaryRow: {
+    marginTop: 16,
+    backgroundColor: COLORS.soft,
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroSummaryItem: {
+    flex: 1,
+  },
+  heroDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: COLORS.border,
+    marginHorizontal: 12,
+  },
+  summarySmall: {
+    color: COLORS.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  summaryStrong: {
+    marginTop: 4,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    marginLeft: 8,
+    color: COLORS.text,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  small: {
+    color: COLORS.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  receiverText: {
+    color: COLORS.text,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  shippingAddress: {
+    marginTop: 7,
+    color: '#334155',
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+
+  miniEmpty: {
+    backgroundColor: COLORS.soft,
+    borderRadius: 14,
+    padding: 12,
+  },
+  shipmentCard: {
+    backgroundColor: '#FFFBF7',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F3E7D9',
+  },
+  shipmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  vendorTitle: {
+    color: COLORS.text,
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  trackingNo: {
+    marginTop: 4,
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  alignEnd: {
+    alignItems: 'flex-end',
+  },
+  shipmentBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  shipmentBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  expandRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expandText: {
+    color: COLORS.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginRight: 2,
+  },
+  shipmentMeta: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3E7D9',
+    paddingTop: 12,
+  },
+  shipInfoGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shipInfoBox: {
+    flex: 1,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 9,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  shipInfoLabel: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  shipInfoValue: {
+    marginTop: 4,
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    flexWrap: 'wrap',
+  },
+  trackButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 11,
+    backgroundColor: '#E0F2FE',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trackButtonText: {
+    color: '#055160',
+    fontWeight: '800',
+    marginLeft: 5,
+    fontSize: 12,
+  },
+  eventsWrap: {
+    marginTop: 14,
+  },
+  timelineTitle: {
+    color: COLORS.text,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 10,
+  },
+  timelineDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 9,
+    backgroundColor: COLORS.success,
+    marginRight: 10,
+    marginTop: 5,
+  },
+  timelineText: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontWeight: '700',
+  },
+  eventTime: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  thumb: {
+    width: 66,
+    height: 66,
+    borderRadius: 14,
+    marginRight: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  flex1: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  meta: {
+    color: COLORS.muted,
+    marginTop: 5,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  detailStatusPill: {
+    marginTop: 7,
+    backgroundColor: '#F1F5F9',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  detailStatusText: {
+    color: '#334155',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  installPill: {
+    marginTop: 7,
+    backgroundColor: COLORS.successBg,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  installText: {
+    marginLeft: 5,
+    color: COLORS.success,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  itemActions: {
+    marginTop: 8,
+  },
+
+  btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  btnDanger: {
+    backgroundColor: COLORS.dangerBg,
+  },
+  btnDangerText: {
+    color: '#C53030',
+    fontWeight: '900',
+  },
+  btnPrimary: {
+    backgroundColor: COLORS.successBg,
+  },
+  btnPrimaryText: {
+    color: COLORS.success,
+    fontWeight: '900',
+  },
+
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+  },
+  paymentLabel: {
+    color: COLORS.muted,
+    fontWeight: '700',
+  },
+  paymentValue: {
+    color: COLORS.text,
+    fontWeight: '800',
+  },
+  paymentDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 8,
+  },
+  paymentTotalLabel: {
+    color: COLORS.text,
+    fontWeight: '900',
+  },
+  paymentTotalValue: {
+    color: COLORS.primary,
+    fontWeight: '900',
+  },
+
+  fullDangerBtn: {
+    backgroundColor: COLORS.dangerBg,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  fullDangerText: {
+    marginLeft: 7,
+    color: '#C53030',
+    fontWeight: '900',
+  },
+  fullWarningBtn: {
+    backgroundColor: COLORS.warningBg,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  fullWarningText: {
+    marginLeft: 7,
+    color: COLORS.warning,
+    fontWeight: '900',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalCard: {
+    backgroundColor: COLORS.card,
+    padding: 18,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    flex: 1,
+    fontWeight: '900',
+    fontSize: 18,
+    color: COLORS.text,
+  },
+  modalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    padding: 12,
+    minHeight: 100,
+    color: COLORS.text,
+    backgroundColor: '#FFFBF7',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 14,
+  },
+  modalCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    marginRight: 8,
+  },
+  modalCancelText: {
+    color: COLORS.muted,
+    fontWeight: '800',
+  },
+  modalSend: {
+    minWidth: 88,
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+  },
+  modalSendText: {
+    color: '#fff',
+    fontWeight: '900',
+  },
+});
 
 export default OrderDetailScreen;

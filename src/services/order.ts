@@ -1,15 +1,29 @@
 import axios from '../hooks/axiosInstance';
 
-export type OrderItem = { productId: string; quantity: number; discountAmount?: number; installationRequest?: boolean };
+export type OrderItem = {
+  productId: string;
+  quantity: number;
+  discountAmount?: number;
+  installationRequest?: boolean;
+};
+
+export type VendorShipping = {
+  vendorId: string;
+  shippingFee: number;
+};
 
 export type CreateOrderPayload = {
   recipientName: string;
   recipientPhone: string;
   shippingAddress: string;
+  addressId: string;
+
   items: OrderItem[];
+
   discountAmount?: number;
-  shippingFee?: number;
-  paymentMethod?: string;
+  vendorShippings: VendorShipping[];
+
+  paymentMethod: 'WALLET' | 'VNPAY' | 'COD' | 'CARD' | string;
   notes?: string;
 };
 
@@ -24,19 +38,18 @@ export async function getMyOrders() {
 }
 
 export async function cancelOrder(orderId: string, reason: string) {
-  const res = await axios.post(`/orders/${orderId}/cancel`, { cancellationReason: reason });
+  const res = await axios.post(`/orders/${orderId}/cancel`, {
+    cancellationReason: reason,
+  });
   return res.data.data;
 }
 
 export async function confirmOrderDetail(orderDetailId: string) {
-  // Backend currently exposes order-level status changes. Keep this function for compatibility
-  // but it will throw 404 if per-order-detail endpoint is not available.
   const res = await axios.put(`/order-details/${orderDetailId}/confirm`);
   return res.data.data;
 }
 
 export async function requestOrderDetailReturn(orderDetailId: string, reason: string) {
-  // Deprecated: prefer order-level return via requestOrderReturn(orderId, reason)
   const res = await axios.post(`/order-details/${orderDetailId}/return`, { reason });
   return res.data.data;
 }
@@ -46,8 +59,6 @@ export async function requestOrderReturn(orderId: string, reason: string) {
   return res.data.data;
 }
 
-// Deprecated: if backend removes order-detail endpoints entirely we'll keep these wrappers
-// so FE code calling them can be updated later.
 export async function getOrderById(orderId: string) {
   const res = await axios.get(`/orders/${orderId}`);
   return res.data.data;

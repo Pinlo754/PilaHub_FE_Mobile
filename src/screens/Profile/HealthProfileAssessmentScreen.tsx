@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, ScrollView, Pressable, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { fetchHealthProfileAssessment } from '../../services/profile';
 import ProgressCircle from '../../components/ProgressCircle';
