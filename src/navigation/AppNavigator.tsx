@@ -83,6 +83,7 @@ import ListChatScreen from '../screens/Chat/ListChatScreen';
 import TraineeDetailScreen from '../screens/Coach/TraineeList/TraineeDetail';
 import NotificationScreen from '../screens/Notifications/NotificationScreen';
 import DepositScreen from '../screens/Wallet/DepositScreen';
+import AIPracticeTimeout from '../screens/AIPracticeTimeout/AIPractice';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -189,6 +190,14 @@ export type RootStackParamList = {
     videoUrl: string;
     workoutSessionId: string;
     nameAITracking: string;
+  };
+  AIPracticeTimeout: {
+    exercise_id: string;
+    imgUrl: string;
+    videoUrl: string;
+    workoutSessionId: string;
+    nameAITracking: string;
+    timeout: number;
   };
   AITracking: {
     workoutSessionId: string;
@@ -382,6 +391,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="TraineeReport" component={TraineeReport} />
             <Stack.Screen name="AISummary" component={AISummary} />
             <Stack.Screen name="AIPractice" component={AIPractice} />
+            <Stack.Screen name="AIPracticeTimeout" component={AIPracticeTimeout} />
 
             <Stack.Screen
               name="CoachProfileScreen"

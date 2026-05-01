@@ -358,7 +358,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
 
 
-      if (mistakeLogs && mistakeLogs.length > 0) {
+      if (mistakeLogs) {
         const transformedMistakeLogs: MistakeLogReq[] = mistakeLogs.map(
           ({ bodyPart, side, recordedAtSecond, duration, imageUrl }) => ({
             bodyPartId: getBodyPartId(bodyPart) || '',
@@ -822,4 +822,3 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     </View>
   );
 };
-

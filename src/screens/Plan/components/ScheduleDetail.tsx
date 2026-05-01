@@ -7,7 +7,7 @@ import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
 
-// Helper: resolve possibly-relative video URL to absolute using axios baseURL
+// Helper: Phân giải URL video
 function resolveVideoSrc(raw?: string | null) {
   if (!raw) return null;
   const s = String(raw).trim();
@@ -26,22 +26,15 @@ function resolveVideoSrc(raw?: string | null) {
 }
 
 export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview = false }: any) {
-  const navigationRaw = useNavigation();
-  const navigation: any = navigationRaw;
+  const navigation: any = useNavigation();
 
-  /**
-   * Frontend tự tính locked.
-   *
-   * Rule:
-   * - Bài đầu tiên luôn mở.
-   * - Bài hiện tại chỉ mở nếu bài liền trước đã completed.
-   * - Nếu gặp 1 bài chưa completed thì toàn bộ bài phía sau bị locked.
-   *
-   * Backend không cần trả locked.
-   */
+  // --------------------------------------------------------
+  // TÍNH NĂNG TRÌNH TỰ: Tự động tính toán trạng thái Khóa/Mở khóa
+  // --------------------------------------------------------
   const normalizeExercises = useCallback((arr: any[]) => {
     if (!Array.isArray(arr)) return [];
 
+    // 1. Sắp xếp theo thứ tự (exerciseOrder)
     const sorted = [...arr]
       .map((it: any) => ({ ...it }))
       .sort((a: any, b: any) => {
@@ -50,8 +43,9 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
         return orderA - orderB;
       });
 
-    let previousCompleted = true;
+    let previousCompleted = true; // Bài đầu tiên luôn được coi là bài trước đó đã hoàn thành
 
+    // 2. Xét duyệt tuần tự để khóa/mở khóa
     return sorted.map((exercise: any, index: number) => {
       const isCompleted = exercise.completed === true;
       const locked = index === 0 ? false : !previousCompleted;
@@ -68,11 +62,14 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
   const [aiAllowed, setAiAllowed] = useState<boolean>(true);
   const [localExercises, setLocalExercises] = useState<any[]>([]);
   const [scheduleCompleted, setScheduleCompleted] = useState<boolean>(Boolean(schedule?.completed));
+  
+  // Toast state
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const prevProgressRef = useRef<number | null>(null);
 
+  // Khởi tạo danh sách bài tập theo trình tự
   useEffect(() => {
     const exs = Array.isArray(schedule?.exercises)
       ? schedule.exercises.map((e: any) => ({ ...e }))
@@ -81,6 +78,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     setLocalExercises(normalizeExercises(exs));
     setScheduleCompleted(Boolean(schedule?.completed));
 
+    // Kiểm tra quyền VIP (AI)
     (async () => {
       try {
         const me = await getProfile();
@@ -92,24 +90,22 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     })();
   }, [schedule, normalizeExercises]);
 
+  // Lắng nghe sự kiện hoàn thành bài tập/lịch tập để tự động mở khóa theo trình tự
   useEffect(() => {
     const subEx = DeviceEventEmitter.addListener('exerciseCompleted', (evt: any) => {
       const id = evt?.personalExerciseId ?? null;
-      console.log('[ScheduleDetail] received exerciseCompleted', evt);
-
       if (!id) return;
 
       setLocalExercises(prev => {
         const mapped = prev.map(it => {
           const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
-
           if (pid === id) {
             return { ...it, completed: true };
           }
-
           return it;
         });
-
+        
+        // Gọi lại normalizeExercises để mở khóa bài tiếp theo
         return normalizeExercises(mapped);
       });
 
@@ -120,8 +116,6 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
 
     const subSchedule = DeviceEventEmitter.addListener('scheduleCompleted', (evt: any) => {
       const sid = evt?.scheduleId ?? null;
-      console.log('[ScheduleDetail] received scheduleCompleted', evt);
-
       const thisSid = schedule?.personalScheduleId ?? schedule?.id ?? schedule?.scheduleId ?? null;
 
       if (!sid || sid !== thisSid) return;
@@ -142,6 +136,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     };
   }, [schedule, onVideoModalChange, normalizeExercises]);
 
+  // Theo dõi tiến độ
   useEffect(() => {
     const current = Number(schedule?.progressPercent ?? schedule?.progress ?? NaN);
     const prev = prevProgressRef.current;
@@ -160,18 +155,11 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
   if (!schedule) return null;
 
   const getScheduleId = () => {
-    return (
-      schedule.personalScheduleId ??
-      schedule.id ??
-      schedule.scheduleId ??
-      schedule.personalScheduleIdRaw ??
-      null
-    );
+    return schedule.personalScheduleId ?? schedule.id ?? schedule.scheduleId ?? schedule.personalScheduleIdRaw ?? null;
   };
 
   const resolveExerciseVideo = async (ex: any) => {
     const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
-
     let rawSrc = ex.practice_video_url ?? ex.practiceVideoUrl ?? null;
     let src = resolveVideoSrc(rawSrc);
 
@@ -184,34 +172,25 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
         console.warn('[ScheduleDetail] tutorial lookup failed', eid, err);
       }
     }
-
     return src;
   };
 
   const buildQueue = async (exercises: any[]) => {
     const queue: any[] = [];
-
     for (const ex of exercises) {
       const videoSrc = await resolveExerciseVideo(ex);
-
-      queue.push({
-        ex,
-        videoSrc,
-      });
+      queue.push({ ex, videoSrc });
     }
-
     return queue;
   };
 
-  /**
-   * Bắt đầu toàn bộ:
-   * - Lấy tất cả bài chưa completed.
-   * - Không bỏ qua bài locked, vì trong luồng tập toàn bộ, bài sau sẽ được mở tuần tự sau khi bài trước hoàn thành.
-   * - Truyền singleMode: false để SchedulePlayer tự chuyển bài.
-   */
+  // --------------------------------------------------------
+  // START ALL (TẬP THEO TRÌNH TỰ)
+  // --------------------------------------------------------
   const startAllFree = async () => {
     const normalized = normalizeExercises(localExercises);
-
+    
+    // Lọc ra các bài chưa tập và sắp xếp đúng trình tự
     const exercisesToPlay = normalized
       .filter((ex: any) => ex.completed !== true)
       .sort((a: any, b: any) => {
@@ -228,30 +207,25 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     }
 
     const queue = await buildQueue(exercisesToPlay);
-
     const scheduleId = getScheduleId();
 
-    if (typeof onVideoModalChange === 'function') {
-      onVideoModalChange(false);
-    }
+    if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
 
-    navigation.navigate('SchedulePlayer' as any, {
+    navigation.navigate('SchedulePlayer', {
       queue,
       startIndex: 0,
       scheduleId,
       title: schedule.scheduleName,
-      singleMode: false,
+      singleMode: false, // Player sẽ tự chuyển qua bài tiếp theo trong hàng đợi
     });
   };
 
-  /**
-   * Tập từng bài lẻ:
-   * - Chỉ truyền 1 bài vào queue.
-   * - singleMode: true để tập xong không tự chuyển sang bài khác.
-   */
+  // --------------------------------------------------------
+  // START SINGLE (BẮT BUỘC PHẢI MỞ KHÓA MỚI ĐƯỢC TẬP)
+  // --------------------------------------------------------
   const startSingleExercise = async (ex: any) => {
     if (ex.locked) {
-      setToastMessage('Bạn cần hoàn thành bài trước để mở khóa bài này');
+      setToastMessage('Bạn cần hoàn thành bài tập trước đó để mở khóa bài này');
       setToastType('info');
       setToastVisible(true);
       return;
@@ -267,11 +241,9 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     const videoSrc = await resolveExerciseVideo(ex);
     const scheduleId = getScheduleId();
 
-    if (typeof onVideoModalChange === 'function') {
-      onVideoModalChange(false);
-    }
+    if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
 
-    navigation.navigate('SchedulePlayer' as any, {
+    navigation.navigate('SchedulePlayer', {
       queue: [{ ex, videoSrc }],
       startIndex: 0,
       scheduleId,
@@ -280,14 +252,18 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     });
   };
 
+  // --------------------------------------------------------
+  // START AI (TÌM BÀI ĐANG MỞ KHÓA TIẾP THEO THEO TRÌNH TỰ)
+  // --------------------------------------------------------
   const startAllAI = async () => {
     if (!aiAllowed) {
-      setToastMessage('Tính năng AI chỉ dành cho VIP');
+      setToastMessage('Tính năng AI chỉ dành cho hội viên VIP');
       setToastType('error');
       setToastVisible(true);
       return;
     }
 
+    // Luôn lấy bài tiếp theo theo chuẩn trình tự khóa
     const firstEx = (localExercises || []).find(
       (ex: any) => !ex.locked && !ex.completed && (ex.exerciseId ?? ex.id ?? ex.exercise_id)
     );
@@ -300,189 +276,177 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     }
 
     const eid = firstEx.exerciseId ?? firstEx.id ?? firstEx.exercise_id;
-    navigation.navigate('ExerciseDetail' as any, { exercise_id: eid });
+    navigation.navigate('ExerciseDetail', { exercise_id: eid });
   };
 
   return (
     <ScrollView> 
       <View className="mx-4 mt-3">
-      <Toast
-        visible={toastVisible}
-        message={toastMessage}
-        type={toastType}
-        onHidden={() => setToastVisible(false)}
-      />
+        <Toast
+          visible={toastVisible}
+          message={toastMessage}
+          type={toastType}
+          onHidden={() => setToastVisible(false)}
+        />
 
-      <View className="bg-white rounded-2xl border border-gray-100 shadow-lg">
-        <View className="p-4">
-          {!isPreview && (
-            <View className="flex-row justify-between mb-3">
-              <TouchableOpacity
-                className="flex-1 mr-2 bg-[#F3EDE3] rounded-lg py-2 items-center"
-                onPress={startAllFree}
-              >
-                <Text style={modalStyles.btnPrimaryTitle}>Bắt đầu toàn bộ</Text>
-                <Text style={modalStyles.btnPrimarySub}>Tự tập</Text>
-              </TouchableOpacity>
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-6">
+          <View className="p-4">
+            
+            {/* Action Buttons */}
+            {!isPreview && (
+              <View className="flex-row justify-between mb-3">
+                <TouchableOpacity
+                  className="flex-1 mr-2 bg-[#F3EDE3] rounded-lg py-2 items-center"
+                  onPress={startAllFree}
+                >
+                  <Text style={modalStyles.btnPrimaryTitle}>Bắt đầu toàn bộ</Text>
+                  <Text style={modalStyles.btnPrimarySub}>Tự tập</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                className={`flex-1 ml-2 rounded-lg py-2 items-center ${
-                  aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
-                }`}
-                onPress={startAllAI}
-                disabled={!aiAllowed}
-              >
-                <Text style={[modalStyles.btnAiTitle, !aiAllowed && modalStyles.btnAiTitleDisabled]}>
-                  Bắt đầu AI
-                </Text>
-                <Text style={[modalStyles.btnAiSub, !aiAllowed && modalStyles.btnAiSubDisabled]}>
-                  Tập với AI
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <View className="flex-row items-center justify-between">
-            <Text className="text-2xl font-extrabold text-[#3A2A1A]">
-              {schedule.scheduleName}
-            </Text>
-
-            {scheduleCompleted && (
-              <View className="bg-green-100 rounded-full px-3 py-1">
-                <Text className="text-green-700 font-semibold">Hoàn thành</Text>
+                <TouchableOpacity
+                  className={`flex-1 ml-2 rounded-lg py-2 items-center ${
+                    aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
+                  }`}
+                  onPress={startAllAI}
+                  disabled={!aiAllowed}
+                >
+                  <Text style={[modalStyles.btnAiTitle, !aiAllowed && modalStyles.btnAiTitleDisabled]}>
+                    Bắt đầu AI
+                  </Text>
+                  <Text style={[modalStyles.btnAiSub, !aiAllowed && modalStyles.btnAiSubDisabled]}>
+                    Tập với AI
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
-          </View>
 
-          <Text className="text-gray-500 mt-1">
-            {schedule.dayOfWeek} • {schedule.durationMinutes} phút
-          </Text>
-
-          <View className="flex-row flex-wrap mt-3">
-            <View className="flex-row items-start bg-[#F3EDE3] px-3 py-3 rounded-xl w-full">
-              <Ionicons name="information-circle-outline" size={18} color="#3A2A1A" />
-              <Text
-                className="text-[#8B4513] font-semibold ml-3 flex-1"
-                numberOfLines={3}
-                ellipsizeMode="tail"
-              >
-                {schedule.description ?? 'Không có mô tả'}
+            {/* Title & Status */}
+            <View className="flex-row items-center justify-between mt-2">
+              <Text className="text-2xl font-extrabold text-[#3A2A1A] flex-1">
+                {schedule.scheduleName}
               </Text>
+              {scheduleCompleted && (
+                <View className="bg-green-100 rounded-full px-3 py-1 ml-2">
+                  <Text className="text-green-700 font-semibold text-xs">Hoàn thành</Text>
+                </View>
+              )}
             </View>
-          </View>
-          
-          <View className="mt-4">
-            {localExercises.map((ex: any, idx: number) => (
-              <View
-                key={ex.personalExerciseId ?? ex.id ?? ex.exerciseId ?? idx}
-                className="flex-row items-center py-3 border-b border-[#F3EDE3]"
-              >
-                <Image
-                  source={{
-                    uri:
-                      ex.thumbnailUrl ??
-                      ex.imageUrl ??
-                      ex.image ??
-                      'https://via.placeholder.com/72',
-                  }}
-                  className="w-16 h-16 rounded-lg bg-gray-100"
-                  resizeMode="cover"
-                />
 
-                <View className="flex-1 ml-3">
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+            <Text className="text-gray-500 mt-1">
+              {schedule.dayOfWeek} • {schedule.durationMinutes} phút
+            </Text>
 
-                      if (eid) {
-                        navigation.navigate('ExerciseDetail' as any, { exercise_id: eid });
-                      }
+            <View className="flex-row flex-wrap mt-3">
+              <View className="flex-row items-start bg-[#F3EDE3] px-3 py-3 rounded-xl w-full">
+                <Ionicons name="information-circle-outline" size={18} color="#3A2A1A" />
+                <Text
+                  className="text-[#8B4513] font-semibold ml-3 flex-1"
+                  numberOfLines={3}
+                  ellipsizeMode="tail"
+                >
+                  {schedule.description ?? 'Không có mô tả'}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Danh sách bài tập theo Trình tự */}
+            <View className="mt-4">
+              {localExercises.map((ex: any, idx: number) => (
+                <View
+                  key={ex.personalExerciseId ?? ex.id ?? ex.exerciseId ?? idx}
+                  className="flex-row items-center py-3 border-b border-[#F3EDE3]"
+                >
+                  <Image
+                    source={{
+                      uri:
+                        ex.thumbnailUrl ??
+                        ex.imageUrl ??
+                        ex.image ??
+                        'https://via.placeholder.com/72',
                     }}
-                  >
-                    <Text className="text-base font-semibold text-[#3A2A1A]">
-                      {idx + 1}. {ex.exerciseName}
-                    </Text>
+                    className={`w-16 h-16 rounded-lg bg-gray-100 ${ex.locked ? 'opacity-50' : ''}`}
+                    resizeMode="cover"
+                  />
 
-                    <Text className="text-sm text-gray-400 mt-1">
-                      {ex.sets ? `${ex.sets} set` : ''}
-                      {ex.durationSeconds ? ` • ${ex.durationSeconds}s` : ''}
-                      {ex.restSeconds ? ` • nghỉ ${ex.restSeconds}s` : ''}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <View className="flex-row mt-3">
+                  <View className="flex-1 ml-3">
                     <TouchableOpacity
-                      className="px-3 py-1 rounded-md bg-[#F3EDE3] mr-3"
                       activeOpacity={0.8}
                       onPress={() => {
                         const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
-
-                        if (eid) {
-                          navigation.navigate('ExerciseDetail' as any, { exercise_id: eid });
-                        }
+                        if (eid) navigation.navigate('ExerciseDetail', { exercise_id: eid });
                       }}
                     >
-                      <Text style={modalStyles.detailBtnText}>Chi tiết</Text>
-                    </TouchableOpacity>
+                      <Text className={`text-base font-semibold ${ex.locked ? 'text-gray-400' : 'text-[#3A2A1A]'}`}>
+                        {idx + 1}. {ex.exerciseName}
+                      </Text>
 
-                    <TouchableOpacity
-                      className={`px-3 py-1 rounded-md ${ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'}`}
-                      activeOpacity={0.8}
-                      disabled={ex.locked}
-                      onPress={() => {
-                        const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
-
-                        if (eid) {
-                          navigation.navigate('ExerciseDetail' as any, { exercise_id: eid });
-                        }
-                      }}
-                    >
-                      <Text style={ex.locked ? modalStyles.aiSmallBtnTextDisabled : modalStyles.aiSmallBtnText}>
-                        Tập với AI
+                      <Text className="text-sm text-gray-400 mt-1">
+                        {ex.sets ? `${ex.sets} set` : ''}
+                        {ex.durationSeconds ? ` • ${ex.durationSeconds}s` : ''}
+                        {ex.restSeconds ? ` • nghỉ ${ex.restSeconds}s` : ''}
                       </Text>
                     </TouchableOpacity>
+
+                    <View className="flex-row mt-3">
+                      <TouchableOpacity
+                        className="px-3 py-1 rounded-md bg-[#F3EDE3] mr-3"
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+                          if (eid) navigation.navigate('ExerciseDetail', { exercise_id: eid });
+                        }}
+                      >
+                        <Text style={modalStyles.detailBtnText}>Chi tiết</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        className={`px-3 py-1 rounded-md ${ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'}`}
+                        activeOpacity={0.8}
+                        disabled={ex.locked}
+                        onPress={() => {
+                          const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+                          if (eid) navigation.navigate('ExerciseDetail', { exercise_id: eid });
+                        }}
+                      >
+                        <Text style={ex.locked ? modalStyles.aiSmallBtnTextDisabled : modalStyles.aiSmallBtnText}>
+                          Tập với AI
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Icon Status (Play / Locked / Completed) */}
+                  <View style={modalStyles.controlWrapper}>
+                    {isPreview ? null : ex.locked ? (
+                      <View style={modalStyles.controlBtnLocked}>
+                        <Ionicons
+                          name="lock-closed"
+                          size={20}
+                          color={modalStyles.controlIconLocked.color}
+                        />
+                      </View>
+                    ) : ex.completed ? (
+                      <View style={modalStyles.controlBtnCompleted}>
+                        <Ionicons name="checkmark" size={18} color="#fff" />
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={modalStyles.controlBtnPlay}
+                        activeOpacity={0.8}
+                        onPress={() => startSingleExercise(ex)}
+                      >
+                        <Ionicons name="play" size={18} color="#A0522D" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
+              ))}
+            </View>
 
-                <View style={modalStyles.controlWrapper}>
-                  {isPreview ? null : ex.locked ? (
-                    <View style={modalStyles.controlBtnLocked}>
-                      <Ionicons
-                        name="lock-closed"
-                        size={20}
-                        color={modalStyles.controlIconLocked.color}
-                      />
-                    </View>
-                  ) : ex.completed ? (
-                    <View style={modalStyles.controlBtnCompleted}>
-                      <Ionicons name="checkmark" size={18} color="#fff" />
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={modalStyles.controlBtnPlay}
-                      activeOpacity={0.8}
-                      onPress={() => startSingleExercise(ex)}
-                    >
-                      <Ionicons name="play" size={18} color="#A0522D" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ))}
           </View>
         </View>
       </View>
-
-      <Toast
-        visible={toastVisible}
-        message={toastMessage}
-        type={toastType}
-        onHidden={() => setToastVisible(false)}
-      />
-    </View>
     </ScrollView>
-   
   );
 }
 
