@@ -117,7 +117,9 @@ function computeBmi(
   return Math.round(bmi * 10) / 10;
 }
 
-export default function InputBodyScreen({ navigation }: Props) {
+export default function InputBodyScreen({ navigation, route }: Props) {
+  const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
+
   const labelMap: Record<string, string> = {
     waist: 'Eo',
     bust: 'Ngực',
@@ -305,6 +307,7 @@ export default function InputBodyScreen({ navigation }: Props) {
   const allFilled = allMeasurementsFilled(onboarding);
 
   console.log('InputBodyScreen onboarding:', onboarding);
+  console.log('InputBodyScreen returnToAfterAssessment:', returnToAfterAssessment);
 
   const handleContinue = () => {
     if (!allFilled) {
@@ -374,6 +377,7 @@ export default function InputBodyScreen({ navigation }: Props) {
       measurements: meas,
       rawResponse: null,
       source: 'Manual',
+      returnToAfterAssessment,
     });
   };
 
@@ -569,7 +573,11 @@ export default function InputBodyScreen({ navigation }: Props) {
           <View className="flex-row space-x-3 mb-8">
             <Pressable
               className="flex-1 mr-2"
-              onPress={() => navigation.navigate('InBodyScan' as any)}
+              onPress={() =>
+                navigation.navigate('InBodyScan' as any, {
+                  returnToAfterAssessment,
+                })
+              }
               style={[styles.fillBtn, styles.centerContent]}
             >
               <Text style={styles.fillBtnText}>InBody Scan</Text>
@@ -577,7 +585,11 @@ export default function InputBodyScreen({ navigation }: Props) {
 
             <Pressable
               className="flex-1 mr-2"
-              onPress={() => navigation.navigate('BodyScanFlow' as any)}
+              onPress={() =>
+                navigation.navigate('BodyScanFlow' as any, {
+                  returnToAfterAssessment,
+                })
+              }
               style={[styles.fillBtn, styles.centerContent]}
             >
               <Text style={styles.fillBtnText}>Dùng camera Quét cơ thể</Text>

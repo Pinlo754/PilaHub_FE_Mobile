@@ -779,3 +779,290 @@ export async function fetchLatestHealthProfile(): Promise<ServiceResult> {
     };
   }
 }
+export function parseHealthProfileMetadata(metadata: any) {
+  if (!metadata) return {};
+
+  if (typeof metadata === 'object') {
+    return metadata;
+  }
+
+  if (typeof metadata === 'string') {
+    try {
+      return JSON.parse(metadata);
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function firstNumberFromObjects(objects: any[], keys: string[]) {
+  const normalizedKeys = keys.map((x) => x.toLowerCase());
+
+  for (const obj of objects) {
+    if (!obj || typeof obj !== 'object') continue;
+
+    for (const key of Object.keys(obj)) {
+      const keyLower = key.toLowerCase();
+
+      const matched = normalizedKeys.some((target) => {
+        return (
+          keyLower === target ||
+          keyLower.includes(target) ||
+          target.includes(keyLower)
+        );
+      });
+
+      if (!matched) continue;
+
+      const n = toNumber(obj[key]);
+
+      if (n !== null) return n;
+    }
+  }
+
+  return null;
+}
+
+function firstStringFromObjects(objects: any[], keys: string[]) {
+  const normalizedKeys = keys.map((x) => x.toLowerCase());
+
+  for (const obj of objects) {
+    if (!obj || typeof obj !== 'object') continue;
+
+    for (const key of Object.keys(obj)) {
+      const keyLower = key.toLowerCase();
+
+      const matched = normalizedKeys.some((target) => {
+        return (
+          keyLower === target ||
+          keyLower.includes(target) ||
+          target.includes(keyLower)
+        );
+      });
+
+      if (!matched) continue;
+
+      const value = obj[key];
+
+      if (value !== null && value !== undefined && value !== '') {
+        return String(value);
+      }
+    }
+  }
+
+  return null;
+}
+
+function measurementNumberFromArray(
+  measurements: any[],
+  names: string[],
+): number | null {
+  if (!Array.isArray(measurements)) return null;
+
+  const normalizedNames = names.map((x) => x.toLowerCase());
+
+  const item = measurements.find((m) => {
+    const name = String(m?.name ?? m?.key ?? m?.label ?? '').toLowerCase();
+
+    return normalizedNames.some((target) => {
+      return name === target || name.includes(target) || target.includes(name);
+    });
+  });
+
+  if (!item) return null;
+
+  const raw =
+    item.value ??
+    item.latestValue ??
+    item.value_mm ??
+    item.value_cm ??
+    item.cm ??
+    item.mm ??
+    item.kg ??
+    item.g ??
+    null;
+
+  const n = toNumber(raw);
+
+  if (n === null) return null;
+
+  const unit = String(item.unit ?? '').toLowerCase();
+
+  if (unit === 'mm') return round1(n / 10);
+  if (unit === 'cm') return round1(n);
+  if (unit === 'g') return round1(n / 1000);
+  if (unit === 'kg') return round1(n);
+
+  return round1(n);
+}
+
+export function mapStoredHealthProfile(profileObj: any) {
+  const profile = profileObj?.entry ?? profileObj?.data ?? profileObj ?? {};
+  const metadata = parseHealthProfileMetadata(profile?.metadata);
+
+  const extraMeasurements =
+    metadata?.extraMeasurements ??
+    metadata?.simpleMeasurements ??
+    {};
+
+  const bodyComposition = metadata?.bodyComposition ?? {};
+  const input = metadata?.input ?? {};
+
+  const rawMeasurements =
+    profile?.rawMeasurements ??
+    profile?.measurements ??
+    metadata?.rawMeasurements ??
+    metadata?.measurements ??
+    metadata?.measurementList ??
+    [];
+
+  const objects = [
+    profile,
+    extraMeasurements,
+    bodyComposition,
+    input,
+    metadata,
+  ];
+
+  const heightCm =
+    firstNumberFromObjects(objects, ['heightCm', 'height', 'height_est']) ??
+    null;
+
+  const weightKg =
+    firstNumberFromObjects(objects, ['weightKg', 'weight', 'weight_est']) ??
+    null;
+
+  const age = firstNumberFromObjects(objects, ['age']) ?? null;
+
+  const gender = firstStringFromObjects(objects, ['gender']) ?? null;
+
+  const bmi = firstNumberFromObjects(objects, ['bmi']) ?? null;
+
+  const bodyFatPercentage =
+    firstNumberFromObjects(objects, [
+      'bodyFatPercentage',
+      'bodyFatPercent',
+      'body_fat',
+      'fatPercentage',
+    ]) ?? null;
+
+  const muscleMassKg =
+    firstNumberFromObjects(objects, [
+      'muscleMassKg',
+      'muscleMass',
+      'skeletalMuscleMassKg',
+      'skeletalMuscleMass',
+    ]) ?? null;
+
+  const bustCm =
+    firstNumberFromObjects(objects, ['bustCm', 'bust', 'chestCm', 'chest']) ??
+    measurementNumberFromArray(rawMeasurements, [
+      'bustGirth',
+      'bust',
+      'chest',
+    ]);
+
+  const waistCm =
+    firstNumberFromObjects(objects, [
+      'waistCm',
+      'waist',
+      'waistGirth',
+      'bellyWaistGirth',
+    ]) ??
+    measurementNumberFromArray(rawMeasurements, [
+      'waistGirth',
+      'bellyWaistGirth',
+      'waist',
+      'belly',
+    ]);
+
+  const hipCm =
+    firstNumberFromObjects(objects, ['hipCm', 'hip', 'hipGirth']) ??
+    measurementNumberFromArray(rawMeasurements, ['hipGirth', 'hip', 'topHip']);
+
+  const bicepCm =
+    firstNumberFromObjects(objects, [
+      'bicepCm',
+      'bicep',
+      'upperArmCm',
+      'upperArm',
+      'upperArmGirth',
+    ]) ??
+    measurementNumberFromArray(rawMeasurements, [
+      'upperArmGirthR',
+      'upperArmGirth',
+      'upperArm',
+      'bicep',
+    ]);
+
+  const thighCm =
+    firstNumberFromObjects(objects, [
+      'thighCm',
+      'thigh',
+      'thighGirth',
+      'midThighCm',
+      'midThigh',
+    ]) ??
+    measurementNumberFromArray(rawMeasurements, [
+      'thighGirthR',
+      'midThighGirthR',
+      'thigh',
+      'midThigh',
+    ]);
+
+  const calfCm =
+    firstNumberFromObjects(objects, ['calfCm', 'calf', 'calfGirth']) ??
+    measurementNumberFromArray(rawMeasurements, ['calfGirthR', 'calf']);
+
+  const source = profile?.source ?? metadata?.provider ?? null;
+
+  const createdAt =
+    profile?.createdAt ??
+    profile?.created_at ??
+    metadata?.createdAt ??
+    null;
+
+  return {
+    id:
+      profile?.healthProfileId ??
+      profile?.profileId ??
+      profile?.id ??
+      null,
+
+    source,
+    createdAt,
+
+    raw: {
+      age,
+      gender,
+      heightCm,
+      weightKg,
+      bmi,
+      bodyFatPercentage,
+      muscleMassKg,
+      bustCm,
+      waistCm,
+      hipCm,
+      bicepCm,
+      thighCm,
+      calfCm,
+    },
+
+    display: {
+      height: heightCm != null ? `${round1(heightCm)}cm` : null,
+      weight: weightKg != null ? `${round1(weightKg)}kg` : null,
+      bmi: bmi != null ? `${round1(bmi)}` : null,
+      bodyFat:
+        bodyFatPercentage != null ? `${round1(bodyFatPercentage)}%` : null,
+      muscle: muscleMassKg != null ? `${round1(muscleMassKg)}kg` : null,
+      bust: bustCm != null ? `${round1(bustCm)}cm` : null,
+      waist: waistCm != null ? `${round1(waistCm)}cm` : null,
+      hip: hipCm != null ? `${round1(hipCm)}cm` : null,
+      bicep: bicepCm != null ? `${round1(bicepCm)}cm` : null,
+      thigh: thighCm != null ? `${round1(thighCm)}cm` : null,
+      calf: calfCm != null ? `${round1(calfCm)}cm` : null,
+    },
+  };
+}

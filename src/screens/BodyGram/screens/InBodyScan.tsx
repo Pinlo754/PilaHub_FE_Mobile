@@ -10,7 +10,7 @@ import {
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadInBodyScan } from '../../../services/profile';
 import storage from '@react-native-firebase/storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import ModalPopup from '../../../components/ModalPopup';
 
 type ModalMode = 'noti' | 'confirm' | 'toast';
@@ -28,6 +28,9 @@ type ModalState = {
 
 export default function InBodyScan() {
   const nav = useNavigation<any>();
+  const route = useRoute<any>();
+
+  const returnToAfterAssessment = route.params?.returnToAfterAssessment;
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -150,6 +153,7 @@ export default function InBodyScan() {
       console.log('InBodyScan: about to call uploadInBodyScan', {
         imageUri,
         rawScanId,
+        returnToAfterAssessment,
       });
 
       const res = await uploadInBodyScan(img, rawScanId);
@@ -162,12 +166,16 @@ export default function InBodyScan() {
         /**
          * Backend InBody hiện tại đã lưu DB và trả về healthProfileId.
          * Vì vậy truyền alreadySaved=true để ResultScreen không submitHealthProfile lần nữa.
+         *
+         * returnToAfterAssessment được truyền tiếp để:
+         * InBodyScan -> Result -> HealthProfileAssessment -> quay lại đúng màn ban đầu.
          */
         nav.navigate('Result' as never, {
           measurements: extracted?.measurements ?? null,
           rawResponse: extracted?.entry ? extracted : { entry: extracted },
           source: 'InBody',
           alreadySaved: true,
+          returnToAfterAssessment,
         } as never);
 
         return;

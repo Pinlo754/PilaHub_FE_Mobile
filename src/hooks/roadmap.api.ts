@@ -53,7 +53,17 @@ export const RoadmapApi = {
   approveRoadmap: async (roadmapId: string): Promise<any> => {
     const res = await axios.patch(`/roadmaps/${roadmapId}/approve`);
     return res.data ?? res;
-  }
+  },
+  updateProgress: async (
+  roadmapId: string,
+  progressPercent: number
+): Promise<any> => {
+  const res = await axios.patch(`/roadmaps/${roadmapId}/progress`, {
+    progressPercent,
+  });
+
+  return res.data?.data ?? res.data ?? res;
+},
 };
 
 export default RoadmapApi;

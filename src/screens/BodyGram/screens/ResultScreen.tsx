@@ -331,7 +331,7 @@ export default function ResultScreen({ route, navigation }: Props) {
 
   const source = ((route.params as any)?.source ?? 'BodyGram') as SourceType;
   const alreadySaved = Boolean((route.params as any)?.alreadySaved);
-
+const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
   const setData = useOnboardingStore((s) => s.setData);
   const onboarding = useOnboardingStore((s) => s.data);
 
@@ -613,42 +613,44 @@ export default function ResultScreen({ route, navigation }: Props) {
   };
 
   const goNextAfterSuccess = (profileId?: string | null) => {
-    hideModal();
+  hideModal();
 
-    if (profileId) {
-      try {
-        (navigation as any).reset({
-          index: 0,
-          routes: [
-            {
-              name: 'HealthProfileAssessment',
-              params: {
-                healthProfileId: String(profileId),
-              },
-            },
-          ],
-        });
-      } catch {
-        navigation.navigate(
-          'HealthProfileAssessment' as any,
-          {
-            healthProfileId: String(profileId),
-          } as any,
-        );
-      }
-
-      return;
-    }
-
+  if (profileId) {
     try {
       (navigation as any).reset({
         index: 0,
-        routes: [{ name: 'MainTabs' }],
+        routes: [
+          {
+            name: 'HealthProfileAssessment',
+            params: {
+              healthProfileId: String(profileId),
+              returnToAfterAssessment,
+            },
+          },
+        ],
       });
     } catch {
-      navigation.navigate('MainTabs' as any);
+      navigation.navigate(
+        'HealthProfileAssessment' as any,
+        {
+          healthProfileId: String(profileId),
+          returnToAfterAssessment,
+        } as any,
+      );
     }
-  };
+
+    return;
+  }
+
+  try {
+    (navigation as any).reset({
+      index: 0,
+      routes: [{ name: 'MainTabs' }],
+    });
+  } catch {
+    navigation.navigate('MainTabs' as any);
+  }
+};
 
   const handleSubmitAll = async () => {
     setToastVisible(false);

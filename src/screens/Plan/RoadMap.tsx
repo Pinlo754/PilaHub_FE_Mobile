@@ -4,12 +4,13 @@ import {
   Text,
   View,
   StyleSheet,
-  Alert,
   TouchableOpacity,
   ActivityIndicator,
   Image,
   Modal,
+  TextInput,
 } from 'react-native';
+import ModalPopup from '../../components/ModalPopup';
 import {
   useRoute,
   useFocusEffect,
@@ -25,6 +26,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import StageCarousel from './components/StageCarousel';
 import RoadmapApi from '../../hooks/roadmap.api';
 import StageRendererApi from './components/StageRendererApi';
+import {
+  fetchHealthProfileById,
+  mapStoredHealthProfile,
+} from '../../services/profile';
+import RoadmapBodyMetricModal from './components/RoadmapVideo/RoadmapBodyMetricModal';
 
 const RoadMap = () => {
   const storeList = useRoadmapStore(s => s.list);
@@ -65,13 +71,18 @@ const RoadMap = () => {
   const [coachRequests, setCoachRequests] = useState<any[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  /**
-   * Supabase thường lưu timestamp UTC.
-   * Việt Nam UTC+7.
-   *
-   * Ví dụ:
-   * 2026-04-27T17:00:00Z + 7h = 2026-04-28 00:00 Việt Nam
-   */
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressInput, setProgressInput] = useState('');
+  const [updatingProgress, setUpdatingProgress] = useState(false);
+
+  const [showBodyMetricModal, setShowBodyMetricModal] = useState(false);
+  const [roadmapHealthProfile, setRoadmapHealthProfile] = useState<any | null>(null);
+  const [loadingRoadmapHealthProfile, setLoadingRoadmapHealthProfile] = useState(false);
+
+  const [modalProps, setModalProps] = useState<any>({ visible: false });
+  const showModal = (p: any) => setModalProps({ ...p, visible: true });
+  const closeModal = () => setModalProps({ visible: false });
+
   const toVietnamDateKey = useCallback((dateInput: string | Date | null | undefined) => {
     if (!dateInput) return null;
 
@@ -97,17 +108,9 @@ const RoadMap = () => {
 
       return toVietnamDateKey(rawDate);
     },
-    [toVietnamDateKey]
+    [toVietnamDateKey],
   );
 
-  /**
-   * Merge wrapper + schedule bên trong.
-   * Vì có data nằm ở wrapper như:
-   * - scheduledDate
-   * - personalScheduleId
-   * - completed
-   * - exercises
-   */
   const getScheduleObject = useCallback((scheduleWrapper: any) => {
     if (!scheduleWrapper) return null;
 
@@ -175,6 +178,10 @@ const RoadMap = () => {
     );
   }, []);
 
+  const getRoadmapId = useCallback((rm: any) => {
+    return rm?.roadmapId ?? rm?.id ?? rm?._id ?? null;
+  }, []);
+
   const fetchCoachRequests = async () => {
     try {
       const res = await RoadmapApi.getMyCoachRequests();
@@ -212,11 +219,7 @@ const RoadMap = () => {
         return;
       }
 
-      const roadmapId =
-        roadmapFromServer?.id ??
-        roadmapFromServer?.roadmapId ??
-        roadmapFromServer?._id ??
-        null;
+      const roadmapId = getRoadmapId(roadmapFromServer);
 
       if (roadmapId) {
         try {
@@ -254,7 +257,7 @@ const RoadMap = () => {
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [getRoadmapId]);
 
   const fetchProcessing = useCallback(async () => {
     try {
@@ -287,11 +290,7 @@ const RoadMap = () => {
       const roadmapFromServer = actualData?.roadmap ?? actualData ?? null;
       const stagesFromServer = actualData?.stages ?? [];
 
-      const roadmapId =
-        roadmapFromServer?.id ??
-        roadmapFromServer?.roadmapId ??
-        roadmapFromServer?._id ??
-        null;
+      const roadmapId = getRoadmapId(roadmapFromServer);
 
       if (!roadmapId) {
         console.warn('fetchProcessing: Không tìm thấy roadmapId trong object', roadmapFromServer);
@@ -333,7 +332,7 @@ const RoadMap = () => {
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [getRoadmapId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -350,12 +349,12 @@ const RoadMap = () => {
       fetchCoachRequests();
 
       return () => {};
-    }, [fetchNewest, fetchProcessing, activeTab])
+    }, [fetchNewest, fetchProcessing, activeTab]),
   );
 
   const fetchEquipmentAndSupplements = useCallback(async (rm: any) => {
     try {
-      const roadmapId = rm?.id ?? rm?.roadmapId ?? rm?._id ?? null;
+      const roadmapId = getRoadmapId(rm);
 
       if (!roadmapId) return;
 
@@ -393,7 +392,7 @@ const RoadMap = () => {
     } catch (err) {
       console.warn('fetchEquipmentAndSupplements error', err);
     }
-  }, []);
+  }, [getRoadmapId]);
 
   useEffect(() => {
     const target = paramAdded?.roadmap ?? roadmap;
@@ -429,6 +428,129 @@ const RoadMap = () => {
     activeDataSupplements?.length
       ? activeDataSupplements
       : currentRoadmap?.supplements ?? [];
+
+  const currentProgress = Number(
+    currentRoadmap?.progressPercent ?? currentRoadmap?.progress ?? 0,
+  );
+
+  const safeProgress = Math.max(0, Math.min(100, currentProgress));
+
+  const roadmapHealthProfileId =
+    currentRoadmap?.finalHealthProfileId ??
+    currentRoadmap?.initialHealthProfileId ??
+    null;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRoadmapHealthProfile() {
+      if (!roadmapHealthProfileId) {
+        setRoadmapHealthProfile(null);
+        return;
+      }
+
+      try {
+        setLoadingRoadmapHealthProfile(true);
+
+        const res = await fetchHealthProfileById(
+          String(roadmapHealthProfileId),
+        );
+
+        if (!mounted) return;
+
+        if (res.ok) {
+          setRoadmapHealthProfile(res.data);
+        } else {
+          console.log('fetch roadmap health profile error:', res.error);
+          setRoadmapHealthProfile(null);
+        }
+      } catch (e) {
+        console.log('loadRoadmapHealthProfile error:', e);
+        setRoadmapHealthProfile(null);
+      } finally {
+        if (mounted) {
+          setLoadingRoadmapHealthProfile(false);
+        }
+      }
+    }
+
+    loadRoadmapHealthProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [roadmapHealthProfileId]);
+
+  const roadmapHealthMapped = useMemo(() => {
+    return mapStoredHealthProfile(roadmapHealthProfile);
+  }, [roadmapHealthProfile]);
+
+  const openProgressModal = () => {
+    setProgressInput(String(safeProgress));
+    setShowProgressModal(true);
+  };
+
+  const handleOpenBodyMetricUpdate = () => {
+    setShowBodyMetricModal(false);
+
+    navigation.navigate('InputBody' as any, {
+    returnToAfterAssessment: {
+      root: 'MainTabs',
+      screen: 'Roadmap',
+    },
+  });
+  };
+
+  const handleUpdateProgress = async () => {
+    try {
+      const roadmapId = getRoadmapId(currentRoadmap);
+
+      if (!roadmapId) {
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Không tìm thấy roadmapId' });
+        return;
+      }
+
+      const nextProgress = Number(progressInput);
+
+      if (Number.isNaN(nextProgress)) {
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Progress phải là số' });
+        return;
+      }
+
+      if (nextProgress < 0 || nextProgress > 100) {
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Progress phải nằm trong khoảng 0 - 100' });
+        return;
+      }
+
+      setUpdatingProgress(true);
+
+      const updatedRoadmap = await RoadmapApi.updateProgress(
+        roadmapId,
+        nextProgress,
+      );
+
+      if (activeTab === 'CURRENT') {
+        setCurrentRoadmapData((prev: any) => ({
+          ...(prev ?? currentRoadmap),
+          ...updatedRoadmap,
+          progressPercent: updatedRoadmap?.progressPercent ?? nextProgress,
+        }));
+      } else {
+        setPendingRoadmapData((prev: any) => ({
+          ...(prev ?? currentRoadmap),
+          ...updatedRoadmap,
+          progressPercent: updatedRoadmap?.progressPercent ?? nextProgress,
+        }));
+      }
+
+      setShowProgressModal(false);
+      showModal({ mode: 'noti', titleText: 'Thành công', contentText: `Đã cập nhật progress lên ${nextProgress}%` });
+    } catch (err: any) {
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: err?.response?.data?.message ?? 'Không thể cập nhật progress' });
+    } finally {
+      setUpdatingProgress(false);
+    }
+  };
 
   const isApiShaped =
     Array.isArray(currentStages) &&
@@ -467,7 +589,7 @@ const RoadMap = () => {
     : currentSupplements;
 
   const allSchedules = currentStages.flatMap((st: any) =>
-    st.schedules?.map((s: any) => s.schedule ?? s) ?? []
+    st.schedules?.map((s: any) => s.schedule ?? s) ?? [],
   );
 
   const totalSessions = allSchedules.length;
@@ -477,11 +599,6 @@ const RoadMap = () => {
   const formatDate = (date: string) => new Date(date).toLocaleDateString('vi-VN');
   const totalAmount = currentRoadmap?.totalAmount ?? 0;
 
-  /**
-   * QUAN TRỌNG:
-   * StageCalendar đã truyền scheduleWrapper đúng theo ngày đã render.
-   * RoadMap không tự find selectedSchedule nữa.
-   */
   const handleSelectDate = (date: string | null, scheduleWrapperFromCalendar?: any) => {
     console.log('[RoadMap] selected date:', date);
     console.log('[RoadMap] wrapper from calendar:', scheduleWrapperFromCalendar);
@@ -512,6 +629,97 @@ const RoadMap = () => {
     setShowScheduleModal(true);
   };
 
+  const renderPageHeader = () => {
+    return (
+      <View style={styles.pageHeader}>
+        <View style={styles.pageHeaderTextWrap}>
+          <Text style={styles.pageHeaderTitle}>Lộ trình</Text>
+          <Text style={styles.pageHeaderSubtitle}>
+            Theo dõi tiến độ tập luyện của bạn
+          </Text>
+        </View>
+
+        <View style={styles.headerActionGroup}>
+          <TouchableOpacity
+            style={[
+              styles.progressEditButton,
+              (!currentRoadmap || saving || updatingProgress) &&
+                styles.progressEditButtonDisabled,
+            ]}
+            onPress={openProgressModal}
+            disabled={!currentRoadmap || saving || updatingProgress}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.progressEditButtonText}>Chỉnh progress</Text>
+          </TouchableOpacity>
+
+          {safeProgress >= 100 ? (
+            <TouchableOpacity
+              style={styles.bodyMetricButton}
+              onPress={() => setShowBodyMetricModal(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.bodyMetricButtonText}>Cập nhật số đo</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    );
+  };
+
+  const renderTabs = () => {
+    const handleChangeTab = (tab: 'CURRENT' | 'PROCESSING') => {
+      setActiveTab(tab);
+      setSelectedStageIndex(0);
+      setSelectedDate(null);
+      setSelectedScheduleData(null);
+    };
+
+    return (
+      <View style={styles.tabsOuter}>
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => handleChangeTab('CURRENT')}
+            style={[
+              styles.tabButton,
+              activeTab === 'CURRENT' && styles.tabButtonActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'CURRENT' && styles.tabTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Hiện tại
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => handleChangeTab('PROCESSING')}
+            style={[
+              styles.tabButton,
+              activeTab === 'PROCESSING' && styles.tabButtonActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'PROCESSING' && styles.tabTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Đang xử lý
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   if (!currentRoadmap || !currentStages?.length) {
     if (saving) {
       return (
@@ -523,53 +731,41 @@ const RoadMap = () => {
     }
 
     return (
-      <SafeAreaView style={[styles.screen, styles.centeredContainer]}>
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            onPress={() => {
-              console.log('[Empty State] Switching to CURRENT');
-              setActiveTab('CURRENT');
-              setSelectedStageIndex(0);
-              setSelectedDate(null);
-              setSelectedScheduleData(null);
-            }}
-            style={[styles.tabButton, activeTab === 'CURRENT' && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabText, activeTab === 'CURRENT' && styles.tabTextActive]}>
-              Roadmap hiện tại
-            </Text>
-          </TouchableOpacity>
+      <SafeAreaView style={styles.screen}>
+        {renderPageHeader()}
 
-          <TouchableOpacity
-            onPress={() => {
-              console.log('[Empty State] Switching to PROCESSING');
-              setActiveTab('PROCESSING');
-              setSelectedStageIndex(0);
-              setSelectedDate(null);
-              setSelectedScheduleData(null);
-            }}
-            style={[styles.tabButton, activeTab === 'PROCESSING' && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabText, activeTab === 'PROCESSING' && styles.tabTextActive]}>
-              Đang xử lý
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.emptyContent}>
+          {renderTabs()}
+
+          <Text style={styles.emptyTitle}>
+            {activeTab === 'CURRENT'
+              ? 'Bạn chưa có lộ trình'
+              : 'Không có lộ trình nào đang xử lý'}
+          </Text>
+
+          {activeTab === 'CURRENT' && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CreateRoadmap')}
+              style={styles.buttonPrimary}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonPrimaryText}>Tạo lộ trình mới</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <Text style={styles.emptyTitle}>
-          {activeTab === 'CURRENT'
-            ? 'Bạn chưa có lộ trình'
-            : 'Không có lộ trình nào đang xử lý'}
-        </Text>
+        <RoadmapBodyMetricModal
+          visible={showBodyMetricModal}
+          onClose={() => setShowBodyMetricModal(false)}
+          onConfirm={handleOpenBodyMetricUpdate}
+          roadmapTitle={currentRoadmap?.title}
+          progressPercent={safeProgress}
+          totalSessions={totalSessions}
+          loadingProfile={loadingRoadmapHealthProfile}
+          healthProfile={roadmapHealthMapped}
+        />
 
-        {activeTab === 'CURRENT' && (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('CreateRoadmap')}
-            style={styles.buttonPrimary}
-          >
-            <Text style={styles.buttonPrimaryText}>Tạo lộ trình mới</Text>
-          </TouchableOpacity>
-        )}
+        <ModalPopup {...(modalProps as any)} onClose={closeModal} />
       </SafeAreaView>
     );
   }
@@ -577,37 +773,9 @@ const RoadMap = () => {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            onPress={() => {
-              console.log('[Tab Click] Switching to CURRENT');
-              setActiveTab('CURRENT');
-              setSelectedStageIndex(0);
-              setSelectedDate(null);
-              setSelectedScheduleData(null);
-            }}
-            style={[styles.tabButton, activeTab === 'CURRENT' && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabText, activeTab === 'CURRENT' && styles.tabTextActive]}>
-              Roadmap hiện tại
-            </Text>
-          </TouchableOpacity>
+        {renderPageHeader()}
 
-          <TouchableOpacity
-            onPress={() => {
-              console.log('[Tab Click] Switching to PROCESSING');
-              setActiveTab('PROCESSING');
-              setSelectedStageIndex(0);
-              setSelectedDate(null);
-              setSelectedScheduleData(null);
-            }}
-            style={[styles.tabButton, activeTab === 'PROCESSING' && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabText, activeTab === 'PROCESSING' && styles.tabTextActive]}>
-              Đang xử lý
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {renderTabs()}
 
         <View style={styles.sectionWrap}>
           <View style={styles.card}>
@@ -625,9 +793,7 @@ const RoadMap = () => {
               </View>
 
               <View style={styles.statBox}>
-                <Text style={styles.statText}>
-                  {`${Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)}%`}
-                </Text>
+                <Text style={styles.statText}>{`${safeProgress}%`}</Text>
               </View>
             </View>
 
@@ -637,13 +803,7 @@ const RoadMap = () => {
                   style={[
                     styles.progressBarFill,
                     {
-                      width: `${Math.max(
-                        0,
-                        Math.min(
-                          100,
-                          Number(currentRoadmap.progressPercent ?? currentRoadmap.progress ?? 0)
-                        )
-                      )}%`,
+                      width: `${safeProgress}%`,
                     },
                   ]}
                 />
@@ -692,6 +852,7 @@ const RoadMap = () => {
                       setShowScheduleModal(false);
                       setSelectedScheduleData(null);
                     }}
+                    activeOpacity={0.85}
                   >
                     <Text style={styles.closeText}>Đóng</Text>
                   </TouchableOpacity>
@@ -742,6 +903,7 @@ const RoadMap = () => {
                 <TouchableOpacity
                   key={idx}
                   style={styles.itemCard}
+                  activeOpacity={0.85}
                   onPress={() => {
                     const q = eq.equipmentName ?? eq.name ?? '';
 
@@ -802,6 +964,7 @@ const RoadMap = () => {
               <TouchableOpacity
                 key={sp.personalStageSupplementId ?? idx}
                 style={styles.itemCard}
+                activeOpacity={0.85}
                 onPress={() => {
                   const q = sp.supplementName ?? 'Supplement';
 
@@ -884,6 +1047,63 @@ const RoadMap = () => {
         </View>
       )}
 
+      {showProgressModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.progressModal}>
+            <Text style={styles.progressModalTitle}>Chỉnh progress roadmap</Text>
+
+            <Text style={styles.progressModalLabel}>
+              Nhập progress mới từ 0 đến 100
+            </Text>
+
+            <TextInput
+              value={progressInput}
+              onChangeText={setProgressInput}
+              keyboardType="numeric"
+              placeholder="Ví dụ: 45"
+              placeholderTextColor="#A0A0A0"
+              style={styles.progressInput}
+            />
+
+            <View style={styles.quickProgressRow}>
+              {[0, 25, 50, 75, 100].map(value => (
+                <TouchableOpacity
+                  key={value}
+                  style={styles.quickProgressChip}
+                  onPress={() => setProgressInput(String(value))}
+                  disabled={updatingProgress}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.quickProgressText}>{value}%</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.progressModalButtons}>
+              <TouchableOpacity
+                onPress={() => setShowProgressModal(false)}
+                style={styles.progressCancelButton}
+                disabled={updatingProgress}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.progressCancelText}>Huỷ</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleUpdateProgress}
+                style={styles.progressConfirmButton}
+                disabled={updatingProgress}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.progressConfirmText}>
+                  {updatingProgress ? 'Đang lưu...' : 'Lưu'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {showConfirmModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModal}>
@@ -906,22 +1126,21 @@ const RoadMap = () => {
               <TouchableOpacity
                 onPress={() => setShowConfirmModal(false)}
                 style={styles.cancelButton}
+                activeOpacity={0.85}
               >
                 <Text style={styles.cancelText}>Huỷ</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
+                activeOpacity={0.85}
                 onPress={async () => {
                   try {
                     setSaving(true);
 
-                    const roadmapId =
-                      currentRoadmap?.roadmapId ??
-                      currentRoadmap?.id ??
-                      currentRoadmap?._id;
+                    const roadmapId = getRoadmapId(currentRoadmap);
 
                     const coachRequest = coachRequests.find(
-                      (req: any) => req.coachId === currentRoadmap?.coachId
+                      (req: any) => req.coachId === currentRoadmap?.coachId,
                     );
 
                     const trainingDaySchedules =
@@ -949,7 +1168,7 @@ const RoadMap = () => {
                         const dayOfWeekEng = dayOfWeekMap[schedule.dayOfWeek] || 'MONDAY';
 
                         const trainingSchedule = trainingDaySchedules.find(
-                          (tds: any) => tds.dayOfWeek === dayOfWeekEng
+                          (tds: any) => tds.dayOfWeek === dayOfWeekEng,
                         );
 
                         const startTimeStr = trainingSchedule?.startTime ?? '08:00';
@@ -968,7 +1187,7 @@ const RoadMap = () => {
                           startTime: start.toISOString(),
                           endTime: end.toISOString(),
                         };
-                      }) ?? []
+                      }) ?? [],
                     );
 
                     const payload1 = {
@@ -984,7 +1203,7 @@ const RoadMap = () => {
                     await RoadmapApi.approveRoadmap(roadmapId);
 
                     setShowConfirmModal(false);
-                    Alert.alert('Thành công', 'Đã chấp nhận lộ trình');
+                    showModal({ mode: 'noti', titleText: 'Thành công', contentText: 'Đã chấp nhận lộ trình' });
 
                     await fetchNewest();
                     await fetchProcessing();
@@ -994,10 +1213,7 @@ const RoadMap = () => {
                     setSelectedDate(null);
                     setSelectedScheduleData(null);
                   } catch (err: any) {
-                    Alert.alert(
-                      'Lỗi',
-                      err?.response?.data?.message ?? 'Không thể chấp nhận roadmap'
-                    );
+                    showModal({ mode: 'noti', titleText: 'Lỗi', contentText: err?.response?.data?.message ?? 'Không thể chấp nhận roadmap' });
                   } finally {
                     setSaving(false);
                   }
@@ -1010,6 +1226,19 @@ const RoadMap = () => {
           </View>
         </View>
       )}
+
+      <RoadmapBodyMetricModal
+        visible={showBodyMetricModal}
+        onClose={() => setShowBodyMetricModal(false)}
+        onConfirm={handleOpenBodyMetricUpdate}
+        roadmapTitle={currentRoadmap?.title}
+        progressPercent={safeProgress}
+        totalSessions={totalSessions}
+        loadingProfile={loadingRoadmapHealthProfile}
+        healthProfile={roadmapHealthMapped}
+      />
+
+      <ModalPopup {...(modalProps as any)} onClose={closeModal} />
     </SafeAreaView>
   );
 };
@@ -1022,25 +1251,111 @@ const styles = StyleSheet.create({
   mono: { fontFamily: 'monospace', fontSize: 12 },
   errorText: { color: 'red' },
 
+  pageHeader: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFE3D4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  pageHeaderTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  pageHeaderTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#3A2A1A',
+  },
+  pageHeaderSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#7A6A58',
+  },
+  headerActionGroup: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  progressEditButton: {
+    backgroundColor: '#8B4513',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  progressEditButtonDisabled: {
+    opacity: 0.5,
+  },
+  progressEditButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  bodyMetricButton: {
+    backgroundColor: '#A0522D',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  bodyMetricButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  tabsOuter: {
+    paddingHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
+  },
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    backgroundColor: '#F3EDE3',
+    backgroundColor: '#F4EBDD',
+    padding: 5,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#8B4513',
+    borderColor: '#E1C7AC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
+    minHeight: 46,
+    borderRadius: 14,
     alignItems: 'center',
-    borderRadius: 8,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  tabButtonActive: { backgroundColor: '#8B4513' },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#6B6B6B' },
-  tabTextActive: { color: '#FFF' },
+  tabButtonActive: {
+    backgroundColor: '#9C4F0F',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#8A7A69',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
 
   card: {
     backgroundColor: '#fff',
@@ -1140,6 +1455,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
   },
+  emptyContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+  },
   loadingText: { marginTop: 12, fontSize: 16, color: '#8B4513' },
   emptyTitle: {
     fontSize: 18,
@@ -1156,6 +1476,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 16,
     marginBottom: 16,
   },
   buttonPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 16 },
@@ -1192,6 +1513,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
   },
+
+  progressModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  progressModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#3A2A1A',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  progressModalLabel: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    marginBottom: 10,
+  },
+  progressInput: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#D8C6B4',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    color: '#3A2A1A',
+    backgroundColor: '#FFFAF0',
+  },
+  quickProgressRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  quickProgressChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F3EDE3',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E2D2C1',
+  },
+  quickProgressText: {
+    color: '#8B4513',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  progressModalButtons: {
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  progressCancelButton: {
+    flex: 1,
+    marginRight: 8,
+    paddingVertical: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  progressCancelText: {
+    color: '#6B6B6B',
+    fontWeight: '700',
+  },
+  progressConfirmButton: {
+    flex: 1,
+    marginLeft: 8,
+    paddingVertical: 12,
+    backgroundColor: '#8B4513',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  progressConfirmText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
   confirmModal: {
     backgroundColor: '#fff',
     borderRadius: 16,

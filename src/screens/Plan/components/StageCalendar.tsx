@@ -46,38 +46,6 @@ LocaleConfig.locales.vi = {
 
 LocaleConfig.defaultLocale = "vi";
 
-function toVietnamDateKey(dateInput: string | Date | null | undefined) {
-  if (!dateInput) return null;
-
-  const date = new Date(dateInput);
-
-  if (isNaN(date.getTime())) return null;
-
-  /**
-   * Supabase thường lưu UTC.
-   * Việt Nam UTC+7.
-   *
-   * Ví dụ:
-   * 2026-04-27T17:00:00Z + 7h = 2026-04-28 00:00 Việt Nam
-   */
-  const vietnamDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
-
-  const year = vietnamDate.getUTCFullYear();
-  const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(vietnamDate.getUTCDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function getScheduleDateKey(scheduleWrapper: any) {
-  const rawDate =
-    scheduleWrapper?.scheduledDate ??
-    scheduleWrapper?.schedule?.scheduledDate ??
-    null;
-
-  return toVietnamDateKey(rawDate);
-}
-
 function isScheduleCompleted(scheduleWrapper: any) {
   const schedule = scheduleWrapper?.schedule ?? scheduleWrapper;
 
@@ -91,87 +59,58 @@ function isScheduleCompleted(scheduleWrapper: any) {
 
 export default function StageCalendar({
   stage,
-  selectedDate,
   onSelectDate,
   completedDateMap = {},
 }: any) {
-  const { markedDates, scheduleMap } = useMemo(() => {
+  const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
-    const map: Record<string, any> = {};
+    const SEVEN_HOURS_IN_MS = 7 * 60 * 60 * 1000;
+
+    const getAdjustedDateStr = (dateInput: any) => {
+      const d = new Date(dateInput);
+
+      if (isNaN(d.getTime())) return null;
+
+      d.setTime(d.getTime() + SEVEN_HOURS_IN_MS);
+
+      return d.toISOString().split("T")[0];
+    };
 
     const schedules = Array.isArray(stage?.schedules) ? stage.schedules : [];
 
     schedules.forEach((sch: any) => {
-      const dateStr = getScheduleDateKey(sch);
-
+      const dateStr = getAdjustedDateStr(sch?.scheduledDate);
       if (!dateStr) return;
 
       const completed =
-        completedDateMap?.[dateStr] === true ||
-        isScheduleCompleted(sch);
-
-      /**
-       * Lưu riêng map:
-       * dateKey Việt Nam -> scheduleWrapper thật
-       */
-      map[dateStr] = sch;
+        completedDateMap?.[dateStr] === true || isScheduleCompleted(sch);
 
       marks[dateStr] = {
         selected: true,
         selectedColor: completed ? "#10B981" : "#C98A5E",
         selectedTextColor: "#FFFFFF",
-        marked: completed,
-        dotColor: completed ? "#10B981" : "#C98A5E",
         completed,
       };
     });
 
-    if (selectedDate) {
-      const oldMark = marks[selectedDate] ?? {};
+    return marks;
+  }, [stage, completedDateMap]);
 
-      const completed =
-        completedDateMap?.[selectedDate] === true ||
-        oldMark?.completed === true ||
-        oldMark?.selectedColor === "#10B981";
+  const handleDateSelect = (day: any) => {
+    const date = new Date(day.dateString);
 
-      marks[selectedDate] = {
-        ...oldMark,
-        selected: true,
-        selectedColor: completed ? "#10B981" : "#8B4513",
-        selectedTextColor: "#FFFFFF",
-        completed,
-      };
-    }
+    date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
 
-    return {
-      markedDates: marks,
-      scheduleMap: map,
-    };
-  }, [stage, selectedDate, completedDateMap]);
+    const adjustedDateString = date.toISOString().split("T")[0];
 
-  const handlePressDate = (dateString?: string) => {
-    if (!dateString) return;
-
-    const scheduleWrapper = scheduleMap?.[dateString] ?? null;
-
-    console.log("[StageCalendar] pressed date:", dateString);
-    console.log("[StageCalendar] scheduleWrapper:", scheduleWrapper);
-
-    /**
-     * Truyền luôn scheduleWrapper lên RoadMap.
-     * RoadMap không cần tự find lại nữa.
-     */
-    onSelectDate(dateString, scheduleWrapper);
+    onSelectDate(adjustedDateString);
   };
 
   return (
     <View className="bg-[#E8DCCB] mx-4 rounded-2xl p-3">
       <Calendar
         markedDates={markedDates}
-        markingType="dot"
-        onDayPress={(day) => {
-          handlePressDate(day?.dateString);
-        }}
+        onDayPress={(day) => handleDateSelect(day)}
         theme={{
           selectedDayBackgroundColor: "#A0522D",
           todayTextColor: "#A0522D",
@@ -181,34 +120,23 @@ export default function StageCalendar({
           const dateString = date?.dateString;
           const mark = markedDates?.[dateString];
 
-          const isSelected = selectedDate === dateString;
-
-          const isCompleted =
-            completedDateMap?.[dateString] === true ||
-            mark?.completed === true ||
-            mark?.selectedColor === "#10B981";
-
           const hasSchedule = Boolean(mark);
+          const isCompleted = mark?.completed === true;
 
-          const bgColor = isSelected
-            ? "#8B4513"
-            : isCompleted
-              ? "#10B981"
-              : hasSchedule
-                ? "#C98A5E"
-                : "transparent";
+          const bgColor = hasSchedule
+            ? mark?.selectedColor ?? "#C98A5E"
+            : "transparent";
 
-          const textColor =
-            isSelected || isCompleted || hasSchedule
-              ? "#FFFFFF"
-              : state === "disabled"
-                ? "#C7C7C7"
-                : "#3A2A1A";
+          const textColor = hasSchedule
+            ? "#FFFFFF"
+            : state === "disabled"
+              ? "#C7C7C7"
+              : "#3A2A1A";
 
           return (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => handlePressDate(dateString)}
+              onPress={() => handleDateSelect(date)}
               style={{
                 width: 38,
                 height: 38,
@@ -222,7 +150,7 @@ export default function StageCalendar({
               <Text
                 style={{
                   color: textColor,
-                  fontWeight: isSelected || hasSchedule ? "700" : "400",
+                  fontWeight: "400",
                 }}
               >
                 {date?.day}
