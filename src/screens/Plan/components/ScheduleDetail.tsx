@@ -41,6 +41,7 @@ export default function ScheduleDetail({
   onVideoModalChange,
   isPreview = false,
   onScheduleCompleted,
+  onEditExercise,
 }: any) {
   const navigationRaw = useNavigation();
   const navigation: any = navigationRaw;
@@ -129,6 +130,7 @@ export default function ScheduleDetail({
     schedule?.personalScheduleId,
     schedule?.scheduledDate,
     schedule?.completed,
+    schedule?.exercises,
     normalizeExercises,
   ]);
 
@@ -450,6 +452,7 @@ export default function ScheduleDetail({
                   <Text style={modalStyles.btnPrimaryTitle}>
                     Bắt đầu toàn bộ
                   </Text>
+
                   <Text style={modalStyles.btnPrimarySub}>Tự tập</Text>
                 </TouchableOpacity>
 
@@ -566,6 +569,7 @@ export default function ScheduleDetail({
 
                         <Text className="text-sm text-gray-400 mt-1">
                           {ex.sets ? `${ex.sets} set` : ''}
+                          {ex.reps ? ` • ${ex.reps} reps` : ''}
                           {ex.durationSeconds ? ` • ${ex.durationSeconds}s` : ''}
                           {ex.restSeconds ? ` • nghỉ ${ex.restSeconds}s` : ''}
                         </Text>
@@ -593,24 +597,36 @@ export default function ScheduleDetail({
                           <Text style={modalStyles.detailBtnText}>Chi tiết</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                          className={`px-3 py-1 rounded-md ${
-                            aiDisabled ? 'bg-gray-300' : 'bg-[#8B4513]'
-                          }`}
-                          activeOpacity={0.8}
-                          disabled={aiDisabled}
-                          onPress={() => startAIForExercise(ex)}
-                        >
-                          <Text
-                            style={
-                              aiDisabled
-                                ? modalStyles.aiSmallBtnTextDisabled
-                                : modalStyles.aiSmallBtnText
-                            }
+                        {isPreview && typeof onEditExercise === 'function' ? (
+                          <TouchableOpacity
+                            className="px-3 py-1 rounded-md bg-[#E7D7C6] mr-3"
+                            activeOpacity={0.8}
+                            onPress={() => onEditExercise(idx, ex)}
                           >
-                            {aiSupported ? 'Tập với AI' : 'Chưa hỗ trợ AI'}
-                          </Text>
-                        </TouchableOpacity>
+                            <Text style={modalStyles.editBtnText}>Sửa</Text>
+                          </TouchableOpacity>
+                        ) : null}
+
+                        {!isPreview ? (
+                          <TouchableOpacity
+                            className={`px-3 py-1 rounded-md ${
+                              aiDisabled ? 'bg-gray-300' : 'bg-[#8B4513]'
+                            }`}
+                            activeOpacity={0.8}
+                            disabled={aiDisabled}
+                            onPress={() => startAIForExercise(ex)}
+                          >
+                            <Text
+                              style={
+                                aiDisabled
+                                  ? modalStyles.aiSmallBtnTextDisabled
+                                  : modalStyles.aiSmallBtnText
+                              }
+                            >
+                              {aiSupported ? 'Tập với AI' : 'Chưa hỗ trợ AI'}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
                       </View>
                     </View>
 
@@ -660,32 +676,45 @@ const modalStyles = StyleSheet.create({
     color: '#8B4513',
     fontWeight: '700',
   },
+
   btnPrimarySub: {
     color: '#6B6B6B',
     fontSize: 12,
   },
+
   btnAiTitle: {
     color: '#fff',
     fontWeight: '700',
   },
+
   btnAiSub: {
     color: '#fff',
     fontSize: 12,
   },
+
   btnAiTitleDisabled: {
     color: '#9CA3AF',
   },
+
   btnAiSubDisabled: {
     color: '#9CA3AF',
   },
+
   detailBtnText: {
     color: '#8B4513',
     fontWeight: '600',
   },
+
+  editBtnText: {
+    color: '#8B4513',
+    fontWeight: '700',
+  },
+
   aiSmallBtnText: {
     color: '#fff',
     fontWeight: '600',
   },
+
   aiSmallBtnTextDisabled: {
     color: '#6B7280',
     fontWeight: '600',
@@ -699,6 +728,7 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   controlBtnLocked: {
     width: 44,
     height: 44,
@@ -707,6 +737,7 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   controlBtnCompleted: {
     width: 44,
     height: 44,
@@ -715,9 +746,11 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   controlIconLocked: {
     color: '#6B7280',
   },
+
   controlWrapper: {
     width: 56,
     alignItems: 'center',
