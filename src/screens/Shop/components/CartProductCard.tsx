@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+
 import { CartLine } from '../../../services/cart';
 import { formatVND } from '../../../utils/number';
 import {
@@ -23,7 +24,68 @@ type Props = {
   onChangeQuantityText: (text: string) => void;
   onCommitQuantity: () => void;
   onRemove: () => void;
+  onPressDetail: () => void;
 };
+
+function normalizeCategoryType(item: CartLine | any) {
+  const raw = item?.raw ?? {};
+
+  return String(
+    raw.categoryType ??
+      raw.category_type ??
+      raw.productCategoryType ??
+      raw.product_category_type ??
+      item?.categoryType ??
+      item?.category_type ??
+      '',
+  ).toUpperCase();
+}
+
+function isSupplementItem(item: CartLine | any) {
+  return normalizeCategoryType(item) === 'SUPPLEMENT';
+}
+
+function getCategoryBadge(item: CartLine | any) {
+  const categoryType = normalizeCategoryType(item);
+
+  if (categoryType === 'SUPPLEMENT') {
+    return {
+      label: 'Thực phẩm bổ sung',
+      bg: '#FEF2F2',
+      color: '#B91C1C',
+      icon: 'medical-outline',
+    };
+  }
+
+  if (categoryType === 'EQUIPMENT') {
+    return {
+      label: 'Dụng cụ',
+      bg: '#EFF6FF',
+      color: '#1D4ED8',
+      icon: 'barbell-outline',
+    };
+  }
+
+  if (categoryType === 'COURSE') {
+    return {
+      label: 'Khóa học',
+      bg: '#F5F3FF',
+      color: '#6D28D9',
+      icon: 'school-outline',
+    };
+  }
+
+  if (categoryType) {
+    return {
+      label: categoryType,
+      bg: '#F1F5F9',
+      color: '#475569',
+      icon: 'cube-outline',
+    };
+  }
+
+  return null;
+}
 
 const CartProductCard: React.FC<Props> = ({
   item,
@@ -37,8 +99,11 @@ const CartProductCard: React.FC<Props> = ({
   onChangeQuantityText,
   onCommitQuantity,
   onRemove,
+  onPressDetail,
 }) => {
   const invalidReason = getMainInvalidReason(validation);
+  const categoryBadge = getCategoryBadge(item);
+  const isSupplement = isSupplementItem(item);
 
   const canIncrease =
     validation.canCheckout &&
@@ -57,6 +122,31 @@ const CartProductCard: React.FC<Props> = ({
     : selected
       ? '#F0FDF4'
       : '#FFFFFF';
+
+  const expiryBg =
+    validation.isExpired || validation.isMissingExpiry
+      ? '#FEE2E2'
+      : validation.isNearExpiry
+        ? '#FFEDD5'
+        : validation.requireExpiryDate
+          ? '#ECFDF5'
+          : '#F1F5F9';
+
+  const expiryColor =
+    validation.isExpired || validation.isMissingExpiry
+      ? '#B91C1C'
+      : validation.isNearExpiry
+        ? '#C2410C'
+        : validation.requireExpiryDate
+          ? '#047857'
+          : '#64748B';
+
+  const expiryIcon =
+    validation.isExpired || validation.isMissingExpiry
+      ? 'warning-outline'
+      : validation.requireExpiryDate
+        ? 'time-outline'
+        : 'remove-circle-outline';
 
   return (
     <View
@@ -87,16 +177,18 @@ const CartProductCard: React.FC<Props> = ({
           </TouchableOpacity>
         ) : null}
 
-        <Image
-          source={{
-            uri:
-              item.thumnail_url ||
-              item.raw?.thumbnailUrl ||
-              item.raw?.imageUrl ||
-              'https://via.placeholder.com/160',
-          }}
-          className="w-20 h-20 rounded-xl bg-[#F1F5F9]"
-        />
+        <TouchableOpacity onPress={onPressDetail} activeOpacity={0.85}>
+          <Image
+            source={{
+              uri:
+                item.thumnail_url ||
+                item.raw?.thumbnailUrl ||
+                item.raw?.imageUrl ||
+                'https://via.placeholder.com/160',
+            }}
+            className="w-20 h-20 rounded-xl bg-[#F1F5F9]"
+          />
+        </TouchableOpacity>
 
         <View className="flex-1 ml-3">
           <View className="flex-row items-start justify-between">
@@ -105,9 +197,11 @@ const CartProductCard: React.FC<Props> = ({
                 {validation.vendorName}
               </Text>
 
-              <Text className="font-extrabold text-[#0F172A]" numberOfLines={2}>
-                {item.product_name}
-              </Text>
+              <TouchableOpacity onPress={onPressDetail} activeOpacity={0.75}>
+                <Text className="font-extrabold text-[#0F172A]" numberOfLines={2}>
+                  {item.product_name}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {!selectMode ? (
@@ -122,6 +216,25 @@ const CartProductCard: React.FC<Props> = ({
           </Text>
 
           <View className="flex-row flex-wrap mt-2">
+            {categoryBadge ? (
+              <View
+                className="px-2 py-1 rounded-full mr-2 mb-2 flex-row items-center"
+                style={{ backgroundColor: categoryBadge.bg }}
+              >
+                <Ionicons
+                  name={categoryBadge.icon as any}
+                  size={13}
+                  color={categoryBadge.color}
+                />
+                <Text
+                  className="ml-1 text-[11px] font-bold"
+                  style={{ color: categoryBadge.color }}
+                >
+                  {categoryBadge.label}
+                </Text>
+              </View>
+            ) : null}
+
             <View
               className="px-2 py-1 rounded-full mr-2 mb-2 flex-row items-center"
               style={{
@@ -143,42 +256,14 @@ const CartProductCard: React.FC<Props> = ({
 
             <View
               className="px-2 py-1 rounded-full mr-2 mb-2 flex-row items-center"
-              style={{
-                backgroundColor:
-                  validation.isExpired || validation.isMissingExpiry
-                    ? '#FEE2E2'
-                    : validation.isNearExpiry
-                      ? '#FFEDD5'
-                      : '#ECFDF5',
-              }}
+              style={{ backgroundColor: expiryBg }}
             >
-              <Ionicons
-                name={
-                  validation.isExpired || validation.isMissingExpiry
-                    ? 'warning-outline'
-                    : 'time-outline'
-                }
-                size={13}
-                color={
-                  validation.isExpired || validation.isMissingExpiry
-                    ? '#B91C1C'
-                    : validation.isNearExpiry
-                      ? '#C2410C'
-                      : '#047857'
-                }
-              />
+              <Ionicons name={expiryIcon as any} size={13} color={expiryColor} />
               <Text
                 className="ml-1 text-[11px] font-bold"
-                style={{
-                  color:
-                    validation.isExpired || validation.isMissingExpiry
-                      ? '#B91C1C'
-                      : validation.isNearExpiry
-                        ? '#C2410C'
-                        : '#047857',
-                }}
+                style={{ color: expiryColor }}
               >
-                HSD: {getExpiryLabel(validation)}
+                {validation.requireExpiryDate ? 'HSD' : 'Hạn'}: {getExpiryLabel(validation)}
               </Text>
             </View>
 
@@ -191,8 +276,19 @@ const CartProductCard: React.FC<Props> = ({
             ) : null}
           </View>
 
+          {isSupplement ? (
+            <View className="bg-[#FFF7ED] rounded-xl p-2 mt-1 border border-[#FED7AA]">
+              <View className="flex-row items-start">
+                <Ionicons name="information-circle-outline" size={15} color="#C2410C" />
+                <Text className="ml-1 flex-1 text-[11px] leading-4 font-semibold text-[#C2410C]">
+                  Bấm vào sản phẩm để xem cảnh báo, hướng dẫn sử dụng và chống chỉ định.
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
           {invalidReason ? (
-            <View className="bg-white/70 rounded-xl p-2 mt-1 border border-[#FED7AA]">
+            <View className="bg-white/70 rounded-xl p-2 mt-2 border border-[#FED7AA]">
               <View className="flex-row items-start">
                 <Ionicons
                   name={validation.canCheckout ? 'information-circle-outline' : 'alert-circle-outline'}
@@ -224,36 +320,36 @@ const CartProductCard: React.FC<Props> = ({
                 </Text>
               </TouchableOpacity>
 
-             <TextInput
-  value={quantityInput}
-  onChangeText={(text) => {
-    const digits = text.replace(/[^0-9]/g, '');
+              <TextInput
+                value={quantityInput}
+                onChangeText={text => {
+                  const digits = text.replace(/[^0-9]/g, '');
 
-    if (digits.length === 0) {
-      onChangeQuantityText('');
-      return;
-    }
+                  if (digits.length === 0) {
+                    onChangeQuantityText('');
+                    return;
+                  }
 
-    let nextQty = parseInt(digits, 10);
+                  let nextQty = parseInt(digits, 10);
 
-    if (!Number.isFinite(nextQty) || nextQty <= 0) {
-      nextQty = 1;
-    }
+                  if (!Number.isFinite(nextQty) || nextQty <= 0) {
+                    nextQty = 1;
+                  }
 
-    if (validation.stock !== null && nextQty > validation.stock) {
-      nextQty = validation.stock;
-    }
+                  if (validation.stock !== null && nextQty > validation.stock) {
+                    nextQty = validation.stock;
+                  }
 
-    onChangeQuantityText(String(nextQty));
-  }}
-  onBlur={onCommitQuantity}
-  onSubmitEditing={onCommitQuantity}
-  keyboardType="number-pad"
-  returnKeyType="done"
-  editable={validation.canCheckout}
-  className="font-extrabold text-center text-[#0F172A]"
-  style={styles.qtyInput}
-/>
+                  onChangeQuantityText(String(nextQty));
+                }}
+                onBlur={onCommitQuantity}
+                onSubmitEditing={onCommitQuantity}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                editable={validation.canCheckout}
+                className="font-extrabold text-center text-[#0F172A]"
+                style={styles.qtyInput}
+              />
 
               <TouchableOpacity
                 onPress={onIncrease}

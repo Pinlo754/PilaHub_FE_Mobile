@@ -41,6 +41,33 @@ const EmptyComponent = () => (
   </View>
 );
 
+const getCartProductId = (item: CartLine | any) => {
+  return String(
+    item?.product_id ??
+      item?.productId ??
+      item?.raw?.productId ??
+      item?.raw?.product_id ??
+      item?.raw?.id ??
+      '',
+  );
+};
+
+const isSupplementItem = (item: CartLine | any) => {
+  const raw = item?.raw ?? {};
+
+  return (
+    String(
+      raw.categoryType ??
+        raw.category_type ??
+        raw.productCategoryType ??
+        raw.product_category_type ??
+        item?.categoryType ??
+        item?.category_type ??
+        '',
+    ).toUpperCase() === 'SUPPLEMENT'
+  );
+};
+
 export default function CartScreen() {
   const focused = useIsFocused();
   const navigation: any = useNavigation();
@@ -64,30 +91,53 @@ export default function CartScreen() {
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  // toast helper (restored)
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToastMsg(message);
-    setToastType(type);
-    setToastVisible(true);
-  }, []);
+  const [modalState, setModalState] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    message: '',
+  });
 
-  // ModalPopup state for confirmations/notifications
-  const [modalState, setModalState] = useState<any>({ visible: false, mode: 'noti', message: '' });
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      setToastMsg(message);
+      setToastType(type);
+      setToastVisible(true);
+    },
+    [],
+  );
 
-  const showModal = (opts: { title?: string; message: string; mode?: 'noti'|'confirm'|'toast'; onConfirm?: () => void; }) => {
-    setModalState({
-      visible: true,
-      mode: opts.mode ?? 'noti',
-      title: opts.title,
-      message: opts.message,
-      onConfirm: () => {
-        try { setModalState((s:any) => ({ ...s, visible: false })); } catch {}
-        if (opts.onConfirm) opts.onConfirm();
-      },
-    });
-  };
+  const showModal = useCallback(
+    (opts: {
+      title?: string;
+      message: string;
+      mode?: 'noti' | 'confirm' | 'toast';
+      onConfirm?: () => void;
+    }) => {
+      setModalState({
+        visible: true,
+        mode: opts.mode ?? 'noti',
+        title: opts.title,
+        message: opts.message,
+        onConfirm: () => {
+          setModalState((s: any) => ({
+            ...s,
+            visible: false,
+          }));
 
-  const closeModal = () => setModalState((s: any) => ({ ...s, visible: false }));
+          if (opts.onConfirm) {
+            opts.onConfirm();
+          }
+        },
+      });
+    },
+    [],
+  );
+
+  const closeModal = () =>
+    setModalState((s: any) => ({
+      ...s,
+      visible: false,
+    }));
 
   const validations = useMemo<Record<string, CartValidationResult>>(() => {
     const result: Record<string, CartValidationResult> = {};
@@ -99,7 +149,7 @@ export default function CartScreen() {
     return result;
   }, [lines]);
 
-  const grouped = useMemo<CartGroup[]>((() => {
+  const grouped = useMemo<CartGroup[]>(() => {
     const map: Record<string, CartGroup> = {};
 
     for (const item of lines || []) {
@@ -119,7 +169,7 @@ export default function CartScreen() {
     }
 
     return Object.values(map);
-  }) as any, [lines]);
+  }, [lines]);
 
   const selectedItems = useMemo(() => {
     return (lines || []).filter(item => selectedIds.includes(item.product_id));
@@ -129,19 +179,23 @@ export default function CartScreen() {
     return selectedItems.filter(item => validations[item.product_id]?.canCheckout);
   }, [selectedItems, validations]);
 
+  const selectedSupplementItems = useMemo(() => {
+    return selectedValidItems.filter(item => isSupplementItem(item));
+  }, [selectedValidItems]);
+
   const invalidItems = useMemo(() => {
     return (lines || []).filter(item => !validations[item.product_id]?.canCheckout);
   }, [lines, validations]);
+
+  const selectedInvalidItems = useMemo(() => {
+    return selectedItems.filter(item => !validations[item.product_id]?.canCheckout);
+  }, [selectedItems, validations]);
 
   const totalSelectedPrice = useMemo(() => {
     return selectedValidItems.reduce((sum, item) => {
       return sum + Number(item.price || 0) * Number(item.quantity || 0);
     }, 0);
   }, [selectedValidItems]);
-
-  const selectedInvalidItems = useMemo(() => {
-    return selectedItems.filter(item => !validations[item.product_id]?.canCheckout);
-  }, [selectedItems, validations]);
 
   const checkoutDisabled =
     selectedIds.length === 0 ||
@@ -178,6 +232,20 @@ export default function CartScreen() {
     });
   }, [lines]);
 
+  const goToProductDetail = useCallback(
+    (item: CartLine) => {
+      const id = getCartProductId(item);
+
+      if (!id) {
+        showToast('Không tìm thấy mã sản phẩm', 'error');
+        return;
+      }
+
+      navigation.navigate('ProductDetail' as never, { productId: id } as never);
+    },
+    [navigation, showToast],
+  );
+
   const toggleSelectMode = () => {
     setSelectMode(prev => {
       const next = !prev;
@@ -195,7 +263,8 @@ export default function CartScreen() {
       const validation = validations[productId];
 
       if (!validation?.canSelect) {
-        const reason = validation?.errors?.[0] ?? 'Sản phẩm không đủ điều kiện thanh toán';
+        const reason =
+          validation?.errors?.[0] ?? 'Sản phẩm không đủ điều kiện thanh toán';
         showToast(reason, 'error');
         return;
       }
@@ -262,33 +331,37 @@ export default function CartScreen() {
   };
 
   const onChangeQuantityText = (productId: string, text: string) => {
-  const clean = text.replace(/[^0-9]/g, '');
+    const clean = text.replace(/[^0-9]/g, '');
 
-  if (clean.length === 0) {
+    if (clean.length === 0) {
+      setQtyInputs(prev => ({
+        ...prev,
+        [productId]: '',
+      }));
+      return;
+    }
+
+    const validation = validations[productId];
+    let nextQty = parseInt(clean, 10);
+
+    if (!Number.isFinite(nextQty) || nextQty <= 0) {
+      nextQty = 1;
+    }
+
+    if (
+      validation?.stock !== null &&
+      validation?.stock !== undefined &&
+      nextQty > validation.stock
+    ) {
+      nextQty = validation.stock;
+      showToast(`Chỉ còn ${validation.stock} sản phẩm trong kho`, 'error');
+    }
+
     setQtyInputs(prev => ({
       ...prev,
-      [productId]: '',
+      [productId]: String(nextQty),
     }));
-    return;
-  }
-
-  const validation = validations[productId];
-  let nextQty = parseInt(clean, 10);
-
-  if (!Number.isFinite(nextQty) || nextQty <= 0) {
-    nextQty = 1;
-  }
-
-  if (validation?.stock !== null && validation?.stock !== undefined && nextQty > validation.stock) {
-    nextQty = validation.stock;
-    showToast(`Chỉ còn ${validation.stock} sản phẩm trong kho`, 'error');
-  }
-
-  setQtyInputs(prev => ({
-    ...prev,
-    [productId]: String(nextQty),
-  }));
-};
+  };
 
   const commitQuantity = async (item: CartLine) => {
     const validation = validations[item.product_id];
@@ -305,7 +378,11 @@ export default function CartScreen() {
       nextQuantity = 1;
     }
 
-    if (validation?.stock !== null && validation?.stock !== undefined && nextQuantity > validation.stock) {
+    if (
+      validation?.stock !== null &&
+      validation?.stock !== undefined &&
+      nextQuantity > validation.stock
+    ) {
       nextQuantity = validation.stock;
       showToast(`Chỉ còn ${validation.stock} sản phẩm trong kho`, 'error');
     }
@@ -453,7 +530,9 @@ export default function CartScreen() {
 
     const items = (lines || []).filter(item => selectedIds.includes(item.product_id));
 
-    const invalidSelected = items.filter(item => !validations[item.product_id]?.canCheckout);
+    const invalidSelected = items.filter(
+      item => !validations[item.product_id]?.canCheckout,
+    );
 
     if (invalidSelected.length > 0) {
       const firstInvalid = invalidSelected[0];
@@ -465,22 +544,48 @@ export default function CartScreen() {
       return;
     }
 
-    setCheckoutLoading(true);
+    const goToCheckout = async () => {
+      setCheckoutLoading(true);
 
-    try {
-      const checkoutItems = items.map(item => ({
-        ...item,
-        validation: validations[item.product_id],
-      }));
+      try {
+        const checkoutItems = items.map(item => ({
+          ...item,
+          validation: validations[item.product_id],
+        }));
 
-      navigation.navigate('Checkout' as never, { items: checkoutItems } as never);
-    } catch (e) {
-      console.warn('checkout failed', e);
-      showToast('Không thể chuyển sang thanh toán', 'error');
-    } finally {
-      setCheckoutLoading(false);
+        navigation.navigate('Checkout' as never, { items: checkoutItems } as never);
+      } catch (e) {
+        console.warn('checkout failed', e);
+        showToast('Không thể chuyển sang thanh toán', 'error');
+      } finally {
+        setCheckoutLoading(false);
+      }
+    };
+
+    if (selectedSupplementItems.length > 0) {
+      showModal({
+        title: 'Kiểm tra thực phẩm bổ sung',
+        message:
+          `Bạn đang chọn ${selectedSupplementItems.length} sản phẩm thực phẩm bổ sung.\n\n` +
+          'Vui lòng bấm vào sản phẩm trong giỏ hàng để xem lại chi tiết, cảnh báo, hạn sử dụng, hướng dẫn sử dụng và chống chỉ định trước khi thanh toán.\n\n' +
+          'Nếu đã kiểm tra xong, bạn có thể bấm Tiếp tục để sang thanh toán.',
+        mode: 'confirm',
+        onConfirm: goToCheckout,
+      });
+
+      return;
     }
-  }, [lines, navigation, selectedIds, showToast, validations]);
+
+    await goToCheckout();
+  }, [
+    lines,
+    navigation,
+    selectedIds,
+    selectedSupplementItems,
+    showModal,
+    showToast,
+    validations,
+  ]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#FFF8F0]">
@@ -594,6 +699,7 @@ export default function CartScreen() {
               onChangeQuantityText={onChangeQuantityText}
               onCommitQuantity={commitQuantity}
               onRemove={onRemove}
+              onPressItemDetail={goToProductDetail}
             />
           ))
         )}
@@ -614,6 +720,7 @@ export default function CartScreen() {
         type={toastType}
         onHidden={() => setToastVisible(false)}
       />
+
       <ModalPopup
         {...(modalState as any)}
         titleText={modalState.title}

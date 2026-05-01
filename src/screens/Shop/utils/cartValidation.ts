@@ -42,26 +42,53 @@ export const normalizeText = (value: any): string => {
 };
 
 /**
- * Dựa trên category hiện tại của app:
- *
- * CẦN HẠN SỬ DỤNG:
- * - Vitamin
- * - Tăng cường hiệu suất
- * - Protein
- * - Thực phẩm bổ sung
- *
- * KHÔNG CẦN HẠN SỬ DỤNG:
- * - Gói Tập
- * - Thảm
- * - Máy tập
- * - Phụ kiện
- * - Khóa học
- * - Thiết bị
- * - Voucher
- * - Pilates Equipment Test
+ * category_type từ backend:
+ * - SUPPLEMENT: thực phẩm bổ sung, bắt buộc check HSD.
+ * - EQUIPMENT / COURSE / VOUCHER...: không bắt buộc HSD.
+ */
+export const getCategoryType = (item: CartLine | any): string => {
+  const raw = getRaw(item);
+
+  return String(
+    raw.categoryType ??
+      raw.category_type ??
+      raw.productCategoryType ??
+      raw.product_category_type ??
+      item?.categoryType ??
+      item?.category_type ??
+      '',
+  ).toUpperCase();
+};
+
+export const isSupplementCartItem = (item: CartLine | any): boolean => {
+  return getCategoryType(item) === 'SUPPLEMENT';
+};
+
+/**
+ * Dựa trên category_type là chính.
+ * Nếu backend chưa trả category_type thì fallback qua categoryName / productType / productName.
  */
 export const isExpiryRequiredProduct = (item: CartLine | any): boolean => {
   const raw = getRaw(item);
+
+  const categoryType = getCategoryType(item);
+
+  if (categoryType === 'SUPPLEMENT') {
+    return true;
+  }
+
+  if (
+    [
+      'EQUIPMENT',
+      'SERVICE',
+      'COURSE',
+      'VOUCHER',
+      'PACKAGE',
+      'TRAINING_PACKAGE',
+    ].includes(categoryType)
+  ) {
+    return false;
+  }
 
   const categoryName = normalizeText(
     raw.categoryName ??
@@ -122,10 +149,6 @@ export const isExpiryRequiredProduct = (item: CartLine | any): boolean => {
     return true;
   }
 
-  /**
-   * Fallback theo tên/type sản phẩm
-   * Phòng trường hợp backend chưa trả categoryName rõ ràng.
-   */
   const nonExpiryKeywords = [
     'goi tap',
     'tham',
@@ -189,6 +212,8 @@ export const getProductStock = (item: CartLine | any): number | null => {
     raw.inventory_quantity ??
     item?.stockQuantity ??
     item?.stock;
+
+  if (value === undefined || value === null || value === '') return null;
 
   const n = Number(value);
 

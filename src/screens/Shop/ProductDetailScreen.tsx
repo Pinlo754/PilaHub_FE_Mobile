@@ -25,7 +25,7 @@ import ModalPopup from '../../components/ModalPopup';
 import VendorCard from './components/VendorCard';
 import ProductPurchaseInfo from './components/ProductPurchaseInfo';
 import { validateCartItem } from './utils/cartValidation';
-
+import { getSupplementById, SupplementDetail } from '../../hooks/supplement';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>;
 
@@ -40,12 +40,17 @@ const COLORS = {
   muted: '#6B7280',
   bg: '#FFFAF0',
   card: '#FFFFFF',
+  danger: '#B91C1C',
+  dangerBg: '#FEF2F2',
+  warning: '#C2410C',
+  warningBg: '#FFF7ED',
 };
 
 const getProductId = (product: ProductItem | any): string => {
   return String(
     product?.productId ??
       product?.product_id ??
+      product?.id ??
       product?.raw?.productId ??
       product?.raw?.product_id ??
       product?.raw?.id ??
@@ -57,6 +62,7 @@ const getProductName = (product: ProductItem | any): string => {
   return String(
     product?.name ??
       product?.product_name ??
+      product?.productName ??
       product?.raw?.name ??
       product?.raw?.productName ??
       product?.raw?.product_name ??
@@ -64,9 +70,82 @@ const getProductName = (product: ProductItem | any): string => {
   );
 };
 
+const getCategoryType = (product: ProductItem | any): string => {
+  return String(
+    product?.categoryType ??
+      product?.category_type ??
+      product?.raw?.categoryType ??
+      product?.raw?.category_type ??
+      product?.category?.categoryType ??
+      product?.category?.category_type ??
+      '',
+  ).toUpperCase();
+};
+
+const isSupplementProduct = (product: ProductItem | any): boolean => {
+  return getCategoryType(product) === 'SUPPLEMENT';
+};
+
+const getSupplementId = (product: ProductItem | any): string => {
+  return String(
+    product?.supplementId ??
+      product?.supplement_id ??
+      product?.raw?.supplementId ??
+      product?.raw?.supplement_id ??
+      product?.raw?.supplement?.supplementId ??
+      product?.raw?.supplement?.supplement_id ??
+      getProductId(product) ??
+      '',
+  );
+};
+
+const buildSupplementWarningMessage = (supplement: SupplementDetail | null) => {
+  if (!supplement) {
+    return 'Đây là thực phẩm bổ sung. Vui lòng đọc kỹ hướng dẫn sử dụng, cảnh báo và tham khảo chuyên gia nếu cần trước khi dùng.';
+  }
+
+  const parts: string[] = [];
+
+  if (supplement.warnings) {
+    parts.push(`Cảnh báo:\n${supplement.warnings}`);
+  }
+
+  if (supplement.contraindications) {
+    parts.push(`Chống chỉ định:\n${supplement.contraindications}`);
+  }
+
+  if (supplement.sideEffects) {
+    parts.push(`Tác dụng phụ:\n${supplement.sideEffects}`);
+  }
+
+  if (supplement.usageInstructions) {
+    parts.push(`Hướng dẫn sử dụng:\n${supplement.usageInstructions}`);
+  }
+
+  if (parts.length === 0) {
+    return 'Đây là thực phẩm bổ sung. Vui lòng đọc kỹ thông tin sản phẩm và tham khảo chuyên gia nếu cần trước khi dùng.';
+  }
+
+  return parts.join('\n\n');
+};
+
 const buildRawForCart = (product: ProductItem | any) => {
+  const categoryType =
+    product?.raw?.categoryType ??
+    product?.raw?.category_type ??
+    product?.categoryType ??
+    product?.category_type ??
+    product?.category?.categoryType ??
+    product?.category?.category_type;
+
   return {
     ...(product?.raw ?? {}),
+
+    productId: getProductId(product),
+    product_id: getProductId(product),
+
+    categoryType,
+    category_type: categoryType,
 
     categoryName:
       product?.raw?.categoryName ??
@@ -136,9 +215,36 @@ const buildRawForCart = (product: ProductItem | any) => {
     installationSupported:
       product?.raw?.installationSupported ??
       product?.raw?.installation_supported ??
+      product?.raw?.isInstallationSupported ??
+      product?.raw?.supportsInstallation ??
       product?.installationSupported ??
-      product?.installation_supported,
+      product?.installation_supported ??
+      product?.isInstallationSupported ??
+      product?.supportsInstallation,
+
+    supplementId:
+      product?.supplementId ??
+      product?.supplement_id ??
+      product?.raw?.supplementId ??
+      product?.raw?.supplement_id,
   };
+};
+
+const InfoLine = ({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | number | null;
+}) => {
+  if (value === undefined || value === null || value === '') return null;
+
+  return (
+    <View className="mb-3">
+      <Text className="text-xs font-bold text-[#64748B] mb-1">{label}</Text>
+      <Text className="text-sm leading-5 text-[#334155]">{String(value)}</Text>
+    </View>
+  );
 };
 
 const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
@@ -156,21 +262,35 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [buying, setBuying] = useState(false);
 
+  const [supplementDetail, setSupplementDetail] = useState<SupplementDetail | null>(null);
+  const [supplementLoading, setSupplementLoading] = useState(false);
+
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
 
-  // ModalPopup state for alerts/confirmations
-  const [modalState, setModalState] = useState<any>({ visible: false, mode: 'noti', message: '' });
+  const [modalState, setModalState] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    message: '',
+  });
 
-  const showModal = (opts: { title?: string; message: string; mode?: 'noti'|'confirm'|'toast'; onConfirm?: () => void; }) => {
+  const showModal = (opts: {
+    title?: string;
+    message: string;
+    mode?: 'noti' | 'confirm' | 'toast';
+    onConfirm?: () => void;
+  }) => {
     setModalState({
       visible: true,
       mode: opts.mode ?? 'noti',
       title: opts.title,
       message: opts.message,
       onConfirm: () => {
-        try { setModalState((s:any) => ({ ...s, visible: false })); } catch {}
+        try {
+          setModalState((s: any) => ({ ...s, visible: false }));
+        } catch {}
+
         if (opts.onConfirm) opts.onConfirm();
       },
     });
@@ -199,6 +319,11 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const productNameValue = useMemo(() => {
     if (!product) return 'Sản phẩm';
     return getProductName(product);
+  }, [product]);
+
+  const isSupplement = useMemo(() => {
+    if (!product) return false;
+    return isSupplementProduct(product);
   }, [product]);
 
   const cartLikeItem = useMemo(() => {
@@ -237,8 +362,15 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const stock = validation.stock;
 
-  const rating = useMemo(() => Number(product?.raw?.avgRating ?? product?.avgRating ?? 0), [product]);
-  const reviewCount = useMemo(() => Number(product?.raw?.reviewCount ?? product?.reviewCount ?? 0), [product]);
+  const rating = useMemo(
+    () => Number(product?.raw?.avgRating ?? product?.avgRating ?? 0),
+    [product],
+  );
+
+  const reviewCount = useMemo(
+    () => Number(product?.raw?.reviewCount ?? product?.reviewCount ?? 0),
+    [product],
+  );
 
   const category =
     (rawForCart as any).categoryName ??
@@ -249,7 +381,10 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const cannotPurchase = !validation.canCheckout;
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showToast = (
+    message: string,
+    type: 'success' | 'error' | 'info' = 'info',
+  ) => {
     setToastMsg(message);
     setToastType(type);
     setToastVisible(true);
@@ -267,7 +402,12 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         const p = await getProductById(productId);
 
         if (!p) {
-          showModal({ title: 'Lỗi', message: 'Không tìm thấy sản phẩm', mode: 'noti', onConfirm: () => navigation.goBack() });
+          showModal({
+            title: 'Lỗi',
+            message: 'Không tìm thấy sản phẩm',
+            mode: 'noti',
+            onConfirm: () => navigation.goBack(),
+          });
           return;
         }
 
@@ -289,7 +429,12 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         }
       } catch (e) {
         console.warn('load product error', e);
-        showModal({ title: 'Lỗi', message: 'Không thể tải sản phẩm', mode: 'noti', onConfirm: () => navigation.goBack() });
+        showModal({
+          title: 'Lỗi',
+          message: 'Không thể tải sản phẩm',
+          mode: 'noti',
+          onConfirm: () => navigation.goBack(),
+        });
       } finally {
         if (mounted) setLoading(false);
       }
@@ -301,6 +446,50 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       mounted = false;
     };
   }, [productId, navigation]);
+
+  useEffect(() => {
+    if (!product) return;
+
+    let mounted = true;
+
+    const loadSupplementDetail = async () => {
+      if (!isSupplementProduct(product)) {
+        setSupplementDetail(null);
+        return;
+      }
+
+      const supplementId = getSupplementId(product);
+
+      if (!supplementId) {
+        setSupplementDetail(null);
+        return;
+      }
+
+      try {
+        setSupplementLoading(true);
+
+        const data = await getSupplementById(supplementId);
+
+        if (mounted) {
+          setSupplementDetail(data);
+        }
+      } catch (error) {
+        console.warn('getSupplementById failed', error);
+
+        if (mounted) {
+          setSupplementDetail(null);
+        }
+      } finally {
+        if (mounted) setSupplementLoading(false);
+      }
+    };
+
+    loadSupplementDetail();
+
+    return () => {
+      mounted = false;
+    };
+  }, [product]);
 
   useEffect(() => {
     if (!product) return;
@@ -410,49 +599,72 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     };
   };
 
+  const confirmSupplementBeforeAction = (action: () => void | Promise<void>) => {
+    if (!isSupplement) {
+      action();
+      return;
+    }
+
+    const message = buildSupplementWarningMessage(supplementDetail);
+
+    showModal({
+      title: 'Lưu ý khi sử dụng thực phẩm bổ sung',
+      message,
+      mode: 'confirm',
+      onConfirm: () => {
+        action();
+      },
+    });
+  };
+
   const onAddToCart = async () => {
     if (!validateBeforePurchase()) return;
 
     const item = buildCartItem();
     if (!item) return;
 
-    try {
-      await addToCart(item, quantity);
-      showToast('Đã thêm vào giỏ hàng', 'success');
-    } catch (e) {
-      console.warn('add to cart failed', e);
-      showToast('Không thể thêm vào giỏ', 'error');
-    }
+    confirmSupplementBeforeAction(async () => {
+      try {
+        await addToCart(item, quantity);
+        showToast('Đã thêm vào giỏ hàng', 'success');
+      } catch (e) {
+        console.warn('add to cart failed', e);
+        showToast('Không thể thêm vào giỏ', 'error');
+      }
+    });
   };
 
   const onBuyNow = async () => {
-  if (!validateBeforePurchase()) return;
+    if (!validateBeforePurchase()) return;
 
-  const item = buildCartItem();
-  if (!item) return;
+    const item = buildCartItem();
+    if (!item) return;
 
-  const total = Number(product?.price ?? (rawForCart as any).price ?? 0) * quantity;
+    confirmSupplementBeforeAction(() => {
+      const total = Number(product?.price ?? (rawForCart as any).price ?? 0) * quantity;
 
-  showModal({
-    title: 'Xác nhận thanh toán',
-    message: `Vui lòng kiểm tra kỹ thông tin trước khi tiếp tục.\n\nSản phẩm: ${productNameValue}\nSố lượng: ${quantity}\nTổng tiền: ${formatVND(total)}\n\nBạn có muốn chuyển đến trang thanh toán không?`,
-    mode: 'confirm',
-    onConfirm: async () => {
-      setBuying(true);
+      showModal({
+        title: 'Xác nhận thanh toán',
+        message: `Vui lòng kiểm tra kỹ thông tin trước khi tiếp tục.\n\nSản phẩm: ${productNameValue}\nSố lượng: ${quantity}\nTổng tiền: ${formatVND(total)}\n\nBạn có muốn chuyển đến trang thanh toán không?`,
+        mode: 'confirm',
+        onConfirm: async () => {
+          setBuying(true);
 
-      try {
-        await clearCart();
-        await addToCart(item, quantity);
-        navigation.navigate('Checkout' as any);
-      } catch (e) {
-        console.warn('buy now failed', e);
-        showToast('Không thể thực hiện mua ngay', 'error');
-      } finally {
-        setBuying(false);
-      }
-    },
-  });
-};
+          try {
+            await clearCart();
+            await addToCart(item, quantity);
+            navigation.navigate('Checkout' as any);
+          } catch (e) {
+            console.warn('buy now failed', e);
+            showToast('Không thể thực hiện mua ngay', 'error');
+          } finally {
+            setBuying(false);
+          }
+        },
+      });
+    });
+  };
+
   const images = useMemo(() => {
     if (!product) return [];
 
@@ -580,6 +792,70 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           validation={validation}
         />
 
+        {isSupplement ? (
+          <View className="bg-white rounded-2xl p-4 mx-4 mt-4 border border-red-100">
+            <View className="flex-row items-center mb-3">
+              <View className="w-10 h-10 rounded-2xl bg-red-50 items-center justify-center mr-3">
+                <Ionicons name="medical-outline" size={20} color={COLORS.danger} />
+              </View>
+
+              <View className="flex-1">
+                <Text className="text-[16px] font-extrabold text-[#0F172A]">
+                  Thông tin thực phẩm bổ sung
+                </Text>
+                <Text className="text-xs text-[#64748B] mt-1">
+                  Vui lòng đọc kỹ trước khi mua và sử dụng
+                </Text>
+              </View>
+            </View>
+
+            {supplementLoading ? (
+              <View className="py-4 items-center">
+                <ActivityIndicator />
+                <Text className="text-xs text-[#64748B] mt-2">
+                  Đang tải thông tin supplement...
+                </Text>
+              </View>
+            ) : supplementDetail ? (
+              <View>
+                <InfoLine label="Dạng sản phẩm" value={supplementDetail.form} />
+                <InfoLine label="Thương hiệu" value={supplementDetail.brand} />
+                <InfoLine label="Hướng dẫn sử dụng" value={supplementDetail.usageInstructions} />
+                <InfoLine label="Lợi ích" value={supplementDetail.benefits} />
+                <InfoLine label="Tác dụng phụ" value={supplementDetail.sideEffects} />
+
+                {supplementDetail.warnings ? (
+                  <View className="bg-[#FEF2F2] rounded-2xl p-3 mt-2 border border-[#FECACA]">
+                    <Text className="text-[#B91C1C] font-extrabold mb-1">
+                      Cảnh báo
+                    </Text>
+                    <Text className="text-[#991B1B] text-sm leading-5">
+                      {supplementDetail.warnings}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {supplementDetail.contraindications ? (
+                  <View className="bg-[#FFF7ED] rounded-2xl p-3 mt-3 border border-[#FED7AA]">
+                    <Text className="text-[#C2410C] font-extrabold mb-1">
+                      Chống chỉ định
+                    </Text>
+                    <Text className="text-[#9A3412] text-sm leading-5">
+                      {supplementDetail.contraindications}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : (
+              <View className="bg-[#FFF7ED] rounded-2xl p-3">
+                <Text className="text-sm text-[#64748B] leading-5">
+                  Chưa có thông tin supplement chi tiết.
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
         {showFullDesc ? (
           <View className="bg-white rounded-2xl p-4 mx-4 mt-4">
             <Text className="text-[16px] font-extrabold text-[#0F172A] mb-2">
@@ -699,20 +975,20 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-  onPress={onBuyNow}
-  className="px-5 py-3 rounded-lg"
-  style={{
-    backgroundColor: COLORS.warm,
-    opacity: buying || cannotPurchase ? 0.6 : 1,
-  }}
-  disabled={buying || cannotPurchase}
->
-  {buying ? (
-    <ActivityIndicator color="#fff" />
-  ) : (
-    <Text className="font-extrabold text-black">Mua ngay</Text>
-  )}
-</TouchableOpacity>
+            onPress={onBuyNow}
+            className="px-5 py-3 rounded-lg"
+            style={{
+              backgroundColor: COLORS.warm,
+              opacity: buying || cannotPurchase ? 0.6 : 1,
+            }}
+            disabled={buying || cannotPurchase}
+          >
+            {buying ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="font-extrabold text-black">Mua ngay</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -722,6 +998,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         type={toastType}
         onHidden={() => setToastVisible(false)}
       />
+
       <ModalPopup
         {...(modalState as any)}
         titleText={modalState.title}
