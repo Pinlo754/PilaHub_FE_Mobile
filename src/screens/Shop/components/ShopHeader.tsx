@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, FlatList, Keyboard, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, Pressable, FlatList, Keyboard, StyleSheet } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../../theme/colors';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -148,7 +148,6 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
 
       <View className="mt-2">
         <View className="flex-row items-center bg-white rounded-xl px-3 py-1 border border-background-sub2">
-          <Ionicons name="search-outline" size={18} color={colors.secondaryText} />
           <TextInput
             ref={inputRef}
             placeholder="Tìm kiếm sản phẩm"

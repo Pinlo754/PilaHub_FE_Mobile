@@ -1,304 +1,732 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, Alert, ScrollView, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { CartLine } from '../../services/cart';
-import { useCart } from '../../context/CartContext';
-import { formatVND } from '../../utils/number';
-import Toast from '../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { CartLine } from '../../services/cart';
+import { useCart } from '../../context/CartContext';
+import Toast from '../../components/Toast';
+import ModalPopup from '../../components/ModalPopup';
+
+import CartShopGroup from './components/CartShopGroup';
+import CartCheckoutBar from './components/CartCheckoutBar';
+
+import {
+  getVendorId,
+  getVendorName,
+  validateCartItem,
+  CartValidationResult,
+} from './utils/cartValidation';
+
+type CartGroup = {
+  shopId: string;
+  shopName: string;
+  items: CartLine[];
+};
+
 const EmptyComponent = () => (
-  <View className="mt-20 items-center">
-    <Text className="text-gray-500">Giỏ hàng trống</Text>
+  <View className="mt-24 items-center px-6">
+    <View className="w-20 h-20 rounded-full bg-[#FFF7ED] items-center justify-center mb-4">
+      <Ionicons name="cart-outline" size={38} color="#CD853F" />
+    </View>
+
+    <Text className="text-[#0F172A] text-lg font-extrabold">
+      Giỏ hàng trống
+    </Text>
+
+    <Text className="text-[#64748B] text-sm text-center mt-2 leading-5">
+      Bạn chưa có sản phẩm nào trong giỏ. Hãy thêm sản phẩm để tiếp tục mua hàng.
+    </Text>
   </View>
 );
 
-const localStyles = StyleSheet.create({
-  qtyInput: { minWidth: 48, textAlign: 'center' },
-});
-
-// CheckoutBar defined outside of CartScreen to avoid recreating on every render
-function CheckoutBar({ total, disabled, onCheckout, selectedCount }: { total: number; disabled: boolean; onCheckout: () => void; selectedCount: number }) {
-  return (
-    <View className="absolute left-4 right-4 bottom-4 bg-white rounded-xl p-3 flex-row items-center justify-between shadow">
-      <View>
-        <Text className="text-gray-500 text-sm">{selectedCount} đã chọn</Text>
-        <Text className="text-black text-lg font-extrabold">{formatVND(total)}</Text>
-      </View>
-      <TouchableOpacity disabled={disabled} onPress={onCheckout} className={`px-5 py-3 rounded-lg ${disabled ? 'bg-gray-400' : 'bg-red-500'}`}>
-        <Text className="text-white font-extrabold">{disabled ? 'Chọn sản phẩm' : 'Thanh toán'}</Text>
-      </TouchableOpacity>
-    </View>
+const getCartProductId = (item: CartLine | any) => {
+  return String(
+    item?.product_id ??
+      item?.productId ??
+      item?.raw?.productId ??
+      item?.raw?.product_id ??
+      item?.raw?.id ??
+      '',
   );
-}
+};
+
+const isSupplementItem = (item: CartLine | any) => {
+  const raw = item?.raw ?? {};
+
+  return (
+    String(
+      raw.categoryType ??
+        raw.category_type ??
+        raw.productCategoryType ??
+        raw.product_category_type ??
+        item?.categoryType ??
+        item?.category_type ??
+        '',
+    ).toUpperCase() === 'SUPPLEMENT'
+  );
+};
 
 export default function CartScreen() {
   const focused = useIsFocused();
   const navigation: any = useNavigation();
-  const { lines, totalItems, totalPrice, loadCart, userId, updateQuantity: ctxUpdateQuantity, removeFromCart: ctxRemoveFromCart, clearCart: ctxClearCart } = useCart();
+
+  const {
+    lines,
+    totalItems,
+    loadCart,
+    userId,
+    updateQuantity: ctxUpdateQuantity,
+    removeFromCart: ctxRemoveFromCart,
+    clearCart: ctxClearCart,
+  } = useCart();
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectMode, setSelectMode] = useState(false);
-  // map product_id -> input string so user can type freely
-  const [qtyInputs, setQtyInputs] = useState<Record<string,string>>({});
+  const [selectMode, setSelectMode] = useState(true);
+  const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success'|'error'|'info'>('info');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  // Helpers for grouping by shop and selection
-  const grouped = useMemo(() => {
-    // infer vendor/shop id and display name from common fields in each line.raw or line
-    // prefer vendorId/vendorBusinessName coming from backend ProductDto
-    const map: Record<string, { shopId: string; shopName: string; items: any[] }> = {};
-    for (const l of lines) {
-      const raw = (l as any).raw || {};
-      // prefer vendorId for grouping, fall back to shop_id/merchant_id
-      const vendorId = raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.shopId ?? (l as any).vendorId ?? (l as any).shop_id ?? null;
-      const shopId = vendorId ? String(vendorId) : ('unknown_' + String((l as any).product_id));
+  const [modalState, setModalState] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    message: '',
+  });
 
-      // detect business name from multiple possible fields returned by backend
-      const shopName = String(
-        raw.vendorBusinessName ?? raw.vendor_business_name ?? raw.businessName ?? raw.shop_name ?? raw.merchant_name ?? raw.shopName ?? (l as any).vendorBusinessName ?? (l as any).shop_name ?? 'Cửa hàng'
-      );
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      setToastMsg(message);
+      setToastType(type);
+      setToastVisible(true);
+    },
+    [],
+  );
 
-      if (!map[shopId]) map[shopId] = { shopId, shopName, items: [] };
-      map[shopId].items.push(l);
+  const showModal = useCallback(
+    (opts: {
+      title?: string;
+      message: string;
+      mode?: 'noti' | 'confirm' | 'toast';
+      onConfirm?: () => void;
+    }) => {
+      setModalState({
+        visible: true,
+        mode: opts.mode ?? 'noti',
+        title: opts.title,
+        message: opts.message,
+        onConfirm: () => {
+          setModalState((s: any) => ({
+            ...s,
+            visible: false,
+          }));
+
+          if (opts.onConfirm) {
+            opts.onConfirm();
+          }
+        },
+      });
+    },
+    [],
+  );
+
+  const closeModal = () =>
+    setModalState((s: any) => ({
+      ...s,
+      visible: false,
+    }));
+
+  const validations = useMemo<Record<string, CartValidationResult>>(() => {
+    const result: Record<string, CartValidationResult> = {};
+
+    for (const item of lines || []) {
+      result[item.product_id] = validateCartItem(item);
     }
+
+    return result;
+  }, [lines]);
+
+  const grouped = useMemo<CartGroup[]>(() => {
+    const map: Record<string, CartGroup> = {};
+
+    for (const item of lines || []) {
+      const vendorId = getVendorId(item);
+      const shopId = vendorId ? String(vendorId) : `unknown_${item.product_id}`;
+      const shopName = getVendorName(item);
+
+      if (!map[shopId]) {
+        map[shopId] = {
+          shopId,
+          shopName,
+          items: [],
+        };
+      }
+
+      map[shopId].items.push(item);
+    }
+
     return Object.values(map);
   }, [lines]);
 
-  const areAllSelected = useCallback((shopId: string) => {
-    const group = grouped.find(g => g.shopId === shopId);
-    if (!group) return false;
-    return group.items.every((it: any) => selectedIds.includes(it.product_id));
-  }, [grouped, selectedIds]);
-
-  const toggleSelectShop = useCallback((shopId: string) => {
-    const group = grouped.find(g => g.shopId === shopId);
-    if (!group) return;
-    const allSelected = group.items.every((it: any) => selectedIds.includes(it.product_id));
-    setSelectedIds(prev => {
-      if (allSelected) {
-        // deselect all in group
-        return prev.filter(id => !group.items.some((it: any) => it.product_id === id));
-      }
-      // add missing ids
-      const toAdd = group.items.map((it: any) => it.product_id).filter((id: string) => !prev.includes(id));
-      return [...prev, ...toAdd];
-    });
-  }, [grouped, selectedIds]);
-
-  const totalSelectedPrice = useMemo(() => {
-    if (!selectedIds || selectedIds.length === 0) return 0;
-    return (lines || []).reduce((s, l) => s + (selectedIds.includes(l.product_id) ? l.price * l.quantity : 0), 0);
+  const selectedItems = useMemo(() => {
+    return (lines || []).filter(item => selectedIds.includes(item.product_id));
   }, [lines, selectedIds]);
 
-  // Checkout handler
-  function getStockForItem(it: any) {
-    const raw = it.raw ?? {};
-    return raw.stockQuantity ?? raw.stock_quantity ?? raw.stock ?? raw.availableQuantity ?? null;
-  }
+  const selectedValidItems = useMemo(() => {
+    return selectedItems.filter(item => validations[item.product_id]?.canCheckout);
+  }, [selectedItems, validations]);
 
-  const handleCheckout = useCallback(async () => {
-    if (!selectedIds.length) {
-      setToastMsg('Vui lòng chọn sản phẩm để thanh toán'); setToastType('info'); setToastVisible(true); return;
-    }
+  const selectedSupplementItems = useMemo(() => {
+    return selectedValidItems.filter(item => isSupplementItem(item));
+  }, [selectedValidItems]);
 
-    const items = lines.filter(l => selectedIds.includes(l.product_id));
+  const invalidItems = useMemo(() => {
+    return (lines || []).filter(item => !validations[item.product_id]?.canCheckout);
+  }, [lines, validations]);
 
-    // validate items: quantity >= 1 and vendorId present
-    const invalid = items.find((it: any) => {
-      const qty = Number(it.quantity) || 0;
-      if (!qty || qty < 1) return true;
-      const raw = it.raw ?? {};
-      const vendorId = raw.vendorId ?? raw.vendor_id ?? raw.merchant_id ?? raw.shop_id ?? raw.merchantId ?? it.vendorId ?? it.shop_id ?? null;
-      if (!vendorId) return true;
-      return false;
-    });
+  const selectedInvalidItems = useMemo(() => {
+    return selectedItems.filter(item => !validations[item.product_id]?.canCheckout);
+  }, [selectedItems, validations]);
 
-    if (invalid) {
-      setToastMsg('Một số sản phẩm thiếu thông tin nhà cung cấp hoặc số lượng không hợp lệ');
-      setToastType('error'); setToastVisible(true);
-      return;
-    }
+  const totalSelectedPrice = useMemo(() => {
+    return selectedValidItems.reduce((sum, item) => {
+      return sum + Number(item.price || 0) * Number(item.quantity || 0);
+    }, 0);
+  }, [selectedValidItems]);
 
-    // check stock for each selected item; if any exceeds, adjust and stop checkout so user can review
-    for (const it of items) {
-      const stock = getStockForItem(it);
-      if (stock !== null && typeof stock !== 'undefined' && Number(it.quantity) > Number(stock)) {
-        // adjust server-side quantity to available stock
-        try {
-          await ctxUpdateQuantity(it.product_id, Number(stock));
-          setToastMsg(`Sản phẩm "${it.product_name ?? it.product_id}" đã vượt quá tồn kho. Đã điều chỉnh về ${stock}.`);
-          setToastType('error'); setToastVisible(true);
-          await loadCart();
-        } catch (e) {
-          console.warn('adjust qty on checkout failed', e);
-          setToastMsg('Không thể điều chỉnh số lượng theo tồn kho'); setToastType('error'); setToastVisible(true);
-        }
-        return; // stop checkout, let user review
-      }
-    }
+  const checkoutDisabled =
+    selectedIds.length === 0 ||
+    selectedInvalidItems.length > 0 ||
+    selectedValidItems.length === 0 ||
+    checkoutLoading;
 
-    // navigate to checkout with validated items
-    navigation.navigate('Checkout' as never, { items } as never);
-  }, [selectedIds, lines, navigation, ctxUpdateQuantity, loadCart]);
-
-  // Load cart when screen focused or when userId changes
-  useEffect(() => { if (focused) loadCart(); }, [focused, loadCart]);
-  useEffect(() => { if (userId) loadCart(); }, [userId, loadCart]);
-
-  // sync qtyInputs when cart lines change
   useEffect(() => {
-    const next: Record<string,string> = {};
-    for (const l of lines) next[l.product_id] = String(l.quantity ?? 1);
+    if (focused) {
+      loadCart();
+    }
+  }, [focused, loadCart]);
+
+  useEffect(() => {
+    if (userId) {
+      loadCart();
+    }
+  }, [userId, loadCart]);
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+
+    for (const item of lines || []) {
+      next[item.product_id] = String(item.quantity ?? 1);
+    }
+
     setQtyInputs(next);
   }, [lines]);
 
-  const onInc = async (item: CartLine) => {
-    try {
-      await ctxUpdateQuantity(item.product_id, item.quantity + 1);
-      setQtyInputs(prev => ({ ...prev, [item.product_id]: String(Math.max(1, item.quantity + 1)) }));
-      // context will refresh lines/summary
-    } catch {
-      setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true);
-    }
-  };
-
-  const onDec = async (item: CartLine) => {
-    try {
-      await ctxUpdateQuantity(item.product_id, Math.max(0, item.quantity - 1));
-      setQtyInputs(prev => ({ ...prev, [item.product_id]: String(Math.max(0, item.quantity - 1)) }));
-    } catch {
-      setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true);
-    }
-  };
-
-  const onRemove = async (item: CartLine) => {
-    Alert.alert('Xoá', 'Bạn có muốn xoá sản phẩm khỏi giỏ?', [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xoá', style: 'destructive', onPress: async () => {
-          await ctxRemoveFromCart(item.product_id);
-          // context will refresh lines/summary
-          // also clear from selection if present
-          setSelectedIds(prev => prev.filter(id => id !== item.product_id));
-          setToastMsg('Đã xoá sản phẩm'); setToastType('info'); setToastVisible(true);
-       } }
-    ]);
-  };
-
-  // toggle selection for multi-delete
-  const toggleSelect = (productId: string) => {
+  useEffect(() => {
     setSelectedIds(prev => {
-      if (prev.includes(productId)) return prev.filter(id => id !== productId);
-      return [...prev, productId];
+      const availableIds = new Set((lines || []).map(item => item.product_id));
+      return prev.filter(id => availableIds.has(id));
+    });
+  }, [lines]);
+
+  const goToProductDetail = useCallback(
+    (item: CartLine) => {
+      const id = getCartProductId(item);
+
+      if (!id) {
+        showToast('Không tìm thấy mã sản phẩm', 'error');
+        return;
+      }
+
+      navigation.navigate('ProductDetail' as never, { productId: id } as never);
+    },
+    [navigation, showToast],
+  );
+
+  const toggleSelectMode = () => {
+    setSelectMode(prev => {
+      const next = !prev;
+
+      if (!next) {
+        setSelectedIds([]);
+      }
+
+      return next;
+    });
+  };
+
+  const toggleSelectItem = useCallback(
+    (productId: string) => {
+      const validation = validations[productId];
+
+      if (!validation?.canSelect) {
+        const reason =
+          validation?.errors?.[0] ?? 'Sản phẩm không đủ điều kiện thanh toán';
+        showToast(reason, 'error');
+        return;
+      }
+
+      setSelectedIds(prev => {
+        if (prev.includes(productId)) {
+          return prev.filter(id => id !== productId);
+        }
+
+        return [...prev, productId];
+      });
+    },
+    [showToast, validations],
+  );
+
+  const toggleSelectShop = useCallback(
+    (shopId: string) => {
+      const group = grouped.find(g => g.shopId === shopId);
+      if (!group) return;
+
+      const selectableIds = group.items
+        .filter(item => validations[item.product_id]?.canSelect)
+        .map(item => item.product_id);
+
+      if (selectableIds.length === 0) {
+        showToast('Không có sản phẩm hợp lệ để chọn trong cửa hàng này', 'error');
+        return;
+      }
+
+      const allSelected = selectableIds.every(id => selectedIds.includes(id));
+
+      setSelectedIds(prev => {
+        if (allSelected) {
+          return prev.filter(id => !selectableIds.includes(id));
+        }
+
+        const next = [...prev];
+
+        for (const id of selectableIds) {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        }
+
+        return next;
+      });
+    },
+    [grouped, selectedIds, showToast, validations],
+  );
+
+  const selectAllValidItems = () => {
+    const validIds = (lines || [])
+      .filter(item => validations[item.product_id]?.canSelect)
+      .map(item => item.product_id);
+
+    if (validIds.length === 0) {
+      showToast('Không có sản phẩm hợp lệ để chọn', 'error');
+      return;
+    }
+
+    const allSelected = validIds.every(id => selectedIds.includes(id));
+
+    setSelectedIds(allSelected ? [] : validIds);
+  };
+
+  const onChangeQuantityText = (productId: string, text: string) => {
+    const clean = text.replace(/[^0-9]/g, '');
+
+    if (clean.length === 0) {
+      setQtyInputs(prev => ({
+        ...prev,
+        [productId]: '',
+      }));
+      return;
+    }
+
+    const validation = validations[productId];
+    let nextQty = parseInt(clean, 10);
+
+    if (!Number.isFinite(nextQty) || nextQty <= 0) {
+      nextQty = 1;
+    }
+
+    if (
+      validation?.stock !== null &&
+      validation?.stock !== undefined &&
+      nextQty > validation.stock
+    ) {
+      nextQty = validation.stock;
+      showToast(`Chỉ còn ${validation.stock} sản phẩm trong kho`, 'error');
+    }
+
+    setQtyInputs(prev => ({
+      ...prev,
+      [productId]: String(nextQty),
+    }));
+  };
+
+  const commitQuantity = async (item: CartLine) => {
+    const validation = validations[item.product_id];
+
+    if (!validation?.canCheckout && validation?.stock !== null && validation?.stock <= 0) {
+      showToast('Sản phẩm đã hết hàng, không thể cập nhật số lượng', 'error');
+      return;
+    }
+
+    const raw = qtyInputs[item.product_id] ?? String(item.quantity ?? 1);
+    let nextQuantity = parseInt(raw || '1', 10);
+
+    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+      nextQuantity = 1;
+    }
+
+    if (
+      validation?.stock !== null &&
+      validation?.stock !== undefined &&
+      nextQuantity > validation.stock
+    ) {
+      nextQuantity = validation.stock;
+      showToast(`Chỉ còn ${validation.stock} sản phẩm trong kho`, 'error');
+    }
+
+    try {
+      await ctxUpdateQuantity(item.product_id, nextQuantity);
+      await loadCart();
+    } catch (e) {
+      console.warn('commit quantity failed', e);
+      showToast('Không thể cập nhật số lượng', 'error');
+    }
+  };
+
+  const onIncrease = async (item: CartLine) => {
+    const validation = validations[item.product_id];
+
+    if (!validation?.canCheckout) {
+      showToast(validation?.errors?.[0] ?? 'Sản phẩm không hợp lệ', 'error');
+      return;
+    }
+
+    const current = Number(item.quantity || 1);
+    const nextQuantity = current + 1;
+
+    if (validation.stock !== null && nextQuantity > validation.stock) {
+      showToast(`Chỉ còn ${validation.stock} sản phẩm trong kho`, 'error');
+      return;
+    }
+
+    try {
+      await ctxUpdateQuantity(item.product_id, nextQuantity);
+      await loadCart();
+    } catch (e) {
+      console.warn('increase quantity failed', e);
+      showToast('Không thể cập nhật số lượng', 'error');
+    }
+  };
+
+  const onDecrease = async (item: CartLine) => {
+    const validation = validations[item.product_id];
+
+    if (!validation?.canCheckout) {
+      showToast(validation?.errors?.[0] ?? 'Sản phẩm không hợp lệ', 'error');
+      return;
+    }
+
+    const current = Number(item.quantity || 1);
+
+    if (current <= 1) {
+      showToast('Số lượng tối thiểu là 1. Nếu không mua, hãy xoá sản phẩm.', 'info');
+      return;
+    }
+
+    const nextQuantity = current - 1;
+
+    try {
+      await ctxUpdateQuantity(item.product_id, nextQuantity);
+      await loadCart();
+    } catch (e) {
+      console.warn('decrease quantity failed', e);
+      showToast('Không thể cập nhật số lượng', 'error');
+    }
+  };
+
+  const onRemove = (item: CartLine) => {
+    showModal({
+      title: 'Xoá sản phẩm',
+      message: 'Bạn có muốn xoá sản phẩm này khỏi giỏ hàng?',
+      mode: 'confirm',
+      onConfirm: async () => {
+        try {
+          await ctxRemoveFromCart(item.product_id);
+          await loadCart();
+
+          setSelectedIds(prev => prev.filter(id => id !== item.product_id));
+          showToast('Đã xoá sản phẩm khỏi giỏ hàng', 'info');
+        } catch (e) {
+          console.warn('remove item failed', e);
+          showToast('Không thể xoá sản phẩm', 'error');
+        }
+      },
     });
   };
 
   const clearAllConfirm = () => {
-    Alert.alert('Xóa tất cả', 'Bạn có chắc muốn xóa toàn bộ sản phẩm trong giỏ?', [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xóa tất cả', style: 'destructive', onPress: async () => {
-         try {
+    if (!lines.length) {
+      showToast('Giỏ hàng đang trống', 'info');
+      return;
+    }
+
+    showModal({
+      title: 'Xóa tất cả',
+      message: 'Bạn có chắc muốn xóa toàn bộ sản phẩm trong giỏ?',
+      mode: 'confirm',
+      onConfirm: async () => {
+        try {
           await ctxClearCart();
           await loadCart();
-           setSelectedIds([]);
-           setSelectMode(false);
-           setToastMsg('Đã xóa tất cả'); setToastType('info'); setToastVisible(true);
-         } catch (e) {
-           console.warn(e);
-           setToastMsg('Xoá không thành công'); setToastType('error'); setToastVisible(true);
-         }
-       } }
-    ]);
+
+          setSelectedIds([]);
+          showToast('Đã xóa tất cả sản phẩm', 'info');
+        } catch (e) {
+          console.warn('clear cart failed', e);
+          showToast('Xoá không thành công', 'error');
+        }
+      },
+    });
   };
+
+  const removeInvalidItemsConfirm = () => {
+    if (invalidItems.length === 0) {
+      showToast('Không có sản phẩm lỗi trong giỏ hàng', 'info');
+      return;
+    }
+
+    showModal({
+      title: 'Xoá sản phẩm lỗi',
+      message: `Có ${invalidItems.length} sản phẩm không đủ điều kiện. Bạn có muốn xoá khỏi giỏ hàng không?`,
+      mode: 'confirm',
+      onConfirm: async () => {
+        try {
+          for (const item of invalidItems) {
+            await ctxRemoveFromCart(item.product_id);
+          }
+
+          await loadCart();
+
+          const invalidIds = invalidItems.map(item => item.product_id);
+          setSelectedIds(prev => prev.filter(id => !invalidIds.includes(id)));
+
+          showToast('Đã xoá sản phẩm không hợp lệ', 'info');
+        } catch (e) {
+          console.warn('remove invalid items failed', e);
+          showToast('Không thể xoá sản phẩm lỗi', 'error');
+        }
+      },
+    });
+  };
+
+  const handleCheckout = useCallback(async () => {
+    if (!selectedIds.length) {
+      showToast('Vui lòng chọn sản phẩm để thanh toán', 'info');
+      return;
+    }
+
+    const items = (lines || []).filter(item => selectedIds.includes(item.product_id));
+
+    const invalidSelected = items.filter(
+      item => !validations[item.product_id]?.canCheckout,
+    );
+
+    if (invalidSelected.length > 0) {
+      const firstInvalid = invalidSelected[0];
+      const reason =
+        validations[firstInvalid.product_id]?.errors?.[0] ??
+        'Có sản phẩm không đủ điều kiện thanh toán';
+
+      showToast(reason, 'error');
+      return;
+    }
+
+    const goToCheckout = async () => {
+      setCheckoutLoading(true);
+
+      try {
+        const checkoutItems = items.map(item => ({
+          ...item,
+          validation: validations[item.product_id],
+        }));
+
+        navigation.navigate('Checkout' as never, { items: checkoutItems } as never);
+      } catch (e) {
+        console.warn('checkout failed', e);
+        showToast('Không thể chuyển sang thanh toán', 'error');
+      } finally {
+        setCheckoutLoading(false);
+      }
+    };
+
+    if (selectedSupplementItems.length > 0) {
+      showModal({
+        title: 'Kiểm tra thực phẩm bổ sung',
+        message:
+          `Bạn đang chọn ${selectedSupplementItems.length} sản phẩm thực phẩm bổ sung.\n\n` +
+          'Vui lòng bấm vào sản phẩm trong giỏ hàng để xem lại chi tiết, cảnh báo, hạn sử dụng, hướng dẫn sử dụng và chống chỉ định trước khi thanh toán.\n\n' +
+          'Nếu đã kiểm tra xong, bạn có thể bấm Tiếp tục để sang thanh toán.',
+        mode: 'confirm',
+        onConfirm: goToCheckout,
+      });
+
+      return;
+    }
+
+    await goToCheckout();
+  }, [
+    lines,
+    navigation,
+    selectedIds,
+    selectedSupplementItems,
+    showModal,
+    showToast,
+    validations,
+  ]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#FFF8F0]">
-      <View className="px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="w-9 h-9 items-center justify-center">
-          <Ionicons name="arrow-back" size={20} color="#0F172A" />
-        </TouchableOpacity>
-        <View className="flex-1 ml-2">
-          <Text className="text-2xl font-extrabold">Giỏ hàng</Text>
-          <Text className="text-gray-500">{totalItems} sản phẩm</Text>
-        </View>
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => { setSelectMode(prev => !prev); if (selectMode) setSelectedIds([]); }} className="w-9 h-9 items-center justify-center">
-            <Ionicons name={selectMode ? 'close-circle' : 'checkbox-outline'} size={20} color="#0F172A" />
+      <View className="px-4 pt-3 pb-4 bg-[#FFF8F0] border-b border-[#F1E7DC]">
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="w-10 h-10 rounded-full bg-white items-center justify-center"
+          >
+            <Ionicons name="arrow-back" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={clearAllConfirm} className="w-9 h-9 items-center justify-center">
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          </TouchableOpacity>
+
+          <View className="flex-1 ml-3">
+            <Text className="text-2xl font-extrabold text-[#0F172A]">
+              Giỏ hàng
+            </Text>
+
+            <Text className="text-[#64748B] text-sm mt-1">
+              {totalItems} sản phẩm • {invalidItems.length} cần kiểm tra
+            </Text>
+          </View>
+
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              onPress={selectAllValidItems}
+              className="w-10 h-10 rounded-full bg-white items-center justify-center mr-2"
+            >
+              <Ionicons name="checkmark-done-outline" size={20} color="#0F172A" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={toggleSelectMode}
+              className="w-10 h-10 rounded-full bg-white items-center justify-center mr-2"
+            >
+              <Ionicons
+                name={selectMode ? 'close-circle-outline' : 'checkbox-outline'}
+                size={20}
+                color="#0F172A"
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={clearAllConfirm}
+              className="w-10 h-10 rounded-full bg-white items-center justify-center"
+            >
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {invalidItems.length > 0 ? (
+          <View className="mt-4 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl p-3">
+            <View className="flex-row items-start">
+              <Ionicons name="alert-circle-outline" size={20} color="#B91C1C" />
+
+              <View className="flex-1 ml-2">
+                <Text className="text-[#B91C1C] font-extrabold">
+                  Có sản phẩm chưa đủ điều kiện
+                </Text>
+
+                <Text className="text-[#991B1B] text-xs mt-1 leading-5">
+                  Một số sản phẩm có thể đã hết hàng, hết hạn, thiếu hạn sử dụng
+                  hoặc thiếu thông tin nhà bán.
+                </Text>
+
+                <TouchableOpacity onPress={removeInvalidItemsConfirm} className="mt-2">
+                  <Text className="text-[#B91C1C] text-xs font-extrabold">
+                    Xoá sản phẩm lỗi
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View className="mt-4 bg-[#ECFDF5] border border-[#BBF7D0] rounded-2xl p-3">
+            <View className="flex-row items-start">
+              <Ionicons name="shield-checkmark-outline" size={20} color="#047857" />
+
+              <Text className="text-[#047857] text-xs leading-5 font-semibold flex-1 ml-2">
+                Giỏ hàng đang hợp lệ. Với thực phẩm chức năng, hệ thống sẽ kiểm tra
+                tồn kho, hạn sử dụng và trạng thái sản phẩm trước khi thanh toán.
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
-      <ScrollView className="p-3 pb-36">
-        {(!grouped || grouped.length === 0) && <EmptyComponent />}
-        {grouped.map((g) => (
-          <View key={g.shopId} className="mb-4">
-            <View className="p-3 bg-white rounded-lg mb-2 flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                {selectMode && (
-                  <TouchableOpacity onPress={() => toggleSelectShop(g.shopId)} className="mr-2">
-                    <Ionicons name={areAllSelected(g.shopId) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={areAllSelected(g.shopId) ? '#10B981' : '#9CA3AF'} />
-                  </TouchableOpacity>
-                )}
-                <Text className="font-extrabold">{g.shopName}</Text>
-              </View>
-              <Text className="text-gray-500">{g.items.length} sản phẩm</Text>
-            </View>
-
-            {g.items.map((item: any) => {
-              const stock = getStockForItem(item);
-              return (
-                <View key={item.product_id} className={`bg-white rounded-xl p-3 mb-3 flex-row items-center ${selectMode && selectedIds.includes(item.product_id) ? 'border border-green-200 bg-green-50' : ''}`}>
-                  {selectMode ? (
-                    <TouchableOpacity onPress={() => toggleSelect(item.product_id)} className="mr-2">
-                      <Ionicons name={selectedIds.includes(item.product_id) ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={selectedIds.includes(item.product_id) ? '#10B981' : '#9CA3AF'} />
-                    </TouchableOpacity>
-                  ) : null}
-                  <Image source={{ uri: item.thumnail_url || 'https://via.placeholder.com/120' }} className="w-20 h-20 rounded-lg" />
-                  <View className="flex-1 ml-3">
-                    {/* show vendor/shop name per item (in case group name is generic) */}
-                    <Text className="text-gray-500 text-xs mb-1">{(item.raw?.vendorBusinessName ?? item.raw?.vendor_business_name ?? g.shopName) as string}</Text>
-                    <Text className="font-bold">{item.product_name}</Text>
-                    <Text className="text-orange-600 font-extrabold mt-2">{formatVND(item.price)}</Text>
-                    {stock !== null ? (
-                      stock > 0 ? <Text className="text-sm text-gray-500 mt-1">Còn {stock} sản phẩm</Text> : <Text className="text-sm text-red-600 mt-1">Hết hàng</Text>
-                    ) : null}
-                    <View className="flex-row items-center mt-2">
-                      <TouchableOpacity onPress={() => onDec(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>-</Text></TouchableOpacity>
-                      <TextInput
-                        value={qtyInputs[item.product_id] ?? String(item.quantity)}
-                        onChangeText={(t) => setQtyInputs(prev => ({ ...prev, [item.product_id]: t.replace(/[^0-9]/g, '') }))}
-                        onBlur={async () => {
-                          const raw = qtyInputs[item.product_id] ?? String(item.quantity);
-                          const n = Math.max(1, parseInt(raw || '0', 10) || 1);
-                          const final = (stock !== null && !isNaN(Number(stock))) ? Math.min(n, Number(stock)) : n;
-                          try { await ctxUpdateQuantity(item.product_id, final); await loadCart(); } catch { setToastMsg('Không thể cập nhật số lượng'); setToastType('error'); setToastVisible(true); }
-                        }}
-                        keyboardType="number-pad"
-                        returnKeyType="done"
-                        className="mx-3 font-bold text-center bg-white px-2 py-1 rounded"
-                        style={localStyles.qtyInput}
-                      />
-                      <TouchableOpacity onPress={() => onInc(item)} className="px-3 py-1 bg-gray-100 rounded"><Text>+</Text></TouchableOpacity>
-                      {!selectMode && <TouchableOpacity onPress={() => onRemove(item)} className="ml-3"><Ionicons name="trash-outline" size={18} color="#EF4444" /></TouchableOpacity>}
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-
-          </View>
-        ))}
+      <ScrollView
+        className="px-3"
+        contentContainerStyle={{
+          paddingTop: 12,
+          paddingBottom: 150,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {!grouped || grouped.length === 0 ? (
+          <EmptyComponent />
+        ) : (
+          grouped.map(group => (
+            <CartShopGroup
+              key={group.shopId}
+              group={group}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              qtyInputs={qtyInputs}
+              validations={validations}
+              onToggleShop={toggleSelectShop}
+              onToggleItem={toggleSelectItem}
+              onIncrease={onIncrease}
+              onDecrease={onDecrease}
+              onChangeQuantityText={onChangeQuantityText}
+              onCommitQuantity={commitQuantity}
+              onRemove={onRemove}
+              onPressItemDetail={goToProductDetail}
+            />
+          ))
+        )}
       </ScrollView>
 
-      {/* sticky checkout bar */}
-      <CheckoutBar total={totalSelectedPrice} disabled={selectedIds.length === 0} onCheckout={handleCheckout} selectedCount={selectedIds.length} />
+      <CartCheckoutBar
+        total={totalSelectedPrice}
+        selectedCount={selectedValidItems.length}
+        invalidCount={selectedInvalidItems.length}
+        disabled={checkoutDisabled}
+        loading={checkoutLoading}
+        onCheckout={handleCheckout}
+      />
 
-      <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
+      <Toast
+        visible={toastVisible}
+        message={toastMsg}
+        type={toastType}
+        onHidden={() => setToastVisible(false)}
+      />
+
+      <ModalPopup
+        {...(modalState as any)}
+        titleText={modalState.title}
+        contentText={modalState.message}
+        onClose={closeModal}
+      />
     </SafeAreaView>
   );
 }

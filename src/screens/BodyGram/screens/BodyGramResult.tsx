@@ -1,470 +1,591 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { Text, ScrollView, View, Image, Pressable, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useMemo } from 'react';
+import {
+  Text,
+  ScrollView,
+  View,
+  Image,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Toast from '../../../components/Toast';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { submitHealthProfile } from '../../../services/profile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyGramResult'>;
 
-function mmToCm(mm?: number | null) {
-  if (mm == null) return undefined;
-  const n = Number(mm);
-  if (isNaN(n)) return undefined;
-  return +(n / 10).toFixed(0);
-}
-function gToKg(g?: number | null) {
-  if (g == null) return undefined;
-  const n = Number(g);
-  if (isNaN(n)) return undefined;
-  return +(n / 1000).toFixed(0);
+function toNumber(value: any): number | null {
+  if (value === null || value === undefined || value === '') return null;
+
+  const n = Number(value);
+
+  if (!Number.isFinite(n)) return null;
+
+  return n;
 }
 
-export default function BodyGramResult({ route, navigation: _navigation }: Props) {
-  const nav = useNavigation();
+function roundOne(value: number | null): number | null {
+  if (value === null || value === undefined) return null;
+
+  return Math.round(value * 10) / 10;
+}
+
+function parseMetadata(metadata: any) {
+  if (!metadata) return {};
+
+  if (typeof metadata === 'object') return metadata;
+
+  if (typeof metadata === 'string') {
+    try {
+      return JSON.parse(metadata);
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function formatCm(value: any) {
+  const n = toNumber(value);
+
+  if (n === null) return null;
+
+  return `${roundOne(n)}cm`;
+}
+
+function formatKg(value: any) {
+  const n = toNumber(value);
+
+  if (n === null) return null;
+
+  return `${roundOne(n)}kg`;
+}
+
+function formatPercent(value: any) {
+  const n = toNumber(value);
+
+  if (n === null) return null;
+
+  return `${roundOne(n)}%`;
+}
+
+function getMeasurementNumberFromArray(arr: any[], names: string[]) {
+  if (!Array.isArray(arr)) return null;
+
+  const targets = names.map((x) => x.toLowerCase());
+
+  const item = arr.find((m) => {
+    const name = String(m?.name ?? m?.key ?? m?.label ?? '').toLowerCase();
+
+    return targets.some((target) => {
+      return name === target || name.includes(target) || target.includes(name);
+    });
+  });
+
+  if (!item) return null;
+
+  const raw =
+    item.value ??
+    item.latestValue ??
+    item.value_mm ??
+    item.value_cm ??
+    item.cm ??
+    item.mm ??
+    item.kg ??
+    item.g ??
+    null;
+
+  const n = toNumber(raw);
+
+  if (n === null) return null;
+
+  const unit = String(item.unit ?? '').toLowerCase();
+
+  if (unit === 'mm') return roundOne(n / 10);
+  if (unit === 'cm') return roundOne(n);
+  if (unit === 'g') return roundOne(n / 1000);
+  if (unit === 'kg') return roundOne(n);
+
+  return roundOne(n);
+}
+
+function getFirstNumberFromObjects(objects: any[], keys: string[]) {
+  const targetKeys = keys.map((x) => x.toLowerCase());
+
+  for (const obj of objects) {
+    if (!obj || typeof obj !== 'object') continue;
+
+    for (const key of Object.keys(obj)) {
+      const keyLower = key.toLowerCase();
+
+      const matched = targetKeys.some((target) => {
+        return (
+          keyLower === target ||
+          keyLower.includes(target) ||
+          target.includes(keyLower)
+        );
+      });
+
+      if (!matched) continue;
+
+      const n = toNumber(obj[key]);
+
+      if (n !== null) return n;
+    }
+  }
+
+  return null;
+}
+
+function mapHealthProfileData(rawResponse: any, rawMeasurements: any) {
+  const entry = rawResponse?.entry ?? rawResponse?.data ?? rawResponse ?? {};
+  const metadata = parseMetadata(entry?.metadata);
+
+  const extraMeasurements =
+    metadata?.extraMeasurements ??
+    metadata?.simpleMeasurements ??
+    {};
+
+  const bodyComposition = metadata?.bodyComposition ?? {};
+  const input = metadata?.input ?? {};
+
+  const rawObj =
+    rawMeasurements && !Array.isArray(rawMeasurements) ? rawMeasurements : {};
+
+  const measurementsArray =
+    Array.isArray(rawMeasurements)
+      ? rawMeasurements
+      : Array.isArray(entry?.measurements)
+        ? entry.measurements
+        : Array.isArray(entry?.rawMeasurements)
+          ? entry.rawMeasurements
+          : Array.isArray(metadata?.rawMeasurements)
+            ? metadata.rawMeasurements
+            : Array.isArray(metadata?.measurements)
+              ? metadata.measurements
+              : [];
+
+  const objects = [
+    entry,
+    rawObj,
+    extraMeasurements,
+    bodyComposition,
+    input,
+    metadata,
+  ];
+
+  const height =
+    getFirstNumberFromObjects(objects, ['heightCm', 'height', 'height_est']) ??
+    null;
+
+  const weight =
+    getFirstNumberFromObjects(objects, ['weightKg', 'weight', 'weight_est']) ??
+    null;
+
+  const bmi = getFirstNumberFromObjects(objects, ['bmi']) ?? null;
+
+  const bodyFat =
+    getFirstNumberFromObjects(objects, [
+      'bodyFatPercentage',
+      'bodyFatPercent',
+      'body_fat',
+      'fatPercentage',
+    ]) ?? null;
+
+  const muscle =
+    getFirstNumberFromObjects(objects, [
+      'muscleMassKg',
+      'muscleMass',
+      'skeletalMuscleMassKg',
+      'skeletalMuscleMass',
+    ]) ?? null;
+
+  const bust =
+    getFirstNumberFromObjects(objects, [
+      'bustCm',
+      'bust',
+      'chestCm',
+      'chest',
+    ]) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'bustGirth',
+      'bust',
+      'chest',
+    ]);
+
+  const waist =
+    getFirstNumberFromObjects(objects, [
+      'waistCm',
+      'waist',
+      'waistGirth',
+      'bellyWaistGirth',
+    ]) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'waistGirth',
+      'bellyWaistGirth',
+      'waist',
+      'belly',
+    ]);
+
+  const hip =
+    getFirstNumberFromObjects(objects, ['hipCm', 'hip', 'hipGirth']) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'hipGirth',
+      'hip',
+      'topHip',
+    ]);
+
+  const bicep =
+    getFirstNumberFromObjects(objects, [
+      'bicepCm',
+      'bicep',
+      'upperArmCm',
+      'upperArm',
+      'upperArmGirth',
+    ]) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'upperArmGirthR',
+      'upperArmGirth',
+      'upperArm',
+      'bicep',
+    ]);
+
+  const thigh =
+    getFirstNumberFromObjects(objects, [
+      'thighCm',
+      'thigh',
+      'thighGirth',
+      'midThighCm',
+      'midThigh',
+    ]) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'thighGirthR',
+      'midThighGirthR',
+      'thigh',
+      'midThigh',
+    ]);
+
+  const calf =
+    getFirstNumberFromObjects(objects, ['calfCm', 'calf', 'calfGirth']) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'calfGirthR',
+      'calf',
+    ]);
+
+  const shoulder =
+    getFirstNumberFromObjects(objects, [
+      'shoulderCm',
+      'shoulder',
+      'acrossBackShoulderWidth',
+    ]) ??
+    getMeasurementNumberFromArray(measurementsArray, [
+      'acrossBackShoulderWidth',
+      'shoulder',
+    ]);
+
+  const neck =
+    getFirstNumberFromObjects(objects, ['neckCm', 'neck', 'neckGirth']) ??
+    getMeasurementNumberFromArray(measurementsArray, ['neckGirth', 'neck']);
+
+  const source =
+    entry?.source ??
+    metadata?.provider ??
+    rawObj?.source ??
+    'BodyGram';
+
+  const createdAt =
+    entry?.createdAt ??
+    entry?.created_at ??
+    metadata?.createdAt ??
+    rawObj?.createdAt ??
+    null;
+
+  return {
+    raw: {
+      height,
+      weight,
+      bmi,
+      bodyFat,
+      muscle,
+      bust,
+      waist,
+      hip,
+      bicep,
+      thigh,
+      calf,
+      shoulder,
+      neck,
+    },
+    display: {
+      height: formatCm(height),
+      weight: formatKg(weight),
+      bmi: bmi !== null ? String(roundOne(bmi)) : null,
+      bodyFat: formatPercent(bodyFat),
+      muscle: formatKg(muscle),
+      bust: formatCm(bust),
+      waist: formatCm(waist),
+      hip: formatCm(hip),
+      bicep: formatCm(bicep),
+      thigh: formatCm(thigh),
+      calf: formatCm(calf),
+      shoulder: formatCm(shoulder),
+      neck: formatCm(neck),
+    },
+    source,
+    createdAt,
+  };
+}
+
+function hasValue(value: any) {
+  return value !== null && value !== undefined && value !== '' && value !== '-';
+}
+
+export default function BodyGramResult({
+  route,
+  navigation: _navigation,
+}: Props) {
+  const nav = useNavigation<any>();
+
   const { measurements: rawMeasurements, rawResponse } = route.params as any;
-  const [saving, setSaving] = useState(false);
 
-  // DEBUG: log incoming route params and parsed result to help investigate missing measurements
   console.log('DEBUG BodyGramResult route.params:', route.params);
   console.log('DEBUG BodyGramResult rawMeasurements:', rawMeasurements);
   console.log('DEBUG BodyGramResult rawResponse:', rawResponse);
 
-  const parseProfile = useCallback((entry: any) => {
-    const out: any = { measurements: {}, meta: {} };
-    if (!entry) return out;
-    const data = entry?.entry ?? entry ?? {};
-
-    out.height = data.heightCm ?? data.height ?? data.height_est ?? undefined;
-    out.weight = data.weightKg ?? data.weight ?? data.weight_est ?? undefined;
-    out.bmi = data.bmi ?? undefined;
-    out.bodyFat = data.bodyFatPercentage ?? undefined;
-    const metadata = (typeof data.metadata === 'string') ? (() => { try { return JSON.parse(data.metadata); } catch { return data.metadata; } })() : data.metadata ?? {};
-    const bodyComp = metadata?.bodyComposition ?? {};
-    out.bodyFat = out.bodyFat ?? bodyComp?.bodyFatPercentage ?? metadata?.bodyFatPercentage ?? undefined;
-    out.muscle = data.muscleMassKg ?? bodyComp?.skeletalMuscleMass ?? metadata?.skeletalMuscleMass ?? undefined;
-    out.waist = data.waistCm ?? data.waist ?? metadata?.waistCm ?? undefined;
-    out.hip = data.hipCm ?? data.hip ?? metadata?.hipCm ?? undefined;
-    out.source = data.source ?? undefined;
-    out.createdAt = data.createdAt ?? data.created_at ?? metadata?.createdAt ?? undefined;
-
-    const measurementsArr = data.measurements ?? metadata.measurements ?? [];
-    (measurementsArr || []).forEach((m: any) => {
-      const name = ((m.name || m.key || '') + '').toLowerCase();
-      const unit = ((m.unit || '') + '').toLowerCase();
-      const rawVal = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? null;
-      const num = rawVal != null ? Number(rawVal) : null;
-      const valCm = num == null ? null : (unit === 'mm' ? Math.round(num/10) : Math.round(num));
-      const valKg = num == null ? null : (unit === 'g' ? Math.round(num/1000) : Math.round(num));
-
-      if (name.includes('bust') || name.includes('bustgirth') || name.includes('chest')) out.measurements.chest = out.measurements.chest ?? valCm;
-      else if (name.includes('waist') || name.includes('bellywaist') || name.includes('belly')) out.measurements.waist = out.measurements.waist ?? valCm;
-      else if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip')) out.measurements.hip = out.measurements.hip ?? valCm;
-      else if (name.includes('thigh')) out.measurements.thigh = out.measurements.thigh ?? valCm;
-      else if (name.includes('calf')) out.measurements.calf = out.measurements.calf ?? valCm;
-      else if (name.includes('bicep') || name.includes('upperarm') || name.includes('arm')) out.measurements.bicep = out.measurements.bicep ?? valCm;
-      else if (name.includes('forearm') || name.includes('wrist')) out.measurements.forearm = out.measurements.forearm ?? valCm;
-      else if (name.includes('shoulder')) out.measurements.shoulder = out.measurements.shoulder ?? valCm;
-      else if (name.includes('neck')) out.measurements.neck = out.measurements.neck ?? valCm;
-      else if (name.includes('height')) {
-        if (valCm != null) out.measurements.height_est = out.measurements.height_est ?? valCm;
-      } else if (name.includes('weight')) {
-        if (valKg != null) out.measurements.weight_est = out.measurements.weight_est ?? valKg;
-      } else {
-        out.meta[name] = m.value ?? m;
-      }
-    });
-
-    try {
-      const input = data.input ?? metadata.input ?? {};
-      const ps = input.photoScan ?? input;
-      if (ps) {
-        if (!out.measurements.height_est && (ps.height || ps.heightMm)) {
-          const hraw = ps.height ?? ps.heightMm; out.measurements.height_est = (hraw > 1000 ? Math.round(hraw/10) : Math.round(hraw));
-        }
-        if (!out.measurements.weight_est && (ps.weight || ps.weightG)) {
-          const wraw = ps.weight ?? ps.weightG; out.measurements.weight_est = (wraw > 500 ? Math.round(wraw/1000) : Math.round(wraw));
-        }
-        out.age = ps.age ?? data.age ?? undefined;
-        out.gender = (ps.gender ?? data.gender ?? '');
-      }
-    } catch { }
-
-    out.metadata = metadata;
-    return out;
-  }, []);
-
-  const parsed = parseProfile(rawResponse?.entry ?? rawResponse ?? {});
-
-  const display = useMemo(() => {
-    if (rawMeasurements && !Array.isArray(rawMeasurements)) return rawMeasurements;
-    const arr: any[] = Array.isArray(rawMeasurements) ? rawMeasurements : rawResponse?.entry?.measurements ?? rawResponse?.measurements ?? [];
-    const out: any = {};
-
-    arr.forEach((m: any) => {
-      const name = (m.name || m.key || '').toString().toLowerCase();
-      const unit = (m.unit || '').toString().toLowerCase();
-      const val = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? null;
-      const num = val != null ? Number(val) : null;
-      const asCm = num == null ? null : unit === 'mm' ? mmToCm(num) : unit === 'cm' ? Math.round(num) : Math.round(num);
-
-      if (!name) return;
-      if (name.includes('bust') || name.includes('chest') || name.includes('bustgirth')) out.bust = asCm;
-      else if (name.includes('waist') || name.includes('belly') || name.includes('vong eo') || name.includes('bellywaist')) out.waist = asCm;
-      else if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip')) out.hip = asCm;
-      else if (name.includes('thigh') || name.includes('thighgirth') || name.includes('midthigh')) out.thigh = asCm;
-      else if (name.includes('calf') || name.includes('calfgirth')) out.calf = asCm;
-      else if (name.includes('forearm') || name.includes('forearmgirth') || name.includes('wrist')) out.forearm = asCm;
-      else if (name.includes('shoulder') || name.includes('acrossbackshoulder')) out.shoulder = asCm;
-      else if (name.includes('upperarm') || name.includes('bicep') || name.includes('arm')) out.bicep = asCm;
-      else if (name.includes('height') || name.includes('stature') || name.includes('heightmm')) out.height_est = unit === 'mm' ? mmToCm(num) : Math.round(num as any);
-      else if (name.includes('weight') || name.includes('mass')) out.weight_est = unit === 'g' ? gToKg(num) : Math.round(num as any);
-    });
-
-    if (!out.height_est && rawResponse?.entry?.input?.photoScan?.height) {
-      const h = rawResponse.entry.input.photoScan.height;
-      out.height_est = h > 1000 ? mmToCm(h) : h;
-    }
-    if (!out.weight_est && rawResponse?.entry?.input?.photoScan?.weight) {
-      const w = rawResponse.entry.input.photoScan.weight;
-      out.weight_est = w > 500 ? gToKg(w) : w;
-    }
-
-    return out;
+  const mapped = useMemo(() => {
+    return mapHealthProfileData(rawResponse, rawMeasurements);
   }, [rawMeasurements, rawResponse]);
 
-  // helper to return numeric value from multiple sources (display, parsed.measurements, parsed top-level, parsed.metadata)
-  function getNumericValue(key: string) {
-    let val: any = display?.[key];
-    if (val == null) val = parsed?.measurements?.[key];
-    if (val == null) val = parsed?.[key];
-    if (val == null && parsed?.metadata && typeof parsed.metadata === 'object') {
-      const candidate = parsed.metadata[key] ?? parsed.metadata[`${key}`];
-      if (candidate != null) val = candidate;
-    }
-    if (val == null) return undefined;
-    const n = Number(val);
-    return Number.isFinite(n) ? n : undefined;
+  const whr =
+    mapped.raw.waist != null &&
+    mapped.raw.hip != null &&
+    mapped.raw.hip !== 0
+      ? (mapped.raw.waist / mapped.raw.hip).toFixed(2)
+      : null;
+
+  function fadedStyle(value: any) {
+    return hasValue(value) ? null : styles.fadedItem;
   }
 
-  // helper used by detail tiles to pick a displayable value (string/number)
-  function getDetailValue(key: 'bust'|'waist'|'hip'|'bicep'|'thigh'|'calf') {
-    const dkey: any = key;
-    let val: any = display?.[dkey];
-    if (val == null) val = parsed?.measurements?.[dkey];
-    if (val == null) val = parsed?.[dkey];
-    if (val == null && parsed?.metadata && typeof parsed.metadata === 'object') {
-      const candidate = parsed.metadata[dkey] ?? parsed.metadata[key];
-      if (candidate != null) {
-        const n = Number(candidate);
-        val = Number.isFinite(n) ? Math.round(n) : candidate;
-      }
-    }
-    return val == null ? '-' : val;
-  }
-
-  const waistVal = getNumericValue('waist');
-  const hipVal = getNumericValue('hip');
-  const whr = (waistVal != null && hipVal != null && hipVal !== 0) ? (waistVal / hipVal).toFixed(2) : undefined;
-
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastMsg, _setToastMsg] = useState('');
-  const [toastType, _setToastType] = useState<'success' | 'error' | 'info'>('info');
-
-  // helper: map measurement keys to friendly Vietnamese labels
-  function formatMeasurementName(rawName: string) {
-    if (!rawName) return '';
-    const name = rawName.toString().toLowerCase();
-    if (name.includes('bust') || name.includes('chest') || name.includes('bustgirth') || name.includes('bust_girth')) return 'Ngực';
-    if (name.includes('waist') || name.includes('belly') || name.includes('waistgirth') || name.includes('bellywaist')) return 'Eo';
-    if (name.includes('hip') || name.includes('hipgirth') || name.includes('tophip')) return 'Hông';
-    if (name.includes('thigh') || name.includes('midthigh') || name.includes('thighgirth')) return 'Đùi';
-    if (name.includes('calf') || name.includes('calfgirth')) return 'Bắp chân';
-    if (name.includes('forearm') || name.includes('forearmgirth')) return 'Cẳng tay';
-    if (name.includes('wrist')) return 'Cổ tay';
-    if (name.includes('neck')) return 'Cổ';
-    if (name.includes('shoulder')) return 'Vai';
-    if (name.includes('underbust')) return 'Dưới ngực';
-    if (name.includes('upperarm') || name.includes('bicep')) return 'Bắp tay trên';
-    // default: prettify
-    return rawName.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
-  }
+  const detailItems = [
+    { key: 'bmi', label: 'BMI', unit: '', value: mapped.display.bmi },
+    {
+      key: 'bodyFat',
+      label: '% Mỡ cơ thể',
+      unit: '',
+      value: mapped.display.bodyFat,
+    },
+    {
+      key: 'muscle',
+      label: 'Khối lượng cơ',
+      unit: '',
+      value: mapped.display.muscle,
+    },
+    { key: 'bust', label: 'Ngực', unit: '', value: mapped.display.bust },
+    { key: 'waist', label: 'Eo', unit: '', value: mapped.display.waist },
+    { key: 'hip', label: 'Hông', unit: '', value: mapped.display.hip },
+    { key: 'bicep', label: 'Bắp tay', unit: '', value: mapped.display.bicep },
+    { key: 'thigh', label: 'Đùi', unit: '', value: mapped.display.thigh },
+    { key: 'calf', label: 'Bắp chân', unit: '', value: mapped.display.calf },
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* HEADER: centered title + back */}
       <View style={styles.header}>
-        <Pressable onPress={() => (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] })} style={styles.headerButton}>
+        <Pressable
+          onPress={() =>
+            nav.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs' }],
+            })
+          }
+          style={styles.headerButton}
+        >
           <Ionicons name="arrow-back" size={22} color="#333" />
         </Pressable>
-        <Text style={[styles.headerTitle, styles.headerTitleCenter]}>{'Thông tin cơ thể'}</Text>
+
+        <Text style={[styles.headerTitle, styles.headerTitleCenter]}>
+          Thông tin cơ thể
+        </Text>
+
         <View style={styles.headerButton} />
       </View>
 
-      <ScrollView className="flex-1 p-4" contentContainerStyle={styles.scrollContent}>
-        {/* HEADER SUMMARY */}
+      <ScrollView
+        className="flex-1 p-4"
+        contentContainerStyle={styles.scrollContent}
+      >
         <View className="bg-white rounded-xl p-4 mb-4 flex-row items-center">
           <View className="flex-1">
-            <Text className="text-lg font-semibold">{parsed.source ? `Nguồn: ${parsed.source}` : 'Hồ sơ sức khỏe'}</Text>
-            <Text className="text-sm text-gray-500 mt-1">{parsed.createdAt ? new Date(parsed.createdAt).toLocaleString() : ''}</Text>
-            <Text className="text-sm text-gray-700 mt-2">Chiều cao: {parsed.height ?? parsed.measurements?.height_est ?? '-'} cm   Cân nặng: {parsed.weight ?? parsed.measurements?.weight_est ?? '-'} kg</Text>
+            <Text className="text-lg font-semibold">
+              {mapped.source ? `Nguồn: ${mapped.source}` : 'Hồ sơ sức khỏe'}
+            </Text>
+
+            <Text className="text-sm text-gray-500 mt-1">
+              {mapped.createdAt
+                ? new Date(mapped.createdAt).toLocaleString()
+                : ''}
+            </Text>
+
+            <Text className="text-sm text-gray-700 mt-2">
+              Chiều cao: {mapped.display.height ?? '-'}   Cân nặng:{' '}
+              {mapped.display.weight ?? '-'}
+            </Text>
           </View>
-          <View className="ml-3 items-center">
-            <View className="bg-amber-50 rounded-full w-16 h-16 items-center justify-center">
-              <Text className="text-amber-700 font-bold">{parsed.bodyFat ? `${parsed.bodyFat}%` : (parsed.bmi ? `BMI ${parsed.bmi}` : '—')}</Text>
-            </View>
-          </View>
+
+         <View className="ml-3 items-center">
+  <View className="bg-amber-50 rounded-full w-20 h-20 items-center justify-center px-2">
+    <Text className="text-xs text-amber-700 font-semibold text-center">
+      Mỡ cơ thể
+    </Text>
+
+    <Text className="text-amber-700 font-bold text-center text-lg">
+      {mapped.display.bodyFat ??
+        (mapped.display.bmi ? `BMI ${mapped.display.bmi}` : '—')}
+    </Text>
+  </View>
+</View>
         </View>
 
-        {/* SILHOUETTE CARD (unchanged)*/}
         <View className="bg-white rounded-xl p-4 items-center mb-4">
           <View className="w-64 h-80 items-center justify-center">
-            <Image source={require('../../../assets/bodygram.png')} className="w-full h-full" resizeMode="contain" />
-            {/* measurement bubbles (unchanged) */}
+            <Image
+              source={require('../../../assets/bodygram.png')}
+              className="w-full h-full"
+              resizeMode="contain"
+            />
+
             <View className="absolute top-8 left-3">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={fadedStyle(mapped.display.bust)}
+              >
                 <Text className="text-xs text-gray-800">Ngực</Text>
-                <Text className="text-lg font-extrabold">{(parsed?.measurements?.chest ?? display.bust ?? (parsed?.metadata && parsed.metadata.shoulder ? Math.round(parsed.metadata.shoulder) : null) ?? '-') }cm</Text>
+                <Text className="text-lg font-extrabold">
+                  {mapped.display.bust ?? '-'}
+                </Text>
               </View>
             </View>
+
             <View className="absolute top-24 left-4">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={fadedStyle(mapped.display.waist)}
+              >
                 <Text className="text-xs text-gray-800">Eo</Text>
-                <Text className="text-lg font-extrabold">{(parsed?.measurements?.waist ?? display.waist ?? parsed?.waist ?? '-') }cm</Text>
+                <Text className="text-lg font-extrabold">
+                  {mapped.display.waist ?? '-'}
+                </Text>
               </View>
             </View>
+
             <View className="absolute top-24 right-4">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={fadedStyle(mapped.display.hip)}
+              >
                 <Text className="text-xs text-gray-800">Hông</Text>
-                <Text className="text-lg font-extrabold">{(parsed?.measurements?.hip ?? display.hip ?? parsed?.hip ?? '-') }cm</Text>
+                <Text className="text-lg font-extrabold">
+                  {mapped.display.hip ?? '-'}
+                </Text>
               </View>
             </View>
+
             <View className="absolute bottom-9 left-7">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={fadedStyle(mapped.display.thigh)}
+              >
                 <Text className="text-xs text-gray-800">Đùi</Text>
-                <Text className="text-lg font-extrabold">{(parsed?.measurements?.thigh ?? display.thigh ?? (parsed?.metadata && parsed.metadata.thigh ? Math.round(parsed.metadata.thigh) : null) ?? '-') }cm</Text>
+                <Text className="text-lg font-extrabold">
+                  {mapped.display.thigh ?? '-'}
+                </Text>
               </View>
             </View>
+
             <View className="absolute top-9 right-7">
-              <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+              <View
+                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
+                style={fadedStyle(mapped.display.bicep)}
+              >
                 <Text className="text-xs text-gray-800">Bắp tay</Text>
-                <Text className="text-lg font-extrabold">{(parsed?.measurements?.bicep ?? display.bicep ?? '-') }cm</Text>
+                <Text className="text-lg font-extrabold">
+                  {mapped.display.bicep ?? '-'}
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* HEALTH CARD */}
         <View className="bg-amber-100 rounded-xl p-4 mb-4">
-          <Text className="text-base font-semibold mb-2">Chỉ số sức khỏe</Text>
+          <Text className="text-base font-semibold mb-2">
+            Chỉ số sức khỏe
+          </Text>
+
           <View className="flex-row justify-between items-center">
-            <Text className="text-sm text-gray-700">Waist-to-Hip Ratio</Text>
+            <Text className="text-sm text-gray-700">
+              Waist-to-Hip Ratio
+            </Text>
+
             <Text className="text-xl font-extrabold">{whr ?? '-'}</Text>
           </View>
         </View>
 
-        {/* DETAIL TILES */}
         <Text className="text-lg font-extrabold mb-3">Số đo chi tiết</Text>
+
         <View className="flex-row flex-wrap -m-2">
-          {[
-            { key: 'bust', label: 'Ngực' },
-            { key: 'waist', label: 'Eo' },
-            { key: 'hip', label: 'Hông' },
-            { key: 'bicep', label: 'Bắp tay' },
-            { key: 'thigh', label: 'Đùi' },
-            { key: 'calf', label: 'Bắp chân' },
-          ].map((t) => {
-            const cur = getDetailValue(t.key as any);
-            return (
-              <View key={t.key} className="w-1/2 p-2">
-                <View className="bg-background-sub2 rounded-xl p-4 shadow">
-                  <Text className="text-sm text-gray-700">{t.label}</Text>
-                  <View className="flex-row items-baseline justify-between mt-2">
-                    <Text className="text-2xl font-extrabold">{cur ?? '-'}cm</Text>
-                    <Text className="text-sm text-gray-500">&nbsp;</Text>
-                  </View>
+          {detailItems.map((item) => (
+            <View key={item.key} className="w-1/2 p-2">
+              <View
+                className="bg-background-sub2 rounded-xl p-4 shadow"
+                style={fadedStyle(item.value)}
+              >
+                <Text className="text-sm text-gray-700">{item.label}</Text>
+
+                <View className="flex-row items-baseline justify-between mt-2">
+                  <Text className="text-2xl font-extrabold">
+                    {item.value ?? '-'}
+                  </Text>
+
+                  <Text className="text-sm text-gray-500">&nbsp;</Text>
                 </View>
               </View>
-            );
-          })}
+            </View>
+          ))}
         </View>
-
-        {/* BODYGRAM METADATA: show only bodyComposition (Vietnamese labels). If none, do not render. */}
-        
-
-        {/* MEASUREMENTS: improved card grid for metadata.measurements */}
-        {Array.isArray(parsed?.metadata?.measurements) && parsed.metadata.measurements.length > 0 ? (
-          <View className="bg-white rounded-xl p-4 my-4">
-            <Text className="text-base font-semibold mb-3">Tất cả số đo (BodyGram)</Text>
-
-            {/* prepare measurements for display */}
-            {(() => {
-              const list: any[] = parsed.metadata.measurements || [];
-              const formatted = list.map((m: any, i: number) => {
-                const rawName = m.name ?? m.key ?? `#${i+1}`;
-                const unit = (m.unit ?? '').toString().toLowerCase();
-                const rawVal = m.value ?? m.value_mm ?? m.value_cm ?? m.cm ?? m.mm ?? m.g ?? m.value_g ?? m.value_kg ?? null;
-                let displayVal = '-';
-                if (rawVal != null) {
-                  const num = Number(rawVal);
-                  if (!isNaN(num)) {
-                    // compact unit formatting (no space) to match design: e.g. 77cm
-                    if (unit === 'mm') displayVal = `${Math.round(num / 10)}cm`;
-                    else if (unit === 'cm') displayVal = `${Math.round(num)}cm`;
-                    else if (unit === 'g') displayVal = `${(num / 1000).toFixed(2)}kg`;
-                    else if (unit === 'kg') displayVal = `${num}kg`;
-                    else displayVal = `${rawVal}${m.unit ? ` ${m.unit}` : ''}`;
-                  } else {
-                    displayVal = String(rawVal);
-                  }
-                }
-                return { rawName, label: formatMeasurementName(rawName), displayVal };
-              });
-
-              // prioritize common measurements first
-              const priority = ['Ngực', 'Eo', 'Hông', 'Đùi', 'Bắp tay', 'Bắp chân', 'Vai', 'Cổ', 'Cẳng tay', 'Cổ tay'];
-              formatted.sort((a, b) => {
-                const ia = priority.indexOf(a.label);
-                const ib = priority.indexOf(b.label);
-                if (ia === -1 && ib === -1) return 0;
-                if (ia === -1) return 1;
-                if (ib === -1) return -1;
-                return ia - ib;
-              });
-
-              return (
-                <View style={styles.measurementsGrid}>
-                  {formatted.map((it, idx) => (
-                    <View key={idx} style={styles.measurementCard}>
-                      <View style={styles.measurementInner}>
-                        <Text style={styles.measurementLabel}>{it.label}</Text>
-                        <Text style={styles.measurementValue}>{it.displayVal}</Text>
-                        <Text style={styles.measurementRaw}>{it.rawName}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              );
-            })()}
-          </View>
-        ) : null}
-
-         <Toast visible={toastVisible} message={toastMsg} type={toastType} onHidden={() => setToastVisible(false)} />
-
-        {/* ACTION: Save and return to MainTabs */}
-        <View className="mt-6 mb-8">
-          <TouchableOpacity
-            onPress={async () => {
-              setSaving(true);
-              try {
-                const entry = rawResponse?.entry ?? rawResponse ?? {};
-                const bodyGramForApi: any = { ...entry, measurements: parsed.measurements ?? display };
-                bodyGramForApi.input = bodyGramForApi.input ?? parsed.metadata?.input ?? { source: 'inbody' };
-
-                // 1) Create trainee profile skipped for InBodyResult (skipCreateTrainee: true)
-                try {
-                  // best-effort: don't create trainee here
-                } catch { /* noop */ }
-
-                // 2) Submit personal injuries (removed - not needed here)
-
-                // 3) Submit health profile
-                const hRes = await submitHealthProfile(bodyGramForApi, 'InBody');
-                setSaving(false);
-                if (hRes.ok) {
-                  Alert.alert('Thành công', 'Lưu hồ sơ thành công', [{ text: 'OK', onPress: () => { (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] }); } }]);
-                } else {
-                  console.warn('submitHealthProfile (InBodyResult) error', hRes.error);
-                  Alert.alert('Lỗi', typeof hRes.error === 'string' ? hRes.error : JSON.stringify(hRes.error));
-                }
-              } catch (e: any) {
-                setSaving(false);
-                console.error('Saving InBody result error', e);
-                Alert.alert('Lỗi', e?.message ?? String(e));
-              }
-            }}
-            style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]}
-            disabled={saving}
-          >
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Lưu và về trang chính</Text>}
-          </TouchableOpacity>
-        </View>
-
-       </ScrollView>
-
-       
-     </SafeAreaView>
-   );
- }
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff' },
-  headerButton: { padding: 8 },
-  headerButtonText: { color: '#333' },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
-  headerTitleCenter: { textAlign: 'center', flex: 1 },
-  scrollContent: { paddingBottom: 140 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: 'transparent' },
-  metaAvatar: { width: 120, height: 120, borderRadius: 8, marginBottom: 8 },
-  metaRawBox: { maxHeight: 120, backgroundColor: '#f8fafc', padding: 8, borderRadius: 6 },
-  metaRawText: { fontSize: 12, color: '#374151' },
-  measurementsGrid: {
+  header: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  measurementCard: {
-    backgroundColor: '#FDEFD8', // warm peach
-    borderRadius: 12,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    marginBottom: 12,
-    width: '48%',
-    shadowColor: '#f1e7dc',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  measurementInner: {
-    alignItems: 'flex-start',
-    minHeight: 72,
-  },
-  measurementLabel: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 6,
-    textTransform: 'none',
-  },
-  measurementValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  measurementRaw: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 6,
-  },
-  saveBtn: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#fff',
   },
-  saveBtnDisabled: {
-    opacity: 0.6,
+  headerButton: {
+    padding: 8,
   },
-  saveBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerTitleCenter: {
+    textAlign: 'center',
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  fadedItem: {
+    opacity: 0.35,
   },
 });

@@ -120,8 +120,8 @@ const VideoCall = (props: Props) => {
         const endId = id ? id.replace(/^"|"$/g, '') : null;
         const base = api?.defaults?.baseURL
           ? String(api.defaults.baseURL).replace(/\/api\/?$/, '')
-          : 'http://192.168.2.22:8080';
-        const wsUrl = `http://192.168.2.22:8080/ws/heartrate`;
+          : 'http://192.168.2.28:8080';
+        const wsUrl = `http://192.168.2.28:8080/ws/heartrate`;
 
         hrConnect({ url: wsUrl, token: token ?? undefined, useSockJS: true });
 

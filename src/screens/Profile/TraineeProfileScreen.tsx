@@ -8,8 +8,7 @@ import ProfileHeader from './components/ProfileHeader';
 import SettingList from './components/SettingList';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-
+import Ionicons from '@react-native-vector-icons/ionicons';
 const localStyles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF6EE' },
   scrollPadding: { paddingBottom: 40 },

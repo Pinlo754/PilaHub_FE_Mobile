@@ -19,7 +19,7 @@ export default function SubscriptionSuccessScreen() {
       <Text style={styles.subtitle}>{packageName ? `Bạn đã đăng ký: ${packageName}` : 'Giao dịch đã hoàn tất.'}</Text>
 
       <View style={styles.actionsWrap}>
-        <TouchableOpacity onPress={() => navigation.navigate('Plan' as never)} style={styles.viewOrderBtn}>
+        <TouchableOpacity onPress={() => navigation.navigate('UpgradePlan' as never)} style={styles.viewOrderBtn}>
           <Text style={styles.viewOrderText}>Quay lại Gói</Text>
         </TouchableOpacity>
 
