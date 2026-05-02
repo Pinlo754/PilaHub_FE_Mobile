@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
 import { useVideoPlayer } from '../../../../hooks/useVideoPlayer';
+import Orientation from 'react-native-orientation-locker';
 
 const { height } = Dimensions.get('window');
 
@@ -15,11 +16,18 @@ export default function VideoPlayer({ source, onBack }: Props) {
   // HOOOK
   const player = useVideoPlayer({});
 
+  useEffect(() => {
+    Orientation.lockToLandscape();
+
+    return () => {
+      Orientation.lockToPortrait();
+    };
+  }, []);
+
   return (
     <View className="w-full" style={{ height: height }}>
       <VideoSurface
         videoRef={player.videoRef}
-        pipVideoRef={player.pipVideoRef}
         source={source}
         paused={player.paused}
         onLoad={d => player.setDuration(d.duration)}

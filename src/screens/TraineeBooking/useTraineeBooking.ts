@@ -219,6 +219,10 @@ export const useTraineeBooking = () => {
     setShowErrorModal(false);
   };
 
+  const handleRefresh = async () => {
+    await fetchData();
+  };
+
   // EFFECT
   useEffect(() => {
     fetchData();
@@ -253,5 +257,6 @@ export const useTraineeBooking = () => {
     closeReportDetail,
     selectedReport,
     reportMap,
+    handleRefresh,
   };
 };

@@ -822,4 +822,3 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     </View>
   );
 };
-

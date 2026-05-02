@@ -57,24 +57,41 @@ const CardExercise = ({ item, onPress }: Props) => {
             </View>
           </View>
         </View>
-        {/* Require Equipment */}
-        <View className="flex-row items-center gap-1">
-          {/* <Ionicons
-            name="barbell-outline"
-            size={22}
-            color={colors.secondaryText}
-          /> */}
-          <Text className="color-secondaryText font-medium">Dụng cụ tập:</Text>
 
-          <Ionicons
-            name={item.equipmentRequired ? 'checkmark-circle' : 'close-circle'}
-            size={20}
-            color={
-              item.equipmentRequired
-                ? colors.success.DEFAULT
-                : colors.danger.DEFAULT
-            }
-          />
+        <View className="flex-row items-center gap-4">
+          {/* Require Equipment */}
+          <View className="flex-row items-center gap-1">
+            <Text className="color-secondaryText font-medium">
+              Dụng cụ tập:
+            </Text>
+
+            <Ionicons
+              name={
+                item.equipmentRequired ? 'checkmark-circle' : 'close-circle'
+              }
+              size={20}
+              color={
+                item.equipmentRequired
+                  ? colors.success.DEFAULT
+                  : colors.danger.DEFAULT
+              }
+            />
+          </View>
+
+          {/* AI */}
+          <View className="flex-row items-center gap-1">
+            <Text className="color-secondaryText font-medium">Hỗ trợ AI:</Text>
+
+            <Ionicons
+              name={item.haveAIsupported ? 'checkmark-circle' : 'close-circle'}
+              size={20}
+              color={
+                item.haveAIsupported
+                  ? colors.success.DEFAULT
+                  : colors.danger.DEFAULT
+              }
+            />
+          </View>
         </View>
       </View>
     </Pressable>

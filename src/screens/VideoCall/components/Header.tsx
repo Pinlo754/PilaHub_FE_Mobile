@@ -27,14 +27,14 @@ const Header = ({ openInstructModal }: Props) => {
       </Pressable>
 
       {/* Metric Section */}
-      <View className="py-4 flex-row justify-between">
-        {/* Time */}
+      {/* <View className="py-4 flex-row justify-between">
+   
         <View className="flex-row items-center gap-2">
           <Ionicons name="time-outline" size={26} color={colors.foreground} />
           <Text className="color-foreground font-medium">02:35</Text>
         </View>
 
-        {/* Heart Rate */}
+     
         <View className="flex-row items-center gap-2">
           <Ionicons
             name="fitness-outline"
@@ -46,7 +46,7 @@ const Header = ({ openInstructModal }: Props) => {
             <Text className="color-secondaryText text-sm font-medium">bpm</Text>
           </Text>
         </View>
-      </View>
+      </View> */}
     </View>
   );
 };

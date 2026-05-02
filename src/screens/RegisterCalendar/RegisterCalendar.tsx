@@ -54,6 +54,7 @@ const RegisterCalendar = (props: Props) => {
     coachDetail,
     handleSearch,
     searchQuery,
+    isInsufficientBalance,
   } = useRegisterCalendar({
     route: props.route,
     navigation: props.navigation,
@@ -121,6 +122,7 @@ const RegisterCalendar = (props: Props) => {
                 totalPrice={totalPrice}
                 totalHours={totalHours}
                 pricePerHour={pricePerHour || 0}
+                isInsufficientBalance={isInsufficientBalance}
               />
             </>
           )}

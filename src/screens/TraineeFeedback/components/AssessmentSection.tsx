@@ -1,6 +1,7 @@
 import { ScrollView, Text, TextInput, View } from 'react-native';
 import { AssessmentCriterionType } from '../../../utils/AssessmentCriterionType';
 import { colors } from '../../../theme/colors';
+import { useState } from 'react';
 
 type Props = {
   criteria: AssessmentCriterionType[];
@@ -9,6 +10,8 @@ type Props = {
 };
 
 const AssessmentSection = ({ criteria, scores, onScoreChange }: Props) => {
+  const [commaError, setCommaError] = useState<Record<string, boolean>>({});
+
   const validateScore = (value: string) => {
     if (value === '') return true;
     const num = parseFloat(value);
@@ -50,9 +53,20 @@ const AssessmentSection = ({ criteria, scores, onScoreChange }: Props) => {
               <Text className="color-secondaryText text-sm mr-2">Điểm:</Text>
               <TextInput
                 value={value}
-                onChangeText={text =>
-                  onScoreChange(criterion.assessmentCriterionId, text)
-                }
+                onChangeText={text => {
+                  if (text.includes(',')) {
+                    setCommaError(prev => ({
+                      ...prev,
+                      [criterion.assessmentCriterionId]: true,
+                    }));
+                    return;
+                  }
+                  setCommaError(prev => ({
+                    ...prev,
+                    [criterion.assessmentCriterionId]: false,
+                  }));
+                  onScoreChange(criterion.assessmentCriterionId, text);
+                }}
                 keyboardType="decimal-pad"
                 placeholder="1 - 10"
                 placeholderTextColor={colors.inactive[80]}
@@ -60,9 +74,11 @@ const AssessmentSection = ({ criteria, scores, onScoreChange }: Props) => {
                   isError ? 'border-red-500' : 'border-foreground'
                 }`}
               />
-              {isError && (
+              {(isError || commaError[criterion.assessmentCriterionId]) && (
                 <Text className="color-red-500 text-xs ml-2">
-                  Nhập từ 1 đến 10
+                  {commaError[criterion.assessmentCriterionId]
+                    ? 'Không được dùng dấu phẩy (,)'
+                    : 'Nhập từ 1 đến 10'}
                 </Text>
               )}
             </View>

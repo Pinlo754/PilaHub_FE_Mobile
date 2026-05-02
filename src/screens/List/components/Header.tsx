@@ -13,7 +13,7 @@ const Header = ({ navigation }: Props) => {
     <View className="px-4 pb-2">
       {/* Title */}
       <Text className="color-foreground text-3xl font-bold text-center">
-        Danh sách của tôi
+        Khóa học của tôi
       </Text>
 
       {/* Search */}

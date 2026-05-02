@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import ImageProgram from './components/ImageProgram';
@@ -12,6 +12,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 import Button from '../../components/Button';
 import ModalPopup from '../../components/ModalPopup';
 import ScheduleModal from './components/ScheduleModal';
+import ResetScheduleModal from './components/ResetScheduleModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProgramDetail'>;
 
@@ -44,6 +45,14 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     activePackage,
     source,
     onPressBack,
+    showResetSchedule,
+    closeResetSchedule,
+    openResetSchedule,
+    handleSelectResetDay,
+    resetSelectedDays,
+    onPressConfirmReset,
+    isFromList,
+    isInsufficientBalance,
   } = useProgramDetail({
     route,
     navigation,
@@ -60,7 +69,12 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
   return (
     <View className="w-full flex-1 bg-background">
       {/* Header */}
-      <Header navigation={navigation} onPressBack={onPressBack} />
+      <Header
+        navigation={navigation}
+        onPressBack={onPressBack}
+        showResetButton={!!isFromList}
+        onPressReset={openResetSchedule}
+      />
       <ImageProgram
         imgUrl={programDetail.imageUrl}
         programName={programDetail.name}
@@ -89,13 +103,19 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
 
       {!isEnrolled ? (
         <View className="pt-2 mx-4 pb-6">
+          {isInsufficientBalance && (
+            <Text className="text-danger-darker text-center mb-2">
+              Số dư ví không đủ để đăng ký khóa học. Vui lòng nạp thêm.
+            </Text>
+          )}
           <Button
             text="Đăng ký khóa học"
             onPress={onPress}
-            colorType="sub1"
+            colorType={isInsufficientBalance ? 'grey' : 'sub1'}
             rounded="full"
             iconName="log-in-outline"
             iconSize={26}
+            disabled={isInsufficientBalance}
           />
         </View>
       ) : (
@@ -118,6 +138,15 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         handleSelectDay={handleSelectDay}
         selectedDays={selectedDays}
         onPressRegister={onPressRegister}
+      />
+
+      {/* Reset Schedule Modal */}
+      <ResetScheduleModal
+        visible={showResetSchedule}
+        onClose={closeResetSchedule}
+        handleSelectDay={handleSelectResetDay}
+        selectedDays={resetSelectedDays}
+        onPressReset={onPressConfirmReset}
       />
 
       {/* Confirm Modal */}

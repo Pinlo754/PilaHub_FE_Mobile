@@ -3,7 +3,7 @@ import utc from 'dayjs/plugin/utc';
 import { CoachTimeOffType } from '../utils/CoachTimeOffType';
 import { getWeekStart } from './day';
 import { timeToMinutes } from './time';
-import { BookingSlot } from './CoachBookingType';
+import { BookingSlot, BusyTimeSlotRes } from './CoachBookingType';
 
 dayjs.extend(utc);
 
@@ -171,4 +171,70 @@ export const generateCoachSchedule = (
   }
 
   return result;
+};
+
+/**
+ * Generate schedule từ BusyTimeSlotRes[]
+ */
+export const generateCoachScheduleFromBusy = (
+  busySlots: BusyTimeSlotRes[],
+  startDate: Date,
+  days: number = 7,
+): DaySchedule[] => {
+  const result: DaySchedule[] = [];
+
+  const weekStart = getWeekStart(dayjs(startDate));
+
+  for (let i = 0; i < days; i++) {
+    const date = weekStart.add(i, 'day');
+
+    // Lọc busy slot thuộc ngày này
+    const dayBusy = busySlots.filter(slot => {
+      const start = dayjs(slot.startTime).local();
+      const end = dayjs(slot.endTime).local();
+
+      return (
+        start.isBefore(date.endOf('day')) && end.isAfter(date.startOf('day'))
+      );
+    });
+
+    // Convert sang Range (local time HH:mm)
+    const ranges: Range[] = dayBusy.map(slot => ({
+      startTime: dayjs(slot.startTime).local().format('HH:mm'),
+      endTime: dayjs(slot.endTime).local().format('HH:mm'),
+    }));
+
+    const slots = generateDaySlotsFromRanges(date, ranges);
+
+    result.push({
+      date: date.format('YYYY-MM-DD'),
+      slots,
+    });
+  }
+
+  return result;
+};
+
+/**
+ * Generate slot cho 1 ngày từ busy ranges (dùng chung logic)
+ */
+const generateDaySlotsFromRanges = (
+  date: dayjs.Dayjs,
+  ranges: Range[],
+): HourSlot[] => {
+  const slots: HourSlot[] = [];
+
+  const isToday = date.isSame(dayjs(), 'day');
+  const startHour = isToday ? Math.max(6, getTodayStartHour()) : 6;
+
+  for (let hour = startHour; hour < 20; hour++) {
+    const start = `${hour.toString().padStart(2, '0')}:00`;
+    const end = `${(hour + 1).toString().padStart(2, '0')}:00`;
+
+    if (!isSlotBusy(start, end, ranges)) {
+      slots.push({ start, end });
+    }
+  }
+
+  return slots;
 };

@@ -45,6 +45,7 @@ const TraineeBooking = (props: Props) => {
     openReportDetail,
     closeReportDetail,
     selectedReport,
+    handleRefresh,
   } = useTraineeBooking();
 
   return (
@@ -53,7 +54,11 @@ const TraineeBooking = (props: Props) => {
 
       <View className="flex-1 pt-14 bg-background">
         {/* Header */}
-        <Header navigation={props.navigation} openReportList={openReportList} />
+        <Header
+          navigation={props.navigation}
+          openReportList={openReportList}
+          handleRefresh={handleRefresh}
+        />
 
         {/* Tabs */}
         <Tabs tabId={activeTab} onChange={onChangeTab} />
