@@ -1,4 +1,4 @@
-import { Pressable, StatusBar, Text, View } from 'react-native';
+import { Pressable, StatusBar, Text, View, DeviceEventEmitter } from 'react-native';
 import Header from './components/Header';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -7,7 +7,7 @@ import ImageExercise from './components/ImageExercise';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import InstructModal from './components/InstructModal';
 import AITracking from '../AITracking/AITracking';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useBle } from '../../services/BleProvider';
 import ViewShot from 'react-native-view-shot';
 import AITracking1 from '../AITracking1/AITracking';
@@ -28,6 +28,10 @@ const AIPracticeTimeout = (props: Props) => {
     workoutSessionId,
     nameAITracking,
     timeout,
+    autoStart,
+    skipSummary,
+    scheduleFlowIndex,
+    scheduleFlowPersonalExerciseId,
   } = useAIPracticeTimeout({ route: props.route });
   const [feedback, setFeedback] = useState({
     status: 'Ready',
@@ -64,6 +68,17 @@ const AIPracticeTimeout = (props: Props) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleScheduleFlowComplete = useCallback(() => {
+    if (!skipSummary) return;
+    DeviceEventEmitter.emit('scheduleFlowAIExerciseCompleted', {
+      scheduleFlowIndex,
+      scheduleFlowPersonalExerciseId,
+    });
+    if (props.navigation.canGoBack()) {
+      props.navigation.goBack();
+    }
+  }, [skipSummary, scheduleFlowIndex, scheduleFlowPersonalExerciseId, props.navigation]);
 
   return (
     <View className="flex-1 bg-background pt-14">
@@ -108,6 +123,11 @@ const AIPracticeTimeout = (props: Props) => {
               onFeedback={setFeedback}
               captureMistakeImage={captureMistakeImage}
               nameAITracking={nameAITracking}
+              autoStart={autoStart}
+              autoStopAfterSeconds={timeout}
+              onSessionComplete={handleScheduleFlowComplete}
+              scheduleFlowIndex={scheduleFlowIndex}
+              scheduleFlowPersonalExerciseId={scheduleFlowPersonalExerciseId}
             />
           ) : (
             <AITracking1
@@ -115,6 +135,11 @@ const AIPracticeTimeout = (props: Props) => {
               onFeedback={setFeedback}
               captureMistakeImage={captureMistakeImage}
               nameAITracking={nameAITracking}
+              autoStart={autoStart}
+              autoStopAfterSeconds={timeout}
+              onSessionComplete={handleScheduleFlowComplete}
+              scheduleFlowIndex={scheduleFlowIndex}
+              scheduleFlowPersonalExerciseId={scheduleFlowPersonalExerciseId}
             />
           )}
         </View>

@@ -89,6 +89,7 @@ const OverviewSection = ({
           activePackage={activePackage}
           haveAIsupported={exerciseDetail.haveAIsupported}
           hasAccess={hasAccess}
+          canPractice={canPractice}
           isFromList={isFromList}
           isFromSearch={isFromSearch}
         />

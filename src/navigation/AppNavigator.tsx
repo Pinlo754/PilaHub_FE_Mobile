@@ -198,6 +198,10 @@ export type RootStackParamList = {
     workoutSessionId: string;
     nameAITracking: string;
     timeout: number;
+    autoStart?: boolean;
+    skipSummary?: boolean;
+    scheduleFlowIndex?: number;
+    scheduleFlowPersonalExerciseId?: string;
   };
   AITracking: {
     workoutSessionId: string;
@@ -227,10 +231,17 @@ export type RootStackParamList = {
   TraineeBooking: undefined;
   SchedulePlayer:
     | {
-        queue: { ex: any; videoSrc?: string | null }[];
+        queue: {
+          ex: any;
+          videoSrc?: string | null;
+          isAiSupported?: boolean;
+          durationSeconds?: number;
+          restSeconds?: number;
+        }[];
         startIndex?: number;
         scheduleId?: string;
         title?: string;
+        aiFlow?: boolean;
       }
     | undefined;
   CreatePostScreen: undefined;

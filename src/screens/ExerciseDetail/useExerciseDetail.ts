@@ -673,6 +673,12 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const onPressAIPractice = async () => {
     if (!exerciseDetail || !tutorial) return;
 
+    if (!exerciseDetail.haveAIsupported || !exerciseDetail.nameInModelAI?.trim()) {
+      // Nếu bài không hỗ trợ AI, chuyển về self-practice
+      await onPressPractice();
+      return;
+    }
+
     if (activePackage !== PackageType.VIP_MEMBER) {
       openRecommendModal(
         'Tính năng này chỉ dành cho gói VIP. Bạn có muốn tham khảo thử không?',
@@ -692,7 +698,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       imgUrl: exerciseDetail.imageUrl,
       videoUrl: tutorial.practiceVideoUrl,
       workoutSessionId: session.workoutSessionId,
-      nameAITracking: exerciseDetail.nameInModelAI || "",
+      nameAITracking: exerciseDetail.nameInModelAI || '',
     });
   };
 

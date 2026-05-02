@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, DeviceEventEmitter, Sc
 import Ionicons from '@react-native-vector-icons/ionicons';
 import api from '../../../hooks/axiosInstance';
 import { tutorialService } from '../../../hooks/tutorial.service';
+import { workoutSessionService } from '../../../hooks/workoutSession.service';
 import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
@@ -175,11 +176,94 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     return src;
   };
 
+  const getExerciseObject = (ex: any) => {
+    return ex?.exercise ?? ex;
+  };
+
+  const supportsAI = (ex: any) => {
+    const item = getExerciseObject(ex);
+    return Boolean(
+      item?.haveAIsupported ||
+      item?.nameInModelAI ||
+      item?.haveAiSupported ||
+      item?.name_in_model_ai,
+    );
+  };
+
+  const startAiExercise = async (ex: any) => {
+    if (!aiAllowed) {
+      setToastMessage('Tính năng AI chỉ dành cho hội viên VIP');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    if (!supportsAI(ex)) {
+      await startSingleExercise(ex);
+      return;
+    }
+
+    const actual = getExerciseObject(ex);
+    const exerciseId =
+      actual?.exerciseId ?? actual?.id ?? actual?.exercise_id ?? actual?.exerciseIdRaw ?? null;
+    if (!exerciseId) {
+      setToastMessage('Không xác định được ID bài tập');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    try {
+      const session = await workoutSessionService.startFreeWorkout({
+        exerciseId: String(exerciseId),
+        haveAITracking: true,
+        haveIOTDeviceTracking: true,
+      });
+
+      const videoUrl = await resolveExerciseVideo(ex);
+      const nameAITracking =
+        actual?.nameInModelAI ?? actual?.name_in_model_ai ?? '';
+
+      if (!session?.workoutSessionId) {
+        throw new Error('Không tạo được phiên AI');
+      }
+
+      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
+
+      const timeout = Math.max(
+        5,
+        Number(actual?.durationSeconds ?? actual?.duration ?? 0) || 5,
+      );
+
+      navigation.navigate('AIPracticeTimeout', {
+        exercise_id: String(exerciseId),
+        imgUrl: actual?.imageUrl ?? actual?.image ?? '',
+        videoUrl: videoUrl ?? '',
+        workoutSessionId: session.workoutSessionId,
+        nameAITracking: nameAITracking,
+        timeout,
+        autoStart: true,
+        skipSummary: true,
+      });
+    } catch (err) {
+      console.warn('[ScheduleDetail] startAiExercise failed', err);
+      setToastMessage('Không thể bắt đầu AI Practice. Vui lòng thử lại');
+      setToastType('error');
+      setToastVisible(true);
+    }
+  };
+
   const buildQueue = async (exercises: any[]) => {
     const queue: any[] = [];
     for (const ex of exercises) {
       const videoSrc = await resolveExerciseVideo(ex);
-      queue.push({ ex, videoSrc });
+      queue.push({
+        ex,
+        videoSrc,
+        isAiSupported: supportsAI(ex),
+        durationSeconds: Math.max(0, Number(ex.durationSeconds ?? ex.duration ?? 0) || 0),
+        restSeconds: Math.max(0, Number(ex.restSeconds ?? ex.rest ?? 0) || 0),
+      });
     }
     return queue;
   };
@@ -263,20 +347,34 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
       return;
     }
 
-    // Luôn lấy bài tiếp theo theo chuẩn trình tự khóa
-    const firstEx = (localExercises || []).find(
-      (ex: any) => !ex.locked && !ex.completed && (ex.exerciseId ?? ex.id ?? ex.exercise_id)
-    );
+    const normalized = normalizeExercises(localExercises);
+    const exercisesToPlay = normalized
+      .filter((ex: any) => ex.completed !== true)
+      .sort((a: any, b: any) => {
+        const orderA = Number(a.exerciseOrder ?? 9999);
+        const orderB = Number(b.exerciseOrder ?? 9999);
+        return orderA - orderB;
+      });
 
-    if (!firstEx) {
-      setToastMessage('Không có bài tập khả dụng để tập với AI');
-      setToastType('info');
+    if (exercisesToPlay.length === 0) {
+      setToastMessage('Bạn đã hoàn thành tất cả bài tập hôm nay');
+      setToastType('success');
       setToastVisible(true);
       return;
     }
 
-    const eid = firstEx.exerciseId ?? firstEx.id ?? firstEx.exercise_id;
-    navigation.navigate('ExerciseDetail', { exercise_id: eid });
+    const queue = await buildQueue(exercisesToPlay);
+    const scheduleId = getScheduleId();
+
+    if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
+
+    navigation.navigate('SchedulePlayer', {
+      queue,
+      startIndex: 0,
+      scheduleId,
+      title: schedule.scheduleName,
+      aiFlow: true,
+    });
   };
 
   return (
@@ -403,10 +501,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                         className={`px-3 py-1 rounded-md ${ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'}`}
                         activeOpacity={0.8}
                         disabled={ex.locked}
-                        onPress={() => {
-                          const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
-                          if (eid) navigation.navigate('ExerciseDetail', { exercise_id: eid });
-                        }}
+                        onPress={() => startAiExercise(ex)}
                       >
                         <Text style={ex.locked ? modalStyles.aiSmallBtnTextDisabled : modalStyles.aiSmallBtnText}>
                           Tập với AI

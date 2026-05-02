@@ -11,7 +11,18 @@ export const useAIPracticeTimeout = ({ route }: Props) => {
   const TIMEOUT = 3000;
 
   // PARAM
-  const { exercise_id, imgUrl, videoUrl, workoutSessionId, nameAITracking, timeout } = route.params;
+  const {
+    exercise_id,
+    imgUrl,
+    videoUrl,
+    workoutSessionId,
+    nameAITracking,
+    timeout,
+    autoStart,
+    skipSummary,
+    scheduleFlowIndex,
+    scheduleFlowPersonalExerciseId,
+  } = route.params;
 
   // STATE
   const [isVideoVisible, setIsVideoVisible] = useState<boolean>(false);
@@ -82,5 +93,9 @@ export const useAIPracticeTimeout = ({ route }: Props) => {
     workoutSessionId,
     nameAITracking,
     timeout,
+    autoStart,
+    skipSummary,
+    scheduleFlowIndex,
+    scheduleFlowPersonalExerciseId,
   };
 };
