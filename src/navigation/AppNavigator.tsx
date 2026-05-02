@@ -83,6 +83,7 @@ import ListChatScreen from '../screens/Chat/ListChatScreen';
 import TraineeDetailScreen from '../screens/Coach/TraineeList/TraineeDetail';
 import NotificationScreen from '../screens/Notifications/NotificationScreen';
 import DepositScreen from '../screens/Wallet/DepositScreen';
+import AIPracticeTimeout from '../screens/AIPracticeTimeout/AIPractice';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -190,6 +191,18 @@ export type RootStackParamList = {
     workoutSessionId: string;
     nameAITracking: string;
   };
+  AIPracticeTimeout: {
+    exercise_id: string;
+    imgUrl: string;
+    videoUrl: string;
+    workoutSessionId: string;
+    nameAITracking: string;
+    timeout: number;
+    autoStart?: boolean;
+    skipSummary?: boolean;
+    scheduleFlowIndex?: number;
+    scheduleFlowPersonalExerciseId?: string;
+  };
   AITracking: {
     workoutSessionId: string;
     onFeedback: (data: { status: string; detail: string }) => void;
@@ -218,10 +231,17 @@ export type RootStackParamList = {
   TraineeBooking: undefined;
   SchedulePlayer:
     | {
-        queue: { ex: any; videoSrc?: string | null }[];
+        queue: {
+          ex: any;
+          videoSrc?: string | null;
+          isAiSupported?: boolean;
+          durationSeconds?: number;
+          restSeconds?: number;
+        }[];
         startIndex?: number;
         scheduleId?: string;
         title?: string;
+        aiFlow?: boolean;
       }
     | undefined;
   CreatePostScreen: undefined;
@@ -382,6 +402,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="TraineeReport" component={TraineeReport} />
             <Stack.Screen name="AISummary" component={AISummary} />
             <Stack.Screen name="AIPractice" component={AIPractice} />
+            <Stack.Screen name="AIPracticeTimeout" component={AIPracticeTimeout} />
 
             <Stack.Screen
               name="CoachProfileScreen"

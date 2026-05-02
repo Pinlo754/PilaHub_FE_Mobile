@@ -666,7 +666,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                             </View>
 
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.sheetLabel}>Reps</Text>
+                                <Text style={styles.sheetLabel}>Duration</Text>
                                 <TextInput
                                     style={styles.input}
                                     value={reps}

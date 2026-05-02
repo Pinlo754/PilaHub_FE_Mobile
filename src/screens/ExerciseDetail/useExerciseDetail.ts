@@ -686,8 +686,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const onPressAIPractice = async () => {
     if (!exerciseDetail || !tutorial) return;
 
-    if (exerciseDetail.haveAIsupported === false) {
-      openNotiModal('Bài tập này chưa được hỗ trợ AI!');
+    if (!exerciseDetail.haveAIsupported || !exerciseDetail.nameInModelAI?.trim()) {
+      // Nếu bài không hỗ trợ AI, chuyển về self-practice
+      await onPressPractice();
       return;
     }
 

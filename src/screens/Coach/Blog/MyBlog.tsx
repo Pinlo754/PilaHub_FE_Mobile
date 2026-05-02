@@ -52,7 +52,7 @@ export const MyBlogScreen = () => {
     const [activePostId, setActivePostId] = useState<string | null>(null);
     const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
     const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
-
+    const [isPaused, setIsPaused] = useState(true);
     /* ============================ 
    MODAL: TÙY CHỌN BÀI VIẾT (MORE OPTIONS)
    ============================ */
@@ -237,13 +237,24 @@ export const MyBlogScreen = () => {
 
                     if (media.mediaType === "VIDEO") {
                         return (
-                            <Video
-                                source={{ uri: media.mediaUrl }}
-                                className="w-full h-72 bg-black"
-                                resizeMode="cover"
-                                controls
-                                paused={true} // chỉ play khi user bấm
-                            />
+                            <View className="w-full h-72 bg-gray-900 justify-center items-center">
+                                <Video
+                                    source={{ uri: media.mediaUrl }}
+                                    style={{ width: '100%', height: 270 }} // Do not rely on layout logic here, use fixed numbers first
+                                    resizeMode="contain" // Use 'contain' to ensure video isn't being cropped out of existence
+                                    controls = {true}
+                                />
+
+                                {/* Nút Play hiển thị đè lên khi video đang pause */}
+                                {isPaused && (
+                                    <TouchableOpacity
+                                        className="absolute bg-black/40 p-4 rounded-full"
+                                        onPress={() => setIsPaused(false)}
+                                    >
+                                        <Ionicons name="play" size={40} color="white" />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         );
                     }
 
