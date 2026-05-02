@@ -58,6 +58,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [wallet, setWallet] = useState<WalletType | null>(null);
   const [isInsufficientBalance, setIsInsufficientBalance] =
     useState<boolean>(false);
+  const [walletError, setWalletError] = useState<boolean>(false);
 
   // VARIABLE
   const isFromList = source === 'List';
@@ -249,6 +250,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const fetchWallet = async () => {
     try {
       const res = await WalletService.getMyWallet();
+      setWalletError(false);
       setWallet(res);
       if (programFullDetail) {
         setIsInsufficientBalance(
@@ -256,7 +258,8 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
         );
       }
     } catch (err: any) {
-      console.error('Fetch wallet error:', err);
+      // console.error('Fetch wallet error:', err);
+      setWalletError(true);
     }
   };
 
@@ -385,6 +388,9 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     setPendingReset({ startDate, mode });
   };
 
+  // CHECK
+  const isValid = !isInsufficientBalance && !walletError;
+
   // USE EFFECT
   useEffect(() => {
     if (!program_id) return;
@@ -450,5 +456,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     isFromList,
     wallet,
     isInsufficientBalance,
+    walletError,
+    isValid,
   };
 };

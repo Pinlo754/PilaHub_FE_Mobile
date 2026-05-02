@@ -55,6 +55,7 @@ const RegisterCalendar = (props: Props) => {
     handleSearch,
     searchQuery,
     isInsufficientBalance,
+    walletError,
   } = useRegisterCalendar({
     route: props.route,
     navigation: props.navigation,
@@ -123,6 +124,7 @@ const RegisterCalendar = (props: Props) => {
                 totalHours={totalHours}
                 pricePerHour={pricePerHour || 0}
                 isInsufficientBalance={isInsufficientBalance}
+                walletError={walletError}
               />
             </>
           )}
