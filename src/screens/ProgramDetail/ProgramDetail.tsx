@@ -53,6 +53,8 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     onPressConfirmReset,
     isFromList,
     isInsufficientBalance,
+    walletError,
+    isValid,
   } = useProgramDetail({
     route,
     navigation,
@@ -103,19 +105,25 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
 
       {!isEnrolled ? (
         <View className="pt-2 mx-4 pb-6">
-          {isInsufficientBalance && (
+          {isInsufficientBalance && !walletError && (
             <Text className="text-danger-darker text-center mb-2">
               Số dư ví không đủ để đăng ký khóa học. Vui lòng nạp thêm.
+            </Text>
+          )}
+
+          {walletError && (
+            <Text className="text-danger-darker font-medium text-center mb-2">
+              Bạn chưa mở ví để thanh toán!
             </Text>
           )}
           <Button
             text="Đăng ký khóa học"
             onPress={onPress}
-            colorType={isInsufficientBalance ? 'grey' : 'sub1'}
+            colorType={!isValid ? 'grey' : 'sub1'}
             rounded="full"
             iconName="log-in-outline"
             iconSize={26}
-            disabled={isInsufficientBalance}
+            disabled={!isValid}
           />
         </View>
       ) : (

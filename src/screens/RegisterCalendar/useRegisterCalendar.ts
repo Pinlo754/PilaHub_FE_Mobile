@@ -47,6 +47,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   const [wallet, setWallet] = useState<WalletType | null>(null);
   const [isInsufficientBalance, setIsInsufficientBalance] =
     useState<boolean>(false);
+  const [walletError, setWalletError] = useState<boolean>(false);
 
   // MODAL + LOADING
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -140,9 +141,11 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     try {
       const res = await WalletService.getMyWallet();
       setWallet(res);
+      setWalletError(false);
       return res;
     } catch (err: any) {
-      console.error('Fetch wallet error:', err);
+      // console.error('Fetch wallet error:', err);
+      setWalletError(true);
       return null;
     }
   };
@@ -320,7 +323,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   };
 
   // CHECK
-  const isValid = !!selectedSlot && !isInsufficientBalance;
+  const isValid = !!selectedSlot && !isInsufficientBalance && !walletError;
 
   // USE EFFECT
   useEffect(() => {
@@ -386,5 +389,6 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     setSearchQuery,
     isInsufficientBalance,
     wallet,
+    walletError,
   };
 };
