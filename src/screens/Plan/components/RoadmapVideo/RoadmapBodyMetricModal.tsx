@@ -58,11 +58,11 @@ export default function RoadmapBodyMetricModal({
             <Ionicons name="body-outline" size={30} color="#8B4513" />
           </View>
 
-          <Text style={styles.title}>Cập nhật số đo cơ thể</Text>
+          <Text style={styles.title}>Cập nhật số đo cuối</Text>
 
           <Text style={styles.description}>
-            Bạn đã hoàn thành lộ trình. Hãy cập nhật lại số đo để hệ thống đánh
-            giá hồ sơ sức khỏe mới nhất.
+            Bạn đã hoàn thành lộ trình. Hãy cập nhật số đo cuối để lưu kết quả
+            sau lộ trình và tạo đánh giá sức khỏe mới nhất.
           </Text>
 
           <View style={styles.infoBox}>
@@ -86,7 +86,7 @@ export default function RoadmapBodyMetricModal({
 
           <View style={styles.profileBox}>
             <Text style={styles.profileTitle}>
-              Số đo đang dùng cho lộ trình
+              Số đo ban đầu của lộ trình
             </Text>
 
             {loadingProfile ? (

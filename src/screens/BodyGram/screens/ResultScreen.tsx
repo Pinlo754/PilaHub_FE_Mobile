@@ -18,6 +18,7 @@ import {
   submitHealthProfile,
   mapBodygramToHealthProfilePayload,
 } from '../../../services/profile';
+import RoadmapApi from '../../../hooks/roadmap.api';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
 import ModalPopup from '../../../components/ModalPopup';
@@ -109,6 +110,24 @@ function calculateBmi(heightCm?: number | null, weightKg?: number | null) {
   if (h <= 0) return null;
 
   return round1(weightKg / (h * h));
+}
+
+function extractHealthProfileId(payload: any) {
+  const data = payload?.data ?? payload;
+  const entry = data?.entry ?? data;
+
+  return (
+    entry?.healthProfileId ??
+    entry?.profileId ??
+    entry?.id ??
+    data?.healthProfileId ??
+    data?.profileId ??
+    data?.id ??
+    payload?.healthProfileId ??
+    payload?.profileId ??
+    payload?.id ??
+    null
+  );
 }
 
 function buildManualHealthProfilePayload(params: {
@@ -331,7 +350,12 @@ export default function ResultScreen({ route, navigation }: Props) {
 
   const source = ((route.params as any)?.source ?? 'BodyGram') as SourceType;
   const alreadySaved = Boolean((route.params as any)?.alreadySaved);
-const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
+
+  const returnToAfterAssessment =
+    (route.params as any)?.returnToAfterAssessment;
+
+  const roadmapFinalUpdate = (route.params as any)?.roadmapFinalUpdate;
+
   const setData = useOnboardingStore((s) => s.setData);
   const onboarding = useOnboardingStore((s) => s.data);
 
@@ -512,11 +536,20 @@ const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
 
     console.log('ResultScreen source:', source);
     console.log('ResultScreen alreadySaved:', alreadySaved);
+    console.log('ResultScreen returnToAfterAssessment:', returnToAfterAssessment);
+    console.log('ResultScreen roadmapFinalUpdate:', roadmapFinalUpdate);
     console.log('ResultScreen profile:', profile);
     console.log('ResultScreen display:', out);
 
     return out;
-  }, [rawMeasurements, rawResponse, source, alreadySaved]);
+  }, [
+    rawMeasurements,
+    rawResponse,
+    source,
+    alreadySaved,
+    returnToAfterAssessment,
+    roadmapFinalUpdate,
+  ]);
 
   const whr =
     display.waist && display.hip
@@ -575,7 +608,7 @@ const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
           return v;
         }),
       );
-    } catch (err ) {
+    } catch (err) {
       return '<non-serializable>';
     }
   };
@@ -612,45 +645,88 @@ const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
     }
   };
 
-  const goNextAfterSuccess = (profileId?: string | null) => {
-  hideModal();
+  const updateRoadmapFinalProfileIfNeeded = async (
+    profileId?: string | null,
+  ) => {
+    if (!roadmapFinalUpdate?.roadmapId || !profileId) {
+      return;
+    }
 
-  if (profileId) {
+    console.log('PATCH finalHealthProfileId for roadmap:', {
+      roadmapId: roadmapFinalUpdate.roadmapId,
+      finalHealthProfileId: profileId,
+    });
+
+    await RoadmapApi.updateFinalHealthProfile(
+      String(roadmapFinalUpdate.roadmapId),
+      String(profileId),
+    );
+  };
+
+  const goNextAfterSuccess = async (profileId?: string | null) => {
+    hideModal();
+
+    try {
+      await updateRoadmapFinalProfileIfNeeded(profileId);
+    } catch (err: any) {
+      console.log('updateFinalHealthProfile error:', err);
+
+      setToastType('error');
+      setToastMsg(
+        err?.response?.data?.message ??
+          err?.message ??
+          'Không thể cập nhật số đo cuối cho lộ trình.',
+      );
+      setToastVisible(true);
+
+      showModal({
+        title: 'Lỗi cập nhật lộ trình',
+        content:
+          err?.response?.data?.message ??
+          err?.message ??
+          'Không thể gắn hồ sơ sức khỏe cuối vào lộ trình.',
+        mode: 'noti',
+      });
+
+      return;
+    }
+
+    if (profileId) {
+      try {
+        (navigation as any).reset({
+          index: 0,
+          routes: [
+            {
+              name: 'HealthProfileAssessment',
+              params: {
+                healthProfileId: String(profileId),
+                returnToAfterAssessment,
+              },
+            },
+          ],
+        });
+      } catch {
+        navigation.navigate(
+          'HealthProfileAssessment' as any,
+          {
+            healthProfileId: String(profileId),
+            returnToAfterAssessment,
+          } as any,
+        );
+      }
+
+      return;
+    }
+
     try {
       (navigation as any).reset({
         index: 0,
-        routes: [
-          {
-            name: 'HealthProfileAssessment',
-            params: {
-              healthProfileId: String(profileId),
-              returnToAfterAssessment,
-            },
-          },
-        ],
+        routes: [{ name: 'MainTabs' }],
       });
     } catch {
-      navigation.navigate(
-        'HealthProfileAssessment' as any,
-        {
-          healthProfileId: String(profileId),
-          returnToAfterAssessment,
-        } as any,
-      );
+      navigation.navigate('MainTabs' as any);
     }
-
-    return;
-  }
-
-  try {
-    (navigation as any).reset({
-      index: 0,
-      routes: [{ name: 'MainTabs' }],
-    });
-  } catch {
-    navigation.navigate('MainTabs' as any);
-  }
-};
+  };
 
   const handleSubmitAll = async () => {
     setToastVisible(false);
@@ -678,18 +754,26 @@ const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
         setToastVisible(true);
         hideModal();
 
-        const profileId =
-          profile?.healthProfileId ??
-          profile?.id ??
-          profile?.profileId ??
-          null;
+        const profileId = extractHealthProfileId(profile);
+
+        if (!profileId) {
+          showModal({
+            title: 'Thiếu dữ liệu',
+            content: 'Không tìm thấy healthProfileId từ kết quả InBody.',
+            mode: 'noti',
+          });
+
+          return;
+        }
 
         showModal({
           title: 'Thành công',
-          content: 'Kết quả InBody đã được lưu.',
+          content: roadmapFinalUpdate?.roadmapId
+            ? 'Kết quả InBody đã được lưu. Tiếp tục để gắn số đo cuối vào lộ trình.'
+            : 'Kết quả InBody đã được lưu.',
           mode: 'noti',
           onConfirm: () => {
-            goNextAfterSuccess(profileId);
+            void goNextAfterSuccess(String(profileId));
           },
         });
 
@@ -731,18 +815,26 @@ const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
         setToastVisible(true);
         hideModal();
 
-        const profileId =
-          hRes.data?.id ??
-          hRes.data?.profileId ??
-          hRes.data?.healthProfileId ??
-          null;
+        const profileId = extractHealthProfileId(hRes);
+
+        if (!profileId) {
+          showModal({
+            title: 'Thiếu dữ liệu',
+            content: 'Không tìm thấy healthProfileId sau khi lưu hồ sơ.',
+            mode: 'noti',
+          });
+
+          return;
+        }
 
         showModal({
           title: 'Lưu thành công',
-          content: 'Hồ sơ sức khỏe đã được lưu thành công.',
+          content: roadmapFinalUpdate?.roadmapId
+            ? 'Hồ sơ sức khỏe đã được lưu. Tiếp tục để gắn số đo cuối vào lộ trình.'
+            : 'Hồ sơ sức khỏe đã được lưu thành công.',
           mode: 'noti',
           onConfirm: () => {
-            goNextAfterSuccess(profileId);
+            void goNextAfterSuccess(String(profileId));
           },
         });
 
@@ -982,8 +1074,12 @@ const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
             ) : (
               <Text style={styles.saveBtnText}>
                 {source === 'InBody' && alreadySaved
-                  ? 'Tiếp tục'
-                  : 'Lưu kết quả'}
+                  ? roadmapFinalUpdate?.roadmapId
+                    ? 'Lưu số đo cuối'
+                    : 'Tiếp tục'
+                  : roadmapFinalUpdate?.roadmapId
+                    ? 'Lưu số đo cuối'
+                    : 'Lưu kết quả'}
               </Text>
             )}
           </TouchableOpacity>
