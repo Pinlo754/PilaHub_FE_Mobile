@@ -68,6 +68,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     'UPGRADE' | 'LIST' | null
   >(null);
   const [showRecommendModal, setShowRecommendModal] = useState<boolean>(false);
+  const [notiMsg, setNotiMsg] = useState<string>('');
+  const [showNotiModal, setShowNotiModal] = useState<boolean>(false);
   const [activePackage, setActivePackage] = useState<PackageType | null>(null);
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSessionType[]>(
     [],
@@ -75,6 +77,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [exerciseEquipments, setExerciseEquipments] = useState<
     ExerciseEquipment[]
   >([]);
+  const [showWorkoutHistory, setShowWorkoutHistory] = useState(false);
   // Countdown states
   const [showStartCountdown, setShowStartCountdown] = useState<boolean>(false);
   const [showRestCountdown, setShowRestCountdown] = useState<boolean>(false);
@@ -260,6 +263,16 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
         params,
       );
 
+      setWorkoutHistory(res.filter(session => session.completed));
+    } catch (err: any) {
+      console.error('Fetch history error:', err);
+    }
+  };
+
+  const fetchAllWorkoutHistory = async () => {
+    if (!exercise_id) return;
+    try {
+      const res = await workoutSessionService.getAll(exercise_id);
       setWorkoutHistory(res.filter(session => session.completed));
     } catch (err: any) {
       console.error('Fetch history error:', err);
@@ -583,7 +596,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setCurrentExerciseIndex(0);
     currentExerciseIndexRef.current = 0;
     if (isPracticeTab) {
-      await fetchWorkoutHistory();
+      await fetchAllWorkoutHistory();
     }
   };
 
@@ -673,6 +686,12 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const onPressAIPractice = async () => {
     if (!exerciseDetail || !tutorial) return;
 
+    if (!exerciseDetail.haveAIsupported || !exerciseDetail.nameInModelAI?.trim()) {
+      // Nếu bài không hỗ trợ AI, chuyển về self-practice
+      await onPressPractice();
+      return;
+    }
+
     if (activePackage !== PackageType.VIP_MEMBER) {
       openRecommendModal(
         'Tính năng này chỉ dành cho gói VIP. Bạn có muốn tham khảo thử không?',
@@ -692,7 +711,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       imgUrl: exerciseDetail.imageUrl,
       videoUrl: tutorial.practiceVideoUrl,
       workoutSessionId: session.workoutSessionId,
-      nameAITracking: exerciseDetail.nameInModelAI || "",
+      nameAITracking: exerciseDetail.nameInModelAI || '',
     });
   };
 
@@ -767,6 +786,16 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     }
   };
 
+  const openNotiModal = (msg: string) => {
+    setNotiMsg(msg);
+    setShowNotiModal(true);
+  };
+
+  const closeNotiModal = () => {
+    setNotiMsg('');
+    setShowNotiModal(false);
+  };
+
   // ─── EFFECTS ──────────────────────────────────────────────────────────────
   useEffect(() => {
     currentExerciseIndexRef.current = currentExerciseIndex;
@@ -778,10 +807,12 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     const fetchAll = async () => {
       setIsLoading(true);
       try {
-        await fetchInformation();
-        await fetchById();
-        await fetchWorkoutHistory();
-        await fetchEquipment();
+        await Promise.allSettled([
+          await fetchInformation(),
+          await fetchById(),
+          await fetchAllWorkoutHistory(),
+          await fetchEquipment(),
+        ]);
       } finally {
         setIsLoading(false);
       }
@@ -868,5 +899,10 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     exerciseTimeLeft,
     isExerciseRunning,
     COUNTDOWN_START,
+    closeNotiModal,
+    showNotiModal,
+    notiMsg,
+    showWorkoutHistory,
+    setShowWorkoutHistory,
   };
 };

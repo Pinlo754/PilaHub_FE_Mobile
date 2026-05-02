@@ -9,6 +9,8 @@ type Props = {
   totalPrice: number;
   totalHours: number;
   pricePerHour: number;
+  isInsufficientBalance: boolean;
+  walletError: boolean;
 };
 
 const Footer = ({
@@ -17,6 +19,8 @@ const Footer = ({
   totalPrice,
   pricePerHour,
   totalHours,
+  isInsufficientBalance,
+  walletError,
 }: Props) => {
   return (
     <View className="bg-background-sub1 border-t border-background-sub1 absolute bottom-0 left-0 right-0 pt-2 px-4 pb-6">
@@ -46,6 +50,18 @@ const Footer = ({
           {formatVND(totalPrice)}
         </Text>
       </View>
+
+      {isInsufficientBalance && !walletError && (
+        <Text className="text-danger-darker font-medium text-center mb-2">
+          Số dư ví không đủ để đặt lịch. Vui lòng nạp thêm tiền.
+        </Text>
+      )}
+
+      {walletError && (
+        <Text className="text-danger-darker font-medium text-center mb-2">
+          Bạn chưa mở ví để thanh toán!
+        </Text>
+      )}
 
       {/* Button */}
       <Button

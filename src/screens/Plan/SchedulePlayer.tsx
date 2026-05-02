@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {  View, Text, TouchableOpacity, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import api from '../../hooks/axiosInstance';
-import { markPersonalExerciseCompleted } from '../../services/personalExercise.service';
+import api from '../../hooks/axiosInstance';import { workoutSessionService } from '../../hooks/workoutSession.service';import { markPersonalExerciseCompleted } from '../../services/personalExercise.service';
 import { markPersonalScheduleCompleted } from '../../services/personalSchedule.service';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from '../../components/Toast';
@@ -56,9 +55,11 @@ export default function SchedulePlayer() {
   const startIndex = Number(route.params?.startIndex ?? 0);
   const scheduleIdParam = route.params?.scheduleId ?? null;
   const singleMode = route.params?.singleMode === true || queue.length === 1;
+  const aiFlow = route.params?.aiFlow === true;
 
   const [index, setIndex] = useState(startIndex);
   const [current, setCurrent] = useState<any>(queue[startIndex] ?? null);
+  const aiLaunchIndexRef = useRef<number | null>(null);
 
   const [phase, setPhase] = useState<'idle' | 'exercise' | 'rest' | 'completed'>('idle');
   const [currentSet, setCurrentSet] = useState<number>(1);
@@ -88,8 +89,14 @@ export default function SchedulePlayer() {
     const ex = item?.ex ?? item?.exercise ?? null;
 
     const sets = Math.max(1, Number(ex?.sets ?? ex?.totalSets ?? 1) || 1);
-    const durationSeconds = Math.max(0, Number(ex?.durationSeconds ?? ex?.duration ?? 0) || 0);
-    const restSeconds = Math.max(0, Number(ex?.restSeconds ?? ex?.rest ?? 0) || 0);
+    const durationSeconds = Math.max(
+      0,
+      Number(item?.durationSeconds ?? ex?.durationSeconds ?? ex?.duration ?? 0) || 0,
+    );
+    const restSeconds = Math.max(
+      0,
+      Number(item?.restSeconds ?? ex?.restSeconds ?? ex?.rest ?? 0) || 0,
+    );
 
     return {
       ex,
@@ -110,6 +117,109 @@ export default function SchedulePlayer() {
       null
     );
   }, []);
+
+  const launchAiSession = useCallback(
+    async (item: any, itemIndex: number) => {
+      if (!item || !aiFlow || !item?.isAiSupported) return;
+      if (aiLaunchIndexRef.current === itemIndex) return;
+
+      const exercise = item.ex ?? null;
+      const exerciseId =
+        exercise?.exerciseId ?? exercise?.id ?? exercise?.exercise_id ?? exercise?.exerciseIdRaw ?? null;
+      if (!exerciseId) {
+        setToastMessage('Không xác định được ID bài tập AI');
+        setToastType('error');
+        setToastVisible(true);
+        return;
+      }
+
+      aiLaunchIndexRef.current = itemIndex;
+
+      try {
+        const session = await workoutSessionService.startFreeWorkout({
+          exerciseId: String(exerciseId),
+          haveAITracking: true,
+          haveIOTDeviceTracking: true,
+        });
+
+        if (!session?.workoutSessionId) {
+          throw new Error('Không tạo được phiên AI');
+        }
+
+        const nameAITracking =
+          exercise?.nameInModelAI ?? exercise?.name_in_model_ai ?? '';
+
+        const timeout = Math.max(
+          5,
+          Number(item.durationSeconds ?? item?.ex?.durationSeconds ?? item?.ex?.duration ?? 0) || 5,
+        );
+
+        navigation.navigate('AIPracticeTimeout', {
+          exercise_id: String(exerciseId),
+          imgUrl: exercise?.imageUrl ?? exercise?.image ?? '',
+          videoUrl: item.videoSrc ?? '',
+          workoutSessionId: session.workoutSessionId,
+          nameAITracking,
+          timeout,
+          autoStart: true,
+          skipSummary: true,
+          scheduleFlowIndex: itemIndex,
+          scheduleFlowPersonalExerciseId: String(getPersonalId(item) ?? ''),
+        });
+      } catch (error) {
+        console.warn('[SchedulePlayer] start AI session failed', error);
+        setToastMessage('Không thể bắt đầu bài AI. Vui lòng thử lại');
+        setToastType('error');
+        setToastVisible(true);
+        aiLaunchIndexRef.current = null;
+      }
+    },
+    [aiFlow, getPersonalId, navigation],
+  );
+
+  const handleAiSetCompleted = useCallback(
+    async (evt: any) => {
+      if (!evt || evt.scheduleFlowIndex !== index) return;
+      if (!current) return;
+
+      const info = getExerciseInfo(current);
+
+      if (currentSet < info.sets) {
+        // More sets to go, start rest
+        if (info.restSeconds > 0) {
+          setPhase('rest');
+          setPhaseDuration(info.restSeconds);
+          setTimeLeft(info.restSeconds);
+          setIsRunning(true);
+          setIsVideoPlay(false);
+        } else {
+          // No rest, resume immediately
+          DeviceEventEmitter.emit('resumeAiSession', {
+            scheduleFlowIndex: index,
+          });
+        }
+      } else {
+        // All sets done, end AI session
+        setIsRunning(false); // Pause timer until upload completes
+        DeviceEventEmitter.emit('endAiSession', {
+          scheduleFlowIndex: index,
+        });
+        // Do not complete here, wait for upload to finish
+      }
+    },
+    [current, getExerciseInfo, index, currentSet],
+  );
+
+  const handleAiFlowCompletion = useCallback(
+    async (evt: any) => {
+      if (!evt || evt.scheduleFlowIndex !== index) return;
+      if (!current) return;
+
+      aiLaunchIndexRef.current = null;
+      await completeCurrentExerciseAndMaybeAdvance();
+    },
+    [current, index, completeCurrentExerciseAndMaybeAdvance],
+  );
 
   const stopTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -384,11 +494,18 @@ export default function SchedulePlayer() {
         const nextSet = currentSet + 1;
 
         setCurrentSet(nextSet);
-        setPhase('exercise');
-        setPhaseDuration(info.durationSeconds);
-        setTimeLeft(info.durationSeconds);
-        setIsRunning(true);
-        setIsVideoPlay(Boolean(current?.videoSrc));
+        if (aiFlow && current?.isAiSupported) {
+          // For AI exercises, emit resume instead of setting phase
+          DeviceEventEmitter.emit('resumeAiSession', {
+            scheduleFlowIndex: index,
+          });
+        } else {
+          setPhase('exercise');
+          setPhaseDuration(info.durationSeconds);
+          setTimeLeft(info.durationSeconds);
+          setIsRunning(true);
+          setIsVideoPlay(Boolean(current?.videoSrc));
+        }
         processingPhaseRef.current = false;
         return;
       }
@@ -405,6 +522,8 @@ export default function SchedulePlayer() {
     currentSet,
     getExerciseInfo,
     completeCurrentExerciseAndMaybeAdvance,
+    aiFlow,
+    index,
   ]);
 
   useEffect(() => {
@@ -421,9 +540,24 @@ export default function SchedulePlayer() {
     setIsVideoPlay(false);
 
     if (item) {
-      initializeExercise(item);
+      if (aiFlow && item.isAiSupported) {
+        setTimeout(() => {
+          launchAiSession(item, index);
+        }, 0);
+      } else {
+        initializeExercise(item);
+      }
     }
-  }, [index, queue, initializeExercise, stopTimer]);
+  }, [index, queue, initializeExercise, launchAiSession, stopTimer, aiFlow]);
+
+  useEffect(() => {
+    const setSub = DeviceEventEmitter.addListener('aiSetCompleted', handleAiSetCompleted);
+    const endSub = DeviceEventEmitter.addListener('scheduleFlowAIExerciseCompleted', handleAiFlowCompletion);
+    return () => {
+      setSub.remove();
+      endSub.remove();
+    };
+  }, [handleAiSetCompleted, handleAiFlowCompletion]);
 
   useEffect(() => {
     stopTimer();

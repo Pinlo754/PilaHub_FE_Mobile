@@ -30,15 +30,31 @@ import ViewShot from "react-native-view-shot";
 import { useBle } from '../../services/BleProvider';
 import api from '../../hooks/axiosInstance';
 import { heartRateService } from '../../hooks/heartRate.service';
+import { DeviceEventEmitter } from 'react-native';
 type Props = {
   workoutSessionId: string;
   onFeedback: (data: { status: string; detail: string }) => void;
   captureMistakeImage: () => Promise<string | undefined>;
   nameAITracking: string;
+  autoStart?: boolean;
+  autoStopAfterSeconds?: number;
+  onSessionComplete?: () => void;
+  scheduleFlowIndex?: number;
+  scheduleFlowPersonalExerciseId?: string;
 };
 
 
-export default function AITracking({ workoutSessionId, onFeedback, captureMistakeImage, nameAITracking }: Props) {
+export default function AITracking({
+  workoutSessionId,
+  onFeedback,
+  captureMistakeImage,
+  nameAITracking,
+  autoStart = false,
+  autoStopAfterSeconds,
+  onSessionComplete,
+  scheduleFlowIndex,
+  scheduleFlowPersonalExerciseId,
+}: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const plugin = useTensorflowModel(
     require('../../assets/pose_correction_exercise_aware.tflite'),
@@ -74,6 +90,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const hrSamplesRef = useRef<Array<{ heartRate: number; recordedAt: number }>>([]);
   const hrTimerRef = useRef<number | null>(null);
   const [mistakeLogs, setMistakeLogs] = useState<any[]>([]);
+  const mistakeLogsRef = useRef<any[]>([]);
   const [showCamera, setShowCamera] = useState(true);
   const DEBOUNCE_TIME = 1250;
   const viewShotRef = useRef<ViewShot>(null);
@@ -81,11 +98,15 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
   const activeMistake = useRef<any>(null);
   const lastCorrectTime = useRef<number>(0);
   const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType | null>(null);
+  const firstStartRef = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorBodyPart, setErrorBodyPart] = useState<string | null>(null);
   const [heartRateList, setHeartRateList] = useState<any[]>([]);
   const [isPersonDetected, setIsPersonDetected] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const lastPersonDetected = useRef(Date.now());
+  const autoTimeoutRef = useRef(false);
+  const isPausedRef = useRef(false);
   const BODY_PART_MAP: Record<string, number[]> = {
     "Lower Back": [23, 24],
     "Upper Back": [11, 12],
@@ -228,9 +249,21 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     ============================ */
   const handleStartSession = async () => {
     try {
-      setMistakeLogs([]);
-      setHeartRateList([]);
+      if (isRecording) {
+        setIsPaused(false);
+        isPausedRef.current = false;
+        setShowCamera(true);
+        setIsSessionActive(true);
+        return;
+      }
 
+      if (firstStartRef.current) {
+        setMistakeLogs([]);
+        mistakeLogsRef.current = [];
+        setHeartRateList([]);
+      }
+
+      firstStartRef.current = false;
 
       // reset HR samples
       hrSamplesRef.current = [];
@@ -252,6 +285,77 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     }
   };
 
+  useEffect(() => {
+    if (!autoStart) return;
+    if (isSessionActive) return;
+
+    handleStartSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
+
+  useEffect(() => {
+    const resumeSub = DeviceEventEmitter.addListener('resumeAiSession', (evt: any) => {
+      if (evt.scheduleFlowIndex === scheduleFlowIndex) {
+        handleStartSession();
+      }
+    });
+
+    const endSub = DeviceEventEmitter.addListener('endAiSession', (evt: any) => {
+      if (evt.scheduleFlowIndex === scheduleFlowIndex) {
+        handleEndSession();
+      }
+    });
+
+    return () => {
+      resumeSub.remove();
+      endSub.remove();
+    };
+  }, [scheduleFlowIndex]);
+
+  useEffect(() => {
+    return () => {
+      // On unmount, end session if still recording
+      if (isRecording) {
+        handleEndSession();
+      }
+    };
+  }, [isRecording]);
+
+  const handlePauseSession = () => {
+    if (!isSessionActive || isPausedRef.current) return;
+
+    if (activeMistake.current) {
+      finalizeMistake(Date.now());
+    }
+
+    setIsPaused(true);
+    isPausedRef.current = true;
+    autoTimeoutRef.current = false;
+    setIsSessionActive(false);
+    setShowCamera(false);
+
+    // Emit event to SchedulePlayer that set is completed
+    DeviceEventEmitter.emit('aiSetCompleted', {
+      scheduleFlowIndex,
+      scheduleFlowPersonalExerciseId,
+    });
+  };
+
+  useEffect(() => {
+    if (!isSessionActive || !autoStopAfterSeconds) return;
+
+    autoTimeoutRef.current = true;
+    const timeoutId = setTimeout(() => {
+      handlePauseSession();
+    }, autoStopAfterSeconds * 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      autoTimeoutRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSessionActive, autoStopAfterSeconds]);
+
 
   /* ===========================
        🛑 STOP GLOBAL RECORDING
@@ -272,7 +376,6 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
 
 
       if (!file?.path) {
-        Alert.alert('Error', 'No video file found');
         return;
       }
 
@@ -357,9 +460,10 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
 
       await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
 
-
-      if (mistakeLogs && mistakeLogs.length > 0) {
-        const transformedMistakeLogs: MistakeLogReq[] = mistakeLogs.map(
+      const currentMistakeLogs = mistakeLogsRef.current;
+      console.log('Mistake logs:', currentMistakeLogs);
+      if (currentMistakeLogs && currentMistakeLogs.length > 0) {
+        const transformedMistakeLogs: MistakeLogReq[] = currentMistakeLogs.map(
           ({ bodyPart, side, recordedAtSecond, duration, imageUrl }) => ({
             bodyPartId: getBodyPartId(bodyPart) || '',
             details: `Form error at ${bodyPart} (${side})`,
@@ -377,7 +481,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
 
 
         await mistakeLogService.createMistakeLog(payload);
-
+        mistakeLogsRef.current = [];
 
       }
 
@@ -388,7 +492,17 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       console.log('Mistake logs saved:', mistakeLogs);
 
 
-      console.log('AI Feedback')
+      console.log('AI Feedback');
+      const wasAutoTimeout = autoTimeoutRef.current;
+      autoTimeoutRef.current = false;
+      if (onSessionComplete && wasAutoTimeout) {
+        onSessionComplete();
+        return;
+      }
+      if (onSessionComplete) {
+        onSessionComplete();
+        return;
+      }
       // pass HR samples to AISummary so UI can render heart rate timeline
       navigation.navigate('AISummary', {
         feedback: AIFeedback,
@@ -405,6 +519,7 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
       setIsSaving(false);
       // reset session start time
       sessionStartTime.current = 0;
+      firstStartRef.current = true;
     }
   };
 
@@ -555,8 +670,11 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
         imagePath: activeMistake.current.imagePath
       };
 
-
-      setMistakeLogs(prev => [...prev, log]);
+      setMistakeLogs(prev => {
+        const next = [...prev, log];
+        mistakeLogsRef.current = next;
+        return next;
+      });
     }
 
 
@@ -822,4 +940,3 @@ export default function AITracking({ workoutSessionId, onFeedback, captureMistak
     </View>
   );
 };
-

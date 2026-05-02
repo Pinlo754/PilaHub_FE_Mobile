@@ -23,7 +23,7 @@ const ListScreen = (props: Props) => {
         <Header navigation={props.navigation} />
 
         {/* Tabs */}
-        <Tabs tabId={activeTab} onChange={onChangeTab} />
+        {/* <Tabs tabId={activeTab} onChange={onChangeTab} /> */}
 
         {/* List */}
         {traineeId && (

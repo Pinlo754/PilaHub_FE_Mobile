@@ -1,54 +1,57 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Pressable, View, Dimensions } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
 import { useVideoPlayer } from '../../../../hooks/useVideoPlayer';
-import Orientation from 'react-native-orientation-locker';
 
 const { height } = Dimensions.get('window');
 
 type Props = {
   source: string;
-  onBack: () => void;
+  isVideoPlay: boolean;
+  togglePlayButton?: () => void;
+  onEnd?: () => void;
 };
 
-export default function VideoPlayer({ source, onBack }: Props) {
+export default function VideoPlayer({
+  source,
+  isVideoPlay,
+  togglePlayButton,
+  onEnd,
+}: Props) {
   // HOOOK
-  const player = useVideoPlayer({});
+  const player = useVideoPlayer({ isVideoPlay });
 
-  useEffect(() => {
-    Orientation.lockToLandscape();
-
-    return () => {
-      Orientation.lockToPortrait();
-    };
-  }, []);
+  // HANDLERS
+  const onPressPlayBtn = () => {
+    if (togglePlayButton) togglePlayButton();
+  };
 
   return (
-    <View className="w-full" style={{ height: height }}>
+    <View className="w-full" style={{ height: height * 0.86 }}>
       <VideoSurface
         videoRef={player.videoRef}
         source={source}
-        paused={player.paused}
+        paused={!isVideoPlay}
         onLoad={d => player.setDuration(d.duration)}
         onProgress={p => player.setCurrentTime(p.currentTime)}
+        onEnd={() => {
+          player.setCurrentTime(player.duration || 0);
+          if (typeof onEnd === 'function') onEnd();
+        }}
       />
 
       <Pressable onPress={player.onTouchPlayer} className="absolute inset-0">
         {/* CONTROLS */}
         {player.showControls && (
-          <View className="absolute inset-0 justify-end bg-black/20">
+          <View className="absolute inset-0 justify-center bg-black/20">
             <VideoControls
-              paused={player.paused}
+              paused={!isVideoPlay}
               duration={player.duration}
               currentTime={player.currentTime}
-              onPlay={player.togglePlay}
+              onPlay={onPressPlayBtn}
               onSeek={player.seek}
               onSeekBy={player.seekBy}
-              isFullscreen={true}
-              hideFullscreen
-              onBack={onBack}
-              reset={player.reset}
             />
           </View>
         )}

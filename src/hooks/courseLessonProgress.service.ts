@@ -119,4 +119,44 @@ export const courseLessonProgressService = {
 
     return res.data.data;
   },
+
+  // RESET SCHEDULE
+  resetSchedule: async (
+    payload: CreateScheduleReq,
+  ): Promise<CourseLessonProgressType> => {
+    const res = await api.put<ApiResponse<CourseLessonProgressType>>(
+      `/course-lesson-progress/schedule/reset`,
+      payload,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // RESET INCOMPLETE LESSON
+  resetIncompleteLesson: async (
+    payload: CreateScheduleReq,
+  ): Promise<CourseLessonProgressType> => {
+    const res = await api.put<ApiResponse<CourseLessonProgressType>>(
+      `/course-lesson-progress/schedule/reschedule-incomplete`,
+      payload,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

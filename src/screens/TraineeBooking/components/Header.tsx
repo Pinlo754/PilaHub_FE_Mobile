@@ -7,9 +7,10 @@ import { colors } from '../../../theme/colors';
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'TraineeBooking'>;
   openReportList: () => void;
+  handleRefresh: () => void;
 };
 
-const Header = ({ navigation, openReportList }: Props) => {
+const Header = ({ navigation, openReportList, handleRefresh }: Props) => {
   // HANDLERS
   const handleGoBack = () => {
     navigation.navigate('MainTabs', { screen: 'Home' });
@@ -30,6 +31,13 @@ const Header = ({ navigation, openReportList }: Props) => {
       <Text className="color-foreground text-3xl font-bold text-center">
         Gọi video
       </Text>
+
+      <Pressable
+        className="absolute top-1 right-4 z-10"
+        onPress={handleRefresh}
+      >
+        <Ionicons name="refresh-outline" size={24} color={colors.foreground} />
+      </Pressable>
 
       {/* <Pressable
         className="absolute top-1 right-4 z-10"

@@ -44,6 +44,8 @@ export type ExerciseType = {
   duration: number;
   haveAIsupported: boolean;
   nameInModelAI: string | null;
+  havePracticed: boolean;
+  breathingRule: string;
 };
 
 export type TutorialType = {

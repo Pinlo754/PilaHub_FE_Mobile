@@ -27,7 +27,7 @@ export default function BottomActionBar({
         <TouchableOpacity
           onPress={onAccept}
           disabled={accepting}
-          className="bg-green-600 p-4 rounded-2xl mb-3 items-center"
+          className="bg-green-600 p-4 rounded-2xl mb-10 items-center"
         >
           {accepting ? (
             <ActivityIndicator color="#fff" />

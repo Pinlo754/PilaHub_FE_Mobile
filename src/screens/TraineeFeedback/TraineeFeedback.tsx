@@ -37,6 +37,7 @@ const TraineeFeedback = (props: Props) => {
     criteria,
     onScoreChange,
     scores,
+    skipFeedback,
   } = useTraineeFeedback({
     route: props.route,
     navigation: props.navigation,
@@ -106,7 +107,16 @@ const TraineeFeedback = (props: Props) => {
           )}
 
           {/* Btn */}
-          <View className="self-end pt-2 px-4">
+          <View className="flex-row justify-end gap-2 pt-2 px-4">
+            {mode === 'feedbackForCoach' && (
+              <Button
+                text="Bỏ qua"
+                onPress={skipFeedback}
+                colorType="grey"
+                rounded="lg"
+                width={100}
+              />
+            )}
             <Button
               text="Đánh giá"
               onPress={onPressSubmit}

@@ -70,7 +70,9 @@ export const useListScreen = () => {
 
       switch (tab) {
         case ListTab.Exercise:
-          result = await exerciseService.getAll();
+          result = (await exerciseService.getAll()).filter(
+            ex => ex.havePracticed === true,
+          );
           break;
 
         case ListTab.Course:

@@ -11,7 +11,7 @@ type Props = {
   fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
 };
 
-const PAGE_SIZE = 3;
+const PAGE_SIZE = 5;
 
 const HistoryTable = ({ workoutHistory, fetchAISummary }: Props) => {
   const [page, setPage] = useState(1);
