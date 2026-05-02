@@ -3,16 +3,17 @@ import { CoachType } from '../../utils/CoachType';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { RouteProp } from '@react-navigation/native';
 import { CoachService } from '../../hooks/coach.service';
-import { coachTimeOffService } from '../../hooks/coachTimeOff.service';
 import {
   DaySchedule,
-  generateCoachSchedule,
+  generateCoachScheduleFromBusy,
 } from '../../utils/availableSchedule';
 import { buildISOTime, getWeekTimeRange } from '../../utils/day';
-import { BookingSlot } from '../../utils/CoachBookingType';
+import { BookingSlot, BusyTimeSlotReq } from '../../utils/CoachBookingType';
 import { coachBookingService } from '../../hooks/coachBooking.service';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { calculateBookingSummary } from '../../utils/calculate';
+import { WalletType } from '../../utils/WalletType';
+import { WalletService } from '../../hooks/wallet.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'RegisterCalendar'>;
@@ -41,8 +42,12 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(today);
   const [startTime, setStartTime] = useState<string | null>(null);
   const [endTime, setEndTime] = useState<string | null>(null);
-  const [bookingSlots, setBookingSlots] = useState<BookingSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [isInsufficientBalance, setIsInsufficientBalance] =
+    useState<boolean>(false);
+  const [walletError, setWalletError] = useState<boolean>(false);
 
   // MODAL + LOADING
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -62,33 +67,20 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
 
   // CALC
   const { totalHours, totalPrice } = useMemo(() => {
-    if (!pricePerHour) return { totalHours: 0, totalPrice: 0 };
+    if (!pricePerHour || !selectedSlot) return { totalHours: 0, totalPrice: 0 };
 
-    return calculateBookingSummary(bookingSlots, pricePerHour);
-  }, [bookingSlots, pricePerHour]);
+    return calculateBookingSummary([selectedSlot], pricePerHour);
+  }, [selectedSlot, pricePerHour]);
 
   // PAYLOAD
   const buildSinglePayload = (coachId: string) => {
-    if (bookingSlots.length === 0) return null;
-
-    const slot = bookingSlots[0];
+    if (!selectedSlot) return null;
 
     return {
       coachId,
-      startTime: buildISOTime(slot.date, slot.startTime),
-      endTime: buildISOTime(slot.date, slot.endTime),
+      startTime: buildISOTime(selectedSlot.date, selectedSlot.startTime),
+      endTime: buildISOTime(selectedSlot.date, selectedSlot.endTime),
       bookingType: 'SINGLE' as const,
-    };
-  };
-
-  const buildPackagePayload = (coachId: string) => {
-    return {
-      coachId,
-      bookingSlots: bookingSlots.map(slot => ({
-        startTime: buildISOTime(slot.date, slot.startTime),
-        endTime: buildISOTime(slot.date, slot.endTime),
-      })),
-      bookingType: 'PERSONAL_TRAINING_PACKAGE' as const,
     };
   };
 
@@ -118,14 +110,20 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     try {
       const { startTime, endTime } = getWeekTimeRange(start);
 
-      const [resCoach, resSchedule] = await Promise.all([
+      const payload: BusyTimeSlotReq = {
+        coachId,
+        startTime,
+        endTime,
+      };
+
+      const [resCoach, resBusy] = await Promise.all([
         CoachService.getById(coachId),
-        coachTimeOffService.getByTimeRange(coachId, startTime, endTime),
+        coachBookingService.getBusyTimeSlot(payload),
       ]);
 
       setCoachDetail(resCoach);
 
-      const schedules = generateCoachSchedule(resSchedule, start, 7);
+      const schedules = generateCoachScheduleFromBusy(resBusy, start, 7);
 
       setSchedule(schedules);
     } catch (err: any) {
@@ -136,6 +134,19 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchWallet = async () => {
+    try {
+      const res = await WalletService.getMyWallet();
+      setWallet(res);
+      setWalletError(false);
+      return res;
+    } catch (err: any) {
+      // console.error('Fetch wallet error:', err);
+      setWalletError(true);
+      return null;
     }
   };
 
@@ -210,35 +221,36 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     setSelectedDate(date);
     setStartTime(null);
     setEndTime(null);
+    setSelectedSlot(null);
+    setIsInsufficientBalance(false);
   };
 
   const onSelectStartTime = (time: string) => {
     setStartTime(time);
     setEndTime(null);
+    setSelectedSlot(null);
+    setIsInsufficientBalance(false);
   };
 
   const onSelectEndTime = (time: string) => {
     setEndTime(time);
   };
 
-  const onPressConfirmSlot = () => {
+  const onPressConfirmSlot = async () => {
     if (!selectedDate || !startTime || !endTime) return;
 
-    // setBookingSlots(prev => {
-    //   const exists = prev.some(
-    //     s =>
-    //       s.date.getTime() === selectedDate.getTime() &&
-    //       s.startTime === startTime &&
-    //       s.endTime === endTime,
-    //   );
+    const slot: BookingSlot = { date: selectedDate, startTime, endTime };
+    setSelectedSlot(slot);
 
-    //   if (exists) return prev;
+    const walletData = await fetchWallet();
+    if (!walletData) return;
 
-    //   return [...prev, { date: selectedDate, startTime, endTime }];
-    // });
-    // clearTime();
+    const { totalPrice: price } = calculateBookingSummary(
+      [slot],
+      pricePerHour ?? 0,
+    );
 
-    setBookingSlots([{ date: selectedDate, startTime, endTime }]);
+    setIsInsufficientBalance(walletData.availableVND < price);
   };
 
   const onPressRegister = () => {
@@ -302,7 +314,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     setWeekStart(today);
     setStartTime(null);
     setEndTime(null);
-    setBookingSlots([]);
+    setSelectedSlot(null);
   };
 
   const clearTime = () => {
@@ -311,7 +323,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
   };
 
   // CHECK
-  const isValid = bookingSlots.length > 0;
+  const isValid = !!selectedSlot && !isInsufficientBalance && !walletError;
 
   // USE EFFECT
   useEffect(() => {
@@ -356,7 +368,7 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     setSelectedDate,
     clearBooking,
     onPressConfirmSlot,
-    bookingSlots,
+    bookingSlots: selectedSlot ? [selectedSlot] : [],
     showErrorModal,
     closeErrorModal,
     showSuccessModal,
@@ -375,5 +387,8 @@ export const useRegisterCalendar = ({ route, navigation }: Props) => {
     handleSearch,
     searchQuery,
     setSearchQuery,
+    isInsufficientBalance,
+    wallet,
+    walletError,
   };
 };

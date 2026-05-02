@@ -32,31 +32,42 @@ const Footer = ({
 
   return (
     <>
-      <View className="pt-2 flex-row justify-between">
-        <View className="w-[46%]">
+      {haveAIsupported ? (
+        <View className="pt-2 flex-row justify-between">
+          <View className="w-[46%]">
+            <Button
+              text="Tự tập"
+              onPress={onPress}
+              colorType={isPracticeDisabled ? 'grey' : 'sub1'}
+              rounded="xl"
+              iconName="log-in-outline"
+              iconSize={26}
+            />
+          </View>
+
+          <View className="w-[46%]">
+            <Button
+              text="Tập với AI"
+              onPress={onPressAIPractice}
+              colorType={isVip ? 'sub1' : 'grey'}
+              rounded="xl"
+              iconName="sparkles-outline"
+              iconSize={20}
+            />
+          </View>
+        </View>
+      ) : (
+        <View className="pt-2">
           <Button
-            text="Tự tập"
+            text="Bắt đầu buổi tập"
             onPress={onPress}
-            disabled={isPracticeDisabled}
             colorType={isPracticeDisabled ? 'grey' : 'sub1'}
-            rounded="xl"
+            rounded="full"
             iconName="log-in-outline"
             iconSize={26}
           />
         </View>
-
-        <View className="w-[46%]">
-          <Button
-            text="Tập với AI"
-            onPress={onPressAIPractice}
-            disabled={isAIDisabled}
-            colorType={isAIDisabled ? 'grey' : 'sub1'}
-            rounded="xl"
-            iconName="sparkles-outline"
-            iconSize={20}
-          />
-        </View>
-      </View>
+      )}
     </>
   );
 };

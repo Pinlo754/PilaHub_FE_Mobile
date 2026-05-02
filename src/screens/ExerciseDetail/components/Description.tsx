@@ -1,31 +1,38 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { ExerciseType } from '../../../utils/ExerciseType';
 import { secondsToTime } from '../../../utils/time';
 import { colors } from '../../../theme/colors';
-import { useEffect, useRef } from 'react';
-import { WorkoutSessionType } from '../../../utils/WorkoutSessionType';
-import HistoryTable from './HistoryTable';
+import { useEffect, useRef, useState } from 'react';
+import { ExerciseEquipment } from '../../../utils/EquipmentType';
 
 type Props = {
   exerciseDetail: ExerciseType;
   isPracticeTab: boolean;
-  workoutHistory?: WorkoutSessionType[];
   canPlayTheory: boolean;
-  fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
   isFromList: boolean;
+  equipments: ExerciseEquipment[];
 };
 
-const Description = ({
-  exerciseDetail,
-  isPracticeTab,
-  workoutHistory = [],
-  canPlayTheory,
-  fetchAISummary,
-  isFromList,
-}: Props) => {
+const Description = ({ exerciseDetail, isPracticeTab, equipments }: Props) => {
+  // CONSTANT
+  const PAGE_SIZE = 5;
+
   // USE REF
   const scrollRef = useRef<ScrollView>(null);
+
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.ceil(equipments.length / PAGE_SIZE);
+  const paginatedData = equipments.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
+
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    setPage(p);
+  };
 
   // USE EFFECT
   useEffect(() => {
@@ -49,7 +56,7 @@ const Description = ({
         </View>
 
         {/* Description */}
-        <View className={`flex-col mb-2 ${isPracticeTab ? '' : 'pb-5'}`}>
+        <View className={`flex-col mb-2`}>
           <View className="flex-row gap-1 items-center">
             <Ionicons
               name="information-circle-outline"
@@ -65,8 +72,164 @@ const Description = ({
           </Text>
         </View>
 
+        {/* AI */}
+        <View className="flex-row gap-2 items-center mb-2">
+          <View className="flex-row gap-1 items-center">
+            <Ionicons
+              name="sparkles-outline"
+              size={18}
+              color={colors.foreground}
+            />
+            <Text className="text-foreground font-semibold">Hỗ trợ AI:</Text>
+          </View>
+
+          <Ionicons
+            name={
+              exerciseDetail.haveAIsupported
+                ? 'checkmark-circle'
+                : 'close-circle'
+            }
+            size={20}
+            color={
+              exerciseDetail.haveAIsupported
+                ? colors.success.DEFAULT
+                : colors.danger.DEFAULT
+            }
+          />
+        </View>
+
+        {/* Equipment */}
+        {exerciseDetail.equipmentRequired && (
+          <View className="flex-col gap-2 pb-5">
+            <View className="flex-row gap-1 items-center">
+              <Ionicons
+                name="barbell-outline"
+                size={20}
+                color={colors.foreground}
+              />
+              <Text className="text-foreground font-semibold">Dụng cụ tập</Text>
+            </View>
+            {equipments.length === 0 ? (
+              <View className="items-center py-8 gap-2">
+                <Ionicons
+                  name="barbell-outline"
+                  size={40}
+                  color={colors.inactive[80]}
+                />
+                <Text className="text-secondaryText text-sm">
+                  Không cần dụng cụ
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Table Header */}
+                <View className="flex-row gap-2 pb-2 border-b border-foreground mb-1">
+                  <Text className="w-10 font-medium text-secondaryText text-center">
+                    STT
+                  </Text>
+                  <Text className="flex-1 font-medium text-secondaryText">
+                    Tên dụng cụ
+                  </Text>
+                  <Text className="w-12 font-medium text-secondaryText text-center">
+                    SL
+                  </Text>
+                  <Text className="w-16 font-medium text-secondaryText text-center">
+                    Bắt buộc
+                  </Text>
+                </View>
+
+                {/* Table Rows */}
+                <View className="flex-col gap-2">
+                  {paginatedData.map((item, index) => (
+                    <View
+                      key={item.exerciseEquipmentId}
+                      className="flex-row gap-2 border-b border-background-sub1 pb-2 items-center"
+                    >
+                      <Text className="w-10 text-secondaryText font-medium text-center">
+                        {(page - 1) * PAGE_SIZE + index + 1}
+                      </Text>
+                      <View className="flex-1">
+                        <Text className="text-foreground font-semibold">
+                          {item.equipmentName}
+                        </Text>
+                        {item.usageNotes ? (
+                          <Text
+                            className="text-secondaryText mt-0.5 text-sm"
+                            numberOfLines={2}
+                          >
+                            {item.usageNotes}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text className="w-12 text-secondaryText font-medium text-center">
+                        {item.quantity}
+                      </Text>
+                      <View className="w-16 items-center">
+                        {item.required ? (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color={colors.success.DEFAULT}
+                          />
+                        ) : (
+                          <Ionicons
+                            name="remove-circle-outline"
+                            size={20}
+                            color={colors.inactive[80]}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <View className="flex-row items-center justify-center gap-2 mt-3">
+                    <Pressable
+                      onPress={() => goToPage(page - 1)}
+                      disabled={page === 1}
+                      className={`w-8 h-8 rounded-lg items-center justify-center ${page === 1 ? 'bg-inactive-lighter' : 'bg-background-sub1'}`}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={16}
+                        color={
+                          page === 1
+                            ? colors.inactive.darker
+                            : colors.secondaryText
+                        }
+                      />
+                    </Pressable>
+
+                    <Text className="font-semibold text-sm text-foreground">
+                      {page}/{totalPages}
+                    </Text>
+
+                    <Pressable
+                      onPress={() => goToPage(page + 1)}
+                      disabled={page === totalPages}
+                      className={`w-8 h-8 rounded-lg items-center justify-center ${page === totalPages ? 'bg-inactive-lighter' : 'bg-background-sub1'}`}
+                    >
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color={
+                          page === totalPages
+                            ? colors.inactive.darker
+                            : colors.secondaryText
+                        }
+                      />
+                    </Pressable>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
         {/* History */}
-        {isPracticeTab && canPlayTheory && (
+        {/* {isPracticeTab && canPlayTheory && (
           <View className="flex-col gap-2 pb-5">
             <View className="flex-row gap-1 items-center">
               <Ionicons
@@ -81,9 +244,7 @@ const Description = ({
               </Text>
             </View>
 
-            {/* Table */}
             <View className="w-full">
-              {/* Header */}
               <View className="flex-row gap-4 border-b border-background-sub1 pb-2 mb-2">
                 <Text className="w-10 text-foreground font-medium text-center">
                   STT
@@ -97,7 +258,6 @@ const Description = ({
                 <View className="w-8" />
               </View>
 
-              {/* Body */}
               {workoutHistory.length === 0 ? (
                 <View className="py-4 items-center">
                   <Text className="text-secondaryText">
@@ -112,7 +272,7 @@ const Description = ({
               )}
             </View>
           </View>
-        )}
+        )} */}
       </ScrollView>
     </View>
   );

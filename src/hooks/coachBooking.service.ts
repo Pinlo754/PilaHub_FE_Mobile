@@ -1,5 +1,10 @@
 import { ApiResponse } from '../utils/ApiResType';
-import { CoachBookingType, SignleBookingReq } from '../utils/CoachBookingType';
+import {
+  BusyTimeSlotReq,
+  BusyTimeSlotRes,
+  CoachBookingType,
+  SignleBookingReq,
+} from '../utils/CoachBookingType';
 import api from './axiosInstance';
 
 export const coachBookingService = {
@@ -25,6 +30,32 @@ export const coachBookingService = {
   getAllBookingOfTrainee: async (): Promise<CoachBookingType[]> => {
     const res = await api.get<ApiResponse<CoachBookingType[]>>(
       `/coach-bookings/my-bookings`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET BUSY TIME SLOT
+  getBusyTimeSlot: async (
+    payload: BusyTimeSlotReq,
+  ): Promise<BusyTimeSlotRes[]> => {
+    const res = await api.get<ApiResponse<BusyTimeSlotRes[]>>(
+      `/coach-bookings/trainee/schedule-view`,
+      {
+        params: {
+          coachId: payload.coachId,
+          startTime: payload.startTime,
+          endTime: payload.endTime,
+        },
+      },
     );
 
     if (!res.data.success) {

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { View } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 
 LocaleConfig.locales.vi = {
@@ -25,10 +25,21 @@ LocaleConfig.locales.vi = {
 
 LocaleConfig.defaultLocale = "vi";
 
+function isScheduleCompleted(scheduleWrapper: any) {
+  const schedule = scheduleWrapper?.schedule ?? scheduleWrapper;
+
+  return (
+    scheduleWrapper?.completed === true ||
+    schedule?.completed === true ||
+    scheduleWrapper?.status === "COMPLETED" ||
+    schedule?.status === "COMPLETED"
+  );
+}
+
 export default function StageCalendar({
   stage,
-  selectedDate,
   onSelectDate,
+  completedDateMap = {},
 }: any) {
   const markedDates = useMemo(() => {
     const marks: any = {};
@@ -52,9 +63,14 @@ export default function StageCalendar({
       const dateStr = getAdjustedDateStr(sch?.scheduledDate);
       if (!dateStr) return;
 
+      const completed =
+        completedDateMap?.[dateStr] === true || isScheduleCompleted(sch);
+
       marks[dateStr] = {
         selected: true,
-        selectedColor: "#C98A5E",
+        selectedColor: completed ? "#10B981" : "#C98A5E",
+        selectedTextColor: "#FFFFFF",
+        completed,
       };
     });
 
@@ -71,7 +87,17 @@ export default function StageCalendar({
     }
 
     return marks;
-  }, [stage, selectedDate]);
+  }, [stage, completedDateMap]);
+
+  const handleDateSelect = (day: any) => {
+    const date = new Date(day.dateString);
+
+    date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
+
+    const adjustedDateString = date.toISOString().split("T")[0];
+
+    onSelectDate(adjustedDateString);
+  };
 
   const handleDateSelect = (day: any) => {
     // 1. Tạo đối tượng Date từ chuỗi
@@ -99,6 +125,77 @@ export default function StageCalendar({
           selectedDayBackgroundColor: "#A0522D",
           todayTextColor: "#A0522D",
           arrowColor: "#A0522D",
+        }}
+        dayComponent={({ date, state }: any) => {
+          const dateString = date?.dateString;
+          const mark = markedDates?.[dateString];
+
+          const hasSchedule = Boolean(mark);
+          const isCompleted = mark?.completed === true;
+
+          const bgColor = hasSchedule
+            ? mark?.selectedColor ?? "#C98A5E"
+            : "transparent";
+
+          const textColor = hasSchedule
+            ? "#FFFFFF"
+            : state === "disabled"
+              ? "#C7C7C7"
+              : "#3A2A1A";
+
+          return (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => handleDateSelect(date)}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: bgColor,
+                position: "relative",
+              }}
+            >
+              <Text
+                style={{
+                  color: textColor,
+                  fontWeight: "400",
+                }}
+              >
+                {date?.day}
+              </Text>
+
+              {isCompleted && (
+                <View
+                  style={{
+                    position: "absolute",
+                    right: -2,
+                    top: -2,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: "#059669",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 1,
+                    borderColor: "#FFFFFF",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontSize: 10,
+                      fontWeight: "900",
+                      lineHeight: 12,
+                    }}
+                  >
+                    ✓
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
         }}
       />
     </View>

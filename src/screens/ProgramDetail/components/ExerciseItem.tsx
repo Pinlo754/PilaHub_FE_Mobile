@@ -151,7 +151,8 @@ const ExerciseItem = ({
         item.exercises.map(ex => {
           const isFirstExercise = ex.displayOrder === 1;
           const baseAccess = hasPackage || (isEnrolled && !!traineeCourseId);
-          const allowedTheory = baseAccess && !isLocked;
+          // const allowedTheory = baseAccess && !isLocked;
+          const allowedTheory = baseAccess;
           const allowedPractice = allowedTheory && isFirstExercise;
 
           return (
@@ -159,7 +160,7 @@ const ExerciseItem = ({
               key={ex.lessonExerciseId}
               className="ml-4 flex-row justify-between items-center gap-3 mt-3"
               onPress={() => {
-                if (isLocked) return;
+                // if (isLocked) return;
                 onPressExercise(allowedTheory, allowedPractice, ex);
               }}
             >
@@ -187,7 +188,7 @@ const ExerciseItem = ({
               </View>
 
               {/* Icon */}
-              {/* {allowedTheory && isFirstExercise ? (
+              {allowedTheory && isFirstExercise ? (
                 <View
                   className={`rounded-full w-10 h-10 flex items-center justify-center pl-0.5 bg-background-sub1`}
                 >
@@ -195,9 +196,9 @@ const ExerciseItem = ({
                 </View>
               ) : (
                 <View />
-              )} */}
+              )}
 
-              {isLocked ? (
+              {/* {isLocked ? (
                 <View className="rounded-full w-10 h-10 flex items-center justify-center pl-0.5 bg-inactive-lighter">
                   <Ionicons
                     name="lock-closed"
@@ -209,7 +210,7 @@ const ExerciseItem = ({
                 <View className="rounded-full w-10 h-10 flex items-center justify-center pl-0.5 bg-background-sub1">
                   <Ionicons name="play" size={20} color={colors.foreground} />
                 </View>
-              ) : null}
+              ) : null} */}
             </Pressable>
           );
         })}

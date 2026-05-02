@@ -24,6 +24,23 @@ export const workoutSessionService = {
     return res.data.data;
   },
 
+  // GET ALL
+  getAll: async (exerciseId: string): Promise<WorkoutSessionType[]> => {
+    const res = await api.get<ApiResponse<WorkoutSessionType[]>>(
+      `/workout-sessions/my-sessions/by-exercise/${exerciseId}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
   // GET BY EXERCISE ID
   getByExerciseId: async (
     exerciseId: string,

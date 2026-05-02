@@ -50,13 +50,11 @@ const VideoCall = (props: Props) => {
     route: props.route,
   });
 
-  
   // HEART RATE INTEGRATION
   const [role, setRole] = React.useState<string | null>(null);
   // trainee visible bpm for manual send
   const [traineeBpm, setTraineeBpm] = React.useState<number | null>(null);
   const [lastSentAt, setLastSentAt] = React.useState<number | null>(null);
-  
 
   // simple throttle without external deps
   const bleThrottleRef = React.useRef<{ last: number }>({ last: 0 });
@@ -99,7 +97,7 @@ const VideoCall = (props: Props) => {
       );
     }
   }, [latestHeartRate]);
-  
+
   React.useEffect(() => {
     let unsub: (() => void) | null = null;
     let mounted = true;
@@ -159,10 +157,10 @@ const VideoCall = (props: Props) => {
       mounted = false;
       try {
         if (unsub) unsub();
-      } catch { }
+      } catch {}
       try {
         hrDisconnect();
-      } catch { }
+      } catch {}
     };
   }, [liveSessionDetail, hrConnect, hrDisconnect, subscribeToCoach]);
 
@@ -198,7 +196,10 @@ const VideoCall = (props: Props) => {
         sendHeartRate({ liveSessionId: liveId, heartRate: bpm });
         setLastSentAt(Date.now());
       } catch (error) {
-        console.error('[VideoCall] Bị lỗi trong quá trình sendHeartRate:', error);
+        console.error(
+          '[VideoCall] Bị lỗi trong quá trình sendHeartRate:',
+          error,
+        );
       }
     },
     [role, liveSessionDetail, sendHeartRate, hrIsConnected], // <-- Đừng quên thêm hrIsConnected
