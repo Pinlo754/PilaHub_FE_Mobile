@@ -30,7 +30,32 @@ export default function InBodyScan() {
   const nav = useNavigation<any>();
   const route = useRoute<any>();
 
+  /**
+   * Dùng để sau Assessment quay lại đúng nơi bắt đầu flow.
+   *
+   * BodyMetricDetails:
+   * returnToAfterAssessment = 'BodyMetricDetails'
+   *
+   * Roadmap tab:
+   * returnToAfterAssessment = {
+   *   root: 'MainTabs',
+   *   screen: 'Roadmap',
+   * }
+   */
   const returnToAfterAssessment = route.params?.returnToAfterAssessment;
+
+  /**
+   * Dùng cho flow cập nhật số đo cuối của roadmap.
+   *
+   * roadmapFinalUpdate = {
+   *   roadmapId: '...'
+   * }
+   *
+   * Param này sẽ được truyền tiếp tới ResultScreen.
+   * ResultScreen sẽ dùng roadmapId + healthProfileId mới
+   * để gọi PATCH /roadmaps/{id}/final-health-profile.
+   */
+  const roadmapFinalUpdate = route.params?.roadmapFinalUpdate;
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -154,6 +179,7 @@ export default function InBodyScan() {
         imageUri,
         rawScanId,
         returnToAfterAssessment,
+        roadmapFinalUpdate,
       });
 
       const res = await uploadInBodyScan(img, rawScanId);
@@ -167,8 +193,11 @@ export default function InBodyScan() {
          * Backend InBody hiện tại đã lưu DB và trả về healthProfileId.
          * Vì vậy truyền alreadySaved=true để ResultScreen không submitHealthProfile lần nữa.
          *
-         * returnToAfterAssessment được truyền tiếp để:
+         * returnToAfterAssessment:
          * InBodyScan -> Result -> HealthProfileAssessment -> quay lại đúng màn ban đầu.
+         *
+         * roadmapFinalUpdate:
+         * InBodyScan -> Result -> PATCH finalHealthProfileId cho roadmap.
          */
         nav.navigate('Result' as never, {
           measurements: extracted?.measurements ?? null,
@@ -176,6 +205,7 @@ export default function InBodyScan() {
           source: 'InBody',
           alreadySaved: true,
           returnToAfterAssessment,
+          roadmapFinalUpdate,
         } as never);
 
         return;
@@ -210,11 +240,17 @@ export default function InBodyScan() {
     <View style={styles.container}>
       <Text style={styles.title}>InBody Scan</Text>
 
+      <Text style={styles.description}>
+        Chụp hoặc chọn ảnh kết quả InBody. Hệ thống sẽ trích xuất chỉ số sức khỏe
+        và lưu thành hồ sơ mới.
+      </Text>
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.btn, styles.primary]}
           onPress={pickFromCamera}
           disabled={uploading}
+          activeOpacity={0.85}
         >
           <Text style={styles.btnText}>Chụp ảnh</Text>
         </TouchableOpacity>
@@ -223,6 +259,7 @@ export default function InBodyScan() {
           style={[styles.btn, styles.ghost]}
           onPress={pickFromLibrary}
           disabled={uploading}
+          activeOpacity={0.85}
         >
           <Text style={[styles.btnText, styles.ghostText]}>
             Chọn từ thư viện
@@ -234,12 +271,17 @@ export default function InBodyScan() {
         <View style={styles.preview}>
           <Image source={{ uri: imageUri }} style={styles.previewImg} />
         </View>
-      ) : null}
+      ) : (
+        <View style={styles.emptyPreview}>
+          <Text style={styles.emptyPreviewText}>Chưa có ảnh InBody</Text>
+        </View>
+      )}
 
       <TouchableOpacity
         style={[styles.btn, styles.upload, uploading && styles.disabledBtn]}
         onPress={submit}
         disabled={uploading}
+        activeOpacity={0.85}
       >
         {uploading ? (
           <ActivityIndicator color="#fff" />
@@ -266,6 +308,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
+    marginBottom: 8,
+    color: '#3A2A1A',
+  },
+  description: {
+    textAlign: 'center',
+    color: '#6B6B6B',
+    fontSize: 13,
+    lineHeight: 19,
     marginBottom: 16,
   },
   actions: {
@@ -318,5 +368,20 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 12,
     backgroundColor: '#eee',
+  },
+  emptyPreview: {
+    width: '100%',
+    height: 300,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFE3D4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  emptyPreviewText: {
+    color: '#8B8B8B',
+    fontSize: 14,
   },
 });

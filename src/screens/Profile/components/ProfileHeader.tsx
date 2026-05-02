@@ -141,7 +141,7 @@ export default function ProfileHeader({ profile, onEdit, onAvatarPress, onAvatar
         )}
 
         <Pressable onPress={onEdit} className="mt-3 px-4 py-2 rounded-full border border-amber-200 bg-amber-100">
-          <Text className="text-amber-800 font-medium">Chỉnh sửa</Text>
+          <Text className="text-amber-800 font-medium">Nâng cấp</Text>
         </Pressable>
 
         <View className="mt-5 bg-white rounded-xl px-5 py-3 w-11/12 flex-row justify-between items-center shadow">

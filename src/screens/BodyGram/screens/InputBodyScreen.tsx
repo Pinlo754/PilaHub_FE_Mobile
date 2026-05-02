@@ -36,6 +36,8 @@ type OnboardingData = {
   heightUnit?: string;
   weightUnit?: string;
   bmi?: number;
+  age?: number;
+  gender?: 'male' | 'female' | string;
   [k: string]: any;
 };
 
@@ -78,6 +80,8 @@ function normalizeHeightToCm(
     h = h * 100;
   } else if (hUnit === 'in' || hUnit === 'inch') {
     h = h * 2.54;
+  } else if (hUnit === 'mm') {
+    h = h / 10;
   }
 
   return round1(h);
@@ -97,6 +101,8 @@ function normalizeWeightToKg(
 
   if (wUnit === 'lb' || wUnit === 'lbs') {
     w = w * 0.45359237;
+  } else if (wUnit === 'g' || wUnit === 'gram') {
+    w = w / 1000;
   }
 
   return round1(w);
@@ -117,8 +123,73 @@ function computeBmi(
   return Math.round(bmi * 10) / 10;
 }
 
+function parseMetadata(metadata: any) {
+  if (!metadata) return {};
+
+  if (typeof metadata === 'object') return metadata;
+
+  if (typeof metadata === 'string') {
+    try {
+      return JSON.parse(metadata);
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function getExtraMeasurementsFromProfile(profile: any) {
+  const metadata = parseMetadata(profile?.metadata);
+
+  return {
+    metadata,
+    input: metadata?.input ?? {},
+    extra: metadata?.extraMeasurements ?? {},
+    bodyComposition: metadata?.bodyComposition ?? {},
+  };
+}
+
 export default function InputBodyScreen({ navigation, route }: Props) {
-  const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
+  /**
+   * Dùng để sau Assessment quay lại đúng nơi bắt đầu flow.
+   *
+   * BodyMetricDetails:
+   * returnToAfterAssessment = 'BodyMetricDetails'
+   *
+   * Roadmap tab:
+   * returnToAfterAssessment = {
+   *   root: 'MainTabs',
+   *   screen: 'Roadmap',
+   * }
+   */
+  const returnToAfterAssessment =
+    (route.params as any)?.returnToAfterAssessment;
+
+  /**
+   * Dùng cho flow cập nhật số đo cuối của roadmap.
+   *
+   * roadmapFinalUpdate = {
+   *   roadmapId: '...'
+   * }
+   *
+   * Param này sẽ được truyền tiếp tới ResultScreen.
+   */
+  const roadmapFinalUpdate = (route.params as any)?.roadmapFinalUpdate;
+
+  /**
+   * Chỉ dùng cho flow từ RoadMap.
+   *
+   * RoadMap truyền profile ban đầu qua đây để InputBody hydrate lại:
+   * - height
+   * - weight
+   * - age
+   * - gender
+   * - waist/hip/bust/bicep/thigh/calf
+   *
+   * Nhờ vậy BodyGram có đủ age/gender/height/weight để scan.
+   */
+  const bodyInputSeed = (route.params as any)?.bodyInputSeed;
 
   const labelMap: Record<string, string> = {
     waist: 'Eo',
@@ -153,6 +224,150 @@ export default function InputBodyScreen({ navigation, route }: Props) {
     setModal({ key: '', visible: false });
   }, []);
 
+  /**
+   * Hydrate từ bodyInputSeed của RoadMap.
+   * Cái này chạy trước để đảm bảo khi user bấm BodyGram thì store có đủ:
+   * age, gender, height, weight.
+   */
+  const seedHydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (seedHydratedRef.current) return;
+    if (!bodyInputSeed?.profile) return;
+
+    const profile = bodyInputSeed.profile;
+    const { input, extra, bodyComposition } =
+      getExtraMeasurementsFromProfile(profile);
+
+    const update: any = {};
+
+    if (
+      (onboarding?.height === undefined ||
+        onboarding?.height === null ||
+        onboarding?.height === '') &&
+      profile?.heightCm != null
+    ) {
+      update.height = Number(profile.heightCm);
+      update.heightUnit = 'cm';
+    }
+
+    if (
+      (onboarding?.weight === undefined ||
+        onboarding?.weight === null ||
+        onboarding?.weight === '') &&
+      profile?.weightKg != null
+    ) {
+      update.weight = Number(profile.weightKg);
+      update.weightUnit = 'kg';
+    }
+
+    if (
+      (onboarding?.bodyFatPercent === undefined ||
+        onboarding?.bodyFatPercent === null ||
+        onboarding?.bodyFatPercent === '') &&
+      (profile?.bodyFatPercentage != null ||
+        bodyComposition?.bodyFatPercentage != null)
+    ) {
+      update.bodyFatPercent = Number(
+        profile?.bodyFatPercentage ?? bodyComposition?.bodyFatPercentage,
+      );
+    }
+
+    if (
+      (onboarding?.muscleMass === undefined ||
+        onboarding?.muscleMass === null ||
+        onboarding?.muscleMass === '') &&
+      (profile?.muscleMassKg != null || bodyComposition?.muscleMassKg != null)
+    ) {
+      update.muscleMass = Number(
+        profile?.muscleMassKg ?? bodyComposition?.muscleMassKg,
+      );
+    }
+
+    if (
+      (onboarding?.waist === undefined ||
+        onboarding?.waist === null ||
+        onboarding?.waist === '') &&
+      (profile?.waistCm != null || extra?.waistCm != null)
+    ) {
+      update.waist = Number(profile?.waistCm ?? extra?.waistCm);
+    }
+
+    if (
+      (onboarding?.hip === undefined ||
+        onboarding?.hip === null ||
+        onboarding?.hip === '') &&
+      (profile?.hipCm != null || extra?.hipCm != null)
+    ) {
+      update.hip = Number(profile?.hipCm ?? extra?.hipCm);
+    }
+
+    if (
+      (onboarding?.bust === undefined ||
+        onboarding?.bust === null ||
+        onboarding?.bust === '') &&
+      (profile?.bustCm != null || extra?.bustCm != null)
+    ) {
+      update.bust = Number(profile?.bustCm ?? extra?.bustCm);
+    }
+
+    if (
+      (onboarding?.bicep === undefined ||
+        onboarding?.bicep === null ||
+        onboarding?.bicep === '') &&
+      (profile?.bicepCm != null || extra?.bicepCm != null)
+    ) {
+      update.bicep = Number(profile?.bicepCm ?? extra?.bicepCm);
+    }
+
+    if (
+      (onboarding?.thigh === undefined ||
+        onboarding?.thigh === null ||
+        onboarding?.thigh === '') &&
+      (profile?.thighCm != null || extra?.thighCm != null)
+    ) {
+      update.thigh = Number(profile?.thighCm ?? extra?.thighCm);
+    }
+
+    if (
+      (onboarding?.calf === undefined ||
+        onboarding?.calf === null ||
+        onboarding?.calf === '') &&
+      (profile?.calfCm != null || extra?.calfCm != null)
+    ) {
+      update.calf = Number(profile?.calfCm ?? extra?.calfCm);
+    }
+
+    if (
+      (onboarding?.age === undefined ||
+        onboarding?.age === null ||
+        onboarding?.age === '') &&
+      input?.age != null
+    ) {
+      update.age = Number(input.age);
+    }
+
+    if (
+      (onboarding?.gender === undefined ||
+        onboarding?.gender === null ||
+        onboarding?.gender === '') &&
+      input?.gender != null
+    ) {
+      update.gender = input.gender;
+    }
+
+    if (Object.keys(update).length > 0) {
+      console.log('Hydrate InputBody from Roadmap bodyInputSeed:', update);
+      setData(update);
+    }
+
+    seedHydratedRef.current = true;
+  }, [bodyInputSeed, onboarding, setData]);
+
+  /**
+   * Hydrate nhẹ từ cache BodyGram cũ.
+   * Giữ lại logic cũ của bạn.
+   */
   const hydrateRanRef = useRef(false);
 
   useEffect(() => {
@@ -307,7 +522,12 @@ export default function InputBodyScreen({ navigation, route }: Props) {
   const allFilled = allMeasurementsFilled(onboarding);
 
   console.log('InputBodyScreen onboarding:', onboarding);
-  console.log('InputBodyScreen returnToAfterAssessment:', returnToAfterAssessment);
+  console.log(
+    'InputBodyScreen returnToAfterAssessment:',
+    returnToAfterAssessment,
+  );
+  console.log('InputBodyScreen roadmapFinalUpdate:', roadmapFinalUpdate);
+  console.log('InputBodyScreen bodyInputSeed:', bodyInputSeed);
 
   const handleContinue = () => {
     if (!allFilled) {
@@ -369,6 +589,8 @@ export default function InputBodyScreen({ navigation, route }: Props) {
 
     meas.input = {
       source: 'manual',
+      age: onboarding?.age ?? null,
+      gender: onboarding?.gender ?? null,
     };
 
     console.log('MANUAL -> Result measurements:', meas);
@@ -378,6 +600,7 @@ export default function InputBodyScreen({ navigation, route }: Props) {
       rawResponse: null,
       source: 'Manual',
       returnToAfterAssessment,
+      roadmapFinalUpdate,
     });
   };
 
@@ -576,6 +799,7 @@ export default function InputBodyScreen({ navigation, route }: Props) {
               onPress={() =>
                 navigation.navigate('InBodyScan' as any, {
                   returnToAfterAssessment,
+                  roadmapFinalUpdate,
                 })
               }
               style={[styles.fillBtn, styles.centerContent]}
@@ -588,6 +812,7 @@ export default function InputBodyScreen({ navigation, route }: Props) {
               onPress={() =>
                 navigation.navigate('BodyScanFlow' as any, {
                   returnToAfterAssessment,
+                  roadmapFinalUpdate,
                 })
               }
               style={[styles.fillBtn, styles.centerContent]}

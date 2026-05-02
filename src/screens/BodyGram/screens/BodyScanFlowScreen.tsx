@@ -23,7 +23,33 @@ import { normalizeForBodygram } from '../services/normalizeBodygram';
 type Props = NativeStackScreenProps<RootStackParamList, 'BodyScanFlow'>;
 
 export default function BodyScanFlowScreen({ navigation, route }: Props) {
-  const returnToAfterAssessment = (route.params as any)?.returnToAfterAssessment;
+  /**
+   * Dùng để sau Assessment quay lại đúng nơi bắt đầu flow.
+   *
+   * BodyMetricDetails:
+   * returnToAfterAssessment = 'BodyMetricDetails'
+   *
+   * Roadmap tab:
+   * returnToAfterAssessment = {
+   *   root: 'MainTabs',
+   *   screen: 'Roadmap',
+   * }
+   */
+  const returnToAfterAssessment =
+    (route.params as any)?.returnToAfterAssessment;
+
+  /**
+   * Dùng cho flow cập nhật số đo cuối của roadmap.
+   *
+   * roadmapFinalUpdate = {
+   *   roadmapId: '...'
+   * }
+   *
+   * Param này sẽ được truyền tiếp tới ResultScreen.
+   * ResultScreen sẽ dùng roadmapId + healthProfileId mới
+   * để gọi PATCH /roadmaps/{id}/final-health-profile.
+   */
+  const roadmapFinalUpdate = (route.params as any)?.roadmapFinalUpdate;
 
   const [front, setFront] = useState<string | null>(null);
   const [side, setSide] = useState<string | null>(null);
@@ -32,6 +58,13 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
   );
   const [loading, setLoading] = useState(false);
   const [modalProps, setModalProps] = useState<any>({ visible: false });
+
+  function closeModal() {
+    setModalProps((prev: any) => ({
+      ...prev,
+      visible: false,
+    }));
+  }
 
   function showModal(
     title: string,
@@ -46,11 +79,21 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
       mode: normalizedMode,
       titleText: title,
       contentText: message ?? '',
-      onClose: () => setModalProps({ visible: false }),
-      ...(onConfirm ? { onConfirm } : {}),
-      ...(normalizedMode === 'confirm'
-        ? { onCancel: () => setModalProps({ visible: false }) }
-        : {}),
+      confirmBtnText: normalizedMode === 'confirm' ? 'Xác nhận' : 'Đóng',
+      cancelBtnText: 'Hủy',
+      onClose: closeModal,
+      onConfirm: onConfirm
+        ? () => {
+            closeModal();
+            onConfirm();
+          }
+        : closeModal,
+      onCancel:
+        normalizedMode === 'confirm'
+          ? () => {
+              closeModal();
+            }
+          : undefined,
     });
   }
 
@@ -93,7 +136,7 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
           console.log('Loaded onboarding into store from AsyncStorage');
         } else {
           const raw = await AsyncStorage.getItem('ONBOARDING');
-          console.log('AsyncStorage ONBOARDING raw (fallback):', raw);
+          console.log('AsyncStorage ONBOARDING raw fallback:', raw);
         }
       } catch (err) {
         console.log('Failed to load onboarding from storage', err);
@@ -105,58 +148,128 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
     if (screenStep === 'front') {
       setFront(path);
       setScreenStep('side');
+      return;
+    }
+
+    setSide(path);
+    setScreenStep('review');
+  };
+
+  const resetCapture = () => {
+    setFront(null);
+    setSide(null);
+    setScreenStep('front');
+  };
+
+  const getBodygramInput = async () => {
+    let source: any =
+      onboardingData && Object.keys(onboardingData).length > 0
+        ? onboardingData
+        : undefined;
+
+    if (!source) {
+      try {
+        const raw = await AsyncStorage.getItem('ONBOARDING');
+
+        console.log('FALLBACK: AsyncStorage ONBOARDING raw:', raw);
+
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          source = parsed?.data;
+        }
+      } catch (err) {
+        console.log('Error reading ONBOARDING from AsyncStorage', err);
+      }
     } else {
-      setSide(path);
-      setScreenStep('review');
+      console.log('Using onboarding data from zustand store');
+    }
+
+    if (!source || Object.keys(source).length === 0) {
+      throw new Error(
+        'Thiếu thông tin: onboarding trống. Vui lòng hoàn tất onboarding.',
+      );
+    }
+
+    console.log(
+      'DEBUG onboardingData for Bodygram used source:',
+      JSON.stringify(source, null, 2),
+    );
+
+    const body = normalizeForBodygram(source);
+
+    console.log(
+      'DEBUG normalized body for Bodygram:',
+      JSON.stringify(body, null, 2),
+    );
+
+    return body;
+  };
+
+  const sanitizeBodygramResponseForNavigation = (res: any) => {
+    try {
+      const navRaw = JSON.parse(JSON.stringify(res));
+
+      if (navRaw?.entry?.avatar?.data) {
+        navRaw.entry.avatar.data = '[BASE64_TRUNCATED]';
+      } else if (navRaw?.avatar?.data) {
+        navRaw.avatar.data = '[BASE64_TRUNCATED]';
+      }
+
+      return navRaw;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const saveBodygramDebugData = async (
+    res: any,
+    measurements: Measurements,
+  ) => {
+    try {
+      const measKey = 'bodygram:lastMeasurements';
+
+      await AsyncStorage.setItem(measKey, JSON.stringify(measurements));
+
+      console.log('Saved measurements to AsyncStorage:', measKey);
+    } catch (err) {
+      console.log('Failed to save measurements to AsyncStorage', err);
+    }
+
+    try {
+      const saveKey = 'bodygram:lastResponse';
+      const sanitized: any = JSON.parse(JSON.stringify(res));
+
+      if (sanitized?.entry?.avatar?.data) {
+        sanitized.entry.avatar.data = '[BASE64_TRUNCATED]';
+      } else if (sanitized?.avatar?.data) {
+        sanitized.avatar.data = '[BASE64_TRUNCATED]';
+      }
+
+      await AsyncStorage.setItem(saveKey, JSON.stringify(sanitized));
+
+      console.log('Saved Bodygram response to AsyncStorage:', saveKey);
+    } catch (err) {
+      console.log('Failed to save Bodygram response to AsyncStorage', err);
     }
   };
 
   const handleSendBodygram = async () => {
-    if (!front || !side) return;
+    if (!front || !side) {
+      showModal(
+        'Thiếu ảnh',
+        'Vui lòng chụp đủ ảnh chính diện và ảnh bên hông.',
+      );
+      return;
+    }
 
     let body;
 
     try {
-      let source: any =
-        onboardingData && Object.keys(onboardingData).length > 0
-          ? onboardingData
-          : undefined;
-
-      if (!source) {
-        try {
-          const raw = await AsyncStorage.getItem('ONBOARDING');
-
-          console.log('FALLBACK: AsyncStorage ONBOARDING raw:', raw);
-
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            source = parsed?.data;
-          }
-        } catch (err) {
-          console.log('Error reading ONBOARDING from AsyncStorage', err);
-        }
-      } else {
-        console.log('Using onboarding data from zustand store');
-      }
-
-      if (!source || Object.keys(source).length === 0) {
-        throw new Error(
-          'Thiếu thông tin: onboarding trống. Vui lòng hoàn tất onboarding.',
-        );
-      }
-
-      console.log(
-        'DEBUG onboardingData for Bodygram (used source):',
-        JSON.stringify(source, null, 2),
-      );
-
-      body = normalizeForBodygram(source);
-
-      console.log('DEBUG normalized body for Bodygram:', JSON.stringify(body, null, 2));
+      body = await getBodygramInput();
     } catch (err: any) {
       showModal(
         'Thiếu thông tin',
-        err.message || 'Vui lòng hoàn tất onboarding trước khi quét.',
+        err?.message || 'Vui lòng hoàn tất onboarding trước khi quét.',
       );
       return;
     }
@@ -168,7 +281,7 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
 
       console.log('Bodygram full response:', res);
 
-      const entry = res.entry ?? res;
+      const entry = res?.entry ?? res;
 
       const errorCode =
         (entry && (entry as any).error && (entry as any).error.code) ||
@@ -184,16 +297,11 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
 
         const msg = friendly[errorCode] ?? `Lỗi: ${errorCode}`;
 
-        showModal('Quét thất bại', msg, 'confirm', () => {
-          setFront(null);
-          setSide(null);
-          setScreenStep('front');
-        });
-
+        showModal('Quét thất bại', msg, 'confirm', resetCapture);
         return;
       }
 
-      const measurements: Measurements = entry.measurements ?? {};
+      const measurements: Measurements = entry?.measurements ?? {};
 
       const hasMeasurements =
         measurements && Object.keys(measurements).length > 0;
@@ -205,56 +313,21 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
           'Quét thất bại',
           'Không nhận được số đo từ server. Bạn muốn chụp lại ảnh để thử lại?',
           'confirm',
-          () => {
-            setFront(null);
-            setSide(null);
-            setScreenStep('front');
-          },
+          resetCapture,
         );
 
         return;
       }
 
-      try {
-        const measKey = 'bodygram:lastMeasurements';
+      await saveBodygramDebugData(res, measurements);
 
-        await AsyncStorage.setItem(measKey, JSON.stringify(measurements));
+      const navRaw = sanitizeBodygramResponseForNavigation(res);
 
-        console.log('Saved measurements to AsyncStorage:', measKey);
-      } catch (err) {
-        console.log('Failed to save measurements to AsyncStorage', err);
-      }
-
-      try {
-        const saveKey = 'bodygram:lastResponse';
-        const sanitized: any = JSON.parse(JSON.stringify(res));
-
-        if (sanitized?.entry?.avatar?.data) {
-          sanitized.entry.avatar.data = '[BASE64_TRUNCATED]';
-        } else if (sanitized?.avatar?.data) {
-          sanitized.avatar.data = '[BASE64_TRUNCATED]';
-        }
-
-        await AsyncStorage.setItem(saveKey, JSON.stringify(sanitized));
-
-        console.log('Saved Bodygram response to AsyncStorage:', saveKey);
-      } catch (err) {
-        console.log('Failed to save Bodygram response to AsyncStorage', err);
-      }
-
-      let navRaw: any;
-
-      try {
-        navRaw = JSON.parse(JSON.stringify(res));
-
-        if (navRaw?.entry?.avatar?.data) {
-          navRaw.entry.avatar.data = '[BASE64_TRUNCATED]';
-        } else if (navRaw?.avatar?.data) {
-          navRaw.avatar.data = '[BASE64_TRUNCATED]';
-        }
-      } catch {
-        navRaw = undefined;
-      }
+      console.log('BodyScanFlow navigate Result params:', {
+        source: 'BodyGram',
+        returnToAfterAssessment,
+        roadmapFinalUpdate,
+      });
 
       navigation.navigate('Result', {
         measurements,
@@ -262,15 +335,17 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
         rawResponse: navRaw ?? res,
         source: 'BodyGram',
         returnToAfterAssessment,
+        roadmapFinalUpdate,
       } as any);
-    } catch (e) {
+    } catch (e: any) {
       console.log('Upload error', e);
 
-      showModal('Lỗi quét', 'Không quét được số đo. Bạn muốn chụp lại ảnh?', 'confirm', () => {
-        setFront(null);
-        setSide(null);
-        setScreenStep('front');
-      });
+      showModal(
+        'Lỗi quét',
+        e?.message || 'Không quét được số đo. Bạn muốn chụp lại ảnh?',
+        'confirm',
+        resetCapture,
+      );
     } finally {
       setLoading(false);
     }
@@ -282,49 +357,59 @@ export default function BodyScanFlowScreen({ navigation, route }: Props) {
 
   console.log('Onboarding data used for Bodygram:', onboardingData);
   console.log('BodyScanFlow returnToAfterAssessment:', returnToAfterAssessment);
+  console.log('BodyScanFlow roadmapFinalUpdate:', roadmapFinalUpdate);
 
   return (
     <ScrollView style={styles.container}>
       <Text className="text-2xl font-bold mb-4 text-center">Xem lại ảnh</Text>
 
-      {front && (
-        <Image source={{ uri: 'file://' + front }} style={styles.imgStyle} />
-      )}
+      <Text style={styles.description}>
+        Kiểm tra lại ảnh trước khi gửi lên BodyGram. Ảnh nên rõ toàn thân, đủ ánh
+        sáng và không bị che khuất.
+      </Text>
 
-      {side && (
-        <Image source={{ uri: 'file://' + side }} style={styles.imgStyle} />
-      )}
+      {front ? (
+        <View style={styles.previewBlock}>
+          <Text style={styles.previewLabel}>Ảnh chính diện</Text>
+          <Image source={{ uri: 'file://' + front }} style={styles.imgStyle} />
+        </View>
+      ) : null}
+
+      {side ? (
+        <View style={styles.previewBlock}>
+          <Text style={styles.previewLabel}>Ảnh bên hông</Text>
+          <Image source={{ uri: 'file://' + side }} style={styles.imgStyle} />
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.centerView}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Đang gửi Bodygram...</Text>
+          <ActivityIndicator size="large" color="#A0522D" />
+          <Text style={styles.loadingText}>Đang gửi BodyGram...</Text>
         </View>
       ) : (
         <>
           <TouchableOpacity
             onPress={handleSendBodygram}
             style={styles.sendButton}
+            activeOpacity={0.85}
           >
             <Text style={styles.sendButtonText}>
-              Gửi Bodygram để lấy số đo
+              Gửi BodyGram để lấy số đo
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => {
-              setFront(null);
-              setSide(null);
-              setScreenStep('front');
-            }}
+            onPress={resetCapture}
             style={styles.retakeButton}
+            activeOpacity={0.85}
           >
             <Text style={styles.retakeButtonText}>Chụp lại</Text>
           </TouchableOpacity>
         </>
       )}
 
-      <ModalPopup {...(modalProps as any)} />
+      <ModalPopup {...(modalProps as any)} onClose={closeModal} />
     </ScrollView>
   );
 }
@@ -335,6 +420,22 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 40,
     backgroundColor: '#FFFAF0',
+  },
+  description: {
+    textAlign: 'center',
+    color: '#6B6B6B',
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  previewBlock: {
+    marginBottom: 16,
+  },
+  previewLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3A2A1A',
+    marginBottom: 8,
   },
   sendButton: {
     backgroundColor: '#A0522D',
@@ -353,6 +454,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
+    marginBottom: 24,
   },
   retakeButtonText: {
     color: '#A0522D',
@@ -362,13 +464,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 320,
     borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: '#eee',
   },
   centerView: {
     alignItems: 'center',
     marginTop: 16,
+    marginBottom: 24,
   },
   loadingText: {
     marginTop: 8,
+    color: '#6B6B6B',
   },
 });

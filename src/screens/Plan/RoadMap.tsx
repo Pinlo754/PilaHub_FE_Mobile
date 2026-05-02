@@ -31,9 +31,10 @@ import {
   mapStoredHealthProfile,
 } from '../../services/profile';
 import RoadmapBodyMetricModal from './components/RoadmapVideo/RoadmapBodyMetricModal';
+import RoadmapBeforeAfterCard from './components/RoadmapVideo/RoadmapBeforeAfterCard';
 
 const RoadMap = () => {
-  const storeList = useRoadmapStore(s => s.list);
+  const storeList = useRoadmapStore((s) => s.list);
   const route: any = useRoute();
   const navigation: any = useNavigation();
 
@@ -53,21 +54,33 @@ const RoadMap = () => {
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedScheduleData, setSelectedScheduleData] = useState<any | null>(null);
+  const [selectedScheduleData, setSelectedScheduleData] = useState<any | null>(
+    null,
+  );
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [currentRoadmapData, setCurrentRoadmapData] = useState<any | null>(roadmap);
+  const [currentRoadmapData, setCurrentRoadmapData] = useState<any | null>(
+    roadmap,
+  );
   const [currentStagesData, setCurrentStagesData] = useState<any[]>(stages);
-  const [currentSupplementsData, setCurrentSupplementsData] = useState<any[]>([]);
+  const [currentSupplementsData, setCurrentSupplementsData] = useState<any[]>(
+    [],
+  );
 
-  const [pendingRoadmapData, setPendingRoadmapData] = useState<any | null>(null);
+  const [pendingRoadmapData, setPendingRoadmapData] = useState<any | null>(
+    null,
+  );
   const [pendingStagesData, setPendingStagesData] = useState<any[]>([]);
-  const [pendingSupplementsData, setPendingSupplementsData] = useState<any[]>([]);
+  const [pendingSupplementsData, setPendingSupplementsData] = useState<any[]>(
+    [],
+  );
 
   const [lastError, setLastError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'CURRENT' | 'PROCESSING'>('CURRENT');
+  const [activeTab, setActiveTab] = useState<'CURRENT' | 'PROCESSING'>(
+    'CURRENT',
+  );
   const [coachRequests, setCoachRequests] = useState<any[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -76,28 +89,39 @@ const RoadMap = () => {
   const [updatingProgress, setUpdatingProgress] = useState(false);
 
   const [showBodyMetricModal, setShowBodyMetricModal] = useState(false);
-  const [roadmapHealthProfile, setRoadmapHealthProfile] = useState<any | null>(null);
-  const [loadingRoadmapHealthProfile, setLoadingRoadmapHealthProfile] = useState(false);
+
+  const [roadmapInitialHealthProfile, setRoadmapInitialHealthProfile] =
+    useState<any | null>(null);
+
+  const [roadmapFinalHealthProfile, setRoadmapFinalHealthProfile] =
+    useState<any | null>(null);
+
+  const [loadingRoadmapHealthProfile, setLoadingRoadmapHealthProfile] =
+    useState(false);
 
   const [modalProps, setModalProps] = useState<any>({ visible: false });
+
   const showModal = (p: any) => setModalProps({ ...p, visible: true });
   const closeModal = () => setModalProps({ visible: false });
 
-  const toVietnamDateKey = useCallback((dateInput: string | Date | null | undefined) => {
-    if (!dateInput) return null;
+  const toVietnamDateKey = useCallback(
+    (dateInput: string | Date | null | undefined) => {
+      if (!dateInput) return null;
 
-    const date = new Date(dateInput);
+      const date = new Date(dateInput);
 
-    if (isNaN(date.getTime())) return null;
+      if (isNaN(date.getTime())) return null;
 
-    const vietnamDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+      const vietnamDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
 
-    const year = vietnamDate.getUTCFullYear();
-    const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
+      const year = vietnamDate.getUTCFullYear();
+      const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
 
-    return `${year}-${month}-${day}`;
-  }, []);
+      return `${year}-${month}-${day}`;
+    },
+    [],
+  );
 
   const getScheduleDateKey = useCallback(
     (scheduleWrapper: any) => {
@@ -123,14 +147,9 @@ const RoadMap = () => {
       schedule: innerSchedule,
 
       scheduledDate:
-        scheduleWrapper?.scheduledDate ??
-        innerSchedule?.scheduledDate ??
-        null,
+        scheduleWrapper?.scheduledDate ?? innerSchedule?.scheduledDate ?? null,
 
-      exercises:
-        scheduleWrapper?.exercises ??
-        innerSchedule?.exercises ??
-        [],
+      exercises: scheduleWrapper?.exercises ?? innerSchedule?.exercises ?? [],
 
       personalScheduleId:
         scheduleWrapper?.personalScheduleId ??
@@ -140,9 +159,7 @@ const RoadMap = () => {
         null,
 
       completed:
-        scheduleWrapper?.completed ??
-        innerSchedule?.completed ??
-        false,
+        scheduleWrapper?.completed ?? innerSchedule?.completed ?? false,
 
       scheduleName:
         scheduleWrapper?.scheduleName ??
@@ -150,20 +167,13 @@ const RoadMap = () => {
         innerSchedule?.name ??
         'Lịch tập',
 
-      dayOfWeek:
-        scheduleWrapper?.dayOfWeek ??
-        innerSchedule?.dayOfWeek ??
-        '',
+      dayOfWeek: scheduleWrapper?.dayOfWeek ?? innerSchedule?.dayOfWeek ?? '',
 
       durationMinutes:
-        scheduleWrapper?.durationMinutes ??
-        innerSchedule?.durationMinutes ??
-        0,
+        scheduleWrapper?.durationMinutes ?? innerSchedule?.durationMinutes ?? 0,
 
       description:
-        scheduleWrapper?.description ??
-        innerSchedule?.description ??
-        '',
+        scheduleWrapper?.description ?? innerSchedule?.description ?? '',
     };
   }, []);
 
@@ -211,7 +221,6 @@ const RoadMap = () => {
         [];
 
       if (!roadmapFromServer) {
-        console.log('fetchNewest: no roadmap in response');
         setCurrentRoadmapData(null);
         setCurrentStagesData([]);
         setCurrentSupplementsData([]);
@@ -240,7 +249,7 @@ const RoadMap = () => {
             setCurrentSupplementsData([]);
           }
         } catch (err) {
-          console.warn('Lỗi khi lấy equipment/supplements (Current)', err);
+          console.warn('Lỗi khi lấy equipment/supplements Current', err);
           roadmapFromServer.supplements = [];
           setCurrentSupplementsData([]);
         }
@@ -250,7 +259,9 @@ const RoadMap = () => {
       }
 
       setCurrentRoadmapData(roadmapFromServer);
-      setCurrentStagesData(Array.isArray(stagesFromServer) ? stagesFromServer : []);
+      setCurrentStagesData(
+        Array.isArray(stagesFromServer) ? stagesFromServer : [],
+      );
     } catch (err: any) {
       console.warn('fetchNewest error', err);
       setLastError(String(err?.message ?? err));
@@ -279,7 +290,6 @@ const RoadMap = () => {
         : responseData;
 
       if (!actualData || Object.keys(actualData).length === 0) {
-        console.log('fetchProcessing: Dữ liệu pending trống');
         setPendingRoadmapData(null);
         setPendingStagesData([]);
         setPendingSupplementsData([]);
@@ -293,7 +303,6 @@ const RoadMap = () => {
       const roadmapId = getRoadmapId(roadmapFromServer);
 
       if (!roadmapId) {
-        console.warn('fetchProcessing: Không tìm thấy roadmapId trong object', roadmapFromServer);
         setPendingRoadmapData(null);
         setPendingStagesData([]);
         setPendingSupplementsData([]);
@@ -319,13 +328,15 @@ const RoadMap = () => {
           setPendingSupplementsData([]);
         }
       } catch (err) {
-        console.warn('Lỗi khi lấy equipment/supplements (Pending)', err);
+        console.warn('Lỗi khi lấy equipment/supplements Pending', err);
         roadmapFromServer.supplements = [];
         setPendingSupplementsData([]);
       }
 
       setPendingRoadmapData(roadmapFromServer);
-      setPendingStagesData(Array.isArray(stagesFromServer) ? stagesFromServer : []);
+      setPendingStagesData(
+        Array.isArray(stagesFromServer) ? stagesFromServer : [],
+      );
     } catch (err: any) {
       console.warn('fetchProcessing error', err);
       setLastError(String(err?.message ?? err));
@@ -336,13 +347,9 @@ const RoadMap = () => {
 
   useFocusEffect(
     useCallback(() => {
-      console.log('[useFocusEffect] activeTab changed to:', activeTab);
-
       if (activeTab === 'CURRENT') {
-        console.log('[useFocusEffect] Fetching CURRENT roadmap');
         fetchNewest();
       } else {
-        console.log('[useFocusEffect] Fetching PROCESSING roadmap');
         fetchProcessing();
       }
 
@@ -352,47 +359,48 @@ const RoadMap = () => {
     }, [fetchNewest, fetchProcessing, activeTab]),
   );
 
-  const fetchEquipmentAndSupplements = useCallback(async (rm: any) => {
-    try {
-      const roadmapId = getRoadmapId(rm);
+  const fetchEquipmentAndSupplements = useCallback(
+    async (rm: any) => {
+      try {
+        const roadmapId = getRoadmapId(rm);
 
-      if (!roadmapId) return;
+        if (!roadmapId) return;
 
-      const [eqRes, supplementsRes] = await Promise.allSettled([
-        RoadmapApi.getEquipment(roadmapId),
-        RoadmapApi.getSupplements(roadmapId),
-      ]);
+        const [eqRes, supplementsRes] = await Promise.allSettled([
+          RoadmapApi.getEquipment(roadmapId),
+          RoadmapApi.getSupplements(roadmapId),
+        ]);
 
-      const normalizePayload = (res: any) => {
-        if (!res) return [];
+        const normalizePayload = (res: any) => {
+          if (!res) return [];
 
-        const val = res?.data ?? res;
+          const val = res?.data ?? res;
 
-        if (Array.isArray(val)) return val;
+          if (Array.isArray(val)) return val;
 
-        return Array.isArray(res) ? res : (val ?? []);
-      };
+          return Array.isArray(res) ? res : val ?? [];
+        };
 
-      const equipment =
-        eqRes.status === 'fulfilled'
-          ? normalizePayload(eqRes.value)
-          : [];
+        const equipment =
+          eqRes.status === 'fulfilled' ? normalizePayload(eqRes.value) : [];
 
-      const supplements =
-        supplementsRes.status === 'fulfilled'
-          ? normalizePayload(supplementsRes.value)
-          : [];
+        const supplements =
+          supplementsRes.status === 'fulfilled'
+            ? normalizePayload(supplementsRes.value)
+            : [];
 
-      setCurrentRoadmapData((prev: any) => ({
-        ...(prev ?? rm),
-        equipment,
-      }));
+        setCurrentRoadmapData((prev: any) => ({
+          ...(prev ?? rm),
+          equipment,
+        }));
 
-      setCurrentSupplementsData(supplements);
-    } catch (err) {
-      console.warn('fetchEquipmentAndSupplements error', err);
-    }
-  }, [getRoadmapId]);
+        setCurrentSupplementsData(supplements);
+      } catch (err) {
+        console.warn('fetchEquipmentAndSupplements error', err);
+      }
+    },
+    [getRoadmapId],
+  );
 
   useEffect(() => {
     const target = paramAdded?.roadmap ?? roadmap;
@@ -409,13 +417,10 @@ const RoadMap = () => {
     activeTab === 'CURRENT' ? currentStagesData : pendingStagesData;
 
   const activeDataSupplements =
-    activeTab === 'CURRENT'
-      ? currentSupplementsData
-      : pendingSupplementsData;
+    activeTab === 'CURRENT' ? currentSupplementsData : pendingSupplementsData;
 
   const currentRoadmap =
-    activeDataRoadmap ??
-    (activeTab === 'CURRENT' ? roadmap : null);
+    activeDataRoadmap ?? (activeTab === 'CURRENT' ? roadmap : null);
 
   const currentStages =
     activeDataStages?.length
@@ -435,38 +440,51 @@ const RoadMap = () => {
 
   const safeProgress = Math.max(0, Math.min(100, currentProgress));
 
-  const roadmapHealthProfileId =
-    currentRoadmap?.finalHealthProfileId ??
-    currentRoadmap?.initialHealthProfileId ??
-    null;
+  const roadmapInitialHealthProfileId =
+    currentRoadmap?.initialHealthProfileId ?? null;
+
+  const roadmapFinalHealthProfileId =
+    currentRoadmap?.finalHealthProfileId ?? null;
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadRoadmapHealthProfile() {
-      if (!roadmapHealthProfileId) {
-        setRoadmapHealthProfile(null);
+    async function loadRoadmapHealthProfiles() {
+      if (!roadmapInitialHealthProfileId && !roadmapFinalHealthProfileId) {
+        setRoadmapInitialHealthProfile(null);
+        setRoadmapFinalHealthProfile(null);
         return;
       }
 
       try {
         setLoadingRoadmapHealthProfile(true);
 
-        const res = await fetchHealthProfileById(
-          String(roadmapHealthProfileId),
-        );
+        const [initialRes, finalRes] = await Promise.allSettled([
+          roadmapInitialHealthProfileId
+            ? fetchHealthProfileById(String(roadmapInitialHealthProfileId))
+            : Promise.resolve(null),
+          roadmapFinalHealthProfileId
+            ? fetchHealthProfileById(String(roadmapFinalHealthProfileId))
+            : Promise.resolve(null),
+        ]);
 
         if (!mounted) return;
 
-        if (res.ok) {
-          setRoadmapHealthProfile(res.data);
+        if (initialRes.status === 'fulfilled' && initialRes.value?.ok) {
+          setRoadmapInitialHealthProfile(initialRes.value.data);
         } else {
-          console.log('fetch roadmap health profile error:', res.error);
-          setRoadmapHealthProfile(null);
+          setRoadmapInitialHealthProfile(null);
+        }
+
+        if (finalRes.status === 'fulfilled' && finalRes.value?.ok) {
+          setRoadmapFinalHealthProfile(finalRes.value.data);
+        } else {
+          setRoadmapFinalHealthProfile(null);
         }
       } catch (e) {
-        console.log('loadRoadmapHealthProfile error:', e);
-        setRoadmapHealthProfile(null);
+        console.log('loadRoadmapHealthProfiles error:', e);
+        setRoadmapInitialHealthProfile(null);
+        setRoadmapFinalHealthProfile(null);
       } finally {
         if (mounted) {
           setLoadingRoadmapHealthProfile(false);
@@ -474,16 +492,24 @@ const RoadMap = () => {
       }
     }
 
-    loadRoadmapHealthProfile();
+    loadRoadmapHealthProfiles();
 
     return () => {
       mounted = false;
     };
-  }, [roadmapHealthProfileId]);
+  }, [roadmapInitialHealthProfileId, roadmapFinalHealthProfileId]);
 
-  const roadmapHealthMapped = useMemo(() => {
-    return mapStoredHealthProfile(roadmapHealthProfile);
-  }, [roadmapHealthProfile]);
+  const roadmapInitialHealthMapped = useMemo(() => {
+    return mapStoredHealthProfile(roadmapInitialHealthProfile);
+  }, [roadmapInitialHealthProfile]);
+
+  const roadmapFinalHealthMapped = useMemo(() => {
+    return mapStoredHealthProfile(roadmapFinalHealthProfile);
+  }, [roadmapFinalHealthProfile]);
+
+  const roadmapModalHealthMapped = roadmapFinalHealthProfile
+    ? roadmapFinalHealthMapped
+    : roadmapInitialHealthMapped;
 
   const openProgressModal = () => {
     setProgressInput(String(safeProgress));
@@ -493,12 +519,32 @@ const RoadMap = () => {
   const handleOpenBodyMetricUpdate = () => {
     setShowBodyMetricModal(false);
 
+    const roadmapId = getRoadmapId(currentRoadmap);
+
+    if (!roadmapId) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Không tìm thấy roadmapId để cập nhật số đo cuối.',
+      });
+      return;
+    }
+
     navigation.navigate('InputBody' as any, {
-    returnToAfterAssessment: {
-      root: 'MainTabs',
-      screen: 'Roadmap',
-    },
-  });
+      returnToAfterAssessment: {
+        root: 'MainTabs',
+        screen: 'Roadmap',
+      },
+      roadmapFinalUpdate: {
+        roadmapId,
+      },
+      bodyInputSeed: roadmapInitialHealthProfile
+        ? {
+            source: 'RoadmapInitialHealthProfile',
+            profile: roadmapInitialHealthProfile,
+          }
+        : null,
+    });
   };
 
   const handleUpdateProgress = async () => {
@@ -506,19 +552,31 @@ const RoadMap = () => {
       const roadmapId = getRoadmapId(currentRoadmap);
 
       if (!roadmapId) {
-        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Không tìm thấy roadmapId' });
+        showModal({
+          mode: 'noti',
+          titleText: 'Lỗi',
+          contentText: 'Không tìm thấy roadmapId',
+        });
         return;
       }
 
       const nextProgress = Number(progressInput);
 
       if (Number.isNaN(nextProgress)) {
-        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Progress phải là số' });
+        showModal({
+          mode: 'noti',
+          titleText: 'Lỗi',
+          contentText: 'Progress phải là số',
+        });
         return;
       }
 
       if (nextProgress < 0 || nextProgress > 100) {
-        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Progress phải nằm trong khoảng 0 - 100' });
+        showModal({
+          mode: 'noti',
+          titleText: 'Lỗi',
+          contentText: 'Progress phải nằm trong khoảng 0 - 100',
+        });
         return;
       }
 
@@ -544,9 +602,19 @@ const RoadMap = () => {
       }
 
       setShowProgressModal(false);
-      showModal({ mode: 'noti', titleText: 'Thành công', contentText: `Đã cập nhật progress lên ${nextProgress}%` });
+
+      showModal({
+        mode: 'noti',
+        titleText: 'Thành công',
+        contentText: `Đã cập nhật progress lên ${nextProgress}%`,
+      });
     } catch (err: any) {
-      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: err?.response?.data?.message ?? 'Không thể cập nhật progress' });
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText:
+          err?.response?.data?.message ?? 'Không thể cập nhật progress',
+      });
     } finally {
       setUpdatingProgress(false);
     }
@@ -558,9 +626,7 @@ const RoadMap = () => {
     Boolean(currentStages[0]?.stage || currentStages[0]?._raw);
 
   const selectedStage =
-    currentStages?.[selectedStageIndex] ??
-    currentStages?.[0] ??
-    null;
+    currentStages?.[selectedStageIndex] ?? currentStages?.[0] ?? null;
 
   const completedDateMap = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -585,45 +651,37 @@ const RoadMap = () => {
     null;
 
   const selectedStageSupplements = selectedStageId
-    ? currentSupplements.filter((sp: any) => sp.personalStageId === selectedStageId)
+    ? currentSupplements.filter(
+        (sp: any) => sp.personalStageId === selectedStageId,
+      )
     : currentSupplements;
 
-  const allSchedules = currentStages.flatMap((st: any) =>
-    st.schedules?.map((s: any) => s.schedule ?? s) ?? [],
+  const allSchedules = currentStages.flatMap(
+    (st: any) => st.schedules?.map((s: any) => s.schedule ?? s) ?? [],
   );
 
   const totalSessions = allSchedules.length;
   const firstSchedule = allSchedules[0];
   const lastSchedule = allSchedules[allSchedules.length - 1];
 
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('vi-VN');
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString('vi-VN');
+
   const totalAmount = currentRoadmap?.totalAmount ?? 0;
 
-  const handleSelectDate = (date: string | null, scheduleWrapperFromCalendar?: any) => {
-    console.log('[RoadMap] selected date:', date);
-    console.log('[RoadMap] wrapper from calendar:', scheduleWrapperFromCalendar);
-
+  const handleSelectDate = (
+    date: string | null,
+    scheduleWrapperFromCalendar?: any,
+  ) => {
     setSelectedDate(date);
     setSelectedScheduleData(null);
 
     if (!scheduleWrapperFromCalendar) {
-      console.log('[RoadMap] no schedule for selected date:', date);
       setShowScheduleModal(true);
       return;
     }
 
     const scheduleObject = getScheduleObject(scheduleWrapperFromCalendar);
-
-    console.log('[RoadMap] final selected schedule:', {
-      selectedDate: date,
-      dateKey: getScheduleDateKey(scheduleWrapperFromCalendar),
-      scheduledDate: scheduleObject?.scheduledDate,
-      scheduleName: scheduleObject?.scheduleName,
-      dayOfWeek: scheduleObject?.dayOfWeek,
-      personalScheduleId: scheduleObject?.personalScheduleId,
-      completed: scheduleObject?.completed,
-      exercisesLength: scheduleObject?.exercises?.length,
-    });
 
     setSelectedScheduleData(scheduleObject);
     setShowScheduleModal(true);
@@ -659,7 +717,11 @@ const RoadMap = () => {
               onPress={() => setShowBodyMetricModal(true)}
               activeOpacity={0.85}
             >
-              <Text style={styles.bodyMetricButtonText}>Cập nhật số đo</Text>
+              <Text style={styles.bodyMetricButtonText}>
+                {roadmapFinalHealthProfileId
+                  ? 'Cập nhật lại số đo'
+                  : 'Cập nhật số đo cuối'}
+              </Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -762,7 +824,7 @@ const RoadMap = () => {
           progressPercent={safeProgress}
           totalSessions={totalSessions}
           loadingProfile={loadingRoadmapHealthProfile}
-          healthProfile={roadmapHealthMapped}
+          healthProfile={roadmapModalHealthMapped}
         />
 
         <ModalPopup {...(modalProps as any)} onClose={closeModal} />
@@ -812,9 +874,52 @@ const RoadMap = () => {
           </View>
         </View>
 
+        {safeProgress >= 100 && roadmapFinalHealthProfileId ? (
+          <View style={styles.sectionWrap}>
+            {loadingRoadmapHealthProfile ? (
+              <View style={styles.card}>
+                <ActivityIndicator size="small" color="#8B4513" />
+                <Text style={styles.loadingBeforeAfterText}>
+                  Đang tải kết quả trước / sau...
+                </Text>
+              </View>
+            ) : (
+              <RoadmapBeforeAfterCard
+                before={roadmapInitialHealthMapped}
+                after={roadmapFinalHealthMapped}
+              />
+            )}
+          </View>
+        ) : safeProgress >= 100 ? (
+          <View style={styles.sectionWrap}>
+            <View style={styles.finalNoticeCard}>
+              <Text style={styles.finalNoticeTitle}>
+                Hoàn thành lộ trình rồi 🎉
+              </Text>
+              <Text style={styles.finalNoticeText}>
+                Hãy cập nhật số đo cuối để xem kết quả thay đổi trước và sau
+                lộ trình.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.finalNoticeButton}
+                onPress={() => setShowBodyMetricModal(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.finalNoticeButtonText}>
+                  Cập nhật số đo cuối
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.stageSelector}>
           {isApiShaped ? (
-            <StageRendererApi apiStages={currentStages} roadmap={currentRoadmap} />
+            <StageRendererApi
+              apiStages={currentStages}
+              roadmap={currentRoadmap}
+            />
           ) : (
             <StageCarousel
               stages={currentStages}
@@ -879,7 +984,9 @@ const RoadMap = () => {
                     />
                   ) : (
                     <View style={styles.modalEmpty}>
-                      <Text style={styles.modalEmptyTitle}>Không có lịch cho ngày này.</Text>
+                      <Text style={styles.modalEmptyTitle}>
+                        Không có lịch cho ngày này.
+                      </Text>
                       <Text style={styles.modalEmptySubtitle}>
                         Vui lòng chọn ngày có lịch để xem bài tập.
                       </Text>
@@ -944,7 +1051,9 @@ const RoadMap = () => {
                       </Text>
 
                       {eq.description && (
-                        <Text style={styles.itemSubtitle}>{eq.description}</Text>
+                        <Text style={styles.itemSubtitle}>
+                          {eq.description}
+                        </Text>
                       )}
                     </View>
                   </View>
@@ -953,7 +1062,8 @@ const RoadMap = () => {
             </View>
           )}
 
-        {(selectedStageSupplements?.length > 0 || currentSupplements?.length > 0) && (
+        {(selectedStageSupplements?.length > 0 ||
+          currentSupplements?.length > 0) && (
           <View style={styles.sectionWrap}>
             <Text style={styles.supplementTitle}>Thực phẩm chức năng</Text>
 
@@ -1039,7 +1149,10 @@ const RoadMap = () => {
       {activeTab === 'PROCESSING' && (
         <View style={styles.bottomBar}>
           <BottomActionBar
-            showAccept={currentRoadmap?.status === 'PENDING' || activeTab === 'PROCESSING'}
+            showAccept={
+              currentRoadmap?.status === 'PENDING' ||
+              activeTab === 'PROCESSING'
+            }
             showSave={false}
             onAccept={handleAcceptRoadmap}
             accepting={saving}
@@ -1050,7 +1163,9 @@ const RoadMap = () => {
       {showProgressModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.progressModal}>
-            <Text style={styles.progressModalTitle}>Chỉnh progress roadmap</Text>
+            <Text style={styles.progressModalTitle}>
+              Chỉnh progress roadmap
+            </Text>
 
             <Text style={styles.progressModalLabel}>
               Nhập progress mới từ 0 đến 100
@@ -1066,7 +1181,7 @@ const RoadMap = () => {
             />
 
             <View style={styles.quickProgressRow}>
-              {[0, 25, 50, 75, 100].map(value => (
+              {[0, 25, 50, 75, 100].map((value) => (
                 <TouchableOpacity
                   key={value}
                   style={styles.quickProgressChip}
@@ -1108,7 +1223,9 @@ const RoadMap = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModal}>
             <Text style={styles.confirmTitle}>Xác nhận lộ trình</Text>
-            <Text style={styles.confirmText}>💰 Giá: {totalAmount.toLocaleString()} VNĐ</Text>
+            <Text style={styles.confirmText}>
+              💰 Giá: {totalAmount.toLocaleString()} VNĐ
+            </Text>
             <Text style={styles.confirmText}>📊 Tổng số buổi: {totalSessions}</Text>
 
             {firstSchedule && lastSchedule && (
@@ -1119,7 +1236,10 @@ const RoadMap = () => {
             )}
 
             <Text style={styles.confirmText}>
-              📆 Lịch học: {[...new Set(allSchedules.map((s: any) => s.dayOfWeek))].join(', ')}
+              📆 Lịch học:{' '}
+              {[...new Set(allSchedules.map((s: any) => s.dayOfWeek))].join(
+                ', ',
+              )}
             </Text>
 
             <View style={styles.confirmButtons}>
@@ -1148,12 +1268,17 @@ const RoadMap = () => {
 
                     const bookingSlots = currentStages.flatMap((st: any) =>
                       st.schedules?.map((scheduleWrapper: any) => {
-                        const schedule = scheduleWrapper.schedule ?? scheduleWrapper;
+                        const schedule =
+                          scheduleWrapper.schedule ?? scheduleWrapper;
                         const scheduledDate = new Date(schedule.scheduledDate);
 
                         const year = scheduledDate.getUTCFullYear();
-                        const month = String(scheduledDate.getUTCMonth() + 1).padStart(2, '0');
-                        const day = String(scheduledDate.getUTCDate()).padStart(2, '0');
+                        const month = String(
+                          scheduledDate.getUTCMonth() + 1,
+                        ).padStart(2, '0');
+                        const day = String(
+                          scheduledDate.getUTCDate(),
+                        ).padStart(2, '0');
 
                         const dayOfWeekMap: any = {
                           'THỨ HAI': 'MONDAY',
@@ -1165,21 +1290,28 @@ const RoadMap = () => {
                           'CHỦ NHẬT': 'SUNDAY',
                         };
 
-                        const dayOfWeekEng = dayOfWeekMap[schedule.dayOfWeek] || 'MONDAY';
+                        const dayOfWeekEng =
+                          dayOfWeekMap[schedule.dayOfWeek] || 'MONDAY';
 
                         const trainingSchedule = trainingDaySchedules.find(
                           (tds: any) => tds.dayOfWeek === dayOfWeekEng,
                         );
 
-                        const startTimeStr = trainingSchedule?.startTime ?? '08:00';
+                        const startTimeStr =
+                          trainingSchedule?.startTime ?? '08:00';
                         const [hours, minutes] = startTimeStr.split(':');
 
                         const startDateTime =
-                          `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:` +
+                          `${year}-${month}-${day}T${String(hours).padStart(
+                            2,
+                            '0',
+                          )}:` +
                           `${String(minutes).padStart(2, '0')}:00Z`;
 
                         const startDateTimeObj = new Date(startDateTime);
-                        const start = new Date(startDateTimeObj.getTime() - 7 * 60 * 60 * 1000);
+                        const start = new Date(
+                          startDateTimeObj.getTime() - 7 * 60 * 60 * 1000,
+                        );
                         const durationMs = 60 * 60 * 1000;
                         const end = new Date(start.getTime() + durationMs);
 
@@ -1197,13 +1329,16 @@ const RoadMap = () => {
                       recurringGroupId: roadmapId,
                     };
 
-                    console.log('Payload for booking', payload1);
-
                     await RoadmapApi.createBatch(payload1);
                     await RoadmapApi.approveRoadmap(roadmapId);
 
                     setShowConfirmModal(false);
-                    showModal({ mode: 'noti', titleText: 'Thành công', contentText: 'Đã chấp nhận lộ trình' });
+
+                    showModal({
+                      mode: 'noti',
+                      titleText: 'Thành công',
+                      contentText: 'Đã chấp nhận lộ trình',
+                    });
 
                     await fetchNewest();
                     await fetchProcessing();
@@ -1213,7 +1348,13 @@ const RoadMap = () => {
                     setSelectedDate(null);
                     setSelectedScheduleData(null);
                   } catch (err: any) {
-                    showModal({ mode: 'noti', titleText: 'Lỗi', contentText: err?.response?.data?.message ?? 'Không thể chấp nhận roadmap' });
+                    showModal({
+                      mode: 'noti',
+                      titleText: 'Lỗi',
+                      contentText:
+                        err?.response?.data?.message ??
+                        'Không thể chấp nhận roadmap',
+                    });
                   } finally {
                     setSaving(false);
                   }
@@ -1235,7 +1376,7 @@ const RoadMap = () => {
         progressPercent={safeProgress}
         totalSessions={totalSessions}
         loadingProfile={loadingRoadmapHealthProfile}
-        healthProfile={roadmapHealthMapped}
+        healthProfile={roadmapModalHealthMapped}
       />
 
       <ModalPopup {...(modalProps as any)} onClose={closeModal} />
@@ -1256,7 +1397,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EFE3D4',
@@ -1264,10 +1405,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
   },
   pageHeaderTextWrap: {
     flex: 1,
@@ -1275,7 +1416,7 @@ const styles = StyleSheet.create({
   },
   pageHeaderTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#3A2A1A',
   },
   pageHeaderSubtitle: {
@@ -1299,7 +1440,7 @@ const styles = StyleSheet.create({
   progressEditButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   bodyMetricButton: {
     backgroundColor: '#A0522D',
@@ -1310,7 +1451,7 @@ const styles = StyleSheet.create({
   bodyMetricButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   tabsOuter: {
@@ -1350,7 +1491,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#8A7A69',
   },
   tabTextActive: {
@@ -1359,14 +1500,14 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#EFE3D4',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOpacity: 0.07,
+    shadowRadius: 7,
     elevation: 2,
   },
   headerRow: {
@@ -1375,18 +1516,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTextWrap: { flex: 1, paddingRight: 8 },
-  cardTitle: { color: '#3A2A1A', fontSize: 18, fontWeight: '700' },
+  cardTitle: { color: '#3A2A1A', fontSize: 18, fontWeight: '900' },
   cardSubtitle: { color: '#6B6B6B', marginTop: 4, fontSize: 13 },
   statBox: {
-    minWidth: 48,
-    height: 32,
-    borderRadius: 8,
+    minWidth: 52,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: '#F3EDE3',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statText: { color: '#8B4513', fontWeight: '700' },
-  progressWrap: { marginTop: 10 },
+  statText: { color: '#8B4513', fontWeight: '900' },
+  progressWrap: { marginTop: 12 },
   progressBarBg: {
     width: '100%',
     height: 10,
@@ -1397,17 +1538,60 @@ const styles = StyleSheet.create({
   progressBarFill: { height: '100%', backgroundColor: '#8B4513' },
 
   stageSelector: { marginTop: 12 },
-  sectionWrap: { paddingHorizontal: 16, marginTop: 24 },
+  sectionWrap: { paddingHorizontal: 16, marginTop: 20 },
+
+  loadingBeforeAfterText: {
+    marginTop: 8,
+    textAlign: 'center',
+    color: '#8B4513',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  finalNoticeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EFE3D4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 7,
+    elevation: 2,
+  },
+  finalNoticeTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#3A2A1A',
+  },
+  finalNoticeText: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 19,
+  },
+  finalNoticeButton: {
+    marginTop: 14,
+    backgroundColor: '#A0522D',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  finalNoticeButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
 
   equipmentTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 12,
     color: '#8B4513',
   },
   supplementTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 12,
     color: '#8B4513',
   },
@@ -1438,7 +1622,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  itemTitle: { fontSize: 16, color: '#3A2A1A', fontWeight: '700' },
+  itemTitle: { fontSize: 16, color: '#3A2A1A', fontWeight: '800' },
   itemSubtitle: { fontSize: 13, color: '#6B6B6B', marginTop: 6 },
   badge: {
     backgroundColor: '#F3EDE3',
@@ -1446,7 +1630,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
   },
-  badgeText: { color: '#8B4513', fontWeight: '700', fontSize: 11 },
+  badgeText: { color: '#8B4513', fontWeight: '800', fontSize: 11 },
   smallText: { fontSize: 12, color: '#8B8B8B', marginTop: 6 },
 
   centeredContainer: {
@@ -1463,7 +1647,7 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: 12, fontSize: 16, color: '#8B4513' },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 16,
     textAlign: 'center',
     color: '#3A2A1A',
@@ -1479,7 +1663,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
   },
-  buttonPrimaryText: { color: '#fff', fontWeight: '500', fontSize: 16 },
+  buttonPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
   modalContainer: { flex: 1, backgroundColor: '#FFFAF0' },
   modalHeader: {
@@ -1488,7 +1672,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
-  closeText: { color: '#8B4513', fontWeight: '600' },
+  closeText: { color: '#8B4513', fontWeight: '700' },
   modalScroll: { flex: 1 },
   modalScrollContent: { paddingBottom: 180 },
   modalEmpty: { padding: 20 },
@@ -1523,7 +1707,7 @@ const styles = StyleSheet.create({
   },
   progressModalTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#3A2A1A',
     textAlign: 'center',
     marginBottom: 10,
@@ -1560,7 +1744,7 @@ const styles = StyleSheet.create({
   quickProgressText: {
     color: '#8B4513',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   progressModalButtons: {
     flexDirection: 'row',
@@ -1576,7 +1760,7 @@ const styles = StyleSheet.create({
   },
   progressCancelText: {
     color: '#6B6B6B',
-    fontWeight: '700',
+    fontWeight: '800',
   },
   progressConfirmButton: {
     flex: 1,
@@ -1588,7 +1772,7 @@ const styles = StyleSheet.create({
   },
   progressConfirmText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   confirmModal: {
@@ -1600,13 +1784,13 @@ const styles = StyleSheet.create({
   },
   confirmTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
     marginBottom: 16,
     color: '#3A2A1A',
   },
   confirmText: { fontSize: 16, marginBottom: 8, color: '#3A2A1A' },
-  confirmTextWhite: { fontSize: 16, color: '#FFF', fontWeight: '600' },
+  confirmTextWhite: { fontSize: 16, color: '#FFF', fontWeight: '700' },
   confirmButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1620,7 +1804,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  cancelText: { color: '#6B6B6B', fontWeight: '600' },
+  cancelText: { color: '#6B6B6B', fontWeight: '700' },
   confirmButton: {
     flex: 1,
     marginLeft: 8,
@@ -1637,5 +1821,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recreateText: { color: '#FFF', fontWeight: '500', fontSize: 14 },
+  recreateText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
 });
