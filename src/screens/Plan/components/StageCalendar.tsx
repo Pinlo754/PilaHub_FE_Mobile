@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 
@@ -57,29 +57,33 @@ function isScheduleCompleted(scheduleWrapper: any) {
   );
 }
 
+function toLocalDateString(dateInput: any) {
+  if (!dateInput) return null;
+
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return null;
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function StageCalendar({
   stage,
   onSelectDate,
   completedDateMap = {},
 }: any) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
-    const SEVEN_HOURS_IN_MS = 7 * 60 * 60 * 1000;
-
-    const getAdjustedDateStr = (dateInput: any) => {
-      const d = new Date(dateInput);
-
-      if (isNaN(d.getTime())) return null;
-
-      d.setTime(d.getTime() + SEVEN_HOURS_IN_MS);
-
-      return d.toISOString().split("T")[0];
-    };
 
     const schedules = Array.isArray(stage?.schedules) ? stage.schedules : [];
 
     schedules.forEach((sch: any) => {
-      const dateStr = getAdjustedDateStr(sch?.scheduledDate);
+      const dateStr = toLocalDateString(sch?.scheduledDate);
       if (!dateStr) return;
 
       const completed =
@@ -97,24 +101,23 @@ export default function StageCalendar({
   }, [stage, completedDateMap]);
 
   const handleDateSelect = (day: any) => {
-    const date = new Date(day.dateString);
+    const dateString = day?.dateString;
+    if (!dateString) return;
 
-    date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
-
-    const adjustedDateString = date.toISOString().split("T")[0];
-
-    onSelectDate(adjustedDateString);
+    setSelectedDate(dateString);
+    onSelectDate?.(dateString);
   };
 
   return (
     <View className="bg-[#E8DCCB] mx-4 rounded-2xl p-3">
       <Calendar
         markedDates={markedDates}
-        onDayPress={(day) => handleDateSelect(day)}
+        onDayPress={handleDateSelect}
         theme={{
           selectedDayBackgroundColor: "#A0522D",
           todayTextColor: "#A0522D",
           arrowColor: "#A0522D",
+          calendarBackground: "transparent",
         }}
         dayComponent={({ date, state }: any) => {
           const dateString = date?.dateString;
@@ -122,6 +125,7 @@ export default function StageCalendar({
 
           const hasSchedule = Boolean(mark);
           const isCompleted = mark?.completed === true;
+          const isSelected = selectedDate === dateString;
 
           const bgColor = hasSchedule
             ? mark?.selectedColor ?? "#C98A5E"
@@ -145,6 +149,10 @@ export default function StageCalendar({
                 justifyContent: "center",
                 backgroundColor: bgColor,
                 position: "relative",
+
+                // Ngày đang chọn: chỉ thêm viền, không đổi màu cũ
+                borderWidth: isSelected ? 2 : 0,
+                borderColor: isSelected ? "#A0522D" : "transparent",
               }}
             >
               <Text
