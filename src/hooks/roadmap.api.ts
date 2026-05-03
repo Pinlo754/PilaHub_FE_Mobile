@@ -1,4 +1,3 @@
-import { get } from 'react-native/Libraries/NativeComponent/NativeComponentRegistry';
 import axios from './axiosInstance';
 
 export const RoadmapApi = {
@@ -13,12 +12,13 @@ export const RoadmapApi = {
   },
 
   getSupplements: async (roadmapId: string): Promise<any[]> => {
-    const res = await axios.get(`/personal-stage-supplements/roadmap/${roadmapId}`);
+    const res = await axios.get(
+      `/personal-stage-supplements/roadmap/${roadmapId}`,
+    );
     const data = res.data?.data ?? res.data ?? [];
     return Array.isArray(data) ? data : [];
   },
 
-  // New: product endpoints for shop-ready ProductDto lists (paginated)
   getProductEquipments: async (roadmapId: string): Promise<any[]> => {
     const res = await axios.get(`/products/roadmaps/${roadmapId}/equipments`);
     const apiResp = res.data ?? {};
@@ -54,14 +54,38 @@ export const RoadmapApi = {
     const res = await axios.patch(`/roadmaps/${roadmapId}/approve`);
     return res.data ?? res;
   },
-  updateProgress: async (
-  roadmapId: string,
-  progressPercent: number
-): Promise<any> => {
-  const res = await axios.patch(`/roadmaps/${roadmapId}/progress`, {
-    progressPercent,
-  });
 
+  updateProgress: async (
+    roadmapId: string,
+    progressPercent: number,
+  ): Promise<any> => {
+    const res = await axios.patch(`/roadmaps/${roadmapId}/progress`, {
+      progressPercent,
+    });
+
+    return res.data?.data ?? res.data ?? res;
+  },
+
+  updateFinalHealthProfile: async (
+    roadmapId: string,
+    finalHealthProfileId: string,
+  ): Promise<any> => {
+    const res = await axios.patch(
+      `/roadmaps/${roadmapId}/final-health-profile`,
+      {
+        finalHealthProfileId,
+      },
+    );
+
+    return res.data?.data ?? res.data ?? res;
+  },
+  getRoadmapReview: async (roadmapId: string): Promise<any> => {
+  const res = await axios.get(`/roadmap-reviews/roadmap/${roadmapId}`);
+  return res.data?.data ?? res.data ?? res;
+},
+
+generateRoadmapReview: async (roadmapId: string): Promise<any> => {
+  const res = await axios.post(`/roadmap-reviews/generate/${roadmapId}`);
   return res.data?.data ?? res.data ?? res;
 },
 };

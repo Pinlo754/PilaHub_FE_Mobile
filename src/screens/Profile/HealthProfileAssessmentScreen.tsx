@@ -158,11 +158,11 @@ export default function HealthProfileAssessmentScreen() {
         returnToAfterAssessment,
       );
 
-      /**
-       * Case 1:
-       * returnToAfterAssessment = 'BodyMetricDetails'
-       */
       if (returnToAfterAssessment) {
+        /**
+         * Case 1:
+         * returnToAfterAssessment = 'BodyMetricDetails'
+         */
         if (typeof returnToAfterAssessment === 'string') {
           (navigation as any).reset({
             index: 0,
@@ -189,8 +189,8 @@ export default function HealthProfileAssessmentScreen() {
               {
                 name: returnToAfterAssessment.root,
                 params: {
-                  screen: returnToAfterAssessment.screen,
-                  params: returnToAfterAssessment.params,
+                  screen: returnToAfterAssessment.screen ?? 'Home',
+                  params: returnToAfterAssessment.params ?? undefined,
                 },
               },
             ],
@@ -201,7 +201,7 @@ export default function HealthProfileAssessmentScreen() {
 
       /**
        * Default:
-       * no return target -> Home tab
+       * không có return target thì về Home tab
        */
       (navigation as any).reset({
         index: 0,
@@ -222,8 +222,8 @@ export default function HealthProfileAssessmentScreen() {
           returnToAfterAssessment.root
         ) {
           navigation.navigate(returnToAfterAssessment.root as any, {
-            screen: returnToAfterAssessment.screen,
-            params: returnToAfterAssessment.params,
+            screen: returnToAfterAssessment.screen ?? 'Home',
+            params: returnToAfterAssessment.params ?? undefined,
           });
           return;
         }
@@ -337,7 +337,8 @@ export default function HealthProfileAssessmentScreen() {
                   risks.map((r: any, idx: number) => (
                     <IconInfo
                       key={
-                        r?.id ?? `${r?.riskType ?? 'risk'}-${r?.severity ?? idx}`
+                        r?.id ??
+                        `${r?.riskType ?? 'risk'}-${r?.severity ?? idx}`
                       }
                       title={`${r.riskType} — ${r.severity}`}
                       description={r.description}
