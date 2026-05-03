@@ -1,91 +1,99 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-type MappedProfile = {
-  raw?: Record<string, any>;
-  display?: Record<string, any>;
+type DeltaMetric = {
+  baseline?: number;
+  final?: number;
+  percent?: number;
 };
 
-type CompareItem = {
-  key: string;
-  label: string;
-  unit?: string;
-  goodWhen?: 'up' | 'down' | 'neutral';
+type Recommendation = {
+  recommendation?: string;
+  rationale?: string;
+};
+
+type RoadmapReview = {
+  roadmapReviewId?: string;
+  roadmapId?: string;
+  overallScore?: number;
+  subScores?: Record<string, number>;
+  deltaMetrics?: Record<string, DeltaMetric>;
+  narrativeSummary?: string;
+  prioritizedRecommendations?: Recommendation[];
+  confidenceLevel?: number;
+  createdAt?: string;
 };
 
 type Props = {
-  before?: MappedProfile | null;
-  after?: MappedProfile | null;
+  review?: RoadmapReview | null;
 };
 
-const compareItems: CompareItem[] = [
-  {
-    key: 'weightKg',
-    label: 'Cân nặng',
-    unit: 'kg',
-    goodWhen: 'neutral',
-  },
-  {
-    key: 'bmi',
-    label: 'BMI',
-    unit: '',
-    goodWhen: 'neutral',
-  },
-  {
-    key: 'bodyFatPercentage',
-    label: 'Mỡ cơ thể',
-    unit: '%',
-    goodWhen: 'down',
-  },
-  {
-    key: 'muscleMassKg',
-    label: 'Khối cơ',
-    unit: 'kg',
-    goodWhen: 'up',
-  },
-  {
-    key: 'waistCm',
-    label: 'Eo',
-    unit: 'cm',
-    goodWhen: 'down',
-  },
-  {
-    key: 'hipCm',
-    label: 'Hông',
-    unit: 'cm',
-    goodWhen: 'neutral',
-  },
-  {
-    key: 'bustCm',
-    label: 'Ngực',
-    unit: 'cm',
-    goodWhen: 'neutral',
-  },
-  {
-    key: 'bicepCm',
-    label: 'Bắp tay',
-    unit: 'cm',
-    goodWhen: 'up',
-  },
-  {
-    key: 'thighCm',
-    label: 'Đùi',
-    unit: 'cm',
-    goodWhen: 'up',
-  },
-  {
-    key: 'calfCm',
-    label: 'Bắp chân',
-    unit: 'cm',
-    goodWhen: 'up',
-  },
-];
+const METRIC_LABELS: Record<string, string> = {
+  weightKg: 'Cân nặng',
+  weight: 'Cân nặng',
+  bmi: 'BMI',
+  bodyFatPercentage: 'Mỡ cơ thể',
+  bodyFatPercent: 'Mỡ cơ thể',
+  muscleMassKg: 'Khối cơ',
+  muscleMass: 'Khối cơ',
+  waistCm: 'Vòng eo',
+  waist: 'Vòng eo',
+  hipCm: 'Vòng hông',
+  hip: 'Vòng hông',
+  bustCm: 'Vòng ngực',
+  bust: 'Vòng ngực',
+  bicepCm: 'Bắp tay',
+  bicep: 'Bắp tay',
+  thighCm: 'Đùi',
+  thigh: 'Đùi',
+  calfCm: 'Bắp chân',
+  calf: 'Bắp chân',
+};
+
+const METRIC_UNITS: Record<string, string> = {
+  weightKg: 'kg',
+  weight: 'kg',
+  bmi: '',
+  bodyFatPercentage: '%',
+  bodyFatPercent: '%',
+  muscleMassKg: 'kg',
+  muscleMass: 'kg',
+  waistCm: 'cm',
+  waist: 'cm',
+  hipCm: 'cm',
+  hip: 'cm',
+  bustCm: 'cm',
+  bust: 'cm',
+  bicepCm: 'cm',
+  bicep: 'cm',
+  thighCm: 'cm',
+  thigh: 'cm',
+  calfCm: 'cm',
+  calf: 'cm',
+};
+
+const GOOD_WHEN_DOWN = new Set([
+  'bodyFatPercentage',
+  'bodyFatPercent',
+  'waistCm',
+  'waist',
+]);
+
+const GOOD_WHEN_UP = new Set([
+  'muscleMassKg',
+  'muscleMass',
+  'bicepCm',
+  'bicep',
+  'thighCm',
+  'thigh',
+  'calfCm',
+  'calf',
+]);
 
 function toNumber(value: any): number | null {
   if (value === null || value === undefined || value === '') return null;
 
   const n = Number(value);
-
   if (Number.isNaN(n)) return null;
 
   return n;
@@ -95,156 +103,247 @@ function round1(value: number) {
   return Math.round(value * 10) / 10;
 }
 
-function getRawValue(profile: MappedProfile | null | undefined, key: string) {
-  return toNumber(profile?.raw?.[key]);
+function getLabel(key: string) {
+  return METRIC_LABELS[key] ?? key;
 }
 
-function formatValue(value: number | null, unit?: string) {
-  if (value === null || value === undefined) return '-';
-
-  const rounded = round1(value);
-
-  return unit ? `${rounded}${unit}` : `${rounded}`;
+function getUnit(key: string) {
+  return METRIC_UNITS[key] ?? '';
 }
 
-function formatDiff(diff: number | null, unit?: string) {
-  if (diff === null || diff === undefined) return '-';
+function formatValue(value: any, unit: string) {
+  const n = toNumber(value);
 
-  const rounded = round1(diff);
+  if (n === null) return '-';
 
-  if (rounded > 0) {
-    return `+${rounded}${unit ?? ''}`;
-  }
-
-  return `${rounded}${unit ?? ''}`;
+  return `${round1(n)}${unit}`;
 }
 
-function getDiffColor(diff: number | null, goodWhen?: CompareItem['goodWhen']) {
-  if (diff === null || diff === 0 || goodWhen === 'neutral') {
-    return '#6B6B6B';
-  }
+function formatPercent(value: any) {
+  const n = toNumber(value);
 
-  if (goodWhen === 'down') {
-    return diff < 0 ? '#16A34A' : '#DC2626';
-  }
+  if (n === null) return '-';
 
-  if (goodWhen === 'up') {
-    return diff > 0 ? '#16A34A' : '#DC2626';
-  }
+  if (n > 0) return `+${round1(n)}%`;
 
-  return '#6B6B6B';
+  return `${round1(n)}%`;
 }
 
-export default function RoadmapBeforeAfterCard({ before, after }: Props) {
-  const rows = compareItems.map((item) => {
-    const beforeValue = getRawValue(before, item.key);
-    const afterValue = getRawValue(after, item.key);
+function getPercentColor(key: string, percent: any) {
+  const n = toNumber(percent);
 
-    const diff =
-      beforeValue !== null && afterValue !== null
-        ? afterValue - beforeValue
-        : null;
+  if (n === null || n === 0) return '#6B7280';
 
-    return {
-      ...item,
-      beforeValue,
-      afterValue,
-      diff,
-    };
-  });
-
-  const hasAnyData = rows.some(
-    (row) => row.beforeValue !== null || row.afterValue !== null,
-  );
-
-  if (!hasAnyData) {
-    return null;
+  if (GOOD_WHEN_DOWN.has(key)) {
+    return n < 0 ? '#16A34A' : '#DC2626';
   }
+
+  if (GOOD_WHEN_UP.has(key)) {
+    return n > 0 ? '#16A34A' : '#DC2626';
+  }
+
+  return '#6B7280';
+}
+
+function getTopDelta(deltaMetrics: Record<string, DeltaMetric>) {
+  const entries = Object.entries(deltaMetrics);
+
+  if (!entries.length) return [];
+
+  return entries
+    .map(([key, value]) => ({
+      key,
+      percent: toNumber(value?.percent),
+    }))
+    .filter((item) => item.percent !== null)
+    .sort((a, b) => Math.abs(b.percent ?? 0) - Math.abs(a.percent ?? 0))
+    .slice(0, 3);
+}
+
+export default function RoadmapBeforeAfterCard({ review }: Props) {
+  if (!review) return null;
+
+  const deltaMetrics = review.deltaMetrics ?? {};
+  const rows = Object.entries(deltaMetrics);
+  const topDelta = getTopDelta(deltaMetrics);
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Kết quả trước / sau</Text>
+      <View style={styles.headerRow}>
+        <View style={styles.scoreCircle}>
+          <Text style={styles.scoreText}>
+            {review.overallScore ?? '-'}
+          </Text>
+          <Text style={styles.scoreSubText}>điểm</Text>
+        </View>
+
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.title}>Đánh giá sau lộ trình</Text>
           <Text style={styles.subtitle}>
-            So sánh hồ sơ ban đầu và hồ sơ sau khi hoàn thành lộ trình
+            Tổng hợp thay đổi trước / sau dựa trên số đo ban đầu và số đo cuối.
           </Text>
         </View>
       </View>
 
-      <View style={styles.legendRow}>
-        <Text style={[styles.legendText, styles.legendLeft]}>Trước</Text>
-        <Text style={styles.legendText}>Sau</Text>
-        <Text style={[styles.legendText, styles.legendRight]}>Thay đổi</Text>
+      {review.narrativeSummary ? (
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryTitle}>Tóm tắt</Text>
+          <Text style={styles.summaryText}>{review.narrativeSummary}</Text>
+        </View>
+      ) : null}
+
+      {topDelta.length > 0 ? (
+        <View style={styles.highlightRow}>
+          {topDelta.map((item) => (
+            <View key={item.key} style={styles.highlightBox}>
+              <Text style={styles.highlightLabel} numberOfLines={1}>
+                {getLabel(item.key)}
+              </Text>
+              <Text
+                style={[
+                  styles.highlightValue,
+                  {
+                    color: getPercentColor(item.key, item.percent),
+                  },
+                ]}
+              >
+                {formatPercent(item.percent)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={styles.tableHeader}>
+        <Text style={[styles.tableHeaderText, styles.metricCol]}>Chỉ số</Text>
+        <Text style={styles.tableHeaderText}>Trước</Text>
+        <Text style={styles.tableHeaderText}>Sau</Text>
+        <Text style={[styles.tableHeaderText, styles.percentCol]}>
+          Thay đổi
+        </Text>
       </View>
 
-      <View style={styles.rowsWrap}>
-        {rows.map((row) => {
-          const empty = row.beforeValue === null && row.afterValue === null;
+      {rows.length > 0 ? (
+        rows.map(([key, metric]) => {
+          const unit = getUnit(key);
 
           return (
-            <View
-              key={row.key}
-              style={[styles.row, empty ? styles.rowMuted : null]}
-            >
-              <View style={styles.metricNameBox}>
-                <Text style={styles.metricLabel}>{row.label}</Text>
-              </View>
+            <View key={key} style={styles.row}>
+              <Text style={[styles.metricLabel, styles.metricCol]} numberOfLines={1}>
+                {getLabel(key)}
+              </Text>
 
-              <View style={styles.valueBox}>
-                <Text style={styles.beforeValue}>
-                  {formatValue(row.beforeValue, row.unit)}
-                </Text>
-              </View>
+              <Text style={styles.valueText}>
+                {formatValue(metric?.baseline, unit)}
+              </Text>
 
-              <Text style={styles.arrow}>→</Text>
+              <Text style={styles.valueText}>
+                {formatValue(metric?.final, unit)}
+              </Text>
 
-              <View style={styles.valueBox}>
-                <Text style={styles.afterValue}>
-                  {formatValue(row.afterValue, row.unit)}
-                </Text>
-              </View>
-
-              <View style={styles.diffBox}>
-                <Text
-                  style={[
-                    styles.diffText,
-                    {
-                      color: getDiffColor(row.diff, row.goodWhen),
-                    },
-                  ]}
-                >
-                  {formatDiff(row.diff, row.unit)}
-                </Text>
-              </View>
+              <Text
+                style={[
+                  styles.percentText,
+                  styles.percentCol,
+                  {
+                    color: getPercentColor(key, metric?.percent),
+                  },
+                ]}
+              >
+                {formatPercent(metric?.percent)}
+              </Text>
             </View>
           );
-        })}
-      </View>
-
+        })
+      ) : (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyText}>
+            Chưa có dữ liệu thay đổi chi tiết.
+          </Text>
         </View>
+      )}
+
+      {review.prioritizedRecommendations?.length ? (
+        <View style={styles.recommendBox}>
+          <Text style={styles.recommendTitle}>Gợi ý ưu tiên</Text>
+
+          {review.prioritizedRecommendations.map((item, index) => (
+            <View key={`${item.recommendation ?? index}`} style={styles.recommendItem}>
+              <Text style={styles.recommendIndex}>{index + 1}</Text>
+
+              <View style={styles.recommendContent}>
+                <Text style={styles.recommendText}>
+                  {item.recommendation ?? 'Khuyến nghị'}
+                </Text>
+
+                {item.rationale ? (
+                  <Text style={styles.rationaleText}>{item.rationale}</Text>
+                ) : null}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={styles.footerRow}>
+        <Text style={styles.footerText}>
+          Độ tin cậy: {review.confidenceLevel ?? '-'}%
+        </Text>
+
+        {review.createdAt ? (
+          <Text style={styles.footerText}>
+            {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+          </Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 22,
     padding: 16,
     borderWidth: 1,
     borderColor: '#EFE3D4',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  header: {
-    marginBottom: 14,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scoreCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#F3EDE3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: '#E4D3C2',
+  },
+  scoreText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#8B4513',
+  },
+  scoreSubText: {
+    fontSize: 11,
+    color: '#7A6A58',
+    fontWeight: '700',
+  },
+  headerTextWrap: {
+    flex: 1,
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#3A2A1A',
   },
   subtitle: {
@@ -253,81 +352,164 @@ const styles = StyleSheet.create({
     color: '#7A6A58',
     lineHeight: 18,
   },
-  legendRow: {
+  summaryBox: {
+    marginTop: 14,
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: '#FFFAF0',
+    borderWidth: 1,
+    borderColor: '#EFE3D4',
+  },
+  summaryTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#8B4513',
+    marginBottom: 5,
+  },
+  summaryText: {
+    fontSize: 13,
+    color: '#4B5563',
+    lineHeight: 19,
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  highlightBox: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+  },
+  highlightLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '800',
+  },
+  highlightValue: {
+    marginTop: 4,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFAF0',
-    borderRadius: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 10,
-    marginBottom: 10,
+    borderRadius: 12,
+    backgroundColor: '#F3EDE3',
+    marginTop: 14,
+    marginBottom: 8,
   },
-  legendText: {
+  tableHeaderText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '900',
     color: '#8B4513',
     textAlign: 'center',
-  },
-  legendLeft: {
-    marginLeft: 72,
-  },
-  legendRight: {
-    textAlign: 'right',
-  },
-  rowsWrap: {
-    gap: 8,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDF6EC',
-    borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: '#FDF6EC',
+    marginBottom: 8,
   },
-  rowMuted: {
-    opacity: 0.35,
+  metricCol: {
+    flex: 1.25,
+    textAlign: 'left',
   },
-  metricNameBox: {
-    width: 74,
+  percentCol: {
+    flex: 1.05,
+    textAlign: 'right',
   },
   metricLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '900',
     color: '#3A2A1A',
   },
-  valueBox: {
+  valueText: {
     flex: 1,
-    alignItems: 'center',
-  },
-  beforeValue: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#6B6B6B',
+    color: '#374151',
+    textAlign: 'center',
   },
-  afterValue: {
+  percentText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#111827',
+    fontWeight: '900',
   },
-  arrow: {
+  emptyBox: {
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+  },
+  emptyText: {
+    color: '#6B7280',
     fontSize: 13,
-    color: '#9CA3AF',
-    marginHorizontal: 4,
+    textAlign: 'center',
   },
-  diffBox: {
-    width: 64,
-    alignItems: 'flex-end',
-  },
-  diffText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  note: {
+  recommendBox: {
     marginTop: 12,
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: '#F8FBF8',
+    borderWidth: 1,
+    borderColor: '#E5F2E5',
+  },
+  recommendTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#166534',
+    marginBottom: 8,
+  },
+  recommendItem: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  recommendIndex: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#DCFCE7',
+    color: '#166534',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '900',
+    marginRight: 8,
+  },
+  recommendContent: {
+    flex: 1,
+  },
+  recommendText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#14532D',
+  },
+  rationaleText: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 17,
+  },
+  footerRow: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  footerText: {
     fontSize: 12,
     color: '#8B8B8B',
-    lineHeight: 17,
+    fontWeight: '700',
   },
 });

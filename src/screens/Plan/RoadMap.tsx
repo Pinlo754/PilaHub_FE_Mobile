@@ -76,8 +76,6 @@ const RoadMap = () => {
     [],
   );
 
-  const [lastError, setLastError] = useState<string | null>(null);
-
   const [activeTab, setActiveTab] = useState<'CURRENT' | 'PROCESSING'>(
     'CURRENT',
   );
@@ -89,15 +87,16 @@ const RoadMap = () => {
   const [updatingProgress, setUpdatingProgress] = useState(false);
 
   const [showBodyMetricModal, setShowBodyMetricModal] = useState(false);
-
   const [roadmapInitialHealthProfile, setRoadmapInitialHealthProfile] =
     useState<any | null>(null);
-
-  const [roadmapFinalHealthProfile, setRoadmapFinalHealthProfile] =
-    useState<any | null>(null);
-
   const [loadingRoadmapHealthProfile, setLoadingRoadmapHealthProfile] =
     useState(false);
+
+  const [roadmapReview, setRoadmapReview] = useState<any | null>(null);
+  const [loadingRoadmapReview, setLoadingRoadmapReview] = useState(false);
+  const [roadmapReviewError, setRoadmapReviewError] = useState<string | null>(
+    null,
+  );
 
   const [modalProps, setModalProps] = useState<any>({ visible: false });
 
@@ -143,35 +142,26 @@ const RoadMap = () => {
     return {
       ...innerSchedule,
       ...scheduleWrapper,
-
       schedule: innerSchedule,
-
       scheduledDate:
         scheduleWrapper?.scheduledDate ?? innerSchedule?.scheduledDate ?? null,
-
       exercises: scheduleWrapper?.exercises ?? innerSchedule?.exercises ?? [],
-
       personalScheduleId:
         scheduleWrapper?.personalScheduleId ??
         innerSchedule?.personalScheduleId ??
         scheduleWrapper?.id ??
         innerSchedule?.id ??
         null,
-
       completed:
         scheduleWrapper?.completed ?? innerSchedule?.completed ?? false,
-
       scheduleName:
         scheduleWrapper?.scheduleName ??
         innerSchedule?.scheduleName ??
         innerSchedule?.name ??
         'Lịch tập',
-
       dayOfWeek: scheduleWrapper?.dayOfWeek ?? innerSchedule?.dayOfWeek ?? '',
-
       durationMinutes:
         scheduleWrapper?.durationMinutes ?? innerSchedule?.durationMinutes ?? 0,
-
       description:
         scheduleWrapper?.description ?? innerSchedule?.description ?? '',
     };
@@ -224,7 +214,6 @@ const RoadMap = () => {
         setCurrentRoadmapData(null);
         setCurrentStagesData([]);
         setCurrentSupplementsData([]);
-        setSaving(false);
         return;
       }
 
@@ -264,7 +253,6 @@ const RoadMap = () => {
       );
     } catch (err: any) {
       console.warn('fetchNewest error', err);
-      setLastError(String(err?.message ?? err));
     } finally {
       setSaving(false);
     }
@@ -275,8 +263,6 @@ const RoadMap = () => {
       setSaving(true);
 
       const processingResponse = await RoadmapApi.getPending();
-      console.log('roadmap processing response', processingResponse);
-
       let responseData = processingResponse;
 
       if (processingResponse?.data?.data) {
@@ -293,20 +279,17 @@ const RoadMap = () => {
         setPendingRoadmapData(null);
         setPendingStagesData([]);
         setPendingSupplementsData([]);
-        setSaving(false);
         return;
       }
 
       const roadmapFromServer = actualData?.roadmap ?? actualData ?? null;
       const stagesFromServer = actualData?.stages ?? [];
-
       const roadmapId = getRoadmapId(roadmapFromServer);
 
       if (!roadmapId) {
         setPendingRoadmapData(null);
         setPendingStagesData([]);
         setPendingSupplementsData([]);
-        setSaving(false);
         return;
       }
 
@@ -339,7 +322,6 @@ const RoadMap = () => {
       );
     } catch (err: any) {
       console.warn('fetchProcessing error', err);
-      setLastError(String(err?.message ?? err));
     } finally {
       setSaving(false);
     }
@@ -434,6 +416,8 @@ const RoadMap = () => {
       ? activeDataSupplements
       : currentRoadmap?.supplements ?? [];
 
+  const currentRoadmapId = getRoadmapId(currentRoadmap);
+
   const currentProgress = Number(
     currentRoadmap?.progressPercent ?? currentRoadmap?.progress ?? 0,
   );
@@ -449,42 +433,29 @@ const RoadMap = () => {
   useEffect(() => {
     let mounted = true;
 
-    async function loadRoadmapHealthProfiles() {
-      if (!roadmapInitialHealthProfileId && !roadmapFinalHealthProfileId) {
+    async function loadInitialHealthProfile() {
+      if (!roadmapInitialHealthProfileId) {
         setRoadmapInitialHealthProfile(null);
-        setRoadmapFinalHealthProfile(null);
         return;
       }
 
       try {
         setLoadingRoadmapHealthProfile(true);
 
-        const [initialRes, finalRes] = await Promise.allSettled([
-          roadmapInitialHealthProfileId
-            ? fetchHealthProfileById(String(roadmapInitialHealthProfileId))
-            : Promise.resolve(null),
-          roadmapFinalHealthProfileId
-            ? fetchHealthProfileById(String(roadmapFinalHealthProfileId))
-            : Promise.resolve(null),
-        ]);
+        const res = await fetchHealthProfileById(
+          String(roadmapInitialHealthProfileId),
+        );
 
         if (!mounted) return;
 
-        if (initialRes.status === 'fulfilled' && initialRes.value?.ok) {
-          setRoadmapInitialHealthProfile(initialRes.value.data);
+        if (res.ok) {
+          setRoadmapInitialHealthProfile(res.data);
         } else {
           setRoadmapInitialHealthProfile(null);
         }
-
-        if (finalRes.status === 'fulfilled' && finalRes.value?.ok) {
-          setRoadmapFinalHealthProfile(finalRes.value.data);
-        } else {
-          setRoadmapFinalHealthProfile(null);
-        }
       } catch (e) {
-        console.log('loadRoadmapHealthProfiles error:', e);
+        console.log('loadInitialHealthProfile error:', e);
         setRoadmapInitialHealthProfile(null);
-        setRoadmapFinalHealthProfile(null);
       } finally {
         if (mounted) {
           setLoadingRoadmapHealthProfile(false);
@@ -492,24 +463,92 @@ const RoadMap = () => {
       }
     }
 
-    loadRoadmapHealthProfiles();
+    loadInitialHealthProfile();
 
     return () => {
       mounted = false;
     };
-  }, [roadmapInitialHealthProfileId, roadmapFinalHealthProfileId]);
+  }, [roadmapInitialHealthProfileId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRoadmapReview() {
+      const canReview =
+        safeProgress >= 100 &&
+        currentRoadmapId &&
+        currentRoadmap?.initialHealthProfileId &&
+        currentRoadmap?.finalHealthProfileId;
+
+      if (!canReview) {
+        setRoadmapReview(null);
+        setRoadmapReviewError(null);
+        return;
+      }
+
+      try {
+        setLoadingRoadmapReview(true);
+        setRoadmapReviewError(null);
+
+        try {
+          const existingReview = await RoadmapApi.getRoadmapReview(
+            String(currentRoadmapId),
+          );
+
+          if (!mounted) return;
+
+          setRoadmapReview(existingReview);
+          return;
+        } catch (getErr: any) {
+          const status = getErr?.response?.status;
+
+          if (status !== 404) {
+            throw getErr;
+          }
+
+          console.log('Roadmap review not found, generating...');
+        }
+
+        const generatedReview = await RoadmapApi.generateRoadmapReview(
+          String(currentRoadmapId),
+        );
+
+        if (!mounted) return;
+
+        setRoadmapReview(generatedReview);
+      } catch (err: any) {
+        console.log('loadRoadmapReview error:', err);
+
+        if (!mounted) return;
+
+        setRoadmapReview(null);
+        setRoadmapReviewError(
+          err?.response?.data?.message ??
+            err?.message ??
+            'Không thể tải đánh giá lộ trình',
+        );
+      } finally {
+        if (mounted) {
+          setLoadingRoadmapReview(false);
+        }
+      }
+    }
+
+    loadRoadmapReview();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    safeProgress,
+    currentRoadmapId,
+    currentRoadmap?.initialHealthProfileId,
+    currentRoadmap?.finalHealthProfileId,
+  ]);
 
   const roadmapInitialHealthMapped = useMemo(() => {
     return mapStoredHealthProfile(roadmapInitialHealthProfile);
   }, [roadmapInitialHealthProfile]);
-
-  const roadmapFinalHealthMapped = useMemo(() => {
-    return mapStoredHealthProfile(roadmapFinalHealthProfile);
-  }, [roadmapFinalHealthProfile]);
-
-  const roadmapModalHealthMapped = roadmapFinalHealthProfile
-    ? roadmapFinalHealthMapped
-    : roadmapInitialHealthMapped;
 
   const openProgressModal = () => {
     setProgressInput(String(safeProgress));
@@ -824,7 +863,7 @@ const RoadMap = () => {
           progressPercent={safeProgress}
           totalSessions={totalSessions}
           loadingProfile={loadingRoadmapHealthProfile}
-          healthProfile={roadmapModalHealthMapped}
+          healthProfile={roadmapInitialHealthMapped}
         />
 
         <ModalPopup {...(modalProps as any)} onClose={closeModal} />
@@ -876,18 +915,25 @@ const RoadMap = () => {
 
         {safeProgress >= 100 && roadmapFinalHealthProfileId ? (
           <View style={styles.sectionWrap}>
-            {loadingRoadmapHealthProfile ? (
+            {loadingRoadmapReview ? (
               <View style={styles.card}>
                 <ActivityIndicator size="small" color="#8B4513" />
                 <Text style={styles.loadingBeforeAfterText}>
-                  Đang tải kết quả trước / sau...
+                  Đang tải đánh giá trước / sau...
                 </Text>
               </View>
+            ) : roadmapReview ? (
+              <RoadmapBeforeAfterCard review={roadmapReview} />
             ) : (
-              <RoadmapBeforeAfterCard
-                before={roadmapInitialHealthMapped}
-                after={roadmapFinalHealthMapped}
-              />
+              <View style={styles.finalNoticeCard}>
+                <Text style={styles.finalNoticeTitle}>
+                  Chưa có đánh giá lộ trình
+                </Text>
+                <Text style={styles.finalNoticeText}>
+                  {roadmapReviewError ??
+                    'Hệ thống chưa tạo được đánh giá trước/sau. Bạn có thể thử tải lại lộ trình.'}
+                </Text>
+              </View>
             )}
           </View>
         ) : safeProgress >= 100 ? (
@@ -1376,7 +1422,7 @@ const RoadMap = () => {
         progressPercent={safeProgress}
         totalSessions={totalSessions}
         loadingProfile={loadingRoadmapHealthProfile}
-        healthProfile={roadmapModalHealthMapped}
+        healthProfile={roadmapInitialHealthMapped}
       />
 
       <ModalPopup {...(modalProps as any)} onClose={closeModal} />
@@ -1389,8 +1435,6 @@ export default RoadMap;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#FFFAF0' },
   scrollContent: { paddingBottom: 140 },
-  mono: { fontFamily: 'monospace', fontSize: 12 },
-  errorText: { color: 'red' },
 
   pageHeader: {
     marginHorizontal: 16,
@@ -1410,10 +1454,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  pageHeaderTextWrap: {
-    flex: 1,
-    paddingRight: 12,
-  },
+  pageHeaderTextWrap: { flex: 1, paddingRight: 12 },
   pageHeaderTitle: {
     fontSize: 22,
     fontWeight: '900',
@@ -1424,19 +1465,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#7A6A58',
   },
-  headerActionGroup: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
+  headerActionGroup: { alignItems: 'flex-end', gap: 8 },
   progressEditButton: {
     backgroundColor: '#8B4513',
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 999,
   },
-  progressEditButtonDisabled: {
-    opacity: 0.5,
-  },
+  progressEditButtonDisabled: { opacity: 0.5 },
   progressEditButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
@@ -1494,9 +1530,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#8A7A69',
   },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
+  tabTextActive: { color: '#FFFFFF' },
 
   card: {
     backgroundColor: '#fff',
@@ -1813,13 +1847,4 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-
-  recreateButton: {
-    backgroundColor: '#8B4513',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recreateText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
 });
