@@ -128,7 +128,7 @@ export default function StageCalendar({
           const isSelected = selectedDate === dateString;
 
           const bgColor = hasSchedule
-            ? mark?.selectedColor ?? "#C98A5E"
+? mark?.selectedColor ?? "#C98A5E"
             : "transparent";
 
           const textColor = hasSchedule
