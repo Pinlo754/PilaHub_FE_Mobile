@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoadingOverlay from '../../../components/LoadingOverlay';
 import Toast from '../../../components/Toast';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InputBody'>;
 
@@ -644,7 +645,8 @@ export default function InputBodyScreen({ navigation, route }: Props) {
           accessibilityLabel="Quay lại"
           accessibilityRole="button"
         >
-          <Text style={styles.backIcon}>{'←'}</Text>
+                    <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        
         </Pressable>
 
         <ScrollView

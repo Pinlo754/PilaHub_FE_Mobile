@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
 
-
-export const ITEM_HEIGHT = 64; // increase item height to make ruler larger and finger interaction smoother
+export const ITEM_HEIGHT = 64;
 export const CM_MIN = 120;
 export const CM_MAX = 240;
+const DEFAULT_HEIGHT = 165;
 
 export const HEIGHTS = Array.from(
   { length: CM_MAX - CM_MIN + 1 },
-  (_, i) => CM_MIN + i
+  (_, i) => CM_MIN + i,
 );
+
+const clamp = (value: number, min: number, max: number) => {
+  return Math.max(min, Math.min(max, value));
+};
 
 export const useHeightLogic = () => {
   const { data, setData, step, setStep } = useOnboardingStore();
@@ -18,100 +22,125 @@ export const useHeightLogic = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const listRef = useRef<Animated.FlatList<number> | null>(null);
 
-  const height = data.height ?? 165;
-  const initialIndex = Math.max(0, HEIGHTS.findIndex(v => v === height));
+  const getIndexFromHeight = (height?: number) => {
+    const value =
+      typeof height === 'number' && !isNaN(height)
+        ? height
+        : DEFAULT_HEIGHT;
+
+    const safeHeight = clamp(Math.round(value), CM_MIN, CM_MAX);
+    return safeHeight - CM_MIN;
+  };
+
+  const initialIndex = getIndexFromHeight(data.height);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  // helper for FlatList measurement (so FlatList can compute positions precisely)
-  const getItemLayout = (_: any, index: number) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index });
+  const currentHeight = HEIGHTS[currentIndex] ?? DEFAULT_HEIGHT;
 
-  // scroll to correct position once on mount.
-  // Some devices/FlatList implementations don't have the ref ready immediately —
-  // retry a few times then fallback to scrollToOffset. This prevents the
-  // visible big number (center) from being out-of-sync with the list items.
+  const getItemLayout = (_: any, index: number) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index,
+  });
+
+  /**
+   * Khi vào lại màn Height:
+   * - lấy height từ store
+   * - set currentIndex
+   * - scroll ruler về đúng vị trí
+   *
+   * Không dùng scrollToIndex + viewPosition nữa vì dễ lệch với paddingVertical.
+   */
   useEffect(() => {
-    let mounted = true;
-    const maxAttempts = 8;
-    let attempt = 0;
+    const index = getIndexFromHeight(data.height);
+    const offset = index * ITEM_HEIGHT;
 
-    const tryScroll = () => {
-      if (!mounted) return;
-      attempt += 1;
+    setCurrentIndex(index);
+    scrollY.setValue(offset);
 
+    const timer = setTimeout(() => {
       try {
-        if (listRef.current && typeof (listRef.current as any).scrollToIndex === 'function') {
-          (listRef.current as any).scrollToIndex({ index: initialIndex, animated: false, viewPosition: 0.5 });
-          return;
-        }
-        if (listRef.current && typeof (listRef.current as any).scrollToOffset === 'function') {
-          (listRef.current as any).scrollToOffset({ offset: initialIndex * ITEM_HEIGHT, animated: false });
-          return;
-        }
-      } catch (err) {
-        // ignore and retry
-      }
+        listRef.current?.scrollToOffset({
+          offset,
+          animated: false,
+        });
+      } catch {}
+    }, 80);
 
-      if (attempt < maxAttempts) {
-        // wait slightly longer between attempts to give the FlatList time to mount
-        setTimeout(tryScroll, 50 * attempt);
-      } else {
-        // final fallback after attempts
-        setTimeout(() => {
-          listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_HEIGHT, animated: false });
-        }, 120);
-      }
-    };
+    return () => clearTimeout(timer);
+  }, [data.height, scrollY]);
 
-    const raf = requestAnimationFrame(() => tryScroll());
+  /**
+   * Chỉ update số khi scroll.
+   * Không setData ở đây để tránh render lại liên tục.
+   */
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        const rawIndex = Math.round(offsetY / ITEM_HEIGHT);
+        const safeIndex = clamp(rawIndex, 0, HEIGHTS.length - 1);
 
-    return () => {
-      mounted = false;
-      cancelAnimationFrame(raf);
-    };
-    // run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        setCurrentIndex(safeIndex);
+      },
+    },
+  );
 
-  // keep in sync if external data.height changes
-  useEffect(() => {
-    const idx = Math.max(0, HEIGHTS.findIndex(v => v === (data.height ?? height)));
-    if (idx !== currentIndex) {
-      setCurrentIndex(idx);
-      // snap to new index without animation to avoid visual jump
-      setTimeout(() => {
-        listRef.current?.scrollToOffset({ offset: idx * ITEM_HEIGHT, animated: false });
-      }, 30);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.height]);
-
+  /**
+   * Khi thả tay thì lưu height vào store.
+   * Không gọi scrollToOffset animated ở đây nữa.
+   * Vì FlatList đã có snapToInterval rồi.
+   */
   const onMomentumEnd = (e: any) => {
-    const rawIndex = e.nativeEvent.contentOffset.y / ITEM_HEIGHT;
-    const index = Math.round(rawIndex);
-    const safeIndex = Math.max(0, Math.min(HEIGHTS.length - 1, index));
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const rawIndex = Math.round(offsetY / ITEM_HEIGHT);
+    const safeIndex = clamp(rawIndex, 0, HEIGHTS.length - 1);
 
-    if (safeIndex !== currentIndex) setCurrentIndex(safeIndex);
-
-    // snap to exact offset to avoid half-pixel drift
-    setTimeout(() => {
-      listRef.current?.scrollToOffset({ offset: safeIndex * ITEM_HEIGHT, animated: true });
-    }, 0);
-
-    setData({ height: HEIGHTS[safeIndex], heightUnit: 'cm' });
+    setCurrentIndex(safeIndex);
+    setData({
+      height: HEIGHTS[safeIndex],
+      heightUnit: 'cm',
+    });
   };
+
+  const onNext = () => {
+    setData({
+      height: currentHeight,
+      heightUnit: 'cm',
+    });
+
+    setStep(step + 1);
+  };
+
+  const onBack = () => {
+    if (step > 0) {
+      setData({
+        height: currentHeight,
+        heightUnit: 'cm',
+      });
+
+      setStep(step - 1);
+    }
+  };
+
+  const canContinue =
+    typeof currentHeight === 'number' && !isNaN(currentHeight);
 
   return {
     HEIGHTS,
     ITEM_HEIGHT,
     scrollY,
     listRef,
-    currentHeight: HEIGHTS[currentIndex],
+    currentHeight,
     currentIndex,
+    onScroll,
     onMomentumEnd,
-    onNext: () => setStep(step + 1),
-    onBack: () => setStep(step - 1),
-    // expose helper props for FlatList
+    onNext,
+    onBack,
     getItemLayout,
     initialIndex,
+    canContinue,
   };
 };
