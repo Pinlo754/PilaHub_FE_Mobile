@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   ScrollView,
   Text,
   View,
-  Alert,
   StyleSheet,
   Modal,
 } from "react-native";
@@ -19,79 +18,54 @@ import StageCarousel from "./components/StageCarousel";
 import axios from "../../hooks/axiosInstance";
 import { getProfile } from "../../services/auth";
 import StageRendererApi from "./components/StageRendererApi";
+import ModalPopup from "../../components/ModalPopup";
 
 const PlanScreen = () => {
   const route: any = useRoute();
   const storeList = useRoadmapStore((s) => s.list);
   const addRoadmap = useRoadmapStore((s) => s.addRoadmap);
 
-  // prefer addedRoadmap param when present (from CreateRoadmap flow)
+  const [modalProps, setModalProps] = React.useState<any>({
+    visible: false,
+    mode: "noti",
+    titleText: "",
+    contentText: "",
+    onConfirm: undefined,
+  });
+
+  const showModal = React.useCallback((props: Partial<any>) => {
+    setModalProps((prev: any) => ({ ...prev, ...props, visible: true }));
+  }, []);
+
+  const closeModal = React.useCallback(() => {
+    setModalProps((prev: any) => ({ ...prev, visible: false }));
+  }, []);
+
   const paramAdded = route.params?.addedRoadmap ?? null;
 
-  // memoize roadmaps/stages derived from route or store to avoid changing references every render
   const roadmap = React.useMemo(() => {
     return (
-      paramAdded?.roadmap ?? route.params?.roadmap ?? storeList?.[0]?.roadmap ?? null
+      paramAdded?.roadmap ??
+      route.params?.roadmap ??
+      storeList?.[0]?.roadmap ??
+      null
     );
   }, [paramAdded, route.params?.roadmap, storeList]);
 
   const stages = React.useMemo(() => {
     return (
-      paramAdded?.stages ?? route.params?.stages ?? storeList?.[0]?.stages ?? []
+      paramAdded?.stages ??
+      route.params?.stages ??
+      storeList?.[0]?.stages ??
+      []
     );
   }, [paramAdded, route.params?.stages, storeList]);
-
-  // shift returned dates by +7 hours for display only (fix server time offset)
-  const shiftDateString = (dateStr: any, hours: number) => {
-    if (!dateStr || typeof dateStr !== 'string') return dateStr;
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      d.setHours(d.getHours() + hours);
-      return d.toISOString();
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const displayRoadmap = useMemo(() => {
-    if (!roadmap) return roadmap;
-    const copied: any = { ...roadmap };
-    if (copied.generatedAt) copied.generatedAt = shiftDateString(copied.generatedAt, 7);
-    return copied;
-  }, [roadmap]);
-
-  const displayStages = useMemo(() => {
-    if (!Array.isArray(stages)) return stages;
-    return stages.map((stg: any) => {
-      if (!stg) return stg;
-      // defensively handle both API-shaped and simple stage objects
-      const schedules = Array.isArray(stg.schedules) ? stg.schedules : stg?.stage?.schedules ?? null;
-      if (!schedules) return stg;
-      const shifted = schedules.map((sch: any) => {
-        if (!sch) return sch;
-        const out = { ...sch };
-        if (out.scheduledDate) out.scheduledDate = shiftDateString(out.scheduledDate, 7);
-        if (out.startTime) out.startTime = shiftDateString(out.startTime, 7);
-        if (out.endTime) out.endTime = shiftDateString(out.endTime, 7);
-        return out;
-      });
-
-      if (Array.isArray(stg.schedules)) {
-        return { ...stg, schedules: shifted };
-      }
-      // if API-shaped where schedules may live under stage
-      if (stg.stage) {
-        return { ...stg, stage: { ...stg.stage, schedules: shifted } };
-      }
-      return stg;
-    });
-  }, [stages]);
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
+
   const nav: any = useNavigation();
 
   const handleSelectDate = (date: string | null) => {
@@ -107,80 +81,120 @@ const PlanScreen = () => {
     );
   }
 
-  // use display versions for UI so times appear with +7h correction
-  const selectedStage = displayStages[selectedStageIndex];
+  const selectedStage = stages[selectedStageIndex];
 
   const selectedSchedule =
     selectedStage?.schedules?.find((s: any) =>
       selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false
     ) ?? null;
 
-  // detect api-shaped stages
   const isApiShaped =
-    Array.isArray(stages) && stages.length > 0 && Boolean(stages[0]?.stage || stages[0]?._raw);
+    Array.isArray(stages) &&
+    stages.length > 0 &&
+    Boolean(stages[0]?.stage || stages[0]?._raw);
 
   const handleSaveToServer = async () => {
     try {
       setSaving(true);
+
       const me = await getProfile();
+
       const role = me.ok
         ? String(me.data?.account?.role ?? me.data?.role ?? "").toUpperCase()
         : "";
+
       const userId = me.ok
         ? me.data?.id ?? me.data?.accountId ?? me.data?.memberId ?? null
         : null;
 
       if (role === "COACH") {
-        Alert.alert(
-          "Chú ý",
-          "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi lưu lộ trình."
-        );
+        showModal({
+          mode: "noti",
+          titleText: "Chú ý",
+          contentText:
+            "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi lưu lộ trình.",
+        });
         setSaving(false);
         return;
       }
 
-      // ensure we have primaryGoalId (server requires it)
       const aiResponse = roadmap?.raw ?? roadmap;
-      const acceptPayload: any = { aiResponse };
-      if (userId) acceptPayload.traineeId = userId;
 
-      const primaryGoalId = paramAdded?.primaryGoalId ?? roadmap?.primaryGoalId ?? null;
-      const secondaryGoalIds = paramAdded?.secondaryGoalIds ?? roadmap?.secondaryGoalIds ?? null;
+      const acceptPayload: any = {
+        aiResponse,
+      };
+
+      if (userId) {
+        acceptPayload.traineeId = userId;
+      }
+
+      const primaryGoalId =
+        paramAdded?.primaryGoalId ?? roadmap?.primaryGoalId ?? null;
+
+      const secondaryGoalIds =
+        paramAdded?.secondaryGoalIds ?? roadmap?.secondaryGoalIds ?? null;
 
       if (!primaryGoalId) {
-        // avoid server validation error and guide user to set primary goal
-        Alert.alert('Thiếu mục tiêu chính', 'Vui lòng chọn mục tiêu chính trước khi lưu lộ trình lên server.');
+        showModal({
+          mode: "noti",
+          titleText: "Thiếu mục tiêu chính",
+          contentText:
+            "Vui lòng chọn mục tiêu chính trước khi lưu lộ trình lên server.",
+        });
         setSaving(false);
         return;
       }
 
       acceptPayload.primaryGoalId = primaryGoalId;
-      if (secondaryGoalIds) acceptPayload.secondaryGoalIds = secondaryGoalIds;
+
+      if (secondaryGoalIds) {
+        acceptPayload.secondaryGoalIds = secondaryGoalIds;
+      }
 
       const res = await axios.post(
         "/roadmaps/ai-generated/accept",
         acceptPayload
       );
+
       const data = res.data?.data ?? res.data ?? res;
 
       const roadmapFromServer = data?.roadmap ?? roadmap;
       const stagesFromServer = data?.stages ?? stages;
 
-      // persist returned roadmap into local store
       addRoadmap({
         roadmap: roadmapFromServer,
         stages: stagesFromServer,
         createdAt: Date.now(),
       });
 
-      Alert.alert("Thành công", "Lộ trình đã được lưu.", [
-        { text: 'OK', onPress: () => { (nav as any).reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Roadmap' } }] }); } }
-      ]);
+      showModal({
+        mode: "noti",
+        titleText: "Thành công",
+        contentText: "Lộ trình đã được lưu.",
+        onConfirm: () => {
+          closeModal();
+          nav.reset({
+            index: 0,
+            routes: [
+              {
+                name: "MainTabs",
+                params: { screen: "Roadmap" },
+              },
+            ],
+          });
+        },
+      });
     } catch (e: any) {
       console.error("Save roadmap error:", e);
+
       const message =
         e?.response?.data?.message || e?.message || "Không thể lưu lộ trình.";
-      Alert.alert("Lưu thất bại", message);
+
+      showModal({
+        mode: "noti",
+        titleText: "Lưu thất bại",
+        contentText: message,
+      });
     } finally {
       setSaving(false);
     }
@@ -189,34 +203,33 @@ const PlanScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-[#F3EDE3]">
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
         <View className="px-5 mt-4">
           <Text className="text-2xl font-bold text-[#8B4513]">
-            {displayRoadmap?.title ?? roadmap.title}
+            {roadmap?.title}
           </Text>
-          {displayRoadmap?.description ?? roadmap.description ? (
+
+          {roadmap?.description ? (
             <Text className="text-gray-600 mt-2">
-              {displayRoadmap?.description ?? roadmap.description}
+              {roadmap.description}
             </Text>
           ) : null}
         </View>
 
-        {/* Stage selector */}
         <View className="mt-6">
           <Text className="text-lg font-semibold text-[#8B4513] mb-3 px-2">
             Giai đoạn
           </Text>
+
           {isApiShaped ? (
-            <StageRendererApi apiStages={displayStages} roadmap={displayRoadmap ?? roadmap} />
+            <StageRendererApi apiStages={stages} roadmap={roadmap} />
           ) : (
             <StageCarousel
-              stages={displayStages}
+              stages={stages}
               onChangeIndex={setSelectedStageIndex}
             />
           )}
         </View>
 
-        {/* Calendar */}
         {isApiShaped ? null : (
           <>
             <StageCalendar
@@ -232,26 +245,38 @@ const PlanScreen = () => {
             >
               <View style={styles.modalContainer}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.closeText} onPress={() => setShowScheduleModal(false)}>Đóng</Text>
+                  <Text
+                    style={styles.closeText}
+                    onPress={() => setShowScheduleModal(false)}
+                  >
+                    Đóng
+                  </Text>
                 </View>
+
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                   {selectedSchedule ? (
                     <ScheduleDetail schedule={selectedSchedule} />
                   ) : (
                     <View style={styles.emptyModalContent}>
-                      <Text style={styles.modalEmptyTitle}>Không có lịch cho ngày này.</Text>
-                      <Text style={styles.modalEmptyText}>Vui lòng chọn ngày có lịch để xem bài tập.</Text>
+                      <Text style={styles.modalEmptyTitle}>
+                        Không có lịch cho ngày này.
+                      </Text>
+
+                      <Text style={styles.modalEmptyText}>
+                        Vui lòng chọn ngày có lịch để xem bài tập.
+                      </Text>
                     </View>
                   )}
                 </ScrollView>
               </View>
             </Modal>
 
-            {/* Supplement */}
             <SupplementSection stage={selectedStage} />
           </>
         )}
       </ScrollView>
+
+      <ModalPopup {...(modalProps as any)} onClose={closeModal} />
 
       <BottomActionBar onSave={handleSaveToServer} saving={saving} />
     </SafeAreaView>
@@ -261,11 +286,32 @@ const PlanScreen = () => {
 export default PlanScreen;
 
 const styles = StyleSheet.create({
-  scrollContent: { paddingBottom: 140 },
-  modalContainer: { flex: 1, backgroundColor: '#F3EDE3' },
-  modalHeader: { height: 56, paddingHorizontal: 16, alignItems: 'flex-end', justifyContent: 'center' },
-  closeText: { color: '#8B4513', fontWeight: '600' },
-  emptyModalContent: { padding: 20 },
-  modalEmptyTitle: { color: '#3A2A1A', fontSize: 16 },
-  modalEmptyText: { color: '#6B6B6B', marginTop: 8 },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#F3EDE3",
+  },
+  modalHeader: {
+    height: 56,
+    paddingHorizontal: 16,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  closeText: {
+    color: "#8B4513",
+    fontWeight: "600",
+  },
+  emptyModalContent: {
+    padding: 20,
+  },
+  modalEmptyTitle: {
+    color: "#3A2A1A",
+    fontSize: 16,
+  },
+  modalEmptyText: {
+    color: "#6B6B6B",
+    marginTop: 8,
+  },
 });
