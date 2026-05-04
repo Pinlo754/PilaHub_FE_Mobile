@@ -3,9 +3,11 @@ import { CourseDetailType, CourseType } from '../utils/CourseType';
 import api from './axiosInstance';
 
 export const courseService = {
-  // GET ALL
-  getAll: async () => {
+  // GET ALL ACTIVE COURSES
+  getAll: async (): Promise<CourseType[]> => {
     const res = await api.get<ApiResponse<CourseType[]>>(`/courses/active`);
+
+    console.log('COURSE_GET_ALL_RAW:', JSON.stringify(res.data, null, 2));
 
     if (!res.data.success) {
       throw {
@@ -15,7 +17,15 @@ export const courseService = {
       };
     }
 
-    return res.data.data.filter(course => course.totalLesson > 0);
+    const data = Array.isArray(res.data.data) ? res.data.data : [];
+
+    console.log('COURSE_GET_ALL_DATA_COUNT:', data.length);
+
+    // Tạm thời không filter để tránh mất hết data
+    return data;
+
+    // Sau khi chắc chắn field đúng, muốn filter thì dùng lại:
+    // return data.filter(course => Number(course.totalLesson ?? 0) > 0);
   },
 
   // GET BY ID
@@ -49,7 +59,7 @@ export const courseService = {
       };
     }
 
-    return res.data.data;
+    return Array.isArray(res.data.data) ? res.data.data : [];
   },
 
   // GET BY DIFFICULTY LEVEL
@@ -66,7 +76,7 @@ export const courseService = {
       };
     }
 
-    return res.data.data;
+    return Array.isArray(res.data.data) ? res.data.data : [];
   },
 
   // GET FULL DETAIL

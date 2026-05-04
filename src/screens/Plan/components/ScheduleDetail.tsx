@@ -1,12 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, DeviceEventEmitter, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  DeviceEventEmitter,
+  ScrollView,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import api from '../../../hooks/axiosInstance';
 import { tutorialService } from '../../../hooks/tutorial.service';
 import { workoutSessionService } from '../../../hooks/workoutSession.service';
+import { heartRateService } from '../../../hooks/heartRate.service';
+import { mistakeLogService } from '../../../hooks/mistakeLog.service';
 import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
+import { workoutFeedbackService } from '../../../hooks/workoutFeedback.service';
 
 // Helper: Phân giải URL video
 function resolveVideoSrc(raw?: string | null) {
@@ -26,7 +37,12 @@ function resolveVideoSrc(raw?: string | null) {
   return base ? `${base}/${s}` : s;
 }
 
-export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview = false }: any) {
+export default function ScheduleDetail({
+  schedule,
+  onVideoModalChange,
+  isPreview = false,
+  onEditExercise,
+}: any) {
   const navigation: any = useNavigation();
 
   // --------------------------------------------------------
@@ -62,12 +78,16 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
 
   const [aiAllowed, setAiAllowed] = useState<boolean>(true);
   const [localExercises, setLocalExercises] = useState<any[]>([]);
-  const [scheduleCompleted, setScheduleCompleted] = useState<boolean>(Boolean(schedule?.completed));
-  
+  const [scheduleCompleted, setScheduleCompleted] = useState<boolean>(
+    Boolean(schedule?.completed),
+  );
+
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>(
+    'info',
+  );
   const prevProgressRef = useRef<number | null>(null);
 
   // Khởi tạo danh sách bài tập theo trình tự
@@ -93,43 +113,53 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
 
   // Lắng nghe sự kiện hoàn thành bài tập/lịch tập để tự động mở khóa theo trình tự
   useEffect(() => {
-    const subEx = DeviceEventEmitter.addListener('exerciseCompleted', (evt: any) => {
-      const id = evt?.personalExerciseId ?? null;
-      if (!id) return;
+    const subEx = DeviceEventEmitter.addListener(
+      'exerciseCompleted',
+      (evt: any) => {
+        const id = evt?.personalExerciseId ?? null;
+        if (!id) return;
 
-      setLocalExercises(prev => {
-        const mapped = prev.map(it => {
-          const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
-          if (pid === id) {
-            return { ...it, completed: true };
-          }
-          return it;
+        setLocalExercises(prev => {
+          const mapped = prev.map(it => {
+            const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
+            if (pid === id) {
+              return { ...it, completed: true };
+            }
+            return it;
+          });
+
+          // Gọi lại normalizeExercises để mở khóa bài tiếp theo
+          return normalizeExercises(mapped);
         });
-        
-        // Gọi lại normalizeExercises để mở khóa bài tiếp theo
-        return normalizeExercises(mapped);
-      });
 
-      setToastMessage('Đã hoàn thành động tác');
-      setToastType('success');
-      setToastVisible(true);
-    });
+        setToastMessage('Đã hoàn thành động tác');
+        setToastType('success');
+        setToastVisible(true);
+      },
+    );
 
-    const subSchedule = DeviceEventEmitter.addListener('scheduleCompleted', (evt: any) => {
-      const sid = evt?.scheduleId ?? null;
-      const thisSid = schedule?.personalScheduleId ?? schedule?.id ?? schedule?.scheduleId ?? null;
+    const subSchedule = DeviceEventEmitter.addListener(
+      'scheduleCompleted',
+      (evt: any) => {
+        const sid = evt?.scheduleId ?? null;
+        const thisSid =
+          schedule?.personalScheduleId ??
+          schedule?.id ??
+          schedule?.scheduleId ??
+          null;
 
-      if (!sid || sid !== thisSid) return;
+        if (!sid || sid !== thisSid) return;
 
-      setScheduleCompleted(true);
-      setToastMessage('Hoàn thành lịch tập');
-      setToastType('success');
-      setToastVisible(true);
+        setScheduleCompleted(true);
+        setToastMessage('Hoàn thành lịch tập');
+        setToastType('success');
+        setToastVisible(true);
 
-      if (typeof onVideoModalChange === 'function') {
-        onVideoModalChange(false);
-      }
-    });
+        if (typeof onVideoModalChange === 'function') {
+          onVideoModalChange(false);
+        }
+      },
+    );
 
     return () => {
       subEx.remove();
@@ -156,7 +186,13 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
   if (!schedule) return null;
 
   const getScheduleId = () => {
-    return schedule.personalScheduleId ?? schedule.id ?? schedule.scheduleId ?? schedule.personalScheduleIdRaw ?? null;
+    return (
+      schedule.personalScheduleId ??
+      schedule.id ??
+      schedule.scheduleId ??
+      schedule.personalScheduleIdRaw ??
+      null
+    );
   };
 
   const resolveExerciseVideo = async (ex: any) => {
@@ -184,9 +220,9 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     const item = getExerciseObject(ex);
     return Boolean(
       item?.haveAIsupported ||
-      item?.nameInModelAI ||
-      item?.haveAiSupported ||
-      item?.name_in_model_ai,
+        item?.nameInModelAI ||
+        item?.haveAiSupported ||
+        item?.name_in_model_ai,
     );
   };
 
@@ -205,7 +241,12 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
 
     const actual = getExerciseObject(ex);
     const exerciseId =
-      actual?.exerciseId ?? actual?.id ?? actual?.exercise_id ?? actual?.exerciseIdRaw ?? null;
+      actual?.exerciseId ??
+      actual?.id ??
+      actual?.exercise_id ??
+      actual?.exerciseIdRaw ??
+      null;
+
     if (!exerciseId) {
       setToastMessage('Không xác định được ID bài tập');
       setToastType('error');
@@ -214,15 +255,14 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     }
 
     try {
-      const session = await workoutSessionService.startFreeWorkout({
-        exerciseId: String(exerciseId),
+      const session = await workoutSessionService.startRoadmapWorkout({
+        personalExerciseId: String(ex.personalExerciseId || exerciseId),
         haveAITracking: true,
         haveIOTDeviceTracking: true,
       });
 
       const videoUrl = await resolveExerciseVideo(ex);
-      const nameAITracking =
-        actual?.nameInModelAI ?? actual?.name_in_model_ai ?? '';
+      const nameAITracking = actual?.nameInModelAI ?? actual?.name_in_model_ai ?? '';
 
       if (!session?.workoutSessionId) {
         throw new Error('Không tạo được phiên AI');
@@ -273,7 +313,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
   // --------------------------------------------------------
   const startAllFree = async () => {
     const normalized = normalizeExercises(localExercises);
-    
+
     // Lọc ra các bài chưa tập và sắp xếp đúng trình tự
     const exercisesToPlay = normalized
       .filter((ex: any) => ex.completed !== true)
@@ -366,6 +406,23 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     const queue = await buildQueue(exercisesToPlay);
     const scheduleId = getScheduleId();
 
+    const firstEx = exercisesToPlay[0];
+    if (firstEx && firstEx.isAiSupported) {
+      try {
+        await workoutSessionService.startRoadmapWorkout({
+          personalExerciseId: String(firstEx.personalExerciseId || firstEx.exerciseId),
+          haveAITracking: true,
+          haveIOTDeviceTracking: true,
+        });
+      } catch (err) {
+        console.warn('[ScheduleDetail] startAllAI startRoadmapWorkout failed', err);
+        setToastMessage('Không thể bắt đầu AI Practice. Vui lòng thử lại');
+        setToastType('error');
+        setToastVisible(true);
+        return;
+      }
+    }
+
     if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
 
     navigation.navigate('SchedulePlayer', {
@@ -377,8 +434,124 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     });
   };
 
+  const viewAIReview = async (ex: any) => {
+    if (!ex.completed) {
+      setToastMessage('Bài tập chưa hoàn thành');
+      setToastType('info');
+      setToastVisible(true);
+      return;
+    }
+
+    if (!supportsAI(ex)) {
+      setToastMessage('Bài tập này không hỗ trợ AI');
+      setToastType('info');
+      setToastVisible(true);
+      return;
+    }
+
+    const exerciseId = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+    const personalExerciseId = ex.personalExerciseId ?? ex.id ?? null;
+
+    if (!exerciseId) {
+      setToastMessage('Không xác định được ID bài tập');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    const fetchAISummary = async (workoutSessionId: string) => {
+      try {
+        const workout = await workoutSessionService.getById(workoutSessionId);
+        const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
+          workoutFeedbackService.getByWorkoutSessionId(workoutSessionId),
+          mistakeLogService.getByWorkoutSessionId(workoutSessionId),
+          heartRateService.getByWorkoutSessionId(workoutSessionId),
+        ]);
+
+        navigation.navigate('AISummary', {
+          feedback,
+          videoUrl: workout.recordUrl,
+          mistakeLog,
+          heartRateLogs: heartRateLogs.map(h => ({
+            heartRate: h.heartRate,
+            recordedAt: h.recordedAt,
+          })),
+        });
+      } catch (err) {
+        console.error('Fetch AI summary error:', err);
+      } finally {
+      }
+    };
+
+    try {
+      // Lấy danh sách workout sessions của bài tập này
+      const sessions = await workoutSessionService.getByExerciseId(String(exerciseId), {
+        personalExerciseId: personalExerciseId ? String(personalExerciseId) : undefined,
+      });
+      console.log('Sessions for exercise', exerciseId, sessions);
+
+      // Lọc ra sessions có AI tracking và đã hoàn thành
+      const aiSessions = sessions.filter(
+        s => s.haveAITracking === true && s.completed === true,
+      );
+      console.log('AI sessions completed', aiSessions);
+      if (aiSessions.length === 0) {
+        setToastMessage('Không tìm thấy phiên tập AI đã hoàn thành');
+        setToastType('info');
+        setToastVisible(true);
+        return;
+      }
+
+      // Lấy session gần nhất (theo thời gian kết thúc)
+      const latestSession = aiSessions.sort((a, b) => {
+        const timeA = new Date(a.endTime || a.startTime).getTime();
+        const timeB = new Date(b.endTime || b.startTime).getTime();
+        return timeB - timeA;
+      })[0];
+
+      // Fetch feedback cho session này
+      const feedback = await workoutSessionService.getfeedbackWorkout(
+        latestSession.workoutSessionId,
+      );
+
+      // Fetch heart rate logs nếu có
+      let heartRateLogs: any[] = [];
+      try {
+        heartRateLogs = await heartRateService.getByWorkoutSessionId(
+          latestSession.workoutSessionId,
+        );
+      } catch (err) {
+        console.warn('[ScheduleDetail] heart rate logs fetch failed', err);
+      }
+
+      // Fetch mistake logs nếu có
+      let mistakeLog: any[] = [];
+      try {
+        mistakeLog = await mistakeLogService.getByWorkoutSessionId(
+          latestSession.workoutSessionId,
+        );
+      } catch (err) {
+        console.warn('[ScheduleDetail] mistake logs fetch failed', err);
+      }
+
+      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
+
+      navigation.navigate('AISummary', {
+        feedback,
+        videoUrl: latestSession.recordUrl,
+        mistakeLog,
+        heartRateLogs,
+      });
+    } catch (err) {
+      console.warn('[ScheduleDetail] viewAIReview failed', err);
+      setToastMessage('Không thể tải đánh giá AI. Vui lòng thử lại');
+      setToastType('error');
+      setToastVisible(true);
+    }
+  };
+
   return (
-    <ScrollView> 
+    <ScrollView>
       <View className="mx-4 mt-3">
         <Toast
           visible={toastVisible}
@@ -389,7 +562,6 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
 
         <View className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-6">
           <View className="p-4">
-            
             {/* Action Buttons */}
             {!isPreview && (
               <View className="flex-row justify-between mb-3">
@@ -408,10 +580,20 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                   onPress={startAllAI}
                   disabled={!aiAllowed}
                 >
-                  <Text style={[modalStyles.btnAiTitle, !aiAllowed && modalStyles.btnAiTitleDisabled]}>
+                  <Text
+                    style={[
+                      modalStyles.btnAiTitle,
+                      !aiAllowed && modalStyles.btnAiTitleDisabled,
+                    ]}
+                  >
                     Bắt đầu AI
                   </Text>
-                  <Text style={[modalStyles.btnAiSub, !aiAllowed && modalStyles.btnAiSubDisabled]}>
+                  <Text
+                    style={[
+                      modalStyles.btnAiSub,
+                      !aiAllowed && modalStyles.btnAiSubDisabled,
+                    ]}
+                  >
                     Tập với AI
                   </Text>
                 </TouchableOpacity>
@@ -425,7 +607,9 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
               </Text>
               {scheduleCompleted && (
                 <View className="bg-green-100 rounded-full px-3 py-1 ml-2">
-                  <Text className="text-green-700 font-semibold text-xs">Hoàn thành</Text>
+                  <Text className="text-green-700 font-semibold text-xs">
+                    Hoàn thành
+                  </Text>
                 </View>
               )}
             </View>
@@ -446,7 +630,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                 </Text>
               </View>
             </View>
-            
+
             {/* Danh sách bài tập theo Trình tự */}
             <View className="mt-4">
               {localExercises.map((ex: any, idx: number) => (
@@ -462,7 +646,9 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                         ex.image ??
                         'https://via.placeholder.com/72',
                     }}
-                    className={`w-16 h-16 rounded-lg bg-gray-100 ${ex.locked ? 'opacity-50' : ''}`}
+                    className={`w-16 h-16 rounded-lg bg-gray-100 ${
+                      ex.locked ? 'opacity-50' : ''
+                    }`}
                     resizeMode="cover"
                   />
 
@@ -470,11 +656,16 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                     <TouchableOpacity
                       activeOpacity={0.8}
                       onPress={() => {
-                        const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+                        const eid =
+                          ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
                         if (eid) navigation.navigate('ExerciseDetail', { exercise_id: eid });
                       }}
                     >
-                      <Text className={`text-base font-semibold ${ex.locked ? 'text-gray-400' : 'text-[#3A2A1A]'}`}>
+                      <Text
+                        className={`text-base font-semibold ${
+                          ex.locked ? 'text-gray-400' : 'text-[#3A2A1A]'
+                        }`}
+                      >
                         {idx + 1}. {ex.exerciseName}
                       </Text>
 
@@ -490,23 +681,54 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                         className="px-3 py-1 rounded-md bg-[#F3EDE3] mr-3"
                         activeOpacity={0.8}
                         onPress={() => {
-                          const eid = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+                          const eid =
+                            ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
                           if (eid) navigation.navigate('ExerciseDetail', { exercise_id: eid });
                         }}
                       >
                         <Text style={modalStyles.detailBtnText}>Chi tiết</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity
-                        className={`px-3 py-1 rounded-md ${ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'}`}
-                        activeOpacity={0.8}
-                        disabled={ex.locked}
-                        onPress={() => startAiExercise(ex)}
-                      >
-                        <Text style={ex.locked ? modalStyles.aiSmallBtnTextDisabled : modalStyles.aiSmallBtnText}>
-                          Tập với AI
-                        </Text>
-                      </TouchableOpacity>
+                      {isPreview && typeof onEditExercise === 'function' ? (
+                        <TouchableOpacity
+                          className="px-3 py-1 rounded-md bg-[#E7D7C6] mr-3"
+                          activeOpacity={0.8}
+                          onPress={() => onEditExercise(idx, ex)}
+                        >
+                          <Text style={modalStyles.editBtnText}>Sửa</Text>
+                        </TouchableOpacity>
+                      ) : null}
+
+                      {!isPreview && ex.completed && supportsAI(ex) && (
+                        <TouchableOpacity
+                          className="px-3 py-1 rounded-md bg-[#10B981] mr-3"
+                          activeOpacity={0.8}
+                          onPress={() => viewAIReview(ex)}
+                        >
+                          <Text style={modalStyles.reviewBtnText}>Xem đánh giá</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {!isPreview ? (
+                        <TouchableOpacity
+                          className={`px-3 py-1 rounded-md ${
+                            ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'
+                          }`}
+                          activeOpacity={0.8}
+                          disabled={ex.locked}
+                          onPress={() => startAiExercise(ex)}
+                        >
+                          <Text
+                            style={
+                              ex.locked
+                                ? modalStyles.aiSmallBtnTextDisabled
+                                : modalStyles.aiSmallBtnText
+                            }
+                          >
+                            Tập với AI
+                          </Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
                   </View>
 
@@ -537,7 +759,6 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                 </View>
               ))}
             </View>
-
           </View>
         </View>
       </View>
@@ -553,6 +774,8 @@ const modalStyles = StyleSheet.create({
   btnAiTitleDisabled: { color: '#9CA3AF' },
   btnAiSubDisabled: { color: '#9CA3AF' },
   detailBtnText: { color: '#8B4513', fontWeight: '600' },
+  editBtnText: { color: '#8B4513', fontWeight: '700' },
+  reviewBtnText: { color: '#fff', fontWeight: '600' },
   aiSmallBtnText: { color: '#fff', fontWeight: '600' },
   aiSmallBtnTextDisabled: { color: '#6B7280', fontWeight: '600' },
 

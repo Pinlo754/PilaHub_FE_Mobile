@@ -4,8 +4,8 @@ import ImageResizer from 'react-native-image-resizer';
 
 /* ================== CONFIG ================== */
 
-const API_KEY = 'c4MBCiaFFrrY3OxIxc5kdNtR7pcyqJOEDrFPuVSAl1l';
-const ORG_ID = 'org_5sa0wtrQCsHApGOd8TluSz';
+const API_KEY = 'zWEpcPP03RcyECfDl1WmD4DKL419BWZFAEEike0jRJn';
+const ORG_ID = 'org_z4OIWgJN62OUQPxHMZoJY';
 
 const TARGET_W = 1080;
 const TARGET_H = 1920;
