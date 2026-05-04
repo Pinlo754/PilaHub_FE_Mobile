@@ -142,6 +142,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               isFromList={isFromList}
               isFromSearch={isFromSearch}
               equipments={exerciseEquipments}
+              isFromRoadmap={false}
             />
           )}
 

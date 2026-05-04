@@ -17,6 +17,11 @@ export const useAISummary = () => {
     visible: false,
   });
 
+  // LIST VIEW STATE
+  const [viewMode, setViewMode] = useState<'overview' | 'list' | 'detail'>('overview');
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [aiSessionsList, setAiSessionsList] = useState<any[]>([]);
+
   // CHECK
   const isPointTab = activeTab === SummaryTab.Point;
   const isPass = 70 > PASS;
@@ -38,7 +43,20 @@ export const useAISummary = () => {
     setIsVideoPlay(prev => !prev);
   };
 
-  
+  const viewSessionDetail = (session: any) => {
+    setSelectedSession(session);
+    setViewMode('detail');
+  };
+
+  const backToList = () => {
+    setSelectedSession(null);
+    setViewMode('list');
+  };
+
+  const backToOverview = () => {
+    setSelectedSession(null);
+    setViewMode('overview');
+  };
 
   // USE EFFECT
   useEffect(() => {
@@ -62,5 +80,15 @@ export const useAISummary = () => {
     openErrorVideo,
     closeErrorVideo,
     togglePlayButton,
+    // List view state
+    viewMode,
+    setViewMode,
+    selectedSession,
+    setSelectedSession,
+    aiSessionsList,
+    setAiSessionsList,
+    viewSessionDetail,
+    backToList,
+    backToOverview,
   };
 };

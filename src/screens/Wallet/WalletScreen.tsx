@@ -88,6 +88,8 @@ function translateStatus(status?: string | null) {
       return 'Đã hủy';
     case 'REJECTED':
       return 'Bị từ chối';
+    case 'APPROVED':
+      return 'Đã duyệt';
     case 'FAILED':
       return 'Thất bại';
     default:
@@ -263,7 +265,7 @@ export default function WalletScreen() {
   useFocusEffect(
     useCallback(() => {
       refreshAll();
-      return () => {};
+      return () => { };
     }, [refreshAll]),
   );
 
@@ -273,7 +275,7 @@ export default function WalletScreen() {
       return;
     }
 
-    fetchByType(selectedType).catch(() => {});
+    fetchByType(selectedType).catch(() => { });
   }, [selectedType, transactions, fetchByType]);
 
   function onTransactionPress(tx: Transaction) {
@@ -465,19 +467,18 @@ export default function WalletScreen() {
               return (
                 <TouchableHighlight
                   underlayColor="#F1E7DC"
-                  className={`py-2.5 px-4 rounded-full mr-2 border ${
-                    active
-                      ? 'bg-[#8B3F2D] border-[#8B3F2D]'
-                      : 'bg-white border-[#F1E7DC]'
-                  }`}
+                  className={`py-2.5 px-4 rounded-full mr-2 border ${active
+                    ? 'bg-[#8B3F2D] border-[#8B3F2D]'
+                    : 'bg-white border-[#F1E7DC]'
+                    }`}
                   onPress={() =>
                     setSelectedType(selectedType === item.value ? null : item.value)
                   }
                 >
                   <Text
-                    className={`font-extrabold text-xs ${
-                      active ? 'text-white' : 'text-[#64748B]'
-                    }`}
+                    numberOfLines={1}
+                    className={`font-extrabold text-xs whitespace-nowrap flex-shrink-0 ${active ? 'text-white' : 'text-[#64748B]'
+                      }`}
                   >
                     {item.label}
                   </Text>
@@ -547,8 +548,8 @@ export default function WalletScreen() {
         </View>
 
         <View className="items-end ml-2">
-          <View className={`px-2.5 py-1 rounded-full ${statusClass.wrap}`}>
-            <Text className={`${statusClass.text} text-xs font-extrabold`}>
+          <View className={`min-w-[80px] self-start items-center justify-center px-2.5 py-1 rounded-full ${statusClass.wrap}`}>
+            <Text className={`${statusClass.text} text-center text-xs font-extrabold`}>
               {translateStatus(item.status)}
             </Text>
           </View>
@@ -654,7 +655,7 @@ export default function WalletScreen() {
               <Ionicons name="search-outline" size={18} color="#94A3B8" />
               <TextInput
                 value=""
-                onChangeText={() => {}}
+                onChangeText={() => { }}
                 placeholder="Tìm kiếm..."
                 className="flex-1 py-3 ml-2 text-[#0F172A]"
               />
@@ -796,16 +797,17 @@ export default function WalletScreen() {
                       ? new Date(selectedWithdrawal.requestedAt).toLocaleString('vi-VN')
                       : '—'}
                   </Text>
+
+                  <Image className='mx-auto' source={{ uri: selectedWithdrawal.receiptUrl }} style={{ width: 300, height: 300, zIndex: 99}} />
                 </View>
 
                 <TouchableOpacity
                   disabled={selectedWithdrawal.status !== 'PENDING' || detailLoading}
                   onPress={handleCancelSelected}
-                  className={`py-4 rounded-2xl items-center ${
-                    selectedWithdrawal.status === 'PENDING'
-                      ? 'bg-red-600'
-                      : 'bg-gray-300'
-                  }`}
+                  className={`py-4 rounded-2xl items-center ${selectedWithdrawal.status === 'PENDING'
+                    ? 'bg-red-600'
+                    : 'bg-gray-300'
+                    }`}
                 >
                   <Text className="text-white font-black">Hủy yêu cầu</Text>
                 </TouchableOpacity>

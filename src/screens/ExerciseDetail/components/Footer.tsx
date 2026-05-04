@@ -8,7 +8,6 @@ type Props = {
   activePackage: PackageType | null;
   haveAIsupported: boolean;
   hasAccess: boolean;
-  canPractice: boolean;
   isFromList: boolean;
   isFromSearch: boolean;
 };
@@ -18,7 +17,6 @@ const Footer = ({
   onPressAIPractice,
   activePackage,
   haveAIsupported,
-  canPractice,
   isFromList,
   isFromSearch,
 }: Props) => {
@@ -26,9 +24,13 @@ const Footer = ({
   const isPaidUser =
     activePackage === PackageType.VIP_MEMBER ||
     activePackage === PackageType.MEMBER;
+  const isPracticeDisabled = (() => {
+    if (isFromList) return false; // luôn enable
 
-  const isPracticeDisabled = !canPractice;
-  const isAIDisabled = !isVip || !haveAIsupported;
+    if (isFromSearch) return !isPaidUser; // chỉ disable nếu chưa mua gói
+
+    return !isPaidUser; // fallback
+  })();
 
   return (
     <>

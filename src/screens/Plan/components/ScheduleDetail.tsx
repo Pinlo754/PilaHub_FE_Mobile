@@ -4,9 +4,12 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import api from '../../../hooks/axiosInstance';
 import { tutorialService } from '../../../hooks/tutorial.service';
 import { workoutSessionService } from '../../../hooks/workoutSession.service';
+import { heartRateService } from '../../../hooks/heartRate.service';
+import { mistakeLogService } from '../../../hooks/mistakeLog.service';
 import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
+import { workoutFeedbackService } from '../../../hooks/workoutFeedback.service';
 
 // Helper: Phân giải URL video
 function resolveVideoSrc(raw?: string | null) {
@@ -63,7 +66,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
   const [aiAllowed, setAiAllowed] = useState<boolean>(true);
   const [localExercises, setLocalExercises] = useState<any[]>([]);
   const [scheduleCompleted, setScheduleCompleted] = useState<boolean>(Boolean(schedule?.completed));
-  
+
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -105,7 +108,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
           }
           return it;
         });
-        
+
         // Gọi lại normalizeExercises để mở khóa bài tiếp theo
         return normalizeExercises(mapped);
       });
@@ -214,8 +217,8 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     }
 
     try {
-      const session = await workoutSessionService.startFreeWorkout({
-        exerciseId: String(exerciseId),
+      const session = await workoutSessionService.startRoadmapWorkout({
+        personalExerciseId: String(ex.personalExerciseId || exerciseId),
         haveAITracking: true,
         haveIOTDeviceTracking: true,
       });
@@ -273,7 +276,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
   // --------------------------------------------------------
   const startAllFree = async () => {
     const normalized = normalizeExercises(localExercises);
-    
+
     // Lọc ra các bài chưa tập và sắp xếp đúng trình tự
     const exercisesToPlay = normalized
       .filter((ex: any) => ex.completed !== true)
@@ -366,6 +369,23 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     const queue = await buildQueue(exercisesToPlay);
     const scheduleId = getScheduleId();
 
+    const firstEx = exercisesToPlay[0];
+    if (firstEx && firstEx.isAiSupported) {
+      try {
+        await workoutSessionService.startRoadmapWorkout({
+          personalExerciseId: String(firstEx.personalExerciseId || firstEx.exerciseId),
+          haveAITracking: true,
+          haveIOTDeviceTracking: true,
+        });
+      } catch (err) {
+        console.warn('[ScheduleDetail] startAllAI startRoadmapWorkout failed', err);
+        setToastMessage('Không thể bắt đầu AI Practice. Vui lòng thử lại');
+        setToastType('error');
+        setToastVisible(true);
+        return;
+      }
+    }
+
     if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
 
     navigation.navigate('SchedulePlayer', {
@@ -377,8 +397,133 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
     });
   };
 
+  const viewAIReview = async (ex: any) => {
+    if (!ex.completed) {
+      setToastMessage('Bài tập chưa hoàn thành');
+      setToastType('info');
+      setToastVisible(true);
+      return;
+    }
+
+    if (!supportsAI(ex)) {
+      setToastMessage('Bài tập này không hỗ trợ AI');
+      setToastType('info');
+      setToastVisible(true);
+      return;
+    }
+
+    const exerciseId = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+    const personalExerciseId = ex.personalExerciseId ?? ex.id ?? null;
+
+    if (!exerciseId) {
+      setToastMessage('Không xác định được ID bài tập');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    const fetchAISummary = async (
+      workoutSessionId: string,
+    ) => {
+      try {
+        const workout = await workoutSessionService.getById(workoutSessionId);
+        const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
+          workoutFeedbackService.getByWorkoutSessionId(workoutSessionId),
+          mistakeLogService.getByWorkoutSessionId(workoutSessionId),
+          heartRateService.getByWorkoutSessionId(workoutSessionId),
+        ]);
+
+        navigation.navigate('AISummary', {
+          feedback,
+          videoUrl: workout.recordUrl,
+          mistakeLog,
+          heartRateLogs: heartRateLogs.map(h => ({
+            heartRate: h.heartRate,
+            recordedAt: h.recordedAt,
+          })),
+        });
+      } catch (err) {
+        console.error('Fetch AI summary error:', err);
+      } finally {
+      }
+    };
+
+    try {
+      // Lấy danh sách workout sessions của bài tập này
+      const sessions = await workoutSessionService.getByExerciseId(String(exerciseId), {
+        personalExerciseId: personalExerciseId ? String(personalExerciseId) : undefined,
+      });
+      console.log('Sessions for exercise', exerciseId, sessions);
+      // Lọc ra sessions có AI tracking và đã hoàn thành
+      const aiSessions = sessions.filter(s => s.haveAITracking === true && s.completed === true);
+      console.log('AI sessions completed', aiSessions);
+      if (aiSessions.length === 0) {
+        setToastMessage('Không tìm thấy phiên tập AI đã hoàn thành');
+        setToastType('info');
+        setToastVisible(true);
+        return;
+      }
+
+      // Lấy session gần nhất (theo thời gian kết thúc)
+      const latestSession = aiSessions.sort((a, b) => {
+        const timeA = new Date(a.endTime || a.startTime).getTime();
+        const timeB = new Date(b.endTime || b.startTime).getTime();
+        return timeB - timeA;
+      })[0];
+
+      // Fetch feedback cho session này
+      const feedback = await workoutSessionService.getfeedbackWorkout(latestSession.workoutSessionId);
+
+      // Fetch heart rate logs nếu có
+      let heartRateLogs: any[] = [];
+      try {
+        heartRateLogs = await heartRateService.getByWorkoutSessionId(latestSession.workoutSessionId);
+      } catch (err) {
+        console.warn('[ScheduleDetail] heart rate logs fetch failed', err);
+      }
+
+      // Fetch mistake logs nếu có
+      let mistakeLog: any[] = [];
+      try {
+        mistakeLog = await mistakeLogService.getByWorkoutSessionId(latestSession.workoutSessionId);
+
+
+      } catch (err) {
+        console.warn('[ScheduleDetail] mistake logs fetch failed', err);
+      }
+
+      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
+
+      const formattedMistakes = mistakeLog.map(log => {
+        // Trích xuất side từ chuỗi details (vd: lấy chữ "both" từ "Form error at Hips (both)")
+        const sideMatch = log.details.match(/\(([^)]+)\)/);
+        const side = sideMatch ? sideMatch[1] : "unknown";
+
+        return {
+          bodyPart: log.bodyPartName,
+          side: side,
+          recordedAtSecond: log.recordedAtSecond,
+          duration: log.duration,
+          imagePath: log.imageUrl
+        };
+      });
+
+      navigation.navigate('AISummary', {
+        feedback,
+        videoUrl: latestSession.recordUrl,
+        mistakeLog: formattedMistakes,
+        heartRateLogs,
+      });
+    } catch (err) {
+      console.warn('[ScheduleDetail] viewAIReview failed', err);
+      setToastMessage('Không thể tải đánh giá AI. Vui lòng thử lại');
+      setToastType('error');
+      setToastVisible(true);
+    }
+  };
+
   return (
-    <ScrollView> 
+    <ScrollView>
       <View className="mx-4 mt-3">
         <Toast
           visible={toastVisible}
@@ -389,7 +534,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
 
         <View className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-6">
           <View className="p-4">
-            
+
             {/* Action Buttons */}
             {!isPreview && (
               <View className="flex-row justify-between mb-3">
@@ -402,9 +547,8 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  className={`flex-1 ml-2 rounded-lg py-2 items-center ${
-                    aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
-                  }`}
+                  className={`flex-1 ml-2 rounded-lg py-2 items-center ${aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
+                    }`}
                   onPress={startAllAI}
                   disabled={!aiAllowed}
                 >
@@ -446,7 +590,7 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                 </Text>
               </View>
             </View>
-            
+
             {/* Danh sách bài tập theo Trình tự */}
             <View className="mt-4">
               {localExercises.map((ex: any, idx: number) => (
@@ -496,6 +640,16 @@ export default function ScheduleDetail({ schedule, onVideoModalChange, isPreview
                       >
                         <Text style={modalStyles.detailBtnText}>Chi tiết</Text>
                       </TouchableOpacity>
+
+                      {ex.completed && supportsAI(ex) && (
+                        <TouchableOpacity
+                          className="px-3 py-1 rounded-md bg-[#10B981] mr-3"
+                          activeOpacity={0.8}
+                          onPress={() => viewAIReview(ex)}
+                        >
+                          <Text style={modalStyles.reviewBtnText}>Xem đánh giá</Text>
+                        </TouchableOpacity>
+                      )}
 
                       <TouchableOpacity
                         className={`px-3 py-1 rounded-md ${ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'}`}
@@ -553,6 +707,7 @@ const modalStyles = StyleSheet.create({
   btnAiTitleDisabled: { color: '#9CA3AF' },
   btnAiSubDisabled: { color: '#9CA3AF' },
   detailBtnText: { color: '#8B4513', fontWeight: '600' },
+  reviewBtnText: { color: '#fff', fontWeight: '600' },
   aiSmallBtnText: { color: '#fff', fontWeight: '600' },
   aiSmallBtnTextDisabled: { color: '#6B7280', fontWeight: '600' },
 
