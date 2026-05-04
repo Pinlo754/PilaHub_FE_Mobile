@@ -80,7 +80,7 @@ export const exerciseService = {
     exerciseId: string,
   ): Promise<ExerciseEquipment[]> => {
     const res = await api.get<ApiResponse<ExerciseEquipment[]>>(
-      `/exercise-equipment/exercise/ ${exerciseId}`,
+      `/exercise-equipment/exercise/${exerciseId}`,
     );
 
     if (!res.data.success) {
