@@ -22,8 +22,11 @@ import { workoutFeedbackService } from '../../../hooks/workoutFeedback.service';
 // Helper: Phân giải URL video
 function resolveVideoSrc(raw?: string | null) {
   if (!raw) return null;
+
   const s = String(raw).trim();
+
   if (!s) return null;
+
   if (/^https?:\/\//i.test(s)) return s;
 
   const base = api?.defaults?.baseURL
@@ -53,6 +56,7 @@ export default function ScheduleDetail({
       .sort((a: any, b: any) => {
         const orderA = Number(a.exerciseOrder ?? 9999);
         const orderB = Number(b.exerciseOrder ?? 9999);
+
         return orderA - orderB;
       });
 
@@ -82,6 +86,8 @@ export default function ScheduleDetail({
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>(
     'info',
   );
+
+  const [shouldGoPackage, setShouldGoPackage] = useState(false);
 
   const prevProgressRef = useRef<number | null>(null);
 
@@ -114,6 +120,10 @@ export default function ScheduleDetail({
     setToastVisible(true);
   };
 
+  const goToPackageAfterToast = () => {
+    setShouldGoPackage(true);
+  };
+
   const checkCanWorkout = async () => {
     try {
       const me = await getProfile();
@@ -126,10 +136,13 @@ export default function ScheduleDetail({
       const activePackageType = me.data?.activePackageType ?? null;
 
       if (!activePackageType) {
+        goToPackageAfterToast();
+
         showToast(
           'Bạn cần đăng ký gói tập trước khi bắt đầu luyện tập',
           'error',
         );
+
         return false;
       }
 
@@ -145,6 +158,7 @@ export default function ScheduleDetail({
       'exerciseCompleted',
       (evt: any) => {
         const id = evt?.personalExerciseId ?? null;
+
         if (!id) return;
 
         setLocalExercises(prev => {
@@ -196,6 +210,7 @@ export default function ScheduleDetail({
     const current = Number(
       schedule?.progressPercent ?? schedule?.progress ?? NaN,
     );
+
     const prev = prevProgressRef.current;
 
     if (!Number.isNaN(current) && prev !== null && current !== prev) {
@@ -229,6 +244,7 @@ export default function ScheduleDetail({
     if (!src && eid) {
       try {
         const tut = await tutorialService.getById(String(eid));
+
         rawSrc = tut?.practiceVideoUrl ?? rawSrc;
         src = resolveVideoSrc(rawSrc ?? null);
       } catch (err) {
@@ -289,6 +305,7 @@ export default function ScheduleDetail({
       .sort((a: any, b: any) => {
         const orderA = Number(a.exerciseOrder ?? 9999);
         const orderB = Number(b.exerciseOrder ?? 9999);
+
         return orderA - orderB;
       });
 
@@ -435,6 +452,7 @@ export default function ScheduleDetail({
       .sort((a: any, b: any) => {
         const orderA = Number(a.exerciseOrder ?? 9999);
         const orderB = Number(b.exerciseOrder ?? 9999);
+
         return orderA - orderB;
       });
 
@@ -493,6 +511,7 @@ export default function ScheduleDetail({
 
     const exerciseId =
       ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
+
     const personalExerciseId = ex.personalExerciseId ?? ex.id ?? null;
 
     if (!exerciseId) {
@@ -522,6 +541,7 @@ export default function ScheduleDetail({
       const latestSession = aiSessions.sort((a: any, b: any) => {
         const timeA = new Date(a.endTime || a.startTime).getTime();
         const timeB = new Date(b.endTime || b.startTime).getTime();
+
         return timeB - timeA;
       })[0];
 
@@ -572,7 +592,15 @@ export default function ScheduleDetail({
           visible={toastVisible}
           message={toastMessage}
           type={toastType}
-          onHidden={() => setToastVisible(false)}
+          onHidden={() => {
+            setToastVisible(false);
+
+            if (shouldGoPackage) {
+              setShouldGoPackage(false);
+
+              navigation.navigate('UpgradePlan' as never);
+            }
+          }}
         />
 
         <View className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-6">
@@ -594,7 +622,6 @@ export default function ScheduleDetail({
                     aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
                   }`}
                   onPress={startAllAI}
-                  disabled={!aiAllowed}
                 >
                   <Text
                     style={[
@@ -641,6 +668,7 @@ export default function ScheduleDetail({
                   size={18}
                   color="#3A2A1A"
                 />
+
                 <Text
                   className="text-[#8B4513] font-semibold ml-3 flex-1"
                   numberOfLines={3}

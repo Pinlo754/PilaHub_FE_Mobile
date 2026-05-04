@@ -87,10 +87,24 @@ const RoadMap = () => {
   const [updatingProgress, setUpdatingProgress] = useState(false);
 
   const [showBodyMetricModal, setShowBodyMetricModal] = useState(false);
+
+  const [bodyMetricMode, setBodyMetricMode] = useState<'INITIAL' | 'FINAL'>(
+    'INITIAL',
+  );
+
   const [roadmapInitialHealthProfile, setRoadmapInitialHealthProfile] =
     useState<any | null>(null);
+
+  const [roadmapFinalHealthProfile, setRoadmapFinalHealthProfile] =
+    useState<any | null>(null);
+
   const [loadingRoadmapHealthProfile, setLoadingRoadmapHealthProfile] =
     useState(false);
+
+  const [
+    loadingRoadmapFinalHealthProfile,
+    setLoadingRoadmapFinalHealthProfile,
+  ] = useState(false);
 
   const [roadmapReview, setRoadmapReview] = useState<any | null>(null);
   const [loadingRoadmapReview, setLoadingRoadmapReview] = useState(false);
@@ -473,6 +487,46 @@ const RoadMap = () => {
   useEffect(() => {
     let mounted = true;
 
+    async function loadFinalHealthProfile() {
+      if (!roadmapFinalHealthProfileId) {
+        setRoadmapFinalHealthProfile(null);
+        return;
+      }
+
+      try {
+        setLoadingRoadmapFinalHealthProfile(true);
+
+        const res = await fetchHealthProfileById(
+          String(roadmapFinalHealthProfileId),
+        );
+
+        if (!mounted) return;
+
+        if (res.ok) {
+          setRoadmapFinalHealthProfile(res.data);
+        } else {
+          setRoadmapFinalHealthProfile(null);
+        }
+      } catch (e) {
+        console.log('loadFinalHealthProfile error:', e);
+        setRoadmapFinalHealthProfile(null);
+      } finally {
+        if (mounted) {
+          setLoadingRoadmapFinalHealthProfile(false);
+        }
+      }
+    }
+
+    loadFinalHealthProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [roadmapFinalHealthProfileId]);
+
+  useEffect(() => {
+    let mounted = true;
+
     async function loadRoadmapReview() {
       const canReview =
         safeProgress >= 100 &&
@@ -550,12 +604,63 @@ const RoadMap = () => {
     return mapStoredHealthProfile(roadmapInitialHealthProfile);
   }, [roadmapInitialHealthProfile]);
 
+  const roadmapFinalHealthMapped = useMemo(() => {
+    return mapStoredHealthProfile(roadmapFinalHealthProfile);
+  }, [roadmapFinalHealthProfile]);
+
+  const activeBodyMetricProfile =
+    bodyMetricMode === 'FINAL'
+      ? roadmapFinalHealthMapped
+      : roadmapInitialHealthMapped;
+
+  const activeBodyMetricLoading =
+    bodyMetricMode === 'FINAL'
+      ? loadingRoadmapFinalHealthProfile
+      : loadingRoadmapHealthProfile;
+
+  const activeBodyMetricTitle =
+    bodyMetricMode === 'FINAL'
+      ? roadmapFinalHealthProfileId
+        ? 'Số đo sau lộ trình'
+        : 'Cập nhật số đo sau lộ trình'
+      : 'Số đo hiện tại';
+
+  const openInitialMetricModal = () => {
+    setBodyMetricMode('INITIAL');
+    setShowBodyMetricModal(true);
+  };
+
+  const openFinalMetricModal = () => {
+    setBodyMetricMode('FINAL');
+    setShowBodyMetricModal(true);
+  };
+
   const openProgressModal = () => {
     setProgressInput(String(safeProgress));
     setShowProgressModal(true);
   };
 
   const handleOpenBodyMetricUpdate = () => {
+    if (bodyMetricMode !== 'FINAL') {
+      setShowBodyMetricModal(false);
+      return;
+    }
+
+    if (roadmapFinalHealthProfileId) {
+      setShowBodyMetricModal(false);
+      return;
+    }
+
+    if (safeProgress < 100) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Chưa thể cập nhật',
+        contentText:
+          'Bạn cần hoàn thành 100% lộ trình thì mới có thể cập nhật số đo lần cuối.',
+      });
+      return;
+    }
+
     setShowBodyMetricModal(false);
 
     const roadmapId = getRoadmapId(currentRoadmap);
@@ -750,19 +855,34 @@ const RoadMap = () => {
             <Text style={styles.progressEditButtonText}>Chỉnh progress</Text>
           </TouchableOpacity>
 
-          {safeProgress >= 100 ? (
+          <View style={styles.bodyMetricButtonGroup}>
             <TouchableOpacity
               style={styles.bodyMetricButton}
-              onPress={() => setShowBodyMetricModal(true)}
+              onPress={openInitialMetricModal}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.bodyMetricButtonText}>Xem số đo hiện tại</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.bodyMetricButtonSecondary,
+                safeProgress < 100 &&
+                  !roadmapFinalHealthProfileId &&
+                  styles.bodyMetricButtonDisabled,
+              ]}
+              onPress={openFinalMetricModal}
               activeOpacity={0.85}
             >
               <Text style={styles.bodyMetricButtonText}>
                 {roadmapFinalHealthProfileId
-                  ? 'Cập nhật lại số đo'
-                  : 'Cập nhật số đo cuối'}
+                  ? 'Xem số đo sau lộ trình'
+                  : safeProgress >= 100
+                    ? 'Cập nhật số đo lần cuối'
+                    : 'Số đo sau lộ trình'}
               </Text>
             </TouchableOpacity>
-          ) : null}
+          </View>
         </View>
       </View>
     );
@@ -859,11 +979,11 @@ const RoadMap = () => {
           visible={showBodyMetricModal}
           onClose={() => setShowBodyMetricModal(false)}
           onConfirm={handleOpenBodyMetricUpdate}
-          roadmapTitle={currentRoadmap?.title}
+          roadmapTitle={activeBodyMetricTitle}
           progressPercent={safeProgress}
           totalSessions={totalSessions}
-          loadingProfile={loadingRoadmapHealthProfile}
-          healthProfile={roadmapInitialHealthMapped}
+          loadingProfile={activeBodyMetricLoading}
+          healthProfile={activeBodyMetricProfile}
         />
 
         <ModalPopup {...(modalProps as any)} onClose={closeModal} />
@@ -943,17 +1063,20 @@ const RoadMap = () => {
                 Hoàn thành lộ trình rồi 🎉
               </Text>
               <Text style={styles.finalNoticeText}>
-                Hãy cập nhật số đo cuối để xem kết quả thay đổi trước và sau
+                Hãy cập nhật số đo lần cuối để xem kết quả thay đổi trước và sau
                 lộ trình.
               </Text>
 
               <TouchableOpacity
                 style={styles.finalNoticeButton}
-                onPress={() => setShowBodyMetricModal(true)}
+                onPress={() => {
+                  setBodyMetricMode('FINAL');
+                  setShowBodyMetricModal(true);
+                }}
                 activeOpacity={0.85}
               >
                 <Text style={styles.finalNoticeButtonText}>
-                  Cập nhật số đo cuối
+                  Cập nhật số đo lần cuối
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1418,11 +1541,11 @@ const RoadMap = () => {
         visible={showBodyMetricModal}
         onClose={() => setShowBodyMetricModal(false)}
         onConfirm={handleOpenBodyMetricUpdate}
-        roadmapTitle={currentRoadmap?.title}
+        roadmapTitle={activeBodyMetricTitle}
         progressPercent={safeProgress}
         totalSessions={totalSessions}
-        loadingProfile={loadingRoadmapHealthProfile}
-        healthProfile={roadmapInitialHealthMapped}
+        loadingProfile={activeBodyMetricLoading}
+        healthProfile={activeBodyMetricProfile}
       />
 
       <ModalPopup {...(modalProps as any)} onClose={closeModal} />
@@ -1478,11 +1601,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+
+  bodyMetricButtonGroup: {
+    gap: 8,
+    alignItems: 'flex-end',
+  },
   bodyMetricButton: {
     backgroundColor: '#A0522D',
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 999,
+  },
+  bodyMetricButtonSecondary: {
+    backgroundColor: '#7A3E12',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  bodyMetricButtonDisabled: {
+    opacity: 0.55,
   },
   bodyMetricButtonText: {
     color: '#FFFFFF',
