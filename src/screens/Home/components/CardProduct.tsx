@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -14,26 +14,22 @@ import { formatVND } from '../../../utils/number';
 import placeholderThumb from '../../../assets/placeholderAvatar.png';
 import { useCart } from '../../../context/CartContext';
 import { normalizeImageUrl } from '../../../services/products';
-import Toast from '../../../components/Toast';
-import { getExpiryLabel, getMainInvalidReason, getStockLabel, validateCartItem } from '../../Shop/utils/cartValidation';
+import {
+  getStockLabel,
+  validateCartItem,
+} from '../../Shop/utils/cartValidation';
 
-
+type ToastType = 'success' | 'error' | 'info';
 
 type Props = {
   item: ProductType | any;
   onPress: () => void;
+  onNotify?: (message: string, type?: ToastType) => void;
 };
 
 const COLORS = {
-  primary: '#CD853F',
   orange: '#F97316',
   amber: '#F59E0B',
-  text: '#0F172A',
-  muted: '#64748B',
-  border: '#E5E7EB',
-  soft: '#FFF7ED',
-  danger: '#EF4444',
-  success: '#10B981',
 };
 
 const getProductId = (item: any): string => {
@@ -125,13 +121,11 @@ const buildRawForCart = (item: any) => {
   };
 };
 
-const CardProduct = ({ item, onPress }: Props) => {
+const CardProduct = ({ item, onPress, onNotify }: Props) => {
   const { addToCart } = useCart();
 
+  const addingRef = useRef(false);
   const [adding, setAdding] = useState(false);
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
 
   const productId = getProductId(item);
   const productName = getProductName(item);
@@ -159,7 +153,6 @@ const CardProduct = ({ item, onPress }: Props) => {
     return validateCartItem(cartLikeItem as any);
   }, [cartLikeItem]);
 
-
   const installationSupported = Boolean(
     rawForCart.installationSupported ??
       rawForCart.installation_supported ??
@@ -170,25 +163,30 @@ const CardProduct = ({ item, onPress }: Props) => {
   const canAddToCart =
     Boolean(productId) &&
     validation.canCheckout &&
-    !adding;
+    !adding &&
+    !addingRef.current;
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToastMsg(message);
-    setToastType(type);
-    setToastVisible(true);
+  const showToast = (message: string, type: ToastType = 'info') => {
+    onNotify?.(message, type);
   };
 
   const onBuy = async () => {
+    if (addingRef.current || adding) return;
+
     if (!productId) {
       showToast('Sản phẩm thiếu mã định danh', 'error');
       return;
     }
 
     if (!validation.canCheckout) {
-      showToast(validation.errors[0] ?? 'Sản phẩm không đủ điều kiện thêm vào giỏ', 'error');
+      showToast(
+        validation.errors?.[0] ?? 'Sản phẩm không đủ điều kiện thêm vào giỏ',
+        'error',
+      );
       return;
     }
 
+    addingRef.current = true;
     setAdding(true);
 
     try {
@@ -208,6 +206,7 @@ const CardProduct = ({ item, onPress }: Props) => {
       console.warn('addToCart from CardProduct failed', e);
       showToast('Không thể thêm vào giỏ', 'error');
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   };
@@ -230,176 +229,192 @@ const CardProduct = ({ item, onPress }: Props) => {
         : '#047857';
 
   return (
-    <>
-      <Pressable
-        className="bg-white rounded-2xl overflow-hidden"
-        onPress={onPress}
-        style={({ pressed }) => [
-          localStyles.card,
-          {
-            opacity: pressed ? 0.92 : 1,
-            borderColor: validation.canCheckout ? '#F1E7DC' : '#FCA5A5',
-          },
-        ]}
-      >
-        <View className="relative">
-          {installationSupported ? (
-            <View style={localStyles.installBadge} className="bg-green-700 rounded-full px-2 py-1">
-              <Text className="text-white text-[10px] font-bold">
-                Lắp đặt
-              </Text>
-            </View>
-          ) : null}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        localStyles.card,
+        {
+          opacity: pressed ? 0.94 : 1,
+          borderColor: validation.canCheckout ? '#F1E7DC' : '#FCA5A5',
+        },
+      ]}
+    >
+      <View style={localStyles.imageBox}>
+        <Image
+          source={imageUrl ? { uri: imageUrl } : (placeholderThumb as any)}
+          style={localStyles.thumb}
+          resizeMode="contain"
+        />
 
-          {!validation.canCheckout ? (
-            <View style={localStyles.warningBadge} className="bg-red-600 rounded-full px-2 py-1">
-              <Text className="text-white text-[10px] font-bold">
-                Cần kiểm tra
-              </Text>
-            </View>
-          ) : null}
+        {installationSupported ? (
+          <View style={[localStyles.badge, localStyles.installBadge]}>
+            <Text style={localStyles.badgeText}>Lắp đặt</Text>
+          </View>
+        ) : null}
 
-          <View className="h-[165px] bg-[#F8FAFC]">
-            <Image
-              source={imageUrl ? { uri: imageUrl } : (placeholderThumb as any)}
-              style={localStyles.thumb}
-              resizeMode="cover"
+        {!validation.canCheckout ? (
+          <View style={[localStyles.badge, localStyles.warningBadge]}>
+            <Text style={localStyles.badgeText}>Cần kiểm tra</Text>
+          </View>
+        ) : null}
+
+        {validation.isOutOfStock ? (
+          <View style={localStyles.soldOutOverlay}>
+            <View style={localStyles.soldOutPill}>
+              <Text style={localStyles.soldOutText}>Hết hàng</Text>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={localStyles.content}>
+        <Text style={localStyles.name} numberOfLines={2}>
+          {productName}
+        </Text>
+
+        <View style={localStyles.ratingRow}>
+          <Ionicons name="star" size={15} color={COLORS.amber} />
+          <Text style={localStyles.ratingText}>{rating.toFixed(1)}</Text>
+          <Text style={localStyles.reviewText}>({reviewCount})</Text>
+        </View>
+
+        <Text style={localStyles.price} numberOfLines={1}>
+          {formatVND(price)}
+        </Text>
+
+        <View style={localStyles.badgeRow}>
+          <View
+            style={[
+              localStyles.smallBadge,
+              { backgroundColor: stockBadgeBg },
+            ]}
+          >
+            <Ionicons
+              name={
+                validation.isOutOfStock
+                  ? 'close-circle-outline'
+                  : 'cube-outline'
+              }
+              size={13}
+              color={stockBadgeColor}
+            />
+            <Text
+              style={[
+                localStyles.smallBadgeText,
+                { color: stockBadgeColor },
+              ]}
+              numberOfLines={1}
+            >
+              {getStockLabel(validation)}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              localStyles.iconBadge,
+              { backgroundColor: expiryBadgeBg },
+            ]}
+          >
+            <Ionicons
+              name={
+                validation.isExpired || validation.isMissingExpiry
+                  ? 'warning-outline'
+                  : 'time-outline'
+              }
+              size={14}
+              color={expiryBadgeColor}
             />
           </View>
-
-          {validation.isOutOfStock ? (
-            <View style={localStyles.soldOutOverlay}>
-              <View className="bg-black/70 px-3 py-2 rounded-full">
-                <Text className="text-white text-xs font-extrabold">
-                  Hết hàng
-                </Text>
-              </View>
-            </View>
-          ) : null}
         </View>
 
-        <View className="p-3 flex-1">
-          <Text className="text-[#0F172A] font-extrabold text-[14px] leading-5" numberOfLines={2}>
-            {productName}
+        <View style={localStyles.bottomRow}>
+          <Text style={localStyles.vendorName} numberOfLines={1}>
+            {validation.vendorName}
           </Text>
 
-          <View className="flex-row items-center mt-2">
-            <Ionicons name="star" size={14} color={COLORS.amber} />
-            <Text className="ml-1 text-xs font-bold text-[#0F172A]">
-              {rating.toFixed(1)}
-            </Text>
-            <Text className="ml-1 text-xs text-[#64748B]">
-              ({reviewCount})
-            </Text>
-          </View>
-
-          <Text className="text-orange-600 text-[17px] font-extrabold mt-2" numberOfLines={1}>
-            {formatVND(price)}
-          </Text>
-
-          <View className="flex-row flex-wrap mt-2">
-            <View
-              className="px-2 py-1 rounded-full mr-1 mb-1 flex-row items-center"
-              style={{ backgroundColor: stockBadgeBg }}
-            >
-              <Ionicons
-                name={validation.isOutOfStock ? 'close-circle-outline' : 'cube-outline'}
-                size={12}
-                color={stockBadgeColor}
-              />
-              <Text
-                className="ml-1 text-[10px] font-bold"
-                style={{ color: stockBadgeColor }}
-                numberOfLines={1}
-              >
-                {getStockLabel(validation)}
-              </Text>
-            </View>
-
-            <View
-              className="px-2 py-1 rounded-full mr-1 mb-1 flex-row items-center"
-              style={{ backgroundColor: expiryBadgeBg }}
-            >
-              <Ionicons
-                name={
-                  validation.isExpired || validation.isMissingExpiry
-                    ? 'warning-outline'
-                    : 'time-outline'
-                }
-                size={12}
-                color={expiryBadgeColor}
-              />
-             
-            </View>
-          </View>
-
-        
-
-          <View className="flex-row items-center justify-between mt-auto pt-3">
-            <Text className="text-[11px] text-[#64748B]" numberOfLines={1}>
-              {validation.vendorName}
-            </Text>
-
-            <Pressable
-              onPress={onBuy}
-              disabled={!canAddToCart}
-              className="px-3 py-2 rounded-xl flex-row items-center"
-              style={{
+          <Pressable
+            onPress={onBuy}
+            disabled={!canAddToCart}
+            style={[
+              localStyles.cartButton,
+              {
                 backgroundColor: canAddToCart ? COLORS.orange : '#CBD5E1',
-              }}
-            >
-              {adding ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="cart-outline" size={14} color="#fff" />
-                  <Text className="text-white font-extrabold text-xs ml-1">
-                    Thêm
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          </View>
+              },
+            ]}
+          >
+            {adding ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="cart-outline" size={16} color="#fff" />
+                <Text style={localStyles.cartText}>Thêm</Text>
+              </>
+            )}
+          </Pressable>
         </View>
-      </Pressable>
-
-      <Toast
-        visible={toastVisible}
-        message={toastMsg}
-        type={toastType}
-        onHidden={() => setToastVisible(false)}
-      />
-    </>
+      </View>
+    </Pressable>
   );
 };
 
 const localStyles = StyleSheet.create({
   card: {
     width: '100%',
-    minHeight: 385,
+    height: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    overflow: 'hidden',
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     elevation: 3,
   },
+
+  imageBox: {
+    height: 155,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+
   thumb: {
     width: '100%',
-    height: 165,
-    backgroundColor: '#F1F5F9',
+    height: '100%',
+    backgroundColor: '#FFFFFF',
   },
+
+  badge: {
+    position: 'absolute',
+    top: 10,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    zIndex: 10,
+  },
+
   installBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    zIndex: 10,
+    left: 10,
+    backgroundColor: '#059669',
   },
+
   warningBadge: {
-    position: 'absolute',
-    top: 8,
     right: 8,
-    zIndex: 10,
+    backgroundColor: '#EF0000',
   },
+
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
   soldOutOverlay: {
     position: 'absolute',
     top: 0,
@@ -410,6 +425,123 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  soldOutPill: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+
+  soldOutText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  content: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
+
+  name: {
+    color: '#0F172A',
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '800',
+    minHeight: 40,
+  },
+
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  ratingText: {
+    marginLeft: 5,
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  reviewText: {
+    marginLeft: 4,
+    color: '#64748B',
+    fontSize: 13,
+  },
+
+  price: {
+    marginTop: 8,
+    color: '#FF4B00',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+
+  smallBadge: {
+    height: 34,
+    maxWidth: 96,
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+
+  smallBadgeText: {
+    marginLeft: 5,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  iconBadge: {
+    width: 38,
+    height: 34,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  bottomRow: {
+    marginTop: 'auto',
+    paddingTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  vendorName: {
+    flex: 1,
+    color: '#64748B',
+    fontSize: 13,
+    marginRight: 8,
+  },
+
+  cartButton: {
+    height: 42,
+    minWidth: 82,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cartText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    marginLeft: 5,
+  },
 });
 
-export default CardProduct;
+export default React.memo(CardProduct);

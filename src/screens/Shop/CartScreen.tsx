@@ -83,13 +83,16 @@ export default function CartScreen() {
   } = useCart();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectMode, setSelectMode] = useState(true);
   const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
+  const selectMode = true;
+
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>(
+    'info',
+  );
 
   const [modalState, setModalState] = useState<any>({
     visible: false,
@@ -176,7 +179,9 @@ export default function CartScreen() {
   }, [lines, selectedIds]);
 
   const selectedValidItems = useMemo(() => {
-    return selectedItems.filter(item => validations[item.product_id]?.canCheckout);
+    return selectedItems.filter(
+      item => validations[item.product_id]?.canCheckout,
+    );
   }, [selectedItems, validations]);
 
   const selectedSupplementItems = useMemo(() => {
@@ -184,11 +189,15 @@ export default function CartScreen() {
   }, [selectedValidItems]);
 
   const invalidItems = useMemo(() => {
-    return (lines || []).filter(item => !validations[item.product_id]?.canCheckout);
+    return (lines || []).filter(
+      item => !validations[item.product_id]?.canCheckout,
+    );
   }, [lines, validations]);
 
   const selectedInvalidItems = useMemo(() => {
-    return selectedItems.filter(item => !validations[item.product_id]?.canCheckout);
+    return selectedItems.filter(
+      item => !validations[item.product_id]?.canCheckout,
+    );
   }, [selectedItems, validations]);
 
   const totalSelectedPrice = useMemo(() => {
@@ -245,18 +254,6 @@ export default function CartScreen() {
     },
     [navigation, showToast],
   );
-
-  const toggleSelectMode = () => {
-    setSelectMode(prev => {
-      const next = !prev;
-
-      if (!next) {
-        setSelectedIds([]);
-      }
-
-      return next;
-    });
-  };
 
   const toggleSelectItem = useCallback(
     (productId: string) => {
@@ -366,7 +363,11 @@ export default function CartScreen() {
   const commitQuantity = async (item: CartLine) => {
     const validation = validations[item.product_id];
 
-    if (!validation?.canCheckout && validation?.stock !== null && validation?.stock <= 0) {
+    if (
+      !validation?.canCheckout &&
+      validation?.stock !== null &&
+      validation?.stock <= 0
+    ) {
       showToast('Sản phẩm đã hết hàng, không thể cập nhật số lượng', 'error');
       return;
     }
@@ -528,7 +529,9 @@ export default function CartScreen() {
       return;
     }
 
-    const items = (lines || []).filter(item => selectedIds.includes(item.product_id));
+    const items = (lines || []).filter(item =>
+      selectedIds.includes(item.product_id),
+    );
 
     const invalidSelected = items.filter(
       item => !validations[item.product_id]?.canCheckout,
@@ -614,17 +617,6 @@ export default function CartScreen() {
               className="w-10 h-10 rounded-full bg-white items-center justify-center mr-2"
             >
               <Ionicons name="checkmark-done-outline" size={20} color="#0F172A" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={toggleSelectMode}
-              className="w-10 h-10 rounded-full bg-white items-center justify-center mr-2"
-            >
-              <Ionicons
-                name={selectMode ? 'close-circle-outline' : 'checkbox-outline'}
-                size={20}
-                color="#0F172A"
-              />
             </TouchableOpacity>
 
             <TouchableOpacity

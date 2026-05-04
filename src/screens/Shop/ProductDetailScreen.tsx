@@ -33,6 +33,7 @@ const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = Math.round(width * 0.85 * 0.6);
 
 const COLORS = {
+  default: '#A0522D',
   primary: '#CD853F',
   accent: '#7c3aed',
   warm: '#F59E0B',
@@ -978,7 +979,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             onPress={onBuyNow}
             className="px-5 py-3 rounded-lg"
             style={{
-              backgroundColor: COLORS.warm,
+              backgroundColor: COLORS.default,
               opacity: buying || cannotPurchase ? 0.6 : 1,
             }}
             disabled={buying || cannotPurchase}
@@ -986,7 +987,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             {buying ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="font-extrabold text-black">Mua ngay</Text>
+              <Text className="font-extrabold text-white  ">Mua ngay</Text>
             )}
           </TouchableOpacity>
         </View>
