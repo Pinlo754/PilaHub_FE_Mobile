@@ -6,18 +6,19 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Image,
+  Pressable,
 } from 'react-native';
 import { CourseType } from '../../../utils/CourseType';
 
 type Props = {
   data: CourseType[];
+  onPressCourse?: (course: CourseType) => void;
 };
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 20;
 
-const Carousel = ({ data }: Props) => {
+const Carousel = ({ data, onPressCourse }: Props) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const [index, setIndex] = useState(0);
 
@@ -31,32 +32,32 @@ const Carousel = ({ data }: Props) => {
 
   const getCourseId = (item: any, i: number) => {
     return String(
-      item.courseId ??
-        item.course_id ??
-        item.id ??
-        item._id ??
+      item?.courseId ??
+        item?.course_id ??
+        item?.id ??
+        item?._id ??
         `course-${i}`,
     );
   };
 
   const getCourseName = (item: any) => {
     return (
-      item.courseName ??
-      item.course_name ??
-      item.name ??
-      item.title ??
+      item?.courseName ??
+      item?.course_name ??
+      item?.name ??
+      item?.title ??
       'Không có tên khóa học'
     );
   };
 
   const getCourseThumbnail = (item: any) => {
     return (
-      item.thumbnailUrl ??
-      item.thumbnail_url ??
-      item.imageUrl ??
-      item.image_url ??
-      item.thumbnail ??
-      item.image ??
+      item?.thumbnailUrl ??
+      item?.thumbnail_url ??
+      item?.imageUrl ??
+      item?.image_url ??
+      item?.image ??
+      item?.thumbnail ??
       ''
     );
   };
@@ -108,7 +109,11 @@ const Carousel = ({ data }: Props) => {
           });
 
           return (
-            <View style={{ width: CARD_WIDTH }} className="pr-3">
+            <Pressable
+              onPress={() => onPressCourse?.(item)}
+              style={{ width: CARD_WIDTH }}
+              className="pr-3"
+            >
               <View className="rounded-xl overflow-hidden h-[200px] bg-background-sub2">
                 {thumbnailUrl ? (
                   <Animated.Image
@@ -132,12 +137,11 @@ const Carousel = ({ data }: Props) => {
               <Text className="text-foreground text-lg font-bold mt-2">
                 {courseName}
               </Text>
-            </View>
+            </Pressable>
           );
         }}
       />
 
-      {/* Dots */}
       <View className="flex-row justify-center mt-2">
         {data.map((item, i) => (
           <View

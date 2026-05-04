@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { colors } from '../../../theme/colors';
 import { CourseType } from '../../../utils/CourseType';
 import Carousel from './Carousel';
 import { courseService } from '../../../hooks/course.service';
 
 const RecommendCourse = () => {
+  const navigation = useNavigation<any>();
+
   const [courses, setCourses] = useState<CourseType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -20,6 +23,36 @@ const RecommendCourse = () => {
     }
 
     return a;
+  };
+
+  const getCourseId = (course: any) => {
+    return (
+      course?.courseId ??
+      course?.course_id ??
+      course?.id ??
+      course?._id ??
+      null
+    );
+  };
+
+  const handlePressCourse = (course: CourseType) => {
+    const courseId = getCourseId(course);
+
+    console.log('PRESS_RECOMMEND_COURSE:', course);
+    console.log('PRESS_RECOMMEND_COURSE_ID:', courseId);
+
+    if (!courseId) {
+      console.log('PRESS_RECOMMEND_COURSE_ERROR: missing courseId');
+      return;
+    }
+
+    navigation.navigate('ProgramDetail', {
+      courseId,
+      programId: courseId,
+      id: courseId,
+      source: 'recommend',
+      isFromList: false,
+    });
   };
 
   useEffect(() => {
@@ -37,6 +70,11 @@ const RecommendCourse = () => {
         console.log(
           'RecommendCourse: fetched count =',
           Array.isArray(list) ? list.length : 0,
+        );
+
+        console.log(
+          'RecommendCourse: first item =',
+          JSON.stringify(Array.isArray(list) ? list[0] : null, null, 2),
         );
 
         if (!mounted) return;
@@ -76,7 +114,6 @@ const RecommendCourse = () => {
 
   return (
     <View className="mx-4 mt-2">
-      {/* Header */}
       <Pressable className="flex-row gap-4 items-center mb-2">
         <Text className="text-foreground text-lg font-semibold">
           Đề xuất khóa học
@@ -89,7 +126,6 @@ const RecommendCourse = () => {
         />
       </Pressable>
 
-      {/* Loading */}
       {loading ? (
         <View className="py-6 items-center justify-center">
           <ActivityIndicator size="small" color={colors.foreground} />
@@ -110,7 +146,7 @@ const RecommendCourse = () => {
           </Text>
         </View>
       ) : (
-        <Carousel data={courses} />
+        <Carousel data={courses} onPressCourse={handlePressCourse} />
       )}
     </View>
   );
