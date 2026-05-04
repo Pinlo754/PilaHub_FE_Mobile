@@ -12,15 +12,15 @@ const StatsSection = ({ feedback }: Props) => {
   console.log('feedback in stats section', feedback);
   return (
     <View className="mt-4 p-4">
-      <View className="flex-row flex-wrap justify-between gap-2">
-        <CardStat
+      <View className='w-full'>
+        {/* <CardStat
           title="Thời gian"
           value="30:00"
           colorIcon={colors.info.darker}
           colorBg={colors.info[20]}
           iconName="time"
           iconSize={26}
-        />
+        /> */}
 
         <CardStat
           title="Tổng số lỗi"

@@ -13,7 +13,8 @@ import ErrorSection from './components/ErrorSection';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import ImageRecord from './components/ImageRecord';
 import ErrorVideoPlayer from './components/VideoPlayer/ErrorVideoPlayer';
-import { useState } from 'react';
+import AISessionListView from './components/AISessionListView';
+import { useState, useEffect } from 'react';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AISummary'>;
 
@@ -32,17 +33,52 @@ const AISummary = ({ route, navigation }: Props) => {
     closeErrorVideo,
     isVideoPlay,
     togglePlayButton,
+    viewMode,
+    setViewMode,
+    selectedSession,
+    setSelectedSession,
+    aiSessionsList,
+    setAiSessionsList,
+    viewSessionDetail,
+    backToList,
+    backToOverview,
   } = useAISummary();
-  // receive heartRateLogs from navigation params
-  const { videoUrl, mistakeLog, feedback, heartRateLogs } = route.params;
+
+  // receive params from navigation
+  const {
+    videoUrl,
+    mistakeLog,
+    feedback,
+    heartRateLogs,
+    aiSessionsList: listFromParams,
+    showListView,
+  } = route.params as any || {};
+
   const [seekTime, setSeekTime] = useState<number | null>(null);
 
+  // Initialize sessions list when component mounts
+  useEffect(() => {
+    if (listFromParams && Array.isArray(listFromParams)) {
+      setAiSessionsList(listFromParams);
+      if (showListView) {
+        setViewMode('list');
+      }
+    }
+  }, [listFromParams, showListView, setAiSessionsList, setViewMode]);
+
+  // Use selected session data if available, otherwise use route params
+  const currentFeedback = selectedSession?.feedback || feedback;
+  const currentVideoUrl = selectedSession?.recordUrl || videoUrl;
+  const currentMistakeLog = selectedSession?.mistakeLog || mistakeLog;
+  const currentHeartRateLogs = selectedSession?.heartRateLogs || heartRateLogs;
+
   // prepare numeric array for chart
-  const heartRateData: number[] = (heartRateLogs && heartRateLogs.length > 0)
-    ? [...heartRateLogs]
-        .sort((a, b) => a.recordedAt - b.recordedAt)
-        .map(h => h.heartRate || 0)
-    : [];
+  const heartRateData: number[] =
+    currentHeartRateLogs && currentHeartRateLogs.length > 0
+      ? [...currentHeartRateLogs]
+          .sort((a, b) => a.recordedAt - b.recordedAt)
+          .map(h => h.heartRate || 0)
+      : [];
 
   const handleSeekToError = (time: number) => {
     if (!isVideoVisible) {
@@ -57,7 +93,31 @@ const AISummary = ({ route, navigation }: Props) => {
     }
   };
 
+  const handleSelectSession = (session: any) => {
+    // Set selected session data for overview mode
+    setSelectedSession(session);
+    // Switch to overview mode but with selected session data
+    setViewMode('overview');
+  };
 
+  // RENDER LIST VIEW
+  if (viewMode === 'list' && aiSessionsList.length > 0) {
+    return (
+      <View className="flex-1 bg-background">
+        <StatusBar hidden={false} />
+
+        {/* Header */}
+        <Header navigation={navigation} />
+
+        <AISessionListView
+          sessions={aiSessionsList}
+          onSelectSession={handleSelectSession}
+        />
+      </View>
+    );
+  }
+
+  // RENDER OVERVIEW VIEW (DEFAULT)
   return (
     <View className="flex-1 bg-background ">
       <StatusBar hidden={showVideoError.visible || isVideoExpand} />
@@ -65,7 +125,12 @@ const AISummary = ({ route, navigation }: Props) => {
       {!isVideoExpand && !showVideoError.visible && (
         <>
           {/* Header */}
-          <Header navigation={navigation} />
+          <Header
+            navigation={navigation}
+            showBackToList={!!selectedSession}
+            onBackToList={() => setViewMode('list')}
+            title={selectedSession ? selectedSession.exerciseName : 'Tổng kết'}
+          />
           {/* Tabs */}
           <Tabs tabId={activeTab} onChange={onChangeTab} />
         </>
@@ -79,25 +144,29 @@ const AISummary = ({ route, navigation }: Props) => {
         {isPointTab ? (
           <>
             {/* Point Section */}
-            <PointSection point={feedback.overallScore} isPass={isPass} />
+            <PointSection point={currentFeedback?.overallScore || 0} isPass={isPass} />
 
             {/* Stats Section */}
-            <StatsSection feedback={feedback} />
+            <StatsSection feedback={currentFeedback} />
 
             {/* Heart Rate Chart */}
-            <HeartRateChart heartRateData={heartRateData.length ? heartRateData : [56, 100, 90, 78, 70, 60]} />
+            <HeartRateChart
+              heartRateData={
+                heartRateData.length ? heartRateData : [56, 100, 90, 78, 70, 60]
+              }
+            />
 
             {/* Metrics Section */}
             <MetricsSection
-              formScore={feedback.formScore}
-              enduranceScore={feedback.enduranceScore}
+              formScore={currentFeedback?.formScore || 0}
+              enduranceScore={currentFeedback?.enduranceScore || 0}
             />
 
             {/* Advice Section */}
             <AdviceSection
-              strengths={feedback.strengths}
-              weaknesses={feedback.weaknesses}
-              recommendations={feedback.recommendations}
+              strengths={currentFeedback?.strengths}
+              weaknesses={currentFeedback?.weaknesses}
+              recommendations={currentFeedback?.recommendations}
             />
           </>
         ) : (
@@ -106,7 +175,7 @@ const AISummary = ({ route, navigation }: Props) => {
             {isVideoVisible ? (
               <VideoPlayer
                 key="main-video"
-                source={videoUrl}
+                source={currentVideoUrl ?? ''}
                 seekTime={seekTime}
                 isVideoPlay={isVideoPlay}
                 isVideoExpand={isVideoExpand}
@@ -126,7 +195,7 @@ const AISummary = ({ route, navigation }: Props) => {
             {/* Error Section */}
             {!isVideoExpand && (
               <ErrorSection
-                errors={mistakeLog}
+                errors={currentMistakeLog}
                 openErrorVideo={handleSeekToError}
               />
             )}

@@ -3,6 +3,7 @@ import {
   GetByExerciseIdParams,
   WorkoutExerciseReq,
   WorkoutLessonExerciseReq,
+  WorkoutPersonalExerciseReq,
   WorkoutSessionType,
 } from '../utils/WorkoutSessionType';
 import api from './axiosInstance';
@@ -87,6 +88,44 @@ export const workoutSessionService = {
     return res.data.data;
   },
 
+  startRoadmapWorkout: async (
+    payload: WorkoutPersonalExerciseReq,
+  ): Promise<WorkoutSessionType> => {
+    const res = await api.post<ApiResponse<WorkoutSessionType>>(
+      `/workout-sessions/start/personal-exercise`,
+      payload,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  startCourseWorkout: async (
+    payload: WorkoutLessonExerciseReq,
+  ): Promise<WorkoutSessionType> => {
+    const res = await api.post<ApiResponse<WorkoutSessionType>>(
+      `/workout-sessions/start/lesson-exercise`,
+      payload,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
   // END WORKOUT
   endWorkout: async (
     workoutSessionId: string,
@@ -113,6 +152,38 @@ export const workoutSessionService = {
     const res = await api.post<ApiResponse<any>>(
       `/workout-feedback/generate/${workoutSessionId}`,
     );
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  getfeedbackWorkout: async (workoutSessionId: string): Promise<any> => {
+    const res = await api.get<ApiResponse<any>>(
+      `/workout-feedback/session/${workoutSessionId}`,
+    );
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
+  // GET BY PERSONAL SCHEDULE ID
+  getByPersonalScheduleId: async (scheduleId: string): Promise<WorkoutSessionType[]> => {
+    const res = await api.get<ApiResponse<WorkoutSessionType[]>>(
+      `/workout-sessions/schedule/${scheduleId}`,
+    );
+
     if (!res.data.success) {
       throw {
         type: 'BUSINESS_ERROR',

@@ -32,10 +32,14 @@ export default function TransactionChart({
     transactions.forEach((t) => {
       const amt = Number(t.amount || 0);
 
-      if (t.transactionType === "WALLET_TOP_UP") {
-        income += amt;
-      } else {
+      
+      if ((t.transactionType === "ORDER_PAYMENT") || (t.transactionType === "SUBSCRIPTION_PACKAGE") || (t.transactionType === "SUBSCRIPTION_UPGRADE") || (t.transactionType === "COURSE") || (t.transactionType === "PENALTY") || (t.transactionType === "BOOKING_COACH")) {
         expense += amt;
+      }
+      
+
+      if ((t.transactionType === "SUBSCRIPTION_PRORATION_REFUND")) {
+        expense -= amt;
       }
 
       map[t.transactionType] = (map[t.transactionType] || 0) + amt;
@@ -85,25 +89,10 @@ export default function TransactionChart({
 
       <View className="flex-row items-center mt-4">
 
-        {/* LEFT INFO */}
-        <View className="flex-1 pr-4">
-          <Text className="text-xs text-gray-400">Tổng nạp</Text>
-          <Text className="text-lg font-bold text-green-600 mt-1">
-            {totalIncome.toLocaleString("vi-VN")}₫
-          </Text>
 
-          <Text className="text-xs text-gray-400 mt-4">Tổng chi</Text>
-          <Text className="text-lg font-bold text-red-500 mt-1">
-            {totalExpense.toLocaleString("vi-VN")}₫
-          </Text>
-
-          <Text className="text-xs text-gray-400 mt-4">
-            Tổng: {total.toLocaleString("vi-VN")}₫
-          </Text>
-        </View>
 
         {/* DONUT CHART */}
-        <View className="items-center justify-center">
+        <View className="w-full flex items-center justify-center ">
           <Svg width={size} height={size}>
 
             {/* background circle */}
@@ -157,7 +146,7 @@ export default function TransactionChart({
       </View>
 
       {/* LEGEND */}
-      <View className="flex-row flex-wrap mt-4">
+      <View className="w-full flex justify-between flex-row flex-wrap mt-4">
         {pieDataWithPercent.map((p) => (
           <View key={p.name} className="flex-row items-center mr-4 mb-2">
             <View

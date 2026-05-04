@@ -270,6 +270,69 @@ export default function ScheduleDetail({
     );
   };
 
+  const startAiExercise = async (ex: any) => {
+    if (!aiAllowed) {
+      setToastMessage('Tính năng AI chỉ dành cho hội viên VIP');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    if (!supportsAI(ex)) {
+      await startSingleExercise(ex);
+      return;
+    }
+
+    const actual = getExerciseObject(ex);
+    const exerciseId =
+      actual?.exerciseId ?? actual?.id ?? actual?.exercise_id ?? actual?.exerciseIdRaw ?? null;
+    if (!exerciseId) {
+      setToastMessage('Không xác định được ID bài tập');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    try {
+      const session = await workoutSessionService.startRoadmapWorkout({
+        personalExerciseId: String(ex.personalExerciseId || exerciseId),
+        haveAITracking: true,
+        haveIOTDeviceTracking: true,
+      });
+
+      const videoUrl = await resolveExerciseVideo(ex);
+      const nameAITracking =
+        actual?.nameInModelAI ?? actual?.name_in_model_ai ?? '';
+
+      if (!session?.workoutSessionId) {
+        throw new Error('Không tạo được phiên AI');
+      }
+
+      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
+
+      const timeout = Math.max(
+        5,
+        Number(actual?.durationSeconds ?? actual?.duration ?? 0) || 5,
+      );
+
+      navigation.navigate('AIPracticeTimeout', {
+        exercise_id: String(exerciseId),
+        imgUrl: actual?.imageUrl ?? actual?.image ?? '',
+        videoUrl: videoUrl ?? '',
+        workoutSessionId: session.workoutSessionId,
+        nameAITracking: nameAITracking,
+        timeout,
+        autoStart: true,
+        skipSummary: true,
+      });
+    } catch (err) {
+      console.warn('[ScheduleDetail] startAiExercise failed', err);
+      setToastMessage('Không thể bắt đầu AI Practice. Vui lòng thử lại');
+      setToastType('error');
+      setToastVisible(true);
+    }
+  };
+
   const buildQueue = async (exercises: any[]) => {
     const queue: any[] = [];
 
@@ -300,6 +363,7 @@ export default function ScheduleDetail({
 
     const normalized = normalizeExercises(localExercises);
 
+    // Lọc ra các bài chưa tập và sắp xếp đúng trình tự
     const exercisesToPlay = normalized
       .filter((ex: any) => ex.completed !== true)
       .sort((a: any, b: any) => {
@@ -465,29 +529,23 @@ export default function ScheduleDetail({
     const scheduleId = getScheduleId();
 
     const firstEx = exercisesToPlay[0];
-
-    if (firstEx && supportsAI(firstEx)) {
+    if (firstEx && firstEx.isAiSupported) {
       try {
         await workoutSessionService.startRoadmapWorkout({
-          personalExerciseId: String(
-            firstEx.personalExerciseId || firstEx.exerciseId,
-          ),
+          personalExerciseId: String(firstEx.personalExerciseId || firstEx.exerciseId),
           haveAITracking: true,
           haveIOTDeviceTracking: true,
         });
       } catch (err) {
-        console.warn(
-          '[ScheduleDetail] startAllAI startRoadmapWorkout failed',
-          err,
-        );
-        showToast('Không thể bắt đầu AI Practice. Vui lòng thử lại', 'error');
+        console.warn('[ScheduleDetail] startAllAI startRoadmapWorkout failed', err);
+        setToastMessage('Không thể bắt đầu AI Practice. Vui lòng thử lại');
+        setToastType('error');
+        setToastVisible(true);
         return;
       }
     }
 
-    if (typeof onVideoModalChange === 'function') {
-      onVideoModalChange(false);
-    }
+    if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
 
     navigation.navigate('SchedulePlayer', {
       queue,
@@ -500,88 +558,126 @@ export default function ScheduleDetail({
 
   const viewAIReview = async (ex: any) => {
     if (!ex.completed) {
-      showToast('Bài tập chưa hoàn thành', 'info');
+      setToastMessage('Bài tập chưa hoàn thành');
+      setToastType('info');
+      setToastVisible(true);
       return;
     }
 
     if (!supportsAI(ex)) {
-      showToast('Bài tập này không hỗ trợ AI', 'info');
+      setToastMessage('Bài tập này không hỗ trợ AI');
+      setToastType('info');
+      setToastVisible(true);
       return;
     }
 
-    const exerciseId =
-      ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
-
+    const exerciseId = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
     const personalExerciseId = ex.personalExerciseId ?? ex.id ?? null;
 
     if (!exerciseId) {
-      showToast('Không xác định được ID bài tập', 'error');
+      setToastMessage('Không xác định được ID bài tập');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
+    const fetchAISummary = async (
+      workoutSessionId: string,
+    ) => {
+      try {
+        const workout = await workoutSessionService.getById(workoutSessionId);
+        const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
+          workoutFeedbackService.getByWorkoutSessionId(workoutSessionId),
+          mistakeLogService.getByWorkoutSessionId(workoutSessionId),
+          heartRateService.getByWorkoutSessionId(workoutSessionId),
+        ]);
+
+        navigation.navigate('AISummary', {
+          feedback,
+          videoUrl: workout.recordUrl,
+          mistakeLog,
+          heartRateLogs: heartRateLogs.map(h => ({
+            heartRate: h.heartRate,
+            recordedAt: h.recordedAt,
+          })),
+        });
+      } catch (err) {
+        console.error('Fetch AI summary error:', err);
+      } finally {
+      }
+    };
+
     try {
-      const sessions = await workoutSessionService.getByExerciseId(
-        String(exerciseId),
-        {
-          personalExerciseId: personalExerciseId
-            ? String(personalExerciseId)
-            : undefined,
-        },
-      );
-
-      const aiSessions = sessions.filter(
-        (s: any) => s.haveAITracking === true && s.completed === true,
-      );
-
+      // Lấy danh sách workout sessions của bài tập này
+      const sessions = await workoutSessionService.getByExerciseId(String(exerciseId), {
+        personalExerciseId: personalExerciseId ? String(personalExerciseId) : undefined,
+      });
+      console.log('Sessions for exercise', exerciseId, sessions);
+      // Lọc ra sessions có AI tracking và đã hoàn thành
+      const aiSessions = sessions.filter(s => s.haveAITracking === true && s.completed === true);
+      console.log('AI sessions completed', aiSessions);
       if (aiSessions.length === 0) {
-        showToast('Không tìm thấy phiên tập AI đã hoàn thành', 'info');
+        setToastMessage('Không tìm thấy phiên tập AI đã hoàn thành');
+        setToastType('info');
+        setToastVisible(true);
         return;
       }
 
-      const latestSession = aiSessions.sort((a: any, b: any) => {
+      // Lấy session gần nhất (theo thời gian kết thúc)
+      const latestSession = aiSessions.sort((a, b) => {
         const timeA = new Date(a.endTime || a.startTime).getTime();
         const timeB = new Date(b.endTime || b.startTime).getTime();
-
         return timeB - timeA;
       })[0];
 
-      const feedback = await workoutSessionService.getfeedbackWorkout(
-        latestSession.workoutSessionId,
-      );
+      // Fetch feedback cho session này
+      const feedback = await workoutSessionService.getfeedbackWorkout(latestSession.workoutSessionId);
 
+      // Fetch heart rate logs nếu có
       let heartRateLogs: any[] = [];
-
       try {
-        heartRateLogs = await heartRateService.getByWorkoutSessionId(
-          latestSession.workoutSessionId,
-        );
+        heartRateLogs = await heartRateService.getByWorkoutSessionId(latestSession.workoutSessionId);
       } catch (err) {
         console.warn('[ScheduleDetail] heart rate logs fetch failed', err);
       }
 
+      // Fetch mistake logs nếu có
       let mistakeLog: any[] = [];
-
       try {
-        mistakeLog = await mistakeLogService.getByWorkoutSessionId(
-          latestSession.workoutSessionId,
-        );
+        mistakeLog = await mistakeLogService.getByWorkoutSessionId(latestSession.workoutSessionId);
+
+
       } catch (err) {
         console.warn('[ScheduleDetail] mistake logs fetch failed', err);
       }
 
-      if (typeof onVideoModalChange === 'function') {
-        onVideoModalChange(false);
-      }
+      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
+
+      const formattedMistakes = mistakeLog.map(log => {
+        // Trích xuất side từ chuỗi details (vd: lấy chữ "both" từ "Form error at Hips (both)")
+        const sideMatch = log.details.match(/\(([^)]+)\)/);
+        const side = sideMatch ? sideMatch[1] : "unknown";
+
+        return {
+          bodyPart: log.bodyPartName,
+          side: side,
+          recordedAtSecond: log.recordedAtSecond,
+          duration: log.duration,
+          imagePath: log.imageUrl
+        };
+      });
 
       navigation.navigate('AISummary', {
         feedback,
         videoUrl: latestSession.recordUrl,
-        mistakeLog,
+        mistakeLog: formattedMistakes,
         heartRateLogs,
       });
     } catch (err) {
       console.warn('[ScheduleDetail] viewAIReview failed', err);
-      showToast('Không thể tải đánh giá AI. Vui lòng thử lại', 'error');
+      setToastMessage('Không thể tải đánh giá AI. Vui lòng thử lại');
+      setToastType('error');
+      setToastVisible(true);
     }
   };
 
@@ -605,6 +701,8 @@ export default function ScheduleDetail({
 
         <View className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-6">
           <View className="p-4">
+
+            {/* Action Buttons */}
             {!isPreview && (
               <View className="flex-row justify-between mb-3">
                 <TouchableOpacity
@@ -618,9 +716,8 @@ export default function ScheduleDetail({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  className={`flex-1 ml-2 rounded-lg py-2 items-center ${
-                    aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
-                  }`}
+                  className={`flex-1 ml-2 rounded-lg py-2 items-center ${aiAllowed ? 'bg-[#8B4513]' : 'bg-gray-300'
+                    }`}
                   onPress={startAllAI}
                 >
                   <Text
@@ -679,6 +776,7 @@ export default function ScheduleDetail({
               </View>
             </View>
 
+            {/* Danh sách bài tập theo Trình tự */}
             <View className="mt-4">
               {localExercises.map((ex: any, idx: number) => (
                 <View

@@ -6,12 +6,19 @@ import { colors } from '../../../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'AISummary'>;
+  showBackToList?: boolean;
+  onBackToList?: () => void;
+  title?: string;
 };
 
-const Header = ({ navigation }: Props) => {
+const Header = ({ navigation, showBackToList = false, onBackToList, title = 'Tổng kết' }: Props) => {
   // HANDLERS
   const handleGoBack = () => {
-    navigation.goBack();
+    if (showBackToList && onBackToList) {
+      onBackToList();
+    } else {
+      navigation.goBack();
+    }
   };
 
   return (
@@ -30,7 +37,7 @@ const Header = ({ navigation }: Props) => {
 
       {/* Title */}
       <Text className="color-foreground text-3xl font-bold text-center">
-        Tổng kết
+        {title}
       </Text>
     </View>
   );

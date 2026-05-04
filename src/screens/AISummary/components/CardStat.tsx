@@ -19,7 +19,7 @@ const CardStat = ({
   colorBg,
 }: Props) => {
   return (
-    <View className="w-[49%] bg-white border border-background-sub1/30 rounded-xl px-4 pb-3 pt-1 shadow-md elevation-md flex-row gap-4 items-center">
+    <View className="w-[98%] bg-white border border-background-sub1/30 rounded-xl px-4 pb-3 pt-1 shadow-md elevation-md flex-row gap-4 items-center">
       {/* Left Section */}
 
       <View
@@ -30,8 +30,8 @@ const CardStat = ({
       </View>
 
       {/* Right Section */}
-      <View>
-        <Text className="mt-3 text-secondaryText font-medium">{title}</Text>
+      <View className='flex-row justify-center items-center w-full gap-36'>
+        <Text className="text-secondaryText text-xl font-bold text-center">{title}</Text>
         <Text className="text-xl font-bold text-foreground">{value}</Text>
       </View>
     </View>

@@ -136,8 +136,16 @@ export default function SchedulePlayer() {
       aiLaunchIndexRef.current = itemIndex;
 
       try {
-        const session = await workoutSessionService.startFreeWorkout({
-          exerciseId: String(exerciseId),
+        const personalExerciseId = getPersonalId(item);
+        if (!personalExerciseId) {
+          setToastMessage('Không xác định được Personal Exercise ID');
+          setToastType('error');
+          setToastVisible(true);
+          return;
+        }
+
+        const session = await workoutSessionService.startRoadmapWorkout({
+          personalExerciseId: String(personalExerciseId),
           haveAITracking: true,
           haveIOTDeviceTracking: true,
         });
@@ -210,6 +218,62 @@ export default function SchedulePlayer() {
     [current, getExerciseInfo, index, currentSet],
   );
 
+  const stopTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const completeCurrentExerciseAndMaybeAdvance = useCallback(async () => {
+    if (!current) return;
+
+    stopTimer();
+
+    setIsRunning(false);
+    setIsVideoPlay(false);
+
+    const personalId = getPersonalId(current);
+
+    if (personalId) {
+      setToastMessage('Đã hoàn thành động tác');
+      setToastType('success');
+      setToastVisible(true);
+
+      await markAndEmitExercise(String(personalId));
+    }
+
+    const next = index + 1;
+
+    if (singleMode) {
+      setPhase('completed');
+
+      Alert.alert('Hoàn thành', 'Đã hoàn thành bài tập');
+
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
+
+      return;
+    }
+
+    if (next < queue.length) {
+      goTo(next);
+      return;
+    }
+
+    setPhase('completed');
+    await completeSchedule();
+  }, [
+    current,
+    index,
+    queue.length,
+    singleMode,
+    navigation,
+    stopTimer,
+    getPersonalId,
+  ]);
+
   const handleAiFlowCompletion = useCallback(
     async (evt: any) => {
       if (!evt || evt.scheduleFlowIndex !== index) return;
@@ -220,13 +284,6 @@ export default function SchedulePlayer() {
     },
     [current, index, completeCurrentExerciseAndMaybeAdvance],
   );
-
-  const stopTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
 
   const initializeExercise = useCallback((item: any) => {
     if (!item) return;
@@ -391,58 +448,6 @@ export default function SchedulePlayer() {
       navigation.goBack();
     }
   }, [scheduleIdParam, navigation, reconcileServerAfterScheduleComplete]);
-
-  const completeCurrentExerciseAndMaybeAdvance = useCallback(async () => {
-    if (!current) return;
-
-    stopTimer();
-
-    setIsRunning(false);
-    setIsVideoPlay(false);
-
-    const personalId = getPersonalId(current);
-
-    if (personalId) {
-      setToastMessage('Đã hoàn thành động tác');
-      setToastType('success');
-      setToastVisible(true);
-
-      await markAndEmitExercise(String(personalId));
-    }
-
-    const next = index + 1;
-
-    if (singleMode) {
-      setPhase('completed');
-
-      Alert.alert('Hoàn thành', 'Đã hoàn thành bài tập');
-
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      }
-
-      return;
-    }
-
-    if (next < queue.length) {
-      goTo(next);
-      return;
-    }
-
-    setPhase('completed');
-    await completeSchedule();
-  }, [
-    current,
-    index,
-    queue.length,
-    singleMode,
-    navigation,
-    stopTimer,
-    getPersonalId,
-    markAndEmitExercise,
-    goTo,
-    completeSchedule,
-  ]);
 
   const handlePhaseFinished = useCallback(async () => {
     if (!current) return;
