@@ -107,10 +107,17 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <TextInput
               value={email}
               onChangeText={setEmail}
-              autoCapitalize='none'
+              autoCapitalize="none"
               placeholder="Nhập Email"
-              className="flex-1 text-base"
+              placeholderTextColor="#9CA3AF"
+              className="flex-1 h-full text-base text-foreground"
               keyboardType="email-address"
+              autoCorrect={false}
+              style={{
+                paddingVertical: 0,
+                includeFontPadding: false,
+                textAlignVertical: 'center',
+              }}
             />
             <Feather name="mail" size={20} color="#CD853F" />
           </View>
@@ -124,11 +131,17 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               value={password}
               onChangeText={setPassword}
               placeholder="Nhập Mật Khẩu"
-              autoCapitalize='none'
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="none"
               secureTextEntry={!showPassword}
               autoCorrect={false}
               textContentType="password"
-              className="flex-1 text-base"
+              className="flex-1 h-full text-base text-foreground"
+              style={{
+                paddingVertical: 0,
+                includeFontPadding: false,
+                textAlignVertical: 'center',
+              }}
             />
             <TouchableOpacity onPress={() => setShowPassword(s => !s)} className="p-2 ml-4">
               <Feather name={showPassword ? 'eye' : 'eye-off'} size={20} color="#CD853F" />

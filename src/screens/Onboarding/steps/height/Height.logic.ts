@@ -5,7 +5,7 @@ import { useOnboardingStore } from '../../../../store/onboarding.store';
 export const ITEM_HEIGHT = 64;
 export const CM_MIN = 120;
 export const CM_MAX = 240;
-const DEFAULT_HEIGHT = 165;
+const DEFAULT_HEIGHT = 170;
 
 export const HEIGHTS = Array.from(
   { length: CM_MAX - CM_MIN + 1 },

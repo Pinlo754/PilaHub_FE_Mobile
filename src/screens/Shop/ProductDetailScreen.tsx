@@ -15,7 +15,11 @@ import { useIsFocused } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { getProductById, ProductItem, normalizeImageUrl } from '../../services/products';
+import {
+  getProductById,
+  ProductItem,
+  normalizeImageUrl,
+} from '../../services/products';
 import { getProductReviews } from '../../services/productReviews';
 import { formatVND } from '../../utils/number';
 import { colors } from '../../theme/colors';
@@ -33,6 +37,7 @@ const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = Math.round(width * 0.85 * 0.6);
 
 const COLORS = {
+  default: '#A0522D',
   primary: '#CD853F',
   accent: '#7c3aed',
   warm: '#F59E0B',
@@ -99,7 +104,9 @@ const getSupplementId = (product: ProductItem | any): string => {
   );
 };
 
-const buildSupplementWarningMessage = (supplement: SupplementDetail | null) => {
+const buildSupplementWarningMessage = (
+  supplement: SupplementDetail | null,
+) => {
   if (!supplement) {
     return 'Đây là thực phẩm bổ sung. Vui lòng đọc kỹ hướng dẫn sử dụng, cảnh báo và tham khảo chuyên gia nếu cần trước khi dùng.';
   }
@@ -262,18 +269,29 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [buying, setBuying] = useState(false);
 
-  const [supplementDetail, setSupplementDetail] = useState<SupplementDetail | null>(null);
+  const [supplementDetail, setSupplementDetail] =
+    useState<SupplementDetail | null>(null);
   const [supplementLoading, setSupplementLoading] = useState(false);
 
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>(
+    'success',
+  );
 
   const [modalState, setModalState] = useState<any>({
     visible: false,
     mode: 'noti',
     message: '',
   });
+
+  const REVIEWS_PAGE_SIZE = 5;
+
+  const { addToCart, totalItems, loadCart } = useCart();
+  const isFocused = useIsFocused();
+
+  const imageOpacityRef = React.useRef(new Animated.Value(0));
+  const imageOpacity = imageOpacityRef.current;
 
   const showModal = (opts: {
     title?: string;
@@ -287,24 +305,32 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       title: opts.title,
       message: opts.message,
       onConfirm: () => {
-        try {
-          setModalState((s: any) => ({ ...s, visible: false }));
-        } catch {}
+        setModalState((s: any) => ({
+          ...s,
+          visible: false,
+        }));
 
-        if (opts.onConfirm) opts.onConfirm();
+        if (opts.onConfirm) {
+          opts.onConfirm();
+        }
       },
     });
   };
 
-  const closeModal = () => setModalState((s: any) => ({ ...s, visible: false }));
+  const closeModal = () =>
+    setModalState((s: any) => ({
+      ...s,
+      visible: false,
+    }));
 
-  const REVIEWS_PAGE_SIZE = 5;
-
-  const { addToCart, clearCart, totalItems, loadCart } = useCart();
-  const isFocused = useIsFocused();
-
-  const imageOpacityRef = React.useRef(new Animated.Value(0));
-  const imageOpacity = imageOpacityRef.current;
+  const showToast = (
+    message: string,
+    type: 'success' | 'error' | 'info' = 'info',
+  ) => {
+    setToastMsg(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   const rawForCart = useMemo(() => {
     if (!product) return {};
@@ -381,15 +407,6 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const cannotPurchase = !validation.canCheckout;
 
-  const showToast = (
-    message: string,
-    type: 'success' | 'error' | 'info' = 'info',
-  ) => {
-    setToastMsg(message);
-    setToastType(type);
-    setToastVisible(true);
-  };
-
   useEffect(() => {
     if (!productId) return;
 
@@ -429,6 +446,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         }
       } catch (e) {
         console.warn('load product error', e);
+
         showModal({
           title: 'Lỗi',
           message: 'Không thể tải sản phẩm',
@@ -500,7 +518,11 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       setReviewsLoading(true);
 
       try {
-        const r = await getProductReviews(product.productId, 0, REVIEWS_PAGE_SIZE);
+        const r = await getProductReviews(
+          product.productId,
+          0,
+          REVIEWS_PAGE_SIZE,
+        );
 
         if (mounted) {
           setReviews(r.items || []);
@@ -561,7 +583,10 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     }
 
     if (!validation.canCheckout) {
-      showToast(validation.errors[0] ?? 'Sản phẩm không đủ điều kiện mua', 'error');
+      showToast(
+        validation.errors[0] ?? 'Sản phẩm không đủ điều kiện mua',
+        'error',
+      );
       return false;
     }
 
@@ -599,7 +624,9 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     };
   };
 
-  const confirmSupplementBeforeAction = (action: () => void | Promise<void>) => {
+  const confirmSupplementBeforeAction = (
+    action: () => void | Promise<void>,
+  ) => {
     if (!isSupplement) {
       action();
       return;
@@ -626,6 +653,8 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     confirmSupplementBeforeAction(async () => {
       try {
         await addToCart(item, quantity);
+        await loadCart();
+
         showToast('Đã thêm vào giỏ hàng', 'success');
       } catch (e) {
         console.warn('add to cart failed', e);
@@ -641,19 +670,32 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     if (!item) return;
 
     confirmSupplementBeforeAction(() => {
-      const total = Number(product?.price ?? (rawForCart as any).price ?? 0) * quantity;
+      const total =
+        Number(product?.price ?? (rawForCart as any).price ?? 0) * quantity;
 
       showModal({
         title: 'Xác nhận thanh toán',
-        message: `Vui lòng kiểm tra kỹ thông tin trước khi tiếp tục.\n\nSản phẩm: ${productNameValue}\nSố lượng: ${quantity}\nTổng tiền: ${formatVND(total)}\n\nBạn có muốn chuyển đến trang thanh toán không?`,
+        message:
+          `Vui lòng kiểm tra kỹ thông tin trước khi tiếp tục.\n\n` +
+          `Sản phẩm: ${productNameValue}\n` +
+          `Số lượng: ${quantity}\n` +
+          `Tổng tiền: ${formatVND(total)}\n\n` +
+          `Bạn có muốn chuyển đến trang thanh toán không?`,
         mode: 'confirm',
         onConfirm: async () => {
           setBuying(true);
 
           try {
-            await clearCart();
-            await addToCart(item, quantity);
-            navigation.navigate('Checkout' as any);
+            const checkoutItem = {
+              ...item,
+              quantity,
+              validation,
+            };
+
+            navigation.navigate('Checkout' as any, {
+              items: [checkoutItem],
+              mode: 'buyNow',
+            });
           } catch (e) {
             console.warn('buy now failed', e);
             showToast('Không thể thực hiện mua ngay', 'error');
@@ -698,7 +740,10 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.bg }}>
+      <View
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: COLORS.bg }}
+      >
         <ActivityIndicator />
       </View>
     );
@@ -706,7 +751,10 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   if (!product) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.bg }}>
+      <View
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: COLORS.bg }}
+      >
         <Text className="text-sm text-[#6B7280]">Không tìm thấy sản phẩm</Text>
       </View>
     );
@@ -716,27 +764,47 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.bg }}>
       <View className="px-4 pt-6 pb-3">
         <View className="flex-row items-center justify-between">
-          <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 rounded">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="p-2 rounded"
+          >
             <Ionicons name="arrow-back" size={22} color={colors.foreground} />
           </TouchableOpacity>
 
-          <Text className="text-[18px] font-extrabold" style={{ color: colors.foreground }}>
+          <Text
+            className="text-[18px] font-extrabold"
+            style={{ color: colors.foreground }}
+          >
             Chi tiết sản phẩm
           </Text>
 
           <View className="flex-row items-center">
             <TouchableOpacity className="p-2 rounded" onPress={() => {}}>
-              <Ionicons name="notifications-outline" size={22} color={colors.foreground} />
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color={colors.foreground}
+              />
             </TouchableOpacity>
 
             <View style={localStyles.cartWrap} className="relative">
               <TouchableOpacity onPress={openCart} className="rounded">
-                <Ionicons name="cart-outline" size={22} color={colors.foreground} />
+                <Ionicons
+                  name="cart-outline"
+                  size={22}
+                  color={colors.foreground}
+                />
               </TouchableOpacity>
 
               {totalItems > 0 ? (
                 <View style={localStyles.badgeWrap}>
-                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                  <Text
+                    style={{
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: '700',
+                    }}
+                  >
                     {totalItems > 99 ? '99+' : totalItems}
                   </Text>
                 </View>
@@ -773,7 +841,9 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             {images.map((_, i) => (
               <View
                 key={`dot_${i}`}
-                className={`${i === activeImage ? 'bg-amber-400 w-4' : 'bg-white w-2'} h-2 rounded-full mx-1`}
+                className={`${
+                  i === activeImage ? 'bg-amber-400 w-4' : 'bg-white w-2'
+                } h-2 rounded-full mx-1`}
               />
             ))}
           </View>
@@ -796,13 +866,18 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View className="bg-white rounded-2xl p-4 mx-4 mt-4 border border-red-100">
             <View className="flex-row items-center mb-3">
               <View className="w-10 h-10 rounded-2xl bg-red-50 items-center justify-center mr-3">
-                <Ionicons name="medical-outline" size={20} color={COLORS.danger} />
+                <Ionicons
+                  name="medical-outline"
+                  size={20}
+                  color={COLORS.danger}
+                />
               </View>
 
               <View className="flex-1">
                 <Text className="text-[16px] font-extrabold text-[#0F172A]">
                   Thông tin thực phẩm bổ sung
                 </Text>
+
                 <Text className="text-xs text-[#64748B] mt-1">
                   Vui lòng đọc kỹ trước khi mua và sử dụng
                 </Text>
@@ -812,6 +887,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             {supplementLoading ? (
               <View className="py-4 items-center">
                 <ActivityIndicator />
+
                 <Text className="text-xs text-[#64748B] mt-2">
                   Đang tải thông tin supplement...
                 </Text>
@@ -819,16 +895,26 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             ) : supplementDetail ? (
               <View>
                 <InfoLine label="Dạng sản phẩm" value={supplementDetail.form} />
-                <InfoLine label="Thương hiệu" value={supplementDetail.brand} />
-                <InfoLine label="Hướng dẫn sử dụng" value={supplementDetail.usageInstructions} />
+                <InfoLine
+                  label="Thương hiệu"
+                  value={supplementDetail.brand}
+                />
+                <InfoLine
+                  label="Hướng dẫn sử dụng"
+                  value={supplementDetail.usageInstructions}
+                />
                 <InfoLine label="Lợi ích" value={supplementDetail.benefits} />
-                <InfoLine label="Tác dụng phụ" value={supplementDetail.sideEffects} />
+                <InfoLine
+                  label="Tác dụng phụ"
+                  value={supplementDetail.sideEffects}
+                />
 
                 {supplementDetail.warnings ? (
                   <View className="bg-[#FEF2F2] rounded-2xl p-3 mt-2 border border-[#FECACA]">
                     <Text className="text-[#B91C1C] font-extrabold mb-1">
                       Cảnh báo
                     </Text>
+
                     <Text className="text-[#991B1B] text-sm leading-5">
                       {supplementDetail.warnings}
                     </Text>
@@ -840,6 +926,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     <Text className="text-[#C2410C] font-extrabold mb-1">
                       Chống chỉ định
                     </Text>
+
                     <Text className="text-[#9A3412] text-sm leading-5">
                       {supplementDetail.contraindications}
                     </Text>
@@ -884,11 +971,14 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
           <View className="bg-white rounded-xl p-4 mx-4 mt-2">
             <View className="flex-row items-center">
-              <Text className="text-[28px] font-black mr-3">{rating.toFixed(1)}</Text>
+              <Text className="text-[28px] font-black mr-3">
+                {rating.toFixed(1)}
+              </Text>
 
               <View>
                 <View className="flex-row items-center">
                   <Ionicons name="star" size={18} color={COLORS.warm} />
+
                   <Text className="ml-2 text-sm text-[#6B7280]">
                     {reviewCount} đánh giá
                   </Text>
@@ -906,19 +996,27 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           ) : (
             <View className="mx-4 mt-3">
               {(reviews || []).slice(0, 3).map((r, i) => (
-                <View key={`rev_${r.id}_${i}`} className="bg-white p-3 rounded-xl mb-3">
+                <View
+                  key={`rev_${r.id}_${i}`}
+                  className="bg-white p-3 rounded-xl mb-3"
+                >
                   <View className="flex-row justify-between items-center">
-                    <Text className="font-bold">{r.author ?? 'Người dùng'}</Text>
+                    <Text className="font-bold">
+                      {r.author ?? 'Người dùng'}
+                    </Text>
 
                     <View className="flex-row items-center">
                       <Ionicons name="star" size={14} color={COLORS.warm} />
+
                       <Text className="ml-2 text-sm text-[#6B7280]">
                         {r.rating?.toFixed?.(1) ?? r.rating}
                       </Text>
                     </View>
                   </View>
 
-                  {r.title ? <Text className="mt-2 font-bold">{r.title}</Text> : null}
+                  {r.title ? (
+                    <Text className="mt-2 font-bold">{r.title}</Text>
+                  ) : null}
 
                   {r.comment ? (
                     <Text className="mt-2 text-[#6B7280]">{r.comment}</Text>
@@ -941,7 +1039,9 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <VendorCard
             vendorId={(rawForCart as any).vendorId}
             onPressProduct={p =>
-              navigation.navigate('ProductDetail' as any, { productId: p.productId })
+              navigation.navigate('ProductDetail' as any, {
+                productId: p.productId,
+              })
             }
           />
         ) : null}
@@ -953,12 +1053,19 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       >
         <View className="flex-1">
           <Text className="text-sm text-[#6B7280]">Tổng</Text>
+
           <Text className="text-[18px] font-extrabold text-[#0F172A]">
-            {formatVND(Number(product.price ?? (rawForCart as any).price ?? 0) * quantity)}
+            {formatVND(
+              Number(product.price ?? (rawForCart as any).price ?? 0) *
+                quantity,
+            )}
           </Text>
 
           {cannotPurchase ? (
-            <Text className="text-xs text-red-600 font-semibold mt-1" numberOfLines={1}>
+            <Text
+              className="text-xs text-red-600 font-semibold mt-1"
+              numberOfLines={1}
+            >
               {validation.errors[0] ?? 'Sản phẩm không đủ điều kiện'}
             </Text>
           ) : null}
@@ -978,7 +1085,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             onPress={onBuyNow}
             className="px-5 py-3 rounded-lg"
             style={{
-              backgroundColor: COLORS.warm,
+              backgroundColor: COLORS.default,
               opacity: buying || cannotPurchase ? 0.6 : 1,
             }}
             disabled={buying || cannotPurchase}
@@ -986,7 +1093,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             {buying ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="font-extrabold text-black">Mua ngay</Text>
+              <Text className="font-extrabold text-white">Mua ngay</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -1013,6 +1120,7 @@ const localStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 180,
   },
+
   imageWrapper: {
     width,
     height: IMAGE_HEIGHT,
@@ -1020,12 +1128,14 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.card,
   },
+
   mainImage: {
     width: width - 32,
     height: IMAGE_HEIGHT - 20,
     borderRadius: 14,
     backgroundColor: COLORS.card,
   },
+
   stickyBarShadow: {
     backgroundColor: COLORS.card,
     shadowColor: '#000',
@@ -1033,12 +1143,14 @@ const localStyles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 6,
   },
+
   cartWrap: {
     width: 28,
     height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   badgeWrap: {
     position: 'absolute',
     right: -2,

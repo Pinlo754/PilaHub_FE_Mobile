@@ -7,7 +7,7 @@ export const ITEM_WIDTH = 40;
 
 const KG_MIN = 30;
 const KG_MAX = 150;
-const DEFAULT_WEIGHT = 75;
+const DEFAULT_WEIGHT = 60;
 const KG_TO_LB = 2.20462;
 
 const roundHalf = (v: number) => Math.round(v * 2) / 2;

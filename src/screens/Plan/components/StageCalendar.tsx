@@ -46,6 +46,20 @@ LocaleConfig.locales.vi = {
 
 LocaleConfig.defaultLocale = "vi";
 
+const COLORS = {
+  cardBg: "#FFF8EF",
+  border: "#E7D5BF",
+  title: "#3A2A1A",
+  muted: "#9A7A5A",
+  primary: "#A0522D",
+  schedule: "#C98A5E",
+  scheduleSoft: "#F3D7BE",
+  completed: "#10B981",
+  completedDark: "#059669",
+  disabled: "#C7C7C7",
+  white: "#FFFFFF",
+};
+
 function isScheduleCompleted(scheduleWrapper: any) {
   const schedule = scheduleWrapper?.schedule ?? scheduleWrapper;
 
@@ -87,8 +101,8 @@ export default function StageCalendar({
 
       marks[dateStr] = {
         selected: true,
-        selectedColor: completed ? "#10B981" : "#C98A5E",
-        selectedTextColor: "#FFFFFF",
+        selectedColor: completed ? COLORS.completed : COLORS.schedule,
+        selectedTextColor: COLORS.white,
         completed,
       };
     });
@@ -99,6 +113,10 @@ export default function StageCalendar({
   const handleDateSelect = (day: any) => {
     const date = new Date(day.dateString);
 
+    setSelectedDate(dateString);
+
+    const date = new Date(dateString);
+
     date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
 
     const adjustedDateString = date.toISOString().split("T")[0];
@@ -107,50 +125,156 @@ export default function StageCalendar({
   };
 
   return (
-    <View className="bg-[#E8DCCB] mx-4 rounded-2xl p-3">
+    <View
+      style={{
+        marginHorizontal: 16,
+        marginTop: 8,
+        borderRadius: 28,
+        backgroundColor: COLORS.cardBg,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 5,
+      }}
+    >
+      <View style={{ marginBottom: 8 }}>
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "800",
+            color: COLORS.title,
+          }}
+        >
+          Lịch tập của bạn
+        </Text>
+
+        <Text
+          style={{
+            marginTop: 4,
+            fontSize: 13,
+            color: COLORS.muted,
+          }}
+        >
+          Chọn ngày để xem bài tập trong lộ trình
+        </Text>
+      </View>
+
       <Calendar
         markedDates={markedDates}
         onDayPress={(day) => handleDateSelect(day)}
-        theme={{
-          selectedDayBackgroundColor: "#A0522D",
-          todayTextColor: "#A0522D",
-          arrowColor: "#A0522D",
-        }}
+        firstDay={1}
+        hideExtraDays={false}
+        enableSwipeMonths
+        renderArrow={(direction) => (
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: COLORS.scheduleSoft,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.primary,
+                fontSize: 21,
+                fontWeight: "900",
+                marginTop: -2,
+              }}
+            >
+              {direction === "left" ? "‹" : "›"}
+            </Text>
+          </View>
+        )}
+        theme={
+          {
+            calendarBackground: "transparent",
+
+            textMonthFontSize: 18,
+            textMonthFontWeight: "800",
+            monthTextColor: COLORS.title,
+
+            textDayHeaderFontSize: 12,
+            textDayHeaderFontWeight: "700",
+            textSectionTitleColor: COLORS.muted,
+
+            selectedDayBackgroundColor: COLORS.primary,
+            todayTextColor: COLORS.primary,
+            arrowColor: COLORS.primary,
+
+            "stylesheet.calendar.header": {
+              header: {
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingLeft: 4,
+                paddingRight: 4,
+                marginTop: 8,
+                marginBottom: 10,
+              },
+              dayHeader: {
+                marginTop: 2,
+                marginBottom: 8,
+                width: 34,
+                textAlign: "center",
+                fontSize: 12,
+                color: COLORS.muted,
+                fontWeight: "700",
+              },
+            },
+          } as any
+        }
         dayComponent={({ date, state }: any) => {
           const dateString = date?.dateString;
           const mark = markedDates?.[dateString];
 
           const hasSchedule = Boolean(mark);
           const isCompleted = mark?.completed === true;
+          const isSelected = selectedDate === dateString;
+          const isDisabled = state === "disabled";
 
           const bgColor = hasSchedule
-? mark?.selectedColor ?? "#C98A5E"
-            : "transparent";
+            ? mark?.selectedColor ?? COLORS.schedule
+            : isSelected
+              ? COLORS.scheduleSoft
+              : "transparent";
 
           const textColor = hasSchedule
-            ? "#FFFFFF"
-            : state === "disabled"
-              ? "#C7C7C7"
-              : "#3A2A1A";
+            ? COLORS.white
+            : isSelected
+              ? COLORS.primary
+              : isDisabled
+                ? COLORS.disabled
+                : COLORS.title;
 
           return (
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => handleDateSelect(date)}
               style={{
-                width: 38,
-                height: 38,
-                borderRadius: 19,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: bgColor,
                 position: "relative",
+                borderWidth: isSelected ? 2 : 0,
+                borderColor: isSelected ? COLORS.primary : "transparent",
+                opacity: isDisabled ? 0.55 : 1,
               }}
             >
               <Text
                 style={{
                   color: textColor,
-                  fontWeight: "400",
+                  fontSize: 15,
+                  fontWeight: hasSchedule || isSelected ? "800" : "500",
                 }}
               >
                 {date?.day}
@@ -160,21 +284,21 @@ export default function StageCalendar({
                 <View
                   style={{
                     position: "absolute",
-                    right: -2,
-                    top: -2,
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
-                    backgroundColor: "#059669",
+                    right: -3,
+                    top: -3,
+                    width: 17,
+                    height: 17,
+                    borderRadius: 9,
+                    backgroundColor: COLORS.completedDark,
                     alignItems: "center",
                     justifyContent: "center",
-                    borderWidth: 1,
-                    borderColor: "#FFFFFF",
+                    borderWidth: 1.5,
+                    borderColor: COLORS.white,
                   }}
                 >
                   <Text
                     style={{
-                      color: "#FFFFFF",
+                      color: COLORS.white,
                       fontSize: 10,
                       fontWeight: "900",
                       lineHeight: 12,
@@ -188,6 +312,54 @@ export default function StageCalendar({
           );
         }}
       />
+
+      <View
+        style={{
+          marginTop: 8,
+          paddingTop: 12,
+          borderTopWidth: 1,
+          borderTopColor: COLORS.border,
+          flexDirection: "row",
+          justifyContent: "space-around",
+        }}
+      >
+        <LegendDot color={COLORS.schedule} label="Có lịch" />
+        <LegendDot color={COLORS.completed} label="Hoàn thành" />
+        <LegendDot color={COLORS.scheduleSoft} label="Đang chọn" />
+      </View>
+    </View>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+      }}
+    >
+      <View
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 5,
+          backgroundColor: color,
+          borderWidth: color === COLORS.scheduleSoft ? 1 : 0,
+          borderColor: COLORS.primary,
+        }}
+      />
+
+      <Text
+        style={{
+          fontSize: 12,
+          color: COLORS.muted,
+          fontWeight: "600",
+        }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }

@@ -81,6 +81,7 @@ export default function ScheduleDetail({
     Boolean(schedule?.completed),
   );
 
+  // Toast state
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>(
@@ -110,6 +111,33 @@ export default function ScheduleDetail({
       }
     })();
   }, [schedule, normalizeExercises]);
+
+  // Lắng nghe sự kiện hoàn thành bài tập/lịch tập để tự động mở khóa theo trình tự
+  useEffect(() => {
+    const subEx = DeviceEventEmitter.addListener(
+      'exerciseCompleted',
+      (evt: any) => {
+        const id = evt?.personalExerciseId ?? null;
+        if (!id) return;
+
+        setLocalExercises(prev => {
+          const mapped = prev.map(it => {
+            const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
+            if (pid === id) {
+              return { ...it, completed: true };
+            }
+            return it;
+          });
+
+          // Gọi lại normalizeExercises để mở khóa bài tiếp theo
+          return normalizeExercises(mapped);
+        });
+
+        setToastMessage('Đã hoàn thành động tác');
+        setToastType('success');
+        setToastVisible(true);
+      },
+    );
 
   const showToast = (
     message: string,
@@ -192,7 +220,9 @@ export default function ScheduleDetail({
         if (!sid || sid !== thisSid) return;
 
         setScheduleCompleted(true);
-        showToast('Hoàn thành lịch tập', 'success');
+        setToastMessage('Hoàn thành lịch tập');
+        setToastType('success');
+        setToastVisible(true);
 
         if (typeof onVideoModalChange === 'function') {
           onVideoModalChange(false);
@@ -518,9 +548,7 @@ export default function ScheduleDetail({
       return;
     }
 
-    const fetchAISummary = async (
-      workoutSessionId: string,
-    ) => {
+    const fetchAISummary = async (workoutSessionId: string) => {
       try {
         const workout = await workoutSessionService.getById(workoutSessionId);
         const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
