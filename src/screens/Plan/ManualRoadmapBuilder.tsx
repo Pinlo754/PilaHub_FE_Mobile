@@ -131,7 +131,7 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
       exerciseName: getExerciseName(exercise),
       imageUrl: getExerciseImage(exercise),
       sets: '3',
-     
+      reps: '12',
       durationSeconds: '60',
       restSeconds: '30',
       notes: '',

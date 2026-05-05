@@ -91,15 +91,13 @@ const isSupplementProduct = (product: ProductItem | any): boolean => {
   return getCategoryType(product) === 'SUPPLEMENT';
 };
 
+// ✅ ĐÃ SỬA: lấy refId thay vì supplementId (API trả về refId là ID của supplement)
 const getSupplementId = (product: ProductItem | any): string => {
   return String(
-    product?.supplementId ??
-      product?.supplement_id ??
-      product?.raw?.supplementId ??
-      product?.raw?.supplement_id ??
-      product?.raw?.supplement?.supplementId ??
-      product?.raw?.supplement?.supplement_id ??
-      getProductId(product) ??
+    product?.raw?.refId ??
+      product?.refId ??
+      product?.raw?.ref_id ??
+      product?.ref_id ??
       '',
   );
 };
@@ -229,11 +227,12 @@ const buildRawForCart = (product: ProductItem | any) => {
       product?.isInstallationSupported ??
       product?.supportsInstallation,
 
+    // ✅ ĐÃ SỬA: lấy refId thay vì supplementId
     supplementId:
-      product?.supplementId ??
-      product?.supplement_id ??
-      product?.raw?.supplementId ??
-      product?.raw?.supplement_id,
+      product?.raw?.refId ??
+      product?.refId ??
+      product?.raw?.ref_id ??
+      product?.ref_id,
   };
 };
 
@@ -476,6 +475,7 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         return;
       }
 
+      // ✅ ĐÃ SỬA: dùng refId từ API product để gọi /supplements/{refId}
       const supplementId = getSupplementId(product);
 
       if (!supplementId) {
