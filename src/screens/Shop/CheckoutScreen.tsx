@@ -18,6 +18,7 @@ import { formatVND } from '../../utils/number';
 import { createOrder } from '../../services/order';
 import { fetchMyWallet } from '../../services/wallet';
 import { calculateShippingFee } from '../../services/shipping';
+import { getAddresses } from '../../services/address';
 import { CartLine } from '../../services/cart';
 
 import {
@@ -29,7 +30,6 @@ import {
 } from './utils/cartValidation';
 import ModalPopup from '../../components/ModalPopup';
 
-type ShippingId = 'fast' | 'standard';
 type PaymentId = 'cod' | 'card' | 'pilapay';
 
 type VendorGroup = {
@@ -37,6 +37,102 @@ type VendorGroup = {
   shopName: string;
   items: CartLine[];
 };
+
+function removeVietnameseTones(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+}
+
+function normalizeRegionText(value: any): string {
+  return removeVietnameseTones(String(value ?? ''))
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getAddressRegionCandidates(address: any): string[] {
+  if (!address) return [];
+
+  const values = [
+    address.province,
+    address.city,
+    address.district,
+    address.ward,
+    address.addressLine,
+  ];
+
+  return values
+    .filter(Boolean)
+    .map(value => normalizeRegionText(value))
+    .filter(Boolean);
+}
+
+function getProductSupportedRegions(item: any): string[] {
+  const raw = item.raw ?? {};
+
+  const value =
+    raw.regionSupported ??
+    raw.region_supported ??
+    raw.supportedRegions ??
+    raw.supported_regions ??
+    raw.installationRegions ??
+    raw.installation_regions ??
+    item.regionSupported ??
+    item.region_supported ??
+    item.supportedRegions ??
+    item.supported_regions ??
+    item.installationRegions ??
+    item.installation_regions;
+
+  if (Array.isArray(value)) {
+    return value.map(region => normalizeRegionText(region)).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map(region => normalizeRegionText(region))
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function isInstallationRegionMatched(item: any, address: any): boolean {
+  const supportedRegions = getProductSupportedRegions(item);
+
+  if (supportedRegions.length === 0) {
+    return true;
+  }
+
+  const addressRegions = getAddressRegionCandidates(address);
+
+  if (addressRegions.length === 0) {
+    return false;
+  }
+
+  return supportedRegions.some(supported => {
+    const supportedCompact = supported.replace(/\s+/g, '');
+
+    return addressRegions.some(addressRegion => {
+      const addressCompact = addressRegion.replace(/\s+/g, '');
+
+      return (
+        addressRegion === supported ||
+        addressRegion.includes(supported) ||
+        supported.includes(addressRegion) ||
+        addressCompact === supportedCompact ||
+        addressCompact.includes(supportedCompact) ||
+        supportedCompact.includes(addressCompact)
+      );
+    });
+  });
+}
 
 function getVendorId(item: any): string {
   const raw = item.raw ?? {};
@@ -70,7 +166,7 @@ function getVendorName(item: any): string {
   );
 }
 
-function supportsInstallation(item: any): boolean {
+function supportsInstallation(item: any, address?: any): boolean {
   const raw = item.raw ?? {};
 
   const value =
@@ -89,17 +185,21 @@ function supportsInstallation(item: any): boolean {
     item.installation_supported ??
     item.supportsInstallation;
 
-  if (typeof value === 'boolean') return value;
+  let supportedFlag = false;
 
-  if (typeof value === 'string') {
-    return ['true', '1', 'yes', 'y', 'co', 'có'].includes(
+  if (typeof value === 'boolean') {
+    supportedFlag = value;
+  } else if (typeof value === 'string') {
+    supportedFlag = ['true', '1', 'yes', 'y', 'co', 'có'].includes(
       value.trim().toLowerCase(),
     );
+  } else if (typeof value === 'number') {
+    supportedFlag = value === 1;
   }
 
-  if (typeof value === 'number') return value === 1;
+  if (!supportedFlag) return false;
 
-  return false;
+  return isInstallationRegionMatched(item, address);
 }
 
 function sumShippingMap(map?: Record<string, number | null>): number {
@@ -108,6 +208,36 @@ function sumShippingMap(map?: Record<string, number | null>): number {
   return Object.values(map).reduce((acc: number, value) => {
     return acc + (value ?? 0);
   }, 0);
+}
+
+function normalizeCheckoutItem(item: any): CartLine {
+  return {
+    product_id:
+      item.product_id ??
+      item.productId ??
+      item.raw?.productId ??
+      item.raw?.product_id ??
+      '',
+    product_name:
+      item.product_name ??
+      item.productName ??
+      item.name ??
+      item.raw?.name ??
+      item.raw?.productName ??
+      item.raw?.product_name ??
+      'Sản phẩm',
+    thumnail_url:
+      item.thumnail_url ??
+      item.thumbnailUrl ??
+      item.imageUrl ??
+      item.raw?.thumbnailUrl ??
+      item.raw?.thumnail_url ??
+      item.raw?.imageUrl,
+    price: Number(item.price ?? item.raw?.price ?? 0),
+    quantity: Math.max(1, Number(item.quantity ?? 1)),
+    raw: item.raw ?? {},
+    installationRequest: Boolean(item.installationRequest),
+  };
 }
 
 function AddressCard({
@@ -190,100 +320,62 @@ function PaymentOption({
   );
 }
 
-function ShippingOption({
-  id,
-  title,
-  subtitle,
-  price,
-  selected,
-  onSelect,
-}: {
-  id: ShippingId;
-  title: string;
-  subtitle?: string;
-  price?: number | 'free';
-  selected: ShippingId;
-  onSelect: (id: ShippingId) => void;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={() => onSelect(id)}
-      style={[styles.option, selected === id && styles.optionSelected]}
-    >
-      <View style={styles.optionLeft}>
-        <View style={[styles.radioOuter, selected === id && styles.radioSelected]}>
-          {selected === id ? <View style={styles.radioInner} /> : null}
-        </View>
-
-        <View style={styles.optionTextWrap}>
-          <Text style={styles.optionTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.optionSub}>{subtitle}</Text> : null}
-        </View>
-      </View>
-
-      <Text style={styles.optionPrice}>
-        {price === 'free'
-          ? 'Miễn phí'
-          : price === undefined
-            ? 'Đang tính...'
-            : formatVND(price)}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function ProductShippingOptions({
-  selected,
-  onSelect,
-  computedVendorShipping,
-}: {
-  selected?: ShippingId;
-  onSelect: (id: ShippingId) => void;
-  computedVendorShipping?: number | null;
-}) {
-  const cur = selected ?? 'fast';
-
-  const fastPrice: number | 'free' | undefined =
-    computedVendorShipping == null
-      ? undefined
-      : computedVendorShipping === 0
-        ? 'free'
-        : computedVendorShipping;
-
-  return (
-    <View style={styles.productShippingCard}>
-      <ShippingOption
-        id="fast"
-        title="Giao hàng nhanh"
-        subtitle="Nhận trong 1-2 ngày"
-        price={fastPrice}
-        selected={cur}
-        onSelect={onSelect}
-      />
-    </View>
-  );
-}
-
 function WalletRowComponent({
   wallet,
   selectedPayment,
+  grandTotal,
 }: {
   wallet: any | null;
   selectedPayment: PaymentId;
+  grandTotal: number;
 }) {
-  if (!wallet || selectedPayment !== 'pilapay') return null;
+  if (selectedPayment !== 'pilapay') return null;
 
-  const available = Number(wallet.availableVND ?? wallet.available ?? 0);
+  const available = Number(wallet?.availableVND ?? wallet?.available ?? 0);
+  const insufficient = available < grandTotal;
 
   return (
-    <View style={styles.walletRow}>
-      <Ionicons name="wallet-outline" size={18} color="#8B3F2D" />
-      <Text style={styles.walletText}>Số dư ví: {formatVND(available)}</Text>
+    <View
+      style={[
+        styles.walletRow,
+        insufficient ? styles.walletRowError : styles.walletRowOk,
+      ]}
+    >
+      <Ionicons
+        name={insufficient ? 'alert-circle-outline' : 'wallet-outline'}
+        size={18}
+        color={insufficient ? '#B91C1C' : '#047857'}
+      />
+
+      <View style={styles.walletTextWrap}>
+        <Text
+          style={[
+            styles.walletText,
+            insufficient ? styles.walletTextError : styles.walletTextOk,
+          ]}
+        >
+          Số dư ví: {formatVND(available)}
+        </Text>
+
+        {insufficient ? (
+          <Text style={styles.walletSubTextError}>
+            Số dư không đủ để thanh toán đơn hàng này.
+          </Text>
+        ) : (
+          <Text style={styles.walletSubTextOk}>
+            Số dư ví đủ để thanh toán.
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
 
-function ProductValidationBadge({ validation }: { validation: CartValidationResult }) {
+function ProductValidationBadge({
+  validation,
+}: {
+  validation: CartValidationResult;
+}) {
   const reason = getMainInvalidReason(validation);
 
   if (!reason) {
@@ -301,11 +393,17 @@ function ProductValidationBadge({ validation }: { validation: CartValidationResu
     <View
       style={[
         styles.validationBox,
-        validation.canCheckout ? styles.validationWarning : styles.validationError,
+        validation.canCheckout
+          ? styles.validationWarning
+          : styles.validationError,
       ]}
     >
       <Ionicons
-        name={validation.canCheckout ? 'information-circle-outline' : 'alert-circle-outline'}
+        name={
+          validation.canCheckout
+            ? 'information-circle-outline'
+            : 'alert-circle-outline'
+        }
         size={14}
         color={validation.canCheckout ? '#C2410C' : '#B91C1C'}
       />
@@ -326,22 +424,39 @@ function ProductValidationBadge({ validation }: { validation: CartValidationResu
 function InstallationControl({
   item,
   installSupported,
+  selectedAddress,
   onToggleInstallation,
 }: {
   item: CartLine;
   installSupported: boolean;
+  selectedAddress?: any;
   onToggleInstallation: (productId: string, value: boolean) => void;
 }) {
+  const supportedRegions = getProductSupportedRegions(item);
+  const hasRegionRule = supportedRegions.length > 0;
+
+  const installText = !installSupported
+    ? hasRegionRule && selectedAddress
+      ? 'Ngoài vùng'
+      : 'Không hỗ trợ'
+    : item.installationRequest
+      ? 'Đã chọn'
+      : 'Thêm lắp đặt';
+
   return (
     <View style={styles.installArea}>
       <Text style={styles.installLabel}>Lắp đặt</Text>
 
       <TouchableOpacity
         disabled={!installSupported}
-        onPress={() => onToggleInstallation(item.product_id, !item.installationRequest)}
+        onPress={() =>
+          onToggleInstallation(item.product_id, !item.installationRequest)
+        }
         style={[
           styles.installChip,
-          installSupported && item.installationRequest ? styles.installChipOn : null,
+          installSupported && item.installationRequest
+            ? styles.installChipOn
+            : null,
           !installSupported ? styles.installChipDisabled : null,
         ]}
       >
@@ -366,15 +481,13 @@ function InstallationControl({
         <Text
           style={[
             styles.installChipText,
-            installSupported && item.installationRequest ? styles.installChipTextOn : null,
+            installSupported && item.installationRequest
+              ? styles.installChipTextOn
+              : null,
             !installSupported ? styles.installChipTextDisabled : null,
           ]}
         >
-          {!installSupported
-            ? 'Không hỗ trợ'
-            : item.installationRequest
-              ? 'Đã chọn'
-              : 'Thêm lắp đặt'}
+          {installText}
         </Text>
       </TouchableOpacity>
     </View>
@@ -384,45 +497,54 @@ function InstallationControl({
 function CheckoutItem({
   item,
   validation,
-  selectedShipping,
-  shippingFee,
   quantityInput,
+  selectedAddress,
   onChangeQuantityText,
   onCommitQuantityInput,
-  onSelectShipping,
   onUpdateQuantity,
   onToggleInstallation,
   showModal,
 }: {
   item: CartLine;
   validation: CartValidationResult;
-  selectedShipping?: ShippingId;
-  shippingFee?: number | null;
   quantityInput: string;
+  selectedAddress?: any;
   onChangeQuantityText: (text: string) => void;
   onCommitQuantityInput: () => void;
-  onSelectShipping: (id: ShippingId) => void;
   onUpdateQuantity: (productId: string, qty: number) => void;
   onToggleInstallation: (productId: string, value: boolean) => void;
-  showModal: (opts: { title?: string; message: string; mode?: 'noti'|'confirm'|'toast'; onConfirm?: () => void; }) => void;
+  showModal: (opts: {
+    title?: string;
+    message: string;
+    mode?: 'noti' | 'confirm' | 'toast';
+    onConfirm?: () => void;
+  }) => void;
 }) {
   const canIncrease =
     validation.canCheckout &&
     (validation.stock === null || Number(item.quantity) < validation.stock);
 
   const canDecrease = validation.canCheckout && Number(item.quantity) > 1;
-  const installSupported = supportsInstallation(item);
+  const installSupported = supportsInstallation(item, selectedAddress);
 
   const increase = () => {
     if (!validation.canCheckout) {
-      showModal({ title: 'Không thể cập nhật', message: validation.errors[0] ?? 'Sản phẩm không hợp lệ', mode: 'noti' });
+      showModal({
+        title: 'Không thể cập nhật',
+        message: validation.errors[0] ?? 'Sản phẩm không hợp lệ',
+        mode: 'noti',
+      });
       return;
     }
 
     const nextQty = Number(item.quantity || 1) + 1;
 
     if (validation.stock !== null && nextQty > validation.stock) {
-      showModal({ title: 'Vượt tồn kho', message: `Chỉ còn ${validation.stock} sản phẩm trong kho`, mode: 'noti' });
+      showModal({
+        title: 'Vượt tồn kho',
+        message: `Chỉ còn ${validation.stock} sản phẩm trong kho`,
+        mode: 'noti',
+      });
       return;
     }
 
@@ -431,14 +553,22 @@ function CheckoutItem({
 
   const decrease = () => {
     if (!validation.canCheckout) {
-      showModal({ title: 'Không thể cập nhật', message: validation.errors[0] ?? 'Sản phẩm không hợp lệ', mode: 'noti' });
+      showModal({
+        title: 'Không thể cập nhật',
+        message: validation.errors[0] ?? 'Sản phẩm không hợp lệ',
+        mode: 'noti',
+      });
       return;
     }
 
     const current = Number(item.quantity || 1);
 
     if (current <= 1) {
-      showModal({ title: 'Số lượng tối thiểu', message: 'Số lượng tối thiểu là 1.', mode: 'noti' });
+      showModal({
+        title: 'Số lượng tối thiểu',
+        message: 'Số lượng tối thiểu là 1.',
+        mode: 'noti',
+      });
       return;
     }
 
@@ -462,7 +592,9 @@ function CheckoutItem({
             {item.product_name}
           </Text>
 
-          <Text style={styles.itemPriceUnit}>{formatVND(Number(item.price || 0))}</Text>
+          <Text style={styles.itemPriceUnit}>
+            {formatVND(Number(item.price || 0))}
+          </Text>
 
           <View style={styles.badgeRow}>
             <View
@@ -471,10 +603,14 @@ function CheckoutItem({
                 validation.isOutOfStock ? styles.badgeRed : styles.badgeGreen,
               ]}
             >
-              <Text style={[
-                styles.smallBadgeText,
-                validation.isOutOfStock ? styles.smallBadgeTextRed : styles.smallBadgeTextGreen,
-              ]}>
+              <Text
+                style={[
+                  styles.smallBadgeText,
+                  validation.isOutOfStock
+                    ? styles.smallBadgeTextRed
+                    : styles.smallBadgeTextGreen,
+                ]}
+              >
                 {getStockLabel(validation)}
               </Text>
             </View>
@@ -499,7 +635,8 @@ function CheckoutItem({
                       : styles.smallBadgeTextGreen,
                 ]}
               >
-                {validation.requireExpiryDate ? 'HSD' : 'Hạn'}: {getExpiryLabel(validation)}
+                {validation.requireExpiryDate ? 'HSD' : 'Hạn'}:{' '}
+                {getExpiryLabel(validation)}
               </Text>
             </View>
           </View>
@@ -509,6 +646,7 @@ function CheckoutItem({
           <InstallationControl
             item={item}
             installSupported={installSupported}
+            selectedAddress={selectedAddress}
             onToggleInstallation={onToggleInstallation}
           />
         </View>
@@ -520,7 +658,14 @@ function CheckoutItem({
               onPress={decrease}
               disabled={!canDecrease}
             >
-              <Text style={[styles.qtyBtnText, !canDecrease && styles.qtyTextDisabled]}>−</Text>
+              <Text
+                style={[
+                  styles.qtyBtnText,
+                  !canDecrease && styles.qtyTextDisabled,
+                ]}
+              >
+                −
+              </Text>
             </TouchableOpacity>
 
             <TextInput
@@ -539,7 +684,14 @@ function CheckoutItem({
               onPress={increase}
               disabled={!canIncrease}
             >
-              <Text style={[styles.qtyBtnText, !canIncrease && styles.qtyTextDisabled]}>+</Text>
+              <Text
+                style={[
+                  styles.qtyBtnText,
+                  !canIncrease && styles.qtyTextDisabled,
+                ]}
+              >
+                +
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -548,14 +700,6 @@ function CheckoutItem({
           </Text>
         </View>
       </View>
-
-      <View style={styles.productShippingContainer}>
-        <ProductShippingOptions
-          selected={selectedShipping}
-          computedVendorShipping={shippingFee}
-          onSelect={onSelectShipping}
-        />
-      </View>
     </View>
   );
 }
@@ -563,8 +707,7 @@ function CheckoutItem({
 function VendorCheckoutGroup({
   group,
   validations,
-  selectedShippingByItem,
-  setSelectedShippingByItem,
+  selectedAddress,
   computedShippingByVendor,
   qtyInputs,
   onChangeQuantityText,
@@ -575,18 +718,29 @@ function VendorCheckoutGroup({
 }: {
   group: VendorGroup;
   validations: Record<string, CartValidationResult>;
-  selectedShippingByItem: Record<string, ShippingId>;
-  setSelectedShippingByItem: React.Dispatch<React.SetStateAction<Record<string, ShippingId>>>;
+  selectedAddress?: any;
   computedShippingByVendor: Record<string, number | null>;
   qtyInputs: Record<string, string>;
   onChangeQuantityText: (productId: string, text: string) => void;
   onCommitQuantityInput: (productId: string) => void;
   onUpdateQuantity: (productId: string, qty: number) => void;
   onToggleInstallation: (productId: string, value: boolean) => void;
-  showModal: (opts: { title?: string; message: string; mode?: 'noti'|'confirm'|'toast'; onConfirm?: () => void; }) => void;
+  showModal: (opts: {
+    title?: string;
+    message: string;
+    mode?: 'noti' | 'confirm' | 'toast';
+    onConfirm?: () => void;
+  }) => void;
 }) {
-  const invalidCount = group.items.filter(item => !validations[item.product_id]?.canCheckout).length;
-  const installSupportedCount = group.items.filter(item => supportsInstallation(item)).length;
+  const invalidCount = group.items.filter(
+    item => !validations[item.product_id]?.canCheckout,
+  ).length;
+
+  const installSupportedCount = group.items.filter(item =>
+    supportsInstallation(item, selectedAddress),
+  ).length;
+
+  const shipping = computedShippingByVendor[group.shopId];
 
   return (
     <View style={styles.vendorSection}>
@@ -595,24 +749,45 @@ function VendorCheckoutGroup({
           <View style={styles.flex1}>
             <Text style={styles.vendorTitle}>{group.shopName}</Text>
 
-            <Text style={styles.vendorShippingText}>
-              {computedShippingByVendor[group.shopId] != null
-                ? computedShippingByVendor[group.shopId] === 0
-                  ? 'Phí vận chuyển: Miễn phí'
-                  : `Phí vận chuyển: ${formatVND(computedShippingByVendor[group.shopId] as number)}`
-                : 'Đang tính phí vận chuyển...'}
-            </Text>
-
             <Text style={styles.vendorInstallText}>
-              {installSupportedCount}/{group.items.length} sản phẩm hỗ trợ lắp đặt
+              {installSupportedCount}/{group.items.length} sản phẩm hỗ trợ lắp
+              đặt
             </Text>
           </View>
 
-          <View style={invalidCount > 0 ? styles.vendorBadgeError : styles.vendorBadgeOk}>
-            <Text style={invalidCount > 0 ? styles.vendorBadgeErrorText : styles.vendorBadgeOkText}>
+          <View
+            style={
+              invalidCount > 0 ? styles.vendorBadgeError : styles.vendorBadgeOk
+            }
+          >
+            <Text
+              style={
+                invalidCount > 0
+                  ? styles.vendorBadgeErrorText
+                  : styles.vendorBadgeOkText
+              }
+            >
               {invalidCount > 0 ? `${invalidCount} lỗi` : 'Hợp lệ'}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.shopShippingBox}>
+          <View style={styles.shopShippingLeft}>
+            <Ionicons name="car-outline" size={16} color="#8B3F2D" />
+
+            <View style={styles.shopShippingTextWrap}>
+              <Text style={styles.shopShippingTitle}>Phí giao hàng</Text>
+            </View>
+          </View>
+
+          <Text style={styles.shopShippingPrice}>
+            {shipping == null
+              ? 'Đang tính...'
+              : shipping === 0
+                ? 'Miễn phí'
+                : formatVND(shipping)}
+          </Text>
         </View>
 
         {group.items.map(item => (
@@ -620,16 +795,15 @@ function VendorCheckoutGroup({
             key={item.product_id}
             item={item}
             validation={validations[item.product_id]}
-            selectedShipping={selectedShippingByItem[item.product_id]}
-            shippingFee={computedShippingByVendor[group.shopId]}
-            quantityInput={qtyInputs[item.product_id] ?? String(item.quantity ?? 1)}
-            onChangeQuantityText={text => onChangeQuantityText(item.product_id, text)}
-            onCommitQuantityInput={() => onCommitQuantityInput(item.product_id)}
-            onSelectShipping={id =>
-              setSelectedShippingByItem(prev => ({
-                ...prev,
-                [item.product_id]: id,
-              }))
+            quantityInput={
+              qtyInputs[item.product_id] ?? String(item.quantity ?? 1)
+            }
+            selectedAddress={selectedAddress}
+            onChangeQuantityText={text =>
+              onChangeQuantityText(item.product_id, text)
+            }
+            onCommitQuantityInput={() =>
+              onCommitQuantityInput(item.product_id)
             }
             onUpdateQuantity={onUpdateQuantity}
             onToggleInstallation={onToggleInstallation}
@@ -657,14 +831,18 @@ function SummaryCard({
 
       <View style={styles.summaryRow}>
         <Text style={styles.summaryLabel}>Phí vận chuyển</Text>
-        <Text>{shippingCharge > 0 ? formatVND(shippingCharge) : 'Miễn phí'}</Text>
+        <Text>
+          {shippingCharge > 0 ? formatVND(shippingCharge) : 'Miễn phí'}
+        </Text>
       </View>
 
       <View style={styles.summaryDivider} />
 
       <View style={styles.summaryRowTop}>
         <Text style={styles.summaryLabelBold}>Tổng cộng</Text>
-        <Text style={styles.summaryValueBold}>{formatVND(total + shippingCharge)}</Text>
+        <Text style={styles.summaryValueBold}>
+          {formatVND(total + shippingCharge)}
+        </Text>
       </View>
     </View>
   );
@@ -676,18 +854,29 @@ function FooterContent({
   onConfirm,
   busy,
   disabled,
+  disabledReason,
 }: {
   total: number;
   shippingCharge: number;
   onConfirm: () => void;
   busy?: boolean;
   disabled?: boolean;
+  disabledReason?: string;
 }) {
   return (
     <View style={styles.footerBar}>
       <View style={styles.flex1PaddingRight12}>
         <Text style={styles.footerLabel}>Tổng thanh toán</Text>
-        <Text style={styles.footerTotal}>{formatVND(total + shippingCharge)}</Text>
+
+        <Text style={styles.footerTotal}>
+          {formatVND(total + shippingCharge)}
+        </Text>
+
+        {disabledReason ? (
+          <Text style={styles.footerDisabledReason} numberOfLines={2}>
+            {disabledReason}
+          </Text>
+        ) : null}
       </View>
 
       <TouchableOpacity
@@ -718,47 +907,117 @@ export default function CheckoutScreen() {
   } = useCart();
 
   const routeItems = route.params?.items;
+  const checkoutMode = route.params?.mode ?? 'cart';
+  const isBuyNow = checkoutMode === 'buyNow';
 
-  const selectedProductIds = useMemo(() => {
-    if (!Array.isArray(routeItems) || routeItems.length === 0) return null;
-    return routeItems.map((item: any) => item.product_id);
+  const normalizedRouteItems = useMemo<CartLine[]>(() => {
+    if (!Array.isArray(routeItems) || routeItems.length === 0) return [];
+
+    return routeItems.map(normalizeCheckoutItem);
   }, [routeItems]);
 
-  const checkoutLines = useMemo(() => {
-    if (selectedProductIds && selectedProductIds.length > 0) {
-      return lines.filter(item => selectedProductIds.includes(item.product_id));
-    }
-
-    return lines;
-  }, [lines, selectedProductIds]);
-
-  const [selectedShippingByItem, setSelectedShippingByItem] = useState<Record<string, ShippingId>>({});
-  const [selectedPayment, setSelectedPayment] = useState<PaymentId>('pilapay');
-  const [selectedAddress, setSelectedAddress] = useState<any | undefined>(route.params?.selectedAddress);
+  const [localBuyNowLines, setLocalBuyNowLines] = useState<CartLine[]>([]);
+  const [selectedPayment, setSelectedPayment] =
+    useState<PaymentId>('pilapay');
+  const [selectedAddress, setSelectedAddress] = useState<any | undefined>(
+    route.params?.selectedAddress,
+  );
+  const [addressLoading, setAddressLoading] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
   const [shippingLoading, setShippingLoading] = useState(false);
 
   const [wallet, setWallet] = useState<any | null>(null);
-  const [computedShippingByVendor, setComputedShippingByVendor] = useState<Record<string, number | null>>({});
+  const [computedShippingByVendor, setComputedShippingByVendor] = useState<
+    Record<string, number | null>
+  >({});
   const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
 
-  // ModalPopup state for confirmations/notifications
-  const [modalState, setModalState] = useState<any>({ visible: false, mode: 'noti', message: '' });
+  const [modalState, setModalState] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    message: '',
+  });
 
-  const showModal = (opts: { title?: string; message: string; mode?: 'noti'|'confirm'|'toast'; onConfirm?: () => void; }) => {
+  React.useEffect(() => {
+    if (isBuyNow && normalizedRouteItems.length > 0) {
+      setLocalBuyNowLines(normalizedRouteItems);
+    }
+  }, [isBuyNow, normalizedRouteItems]);
+
+  const checkoutLines = useMemo<CartLine[]>(() => {
+    if (isBuyNow) {
+      return localBuyNowLines;
+    }
+
+    if (normalizedRouteItems.length > 0) {
+      const selectedIds = normalizedRouteItems.map(item => item.product_id);
+      return lines.filter(item => selectedIds.includes(item.product_id));
+    }
+
+    return lines;
+  }, [isBuyNow, localBuyNowLines, normalizedRouteItems, lines]);
+
+  const showModal = (opts: {
+    title?: string;
+    message: string;
+    mode?: 'noti' | 'confirm' | 'toast';
+    onConfirm?: () => void;
+  }) => {
     setModalState({
       visible: true,
       mode: opts.mode ?? 'noti',
       title: opts.title,
       message: opts.message,
       onConfirm: () => {
-        try { setModalState((s:any) => ({ ...s, visible: false })); } catch {}
+        try {
+          setModalState((s: any) => ({ ...s, visible: false }));
+        } catch {}
+
         if (opts.onConfirm) opts.onConfirm();
       },
     });
   };
 
-  const closeModal = () => setModalState((s: any) => ({ ...s, visible: false }));
+  const closeModal = () =>
+    setModalState((s: any) => ({ ...s, visible: false }));
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    const loadDefaultAddress = async () => {
+      try {
+        if (route.params?.selectedAddress) return;
+
+        setAddressLoading(true);
+
+        const addresses = await getAddresses();
+
+        if (!mounted) return;
+
+        const defaultAddress =
+          addresses.find((addr: any) => addr.isDefault === true) ??
+          addresses.find((addr: any) => addr.default === true) ??
+          addresses.find((addr: any) => addr.is_default === true) ??
+          addresses[0];
+
+        if (defaultAddress) {
+          setSelectedAddress(defaultAddress);
+        }
+      } catch (error) {
+        console.warn('[Checkout] load default address failed', error);
+      } finally {
+        if (mounted) {
+          setAddressLoading(false);
+        }
+      }
+    };
+
+    loadDefaultAddress();
+
+    return () => {
+      mounted = false;
+    };
+  }, [route.params?.selectedAddress]);
 
   const validations = useMemo<Record<string, CartValidationResult>>(() => {
     const result: Record<string, CartValidationResult> = {};
@@ -771,7 +1030,9 @@ export default function CheckoutScreen() {
   }, [checkoutLines]);
 
   const invalidItems = useMemo(() => {
-    return checkoutLines.filter(item => !validations[item.product_id]?.canCheckout);
+    return checkoutLines.filter(
+      item => !validations[item.product_id]?.canCheckout,
+    );
   }, [checkoutLines, validations]);
 
   const totalPrice = useMemo(() => {
@@ -781,6 +1042,13 @@ export default function CheckoutScreen() {
   }, [checkoutLines]);
 
   const displayShippingCharge = sumShippingMap(computedShippingByVendor);
+
+  const grandTotal = totalPrice + displayShippingCharge;
+
+  const walletBalance = Number(wallet?.availableVND ?? wallet?.available ?? 0);
+
+  const isWalletInsufficient =
+    selectedPayment === 'pilapay' && walletBalance < grandTotal;
 
   const groups = useMemo<VendorGroup[]>(() => {
     const map: Record<string, VendorGroup> = {};
@@ -804,8 +1072,10 @@ export default function CheckoutScreen() {
   }, [checkoutLines]);
 
   const supportedInstallItems = useMemo(() => {
-    return checkoutLines.filter(item => supportsInstallation(item));
-  }, [checkoutLines]);
+    return checkoutLines.filter(item =>
+      supportsInstallation(item, selectedAddress),
+    );
+  }, [checkoutLines, selectedAddress]);
 
   const allInstallation =
     supportedInstallItems.length > 0 &&
@@ -817,20 +1087,6 @@ export default function CheckoutScreen() {
       if (result.ok) setWallet(result.data);
     })();
   }, []);
-
-  React.useEffect(() => {
-    setSelectedShippingByItem(prev => {
-      const next = { ...prev };
-
-      for (const item of checkoutLines) {
-        if (!next[item.product_id]) {
-          next[item.product_id] = 'fast';
-        }
-      }
-
-      return next;
-    });
-  }, [checkoutLines]);
 
   React.useEffect(() => {
     const next: Record<string, string> = {};
@@ -862,7 +1118,9 @@ export default function CheckoutScreen() {
         groupByVendor[vendorId].push(item);
       }
 
-      const vendorIds = Object.keys(groupByVendor).filter(id => id && id !== 'unknown');
+      const vendorIds = Object.keys(groupByVendor).filter(
+        id => id && id !== 'unknown',
+      );
 
       if (vendorIds.length === 0) {
         setComputedShippingByVendor({ unknown: 0 });
@@ -906,21 +1164,43 @@ export default function CheckoutScreen() {
               const validation = validations[item.product_id];
               if (!validation?.canCheckout) continue;
 
-              const chosen = selectedShippingByItem[item.product_id] ?? 'fast';
-              if (chosen !== 'fast') continue;
+              const quantity = Math.max(
+                1,
+                Math.floor(Number(item.quantity) || 1),
+              );
 
-              const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
               const raw = item.raw ?? {};
 
               const weight = getNum(
                 raw,
-                ['weight', 'packageWeight', 'weightInGrams', 'weight_g', 'grams', 'package_weight'],
+                [
+                  'weight',
+                  'packageWeight',
+                  'weightInGrams',
+                  'weight_g',
+                  'grams',
+                  'package_weight',
+                ],
                 defaultDims.weight,
               );
 
-              const height = getNum(raw, ['height', 'packageHeight', 'h'], defaultDims.height);
-              const length = getNum(raw, ['length', 'packageLength', 'l'], defaultDims.length);
-              const width = getNum(raw, ['width', 'packageWidth', 'w'], defaultDims.width);
+              const height = getNum(
+                raw,
+                ['height', 'packageHeight', 'h'],
+                defaultDims.height,
+              );
+
+              const length = getNum(
+                raw,
+                ['length', 'packageLength', 'l'],
+                defaultDims.length,
+              );
+
+              const width = getNum(
+                raw,
+                ['width', 'packageWidth', 'w'],
+                defaultDims.width,
+              );
 
               totalQuantity += quantity;
               totalWeight += weight * quantity;
@@ -965,7 +1245,7 @@ export default function CheckoutScreen() {
         setShippingLoading(false);
       }
     })();
-  }, [selectedAddress, checkoutLines, selectedShippingByItem, validations]);
+  }, [selectedAddress, checkoutLines, validations]);
 
   const onUpdateQuantitySafe = async (productId: string, qty: number) => {
     const item = checkoutLines.find(x => x.product_id === productId);
@@ -974,7 +1254,11 @@ export default function CheckoutScreen() {
     if (!item || !validation) return;
 
     if (!validation.canCheckout) {
-      showModal({ title: 'Không thể cập nhật', message: validation.errors[0] ?? 'Sản phẩm không hợp lệ', mode: 'noti' });
+      showModal({
+        title: 'Không thể cập nhật',
+        message: validation.errors[0] ?? 'Sản phẩm không hợp lệ',
+        mode: 'noti',
+      });
       return;
     }
 
@@ -982,13 +1266,32 @@ export default function CheckoutScreen() {
 
     if (validation.stock !== null && nextQty > validation.stock) {
       nextQty = validation.stock;
-      showModal({ title: 'Vượt tồn kho', message: `Chỉ còn ${validation.stock} sản phẩm trong kho`, mode: 'noti' });
+      showModal({
+        title: 'Vượt tồn kho',
+        message: `Chỉ còn ${validation.stock} sản phẩm trong kho`,
+        mode: 'noti',
+      });
     }
 
     setQtyInputs(prev => ({
       ...prev,
       [productId]: String(nextQty),
     }));
+
+    if (isBuyNow) {
+      setLocalBuyNowLines(prev =>
+        prev.map(line =>
+          line.product_id === productId
+            ? {
+                ...line,
+                quantity: nextQty,
+              }
+            : line,
+        ),
+      );
+
+      return;
+    }
 
     await updateQuantity(productId, nextQty);
     await loadCart();
@@ -1012,9 +1315,17 @@ export default function CheckoutScreen() {
       nextQty = 1;
     }
 
-    if (validation?.stock !== null && validation?.stock !== undefined && nextQty > validation.stock) {
+    if (
+      validation?.stock !== null &&
+      validation?.stock !== undefined &&
+      nextQty > validation.stock
+    ) {
       nextQty = validation.stock;
-      showModal({ title: 'Vượt tồn kho', message: `Chỉ còn ${validation.stock} sản phẩm trong kho`, mode: 'noti' });
+      showModal({
+        title: 'Vượt tồn kho',
+        message: `Chỉ còn ${validation.stock} sản phẩm trong kho`,
+        mode: 'noti',
+      });
     }
 
     setQtyInputs(prev => ({
@@ -1033,9 +1344,17 @@ export default function CheckoutScreen() {
       nextQty = 1;
     }
 
-    if (validation?.stock !== null && validation?.stock !== undefined && nextQty > validation.stock) {
+    if (
+      validation?.stock !== null &&
+      validation?.stock !== undefined &&
+      nextQty > validation.stock
+    ) {
       nextQty = validation.stock;
-      showModal({ title: 'Vượt tồn kho', message: `Chỉ còn ${validation.stock} sản phẩm trong kho`, mode: 'noti' });
+      showModal({
+        title: 'Vượt tồn kho',
+        message: `Chỉ còn ${validation.stock} sản phẩm trong kho`,
+        mode: 'noti',
+      });
     }
 
     setQtyInputs(prev => ({
@@ -1046,12 +1365,34 @@ export default function CheckoutScreen() {
     await onUpdateQuantitySafe(productId, nextQty);
   };
 
-  const onToggleInstallationSafe = async (productId: string, value: boolean) => {
+  const onToggleInstallationSafe = async (
+    productId: string,
+    value: boolean,
+  ) => {
     const item = checkoutLines.find(x => x.product_id === productId);
     if (!item) return;
 
-    if (!supportsInstallation(item)) {
-      showModal({ title: 'Không hỗ trợ', message: 'Sản phẩm này không hỗ trợ lắp đặt.', mode: 'noti' });
+    if (!supportsInstallation(item, selectedAddress)) {
+      showModal({
+        title: 'Không hỗ trợ',
+        message: 'Sản phẩm này không hỗ trợ lắp đặt tại địa chỉ hiện tại.',
+        mode: 'noti',
+      });
+      return;
+    }
+
+    if (isBuyNow) {
+      setLocalBuyNowLines(prev =>
+        prev.map(line =>
+          line.product_id === productId
+            ? {
+                ...line,
+                installationRequest: value,
+              }
+            : line,
+        ),
+      );
+
       return;
     }
 
@@ -1061,7 +1402,27 @@ export default function CheckoutScreen() {
 
   const toggleAllInstallation = async (value: boolean) => {
     if (supportedInstallItems.length === 0) {
-      showModal({ title: 'Không có sản phẩm hỗ trợ', message: 'Không có sản phẩm nào hỗ trợ lắp đặt.', mode: 'noti' });
+      showModal({
+        title: 'Không có sản phẩm hỗ trợ',
+        message:
+          'Không có sản phẩm nào hỗ trợ lắp đặt tại địa chỉ hiện tại.',
+        mode: 'noti',
+      });
+      return;
+    }
+
+    if (isBuyNow) {
+      setLocalBuyNowLines(prev =>
+        prev.map(line =>
+          supportsInstallation(line, selectedAddress)
+            ? {
+                ...line,
+                installationRequest: value,
+              }
+            : line,
+        ),
+      );
+
       return;
     }
 
@@ -1074,7 +1435,11 @@ export default function CheckoutScreen() {
 
   const validateBeforeOrder = () => {
     if (checkoutLines.length === 0) {
-      showModal({ title: 'Giỏ hàng trống', message: 'Không có sản phẩm để thanh toán.', mode: 'noti' });
+      showModal({
+        title: 'Giỏ hàng trống',
+        message: 'Không có sản phẩm để thanh toán.',
+        mode: 'noti',
+      });
       return false;
     }
 
@@ -1085,27 +1450,52 @@ export default function CheckoutScreen() {
         validations[first.product_id]?.errors?.[0] ??
         'Có sản phẩm không đủ điều kiện đặt hàng.';
 
-      showModal({ title: 'Sản phẩm chưa hợp lệ', message: reason, mode: 'noti' });
+      showModal({
+        title: 'Sản phẩm chưa hợp lệ',
+        message: reason,
+        mode: 'noti',
+      });
       return false;
     }
 
     if (!selectedAddress) {
-      showModal({ title: 'Thiếu địa chỉ', message: 'Vui lòng chọn địa chỉ giao hàng.', mode: 'noti' });
+      showModal({
+        title: 'Thiếu địa chỉ',
+        message: 'Vui lòng chọn địa chỉ giao hàng.',
+        mode: 'noti',
+      });
       return false;
     }
 
     if (!selectedAddress.addressId) {
-      showModal({ title: 'Địa chỉ không hợp lệ', message: 'Địa chỉ giao hàng thiếu mã addressId.', mode: 'noti' });
+      showModal({
+        title: 'Địa chỉ không hợp lệ',
+        message: 'Địa chỉ giao hàng thiếu mã addressId.',
+        mode: 'noti',
+      });
       return false;
     }
 
-    if (!selectedAddress.receiverName || !selectedAddress.receiverPhone || !selectedAddress.addressLine) {
-      showModal({ title: 'Địa chỉ chưa đầy đủ', message: 'Vui lòng kiểm tra lại tên, số điện thoại và địa chỉ nhận hàng.', mode: 'noti' });
+    if (
+      !selectedAddress.receiverName ||
+      !selectedAddress.receiverPhone ||
+      !selectedAddress.addressLine
+    ) {
+      showModal({
+        title: 'Địa chỉ chưa đầy đủ',
+        message:
+          'Vui lòng kiểm tra lại tên, số điện thoại và địa chỉ nhận hàng.',
+        mode: 'noti',
+      });
       return false;
     }
 
     if (shippingLoading) {
-      showModal({ title: 'Đang tính phí vận chuyển', message: 'Vui lòng đợi hệ thống tính xong phí vận chuyển.', mode: 'noti' });
+      showModal({
+        title: 'Đang tính phí vận chuyển',
+        message: 'Vui lòng đợi hệ thống tính xong phí vận chuyển.',
+        mode: 'noti',
+      });
       return false;
     }
 
@@ -1118,34 +1508,43 @@ export default function CheckoutScreen() {
     );
 
     if (vendorIds.length === 0) {
-      showModal({ title: 'Thiếu nhà bán', message: 'Có sản phẩm thiếu thông tin nhà bán, không thể đặt hàng.', mode: 'noti' });
+      showModal({
+        title: 'Thiếu nhà bán',
+        message:
+          'Có sản phẩm thiếu thông tin nhà bán, không thể đặt hàng.',
+        mode: 'noti',
+      });
       return false;
     }
 
     const missingShipping = vendorIds.some(id => {
-      return computedShippingByVendor[id] === null || computedShippingByVendor[id] === undefined;
+      return (
+        computedShippingByVendor[id] === null ||
+        computedShippingByVendor[id] === undefined
+      );
     });
 
     if (missingShipping) {
-      showModal({ title: 'Thiếu phí vận chuyển', message: 'Vui lòng chọn địa chỉ và chờ hệ thống tính phí vận chuyển.', mode: 'noti' });
+      showModal({
+        title: 'Thiếu phí vận chuyển',
+        message:
+          'Vui lòng chọn địa chỉ và chờ hệ thống tính phí vận chuyển.',
+        mode: 'noti',
+      });
       return false;
     }
 
-    const grandTotal = totalPrice + displayShippingCharge;
+    if (isWalletInsufficient) {
+      showModal({
+        title: 'Số dư không đủ',
+        message: `Số dư khả dụng hiện tại là ${formatVND(
+          walletBalance,
+        )}. Vui lòng nạp thêm để tiếp tục thanh toán.`,
+        mode: 'confirm',
+        onConfirm: () => navigation.navigate('Wallet'),
+      });
 
-    if (selectedPayment === 'pilapay' && wallet) {
-      const available = Number(wallet.availableVND ?? wallet.available ?? 0);
-
-      if (available < grandTotal) {
-        showModal({
-          title: 'Số dư không đủ',
-          message: `Số dư khả dụng hiện tại là ${formatVND(available)}. Vui lòng nạp thêm.`,
-          mode: 'confirm',
-          onConfirm: () => navigation.navigate('Wallet'),
-        });
-
-        return false;
-      }
+      return false;
     }
 
     return true;
@@ -1168,7 +1567,9 @@ export default function CheckoutScreen() {
       }));
 
     const sanitizedItems = checkoutLines.map((item: any) => {
-      const requested = Boolean(item.installationRequest) && supportsInstallation(item);
+      const requested =
+        Boolean(item.installationRequest) &&
+        supportsInstallation(item, selectedAddress);
 
       return {
         productId: item.product_id,
@@ -1183,19 +1584,15 @@ export default function CheckoutScreen() {
       recipientPhone: selectedAddress.receiverPhone,
       shippingAddress: selectedAddress.addressLine,
       addressId: selectedAddress.addressId,
-
       items: sanitizedItems,
-
       discountAmount: 0,
       vendorShippings,
-
       paymentMethod:
         selectedPayment === 'pilapay'
           ? 'WALLET'
           : selectedPayment === 'card'
             ? 'CARD'
             : 'COD',
-
       notes: '',
     };
 
@@ -1208,11 +1605,13 @@ export default function CheckoutScreen() {
 
       console.log('[Checkout] createOrder response', created);
 
-      for (const item of checkoutLines) {
-        await removeFromCart(item.product_id);
-      }
+      if (!isBuyNow) {
+        for (const item of checkoutLines) {
+          await removeFromCart(item.product_id);
+        }
 
-      await loadCart();
+        await loadCart();
+      }
 
       navigation.navigate('OrderSuccess' as never, { orders: created } as never);
     } catch (err: any) {
@@ -1223,9 +1622,15 @@ export default function CheckoutScreen() {
 
       if (
         apiError?.errorCode === 'INSUFFICIENT_BALANCE' ||
-        (err?.response?.status === 400 && String(message).toLowerCase().includes('insufficient'))
+        (err?.response?.status === 400 &&
+          String(message).toLowerCase().includes('insufficient'))
       ) {
-        showModal({ title: 'Số dư không đủ', message, mode: 'confirm', onConfirm: () => navigation.navigate('Wallet') });
+        showModal({
+          title: 'Số dư không đủ',
+          message,
+          mode: 'confirm',
+          onConfirm: () => navigation.navigate('Wallet'),
+        });
       } else {
         showModal({ title: 'Lỗi', message, mode: 'noti' });
       }
@@ -1246,7 +1651,11 @@ export default function CheckoutScreen() {
 
     showModal({
       title: 'Xác nhận đặt hàng',
-      message: `Bạn có chắc muốn đặt đơn hàng này?\n\nSố sản phẩm: ${checkoutLines.length}\nPhương thức: ${paymentText}\nTổng thanh toán: ${formatVND(totalPrice + displayShippingCharge)}`,
+      message: `Bạn có chắc muốn đặt đơn hàng này?\n\nSố sản phẩm: ${
+        checkoutLines.length
+      }\nPhương thức: ${paymentText}\nTổng thanh toán: ${formatVND(
+        grandTotal,
+      )}`,
       mode: 'confirm',
       onConfirm: createOrderNow,
     });
@@ -1256,7 +1665,10 @@ export default function CheckoutScreen() {
     return (
       <SafeAreaView style={styles.root}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.headerBackBtn}
+          >
             <Ionicons name="arrow-back" size={22} color="#0F172A" />
           </TouchableOpacity>
 
@@ -1274,7 +1686,10 @@ export default function CheckoutScreen() {
             Vui lòng quay lại giỏ hàng và chọn sản phẩm.
           </Text>
 
-          <TouchableOpacity style={styles.backToCartBtn} onPress={() => navigation.navigate('Cart')}>
+          <TouchableOpacity
+            style={styles.backToCartBtn}
+            onPress={() => navigation.navigate('Cart')}
+          >
             <Text style={styles.backToCartText}>Quay lại giỏ hàng</Text>
           </TouchableOpacity>
         </View>
@@ -1285,7 +1700,10 @@ export default function CheckoutScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerBackBtn}
+        >
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
 
@@ -1294,18 +1712,40 @@ export default function CheckoutScreen() {
         <View style={styles.headerPlaceholder} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin giao hàng</Text>
 
-          <AddressCard
-            address={selectedAddress}
-            onPress={() =>
-              navigation.navigate('AddressList', {
-                onSelect: (address: any) => setSelectedAddress(address),
-              })
-            }
-          />
+          {addressLoading ? (
+            <View style={styles.card}>
+              <View style={styles.addressRow}>
+                <View style={styles.locationIcon}>
+                  <Ionicons name="location-outline" size={22} color="#fff" />
+                </View>
+
+                <View style={styles.addressBody}>
+                  <Text style={styles.addressName}>Đang tải địa chỉ...</Text>
+                  <Text style={styles.addressText}>
+                    Hệ thống đang lấy địa chỉ mặc định của bạn
+                  </Text>
+                </View>
+
+                <ActivityIndicator color="#8B3F2D" />
+              </View>
+            </View>
+          ) : (
+            <AddressCard
+              address={selectedAddress}
+              onPress={() =>
+                navigation.navigate('AddressList', {
+                  onSelect: (address: any) => setSelectedAddress(address),
+                })
+              }
+            />
+          )}
         </View>
 
         <View style={styles.section}>
@@ -1313,13 +1753,22 @@ export default function CheckoutScreen() {
             onPress={() => toggleAllInstallation(!allInstallation)}
             style={[
               styles.allInstallRow,
-              supportedInstallItems.length === 0 ? styles.allInstallDisabled : null,
+              supportedInstallItems.length === 0
+                ? styles.allInstallDisabled
+                : null,
             ]}
             disabled={supportedInstallItems.length === 0}
           >
             <View style={styles.allInstallLeft}>
-              <View style={[styles.allInstallBox, allInstallation ? styles.allInstallBoxOn : null]}>
-                {allInstallation ? <Text style={styles.allInstallTick}>✓</Text> : null}
+              <View
+                style={[
+                  styles.allInstallBox,
+                  allInstallation ? styles.allInstallBoxOn : null,
+                ]}
+              >
+                {allInstallation ? (
+                  <Text style={styles.allInstallTick}>✓</Text>
+                ) : null}
               </View>
 
               <View style={styles.flex1}>
@@ -1330,7 +1779,7 @@ export default function CheckoutScreen() {
                 <Text style={styles.allInstallSub}>
                   {supportedInstallItems.length > 0
                     ? `${supportedInstallItems.length}/${checkoutLines.length} sản phẩm hỗ trợ lắp đặt`
-                    : 'Không có sản phẩm nào hỗ trợ lắp đặt'}
+                    : 'Không có sản phẩm nào hỗ trợ lắp đặt tại địa chỉ hiện tại'}
                 </Text>
               </View>
             </View>
@@ -1346,7 +1795,8 @@ export default function CheckoutScreen() {
                 <Text style={styles.warningTitle}>Có sản phẩm cần kiểm tra</Text>
 
                 <Text style={styles.warningDesc}>
-                  Một số sản phẩm có thể hết hàng, hết hạn, vượt tồn kho, thiếu nhà bán hoặc giá không hợp lệ.
+                  Một số sản phẩm có thể hết hàng, hết hạn, vượt tồn kho, thiếu
+                  nhà bán hoặc giá không hợp lệ.
                 </Text>
               </View>
             </View>
@@ -1361,8 +1811,7 @@ export default function CheckoutScreen() {
               key={group.shopId}
               group={group}
               validations={validations}
-              selectedShippingByItem={selectedShippingByItem}
-              setSelectedShippingByItem={setSelectedShippingByItem}
+              selectedAddress={selectedAddress}
               computedShippingByVendor={computedShippingByVendor}
               qtyInputs={qtyInputs}
               onChangeQuantityText={onChangeQuantityText}
@@ -1399,11 +1848,18 @@ export default function CheckoutScreen() {
         </View>
 
         <View style={styles.section}>
-          <WalletRowComponent wallet={wallet} selectedPayment={selectedPayment} />
+          <WalletRowComponent
+            wallet={wallet}
+            selectedPayment={selectedPayment}
+            grandTotal={grandTotal}
+          />
         </View>
 
         <View style={styles.footerSpacing}>
-          <SummaryCard total={totalPrice} shippingCharge={displayShippingCharge} />
+          <SummaryCard
+            total={totalPrice}
+            shippingCharge={displayShippingCharge}
+          />
         </View>
       </ScrollView>
 
@@ -1412,8 +1868,25 @@ export default function CheckoutScreen() {
         shippingCharge={displayShippingCharge}
         onConfirm={onConfirm}
         busy={isPlacing}
-        disabled={invalidItems.length > 0 || shippingLoading}
+        disabled={
+          invalidItems.length > 0 ||
+          shippingLoading ||
+          addressLoading ||
+          isWalletInsufficient
+        }
+        disabledReason={
+          isWalletInsufficient
+            ? 'Số dư ví không đủ'
+            : shippingLoading
+              ? 'Đang tính phí vận chuyển'
+              : addressLoading
+                ? 'Đang tải địa chỉ'
+                : invalidItems.length > 0
+                  ? 'Có sản phẩm chưa hợp lệ'
+                  : undefined
+        }
       />
+
       <ModalPopup
         {...(modalState as any)}
         titleText={modalState.title}
@@ -1429,6 +1902,7 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   flex1PaddingRight12: { flex: 1, paddingRight: 12 },
   flex1MarginLeft8: { flex: 1, marginLeft: 8 },
+
   smallBadgeTextGreen: { color: '#047857' },
   smallBadgeTextRed: { color: '#B91C1C' },
   smallBadgeTextOrange: { color: '#C2410C' },
@@ -1500,8 +1974,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   vendorTitle: { fontWeight: '800', fontSize: 15, color: '#0F172A' },
-  vendorShippingText: { color: '#6B7280', marginTop: 4, fontSize: 12 },
-  vendorInstallText: { color: '#94A3B8', marginTop: 3, fontSize: 11, fontWeight: '700' },
+  vendorInstallText: {
+    color: '#94A3B8',
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   vendorBadgeOk: {
     backgroundColor: '#ECFDF5',
     paddingHorizontal: 8,
@@ -1516,6 +1994,44 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   vendorBadgeErrorText: { color: '#B91C1C', fontWeight: '800', fontSize: 11 },
+
+  shopShippingBox: {
+    marginTop: 10,
+    marginBottom: 8,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  shopShippingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  shopShippingTextWrap: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  shopShippingTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#8B3F2D',
+  },
+  shopShippingSub: {
+    fontSize: 11,
+    color: '#9A3412',
+    marginTop: 2,
+  },
+  shopShippingPrice: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#C2410C',
+  },
 
   itemBlock: {
     borderTopWidth: 1,
@@ -1646,52 +2162,6 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
 
-  productShippingContainer: {
-    marginLeft: 74,
-    marginRight: 6,
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  productShippingCard: {
-    marginTop: 6,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-    elevation: 1,
-    overflow: 'hidden',
-  },
-
-  option: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 6,
-    backgroundColor: '#fff',
-    width: '100%',
-  },
-  optionSelected: {
-    backgroundColor: '#E6F7FF',
-    borderColor: '#D1EFFF',
-    borderWidth: 1,
-  },
-  optionLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  optionTextWrap: { marginLeft: 10, flex: 1 },
-  optionTitle: { fontWeight: '700', fontSize: 14, color: '#0F172A' },
-  optionSub: { color: '#6B7280', marginTop: 2, fontSize: 13 },
-  optionPrice: {
-    color: '#007AFF',
-    fontWeight: '700',
-    minWidth: 56,
-    textAlign: 'right',
-    flexShrink: 0,
-    fontSize: 14,
-  },
-
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1716,6 +2186,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 10,
   },
+
+  optionLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  optionTextWrap: { marginLeft: 10, flex: 1 },
+  optionTitle: { fontWeight: '700', fontSize: 14, color: '#0F172A' },
+  optionSub: { color: '#6B7280', marginTop: 2, fontSize: 13 },
 
   radioOuter: {
     width: 18,
@@ -1744,8 +2219,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1E7DC',
   },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  summaryRowTop: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  summaryRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
   summaryLabel: { color: '#6B7280' },
   summaryLabelBold: { color: '#6B7280', fontWeight: '700' },
   summaryValueBold: { fontWeight: '800', fontSize: 18, color: '#8B3F2D' },
@@ -1766,6 +2249,12 @@ const styles = StyleSheet.create({
   },
   footerLabel: { color: '#6B7280' },
   footerTotal: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  footerDisabledReason: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#B91C1C',
+    fontWeight: '700',
+  },
   orderBtn: {
     backgroundColor: '#8B3F2D',
     paddingHorizontal: 20,
@@ -1812,22 +2301,53 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   warningTitle: { color: '#B91C1C', fontWeight: '800' },
-  warningDesc: { color: '#991B1B', fontSize: 12, lineHeight: 18, marginTop: 3 },
+  warningDesc: {
+    color: '#991B1B',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 3,
+  },
 
   walletRow: {
     padding: 12,
-    backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#F1E7DC',
     flexDirection: 'row',
     alignItems: 'center',
   },
+  walletRowOk: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#BBF7D0',
+  },
+  walletRowError: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  walletTextWrap: {
+    flex: 1,
+    marginLeft: 8,
+  },
   walletText: {
     fontSize: 14,
-    color: '#333',
-    marginLeft: 8,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  walletTextOk: {
+    color: '#047857',
+  },
+  walletTextError: {
+    color: '#B91C1C',
+  },
+  walletSubTextOk: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#047857',
+    fontWeight: '600',
+  },
+  walletSubTextError: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#991B1B',
+    fontWeight: '600',
   },
 
   emptyWrap: {

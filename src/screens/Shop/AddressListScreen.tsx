@@ -59,7 +59,8 @@ export default function AddressListScreen({ route }: any) {
    * mode = 'select' => đi từ Checkout sang để chọn địa chỉ
    * mode = 'manage' hoặc undefined => đi từ Profile / quản lý địa chỉ
    */
-  const isSelectMode = route.params?.mode === 'select';
+  // If caller passes an onSelect callback we consider this a select flow as well.
+  const isSelectMode = route.params?.mode === 'select' || typeof route.params?.onSelect === 'function';
 
   const load = async () => {
     setLoading(true);
@@ -131,20 +132,24 @@ export default function AddressListScreen({ route }: any) {
   };
 
   const onSelect = (addr: any) => {
-    /**
-     * Trường hợp đi từ Checkout:
-     * Chọn địa chỉ xong quay lại Checkout và truyền selectedAddress.
-     */
+    // If caller provided an onSelect callback (preferred pattern), call it and go back
+    if (typeof route.params?.onSelect === 'function') {
+      try {
+        route.params.onSelect(addr);
+      } catch (e) {
+        console.warn('AddressList: onSelect callback threw', e);
+      }
+      navigation.goBack();
+      return;
+    }
+
+    // Legacy select-mode navigation: navigate back to Checkout with param
     if (isSelectMode) {
       navigation.navigate('Checkout', { selectedAddress: addr });
       return;
     }
 
-    /**
-     * Trường hợp đi từ Profile / Quản lý địa chỉ:
-     * Bấm vào card thì mở form sửa địa chỉ.
-     * Không được nhảy qua Checkout.
-     */
+    // Default: open edit form
     handleEdit(addr);
   };
 

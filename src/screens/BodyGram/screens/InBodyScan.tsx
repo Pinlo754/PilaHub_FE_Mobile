@@ -12,6 +12,8 @@ import { uploadInBodyScan } from '../../../services/profile';
 import storage from '@react-native-firebase/storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ModalPopup from '../../../components/ModalPopup';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ModalMode = 'noti' | 'confirm' | 'toast';
 
@@ -102,6 +104,11 @@ export default function InBodyScan() {
         }
       },
     });
+  }
+
+  function handleGoBack() {
+    if (uploading) return;
+    nav.goBack();
   }
 
   async function pickFromCamera() {
@@ -199,14 +206,17 @@ export default function InBodyScan() {
          * roadmapFinalUpdate:
          * InBodyScan -> Result -> PATCH finalHealthProfileId cho roadmap.
          */
-        nav.navigate('Result' as never, {
-          measurements: extracted?.measurements ?? null,
-          rawResponse: extracted?.entry ? extracted : { entry: extracted },
-          source: 'InBody',
-          alreadySaved: true,
-          returnToAfterAssessment,
-          roadmapFinalUpdate,
-        } as never);
+        nav.navigate(
+          'Result' as never,
+          {
+            measurements: extracted?.measurements ?? null,
+            rawResponse: extracted?.entry ? extracted : { entry: extracted },
+            source: 'InBody',
+            alreadySaved: true,
+            returnToAfterAssessment,
+            roadmapFinalUpdate,
+          } as never,
+        );
 
         return;
       }
@@ -237,8 +247,23 @@ export default function InBodyScan() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>InBody Scan</Text>
+    <SafeAreaView style={styles.container}>
+      {/* Ionic-style Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleGoBack}
+          disabled={uploading}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="arrow-back" size={24} color="#A0522D" />
+    
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>InBody Scan</Text>
+
+        <View style={styles.headerRightPlaceholder} />
+      </View>
 
       <Text style={styles.description}>
         Chụp hoặc chọn ảnh kết quả InBody. Hệ thống sẽ trích xuất chỉ số sức khỏe
@@ -273,7 +298,13 @@ export default function InBodyScan() {
         </View>
       ) : (
         <View style={styles.emptyPreview}>
+          <Ionicons name="image-outline" size={42} color="#D8C4AE" />
+
           <Text style={styles.emptyPreviewText}>Chưa có ảnh InBody</Text>
+
+          <Text style={styles.emptyPreviewSubText}>
+            Hãy chụp ảnh hoặc chọn ảnh kết quả từ thư viện
+          </Text>
         </View>
       )}
 
@@ -294,7 +325,7 @@ export default function InBodyScan() {
         {...(modalProps as any)}
         onClose={modalProps.onClose ?? closeModal}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -302,27 +333,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFAF0',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
+
+  header: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
+  },
+
+  backButton: {
+    minWidth: 78,
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+
+  backText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#A0522D',
+    marginLeft: 2,
+  },
+
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#3A2A1A',
   },
+
+  headerRightPlaceholder: {
+    width: 78,
+    height: 42,
+  },
+
   description: {
     textAlign: 'center',
     color: '#6B6B6B',
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 16,
+    paddingHorizontal: 6,
   },
+
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+
   btn: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -330,11 +396,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   primary: {
     backgroundColor: '#A0522D',
     flex: 1,
     marginRight: 8,
   },
+
   ghost: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -342,6 +410,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
   },
+
   upload: {
     backgroundColor: '#A0522D',
     borderRadius: 12,
@@ -349,26 +418,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
+
   disabledBtn: {
     opacity: 0.7,
   },
+
   btnText: {
     color: '#fff',
     fontWeight: '700',
   },
+
   ghostText: {
     color: '#111827',
   },
+
   preview: {
     marginTop: 12,
     alignItems: 'center',
   },
+
   previewImg: {
     width: '100%',
     height: 300,
     borderRadius: 12,
     backgroundColor: '#eee',
   },
+
   emptyPreview: {
     width: '100%',
     height: 300,
@@ -379,9 +454,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
+    paddingHorizontal: 24,
   },
+
   emptyPreviewText: {
     color: '#8B8B8B',
     fontSize: 14,
+    fontWeight: '600',
+    marginTop: 10,
   },
-});
+
+  emptyPreviewSubText: {
+    color: '#B0A092',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 17,
+  },
+}); 

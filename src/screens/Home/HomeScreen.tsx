@@ -18,7 +18,7 @@ import MainGuideOverlay from '../../components/MainGuideOverlay';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
-  const { dailyTasks, recommendCourses, newExercises, newProducts, scrollRef } =
+  const {  scrollRef } =
     useHomeScreen();
 
   /**
@@ -85,22 +85,22 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Daily Task */}
-        <DailyTask data={dailyTasks} navigation={navigation} />
 
         {/* Roadmap Progress */}
         <RoadmapProgress />
 
         {/* Quick Actions */}
         <QuickActions navigation={navigation} targetRefs={targetRefs} />
+        <DailyTask navigation={navigation} />
 
         {/* Recommend Course */}
-        <RecommendCourse data={recommendCourses} />
+        <RecommendCourse  />
 
         {/* New Exercise */}
-        <NewExercise data={newExercises} />
+        <NewExercise  />
 
         {/* New Product */}
-        <NewProduct data={newProducts} />
+        <NewProduct  />
       </ScrollView>
 
       {/* Main Guide Overlay */}

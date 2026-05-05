@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  LayoutChangeEvent,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -18,6 +20,9 @@ import Toast from '../../components/Toast';
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
+  const scrollRef = useRef<ScrollView | null>(null);
+  const inputPositions = useRef<Record<string, number>>({});
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -60,7 +65,34 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
     validatePhone(phone) &&
     password === confirmPassword;
 
+  const saveInputPosition = (key: string, e: LayoutChangeEvent) => {
+    inputPositions.current[key] = e.nativeEvent.layout.y;
+  };
+
+  const scrollToInput = (key: string) => {
+    setTimeout(() => {
+      const y = inputPositions.current[key] ?? 0;
+
+      scrollRef.current?.scrollTo({
+        y: Math.max(y - 80, 0),
+        animated: true,
+      });
+    }, Platform.OS === 'ios' ? 250 : 350);
+  };
+
+  const scrollToPhoneInput = () => {
+    setTimeout(() => {
+      const y = inputPositions.current.phone ?? 0;
+
+      scrollRef.current?.scrollTo({
+        y: Math.max(y - 40, 0),
+        animated: true,
+      });
+    }, Platform.OS === 'ios' ? 250 : 450);
+  };
+
   const handleRegister = async () => {
+    Keyboard.dismiss();
     setError(null);
 
     if (!canRegister) return;
@@ -119,13 +151,12 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* Header */}
         <View className="flex-row items-center px-4 py-3">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -142,211 +173,217 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           contentContainerStyle={{
-            flexGrow: 1,
-            paddingBottom: 40,
+            paddingHorizontal: 24,
+            paddingBottom: Platform.OS === 'ios' ? 100 : 100,
           }}
         >
-          {/* Content */}
-          <View className="flex-1 px-6">
-            {/* Logo */}
-            <View className="items-center mt-6 mb-4">
-              <View className="w-16 h-16 rounded-full bg-black items-center justify-center">
-                <Text className="text-white text-xl">🏋️</Text>
-              </View>
-
-              <Text className="mt-3 text-xl font-semibold text-foreground">
-                PilaHub
-              </Text>
-
-              <Text className="mt-2 text-sm text-secondaryText text-center">
-                Tạo tài khoản mới để bắt đầu hành trình của bạn
-              </Text>
+          <View className="items-center mt-6 mb-4">
+            <View className="w-16 h-16 rounded-full bg-black items-center justify-center">
+              <Text className="text-white text-xl">🏋️</Text>
             </View>
 
-            {/* Email */}
-            <View className="mt-12">
-              <Text className="mb-1 text-secondaryText">Email</Text>
+            <Text className="mt-3 text-xl font-semibold text-foreground">
+              PilaHub
+            </Text>
 
-              <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Nhập Email"
-                  className="flex-1 text-base text-black"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  returnKeyType="next"
-                  placeholderTextColor="#9CA3AF"
+            <Text className="mt-2 text-sm text-secondaryText text-center">
+              Tạo tài khoản mới để bắt đầu hành trình của bạn
+            </Text>
+          </View>
+
+          <View
+            className="mt-12"
+            onLayout={e => saveInputPosition('email', e)}
+          >
+            <Text className="mb-1 text-secondaryText">Email</Text>
+
+            <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => scrollToInput('email')}
+                placeholder="Nhập Email"
+                className="flex-1 text-base text-black"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                returnKeyType="next"
+                placeholderTextColor="#9CA3AF"
+              />
+
+              <Feather name="mail" size={20} color="#CD853F" />
+            </View>
+
+            {!validateEmail(email) && email.length > 0 && (
+              <Text className="mt-1 text-xs text-red-500">
+                Email không hợp lệ
+              </Text>
+            )}
+          </View>
+
+          <View
+            className="mt-4"
+            onLayout={e => saveInputPosition('password', e)}
+          >
+            <Text className="mb-1 text-secondaryText">Password</Text>
+
+            <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => scrollToInput('password')}
+                placeholder="Nhập Mật Khẩu"
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="newPassword"
+                className="flex-1 text-base text-black"
+                returnKeyType="next"
+                placeholderTextColor="#9CA3AF"
+              />
+
+              <TouchableOpacity
+                onPress={() => setShowPassword(s => !s)}
+                className="p-2"
+              >
+                <Feather
+                  name={showPassword ? 'eye' : 'eye-off'}
+                  size={20}
+                  color="#CD853F"
                 />
-
-                <Feather name="mail" size={20} color="#CD853F" />
-              </View>
-
-              {!validateEmail(email) && email.length > 0 && (
-                <Text className="mt-1 text-xs text-red-500">
-                  Email không hợp lệ
-                </Text>
-              )}
+              </TouchableOpacity>
             </View>
 
-            {/* Password */}
-            <View className="mt-4">
-              <Text className="mb-1 text-secondaryText">Password</Text>
+            {password.length < 6 && password.length > 0 && (
+              <Text className="mt-1 text-xs text-red-500">
+                Mật khẩu tối thiểu 6 ký tự
+              </Text>
+            )}
+          </View>
 
-              <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Nhập Mật Khẩu"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="newPassword"
-                  className="flex-1 text-base text-black"
-                  returnKeyType="next"
-                  placeholderTextColor="#9CA3AF"
+          <View
+            className="mt-4"
+            onLayout={e => saveInputPosition('confirmPassword', e)}
+          >
+            <Text className="mb-1 text-secondaryText">
+              Xác nhận mật khẩu
+            </Text>
+
+            <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
+              <TextInput
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                onFocus={() => scrollToInput('confirmPassword')}
+                placeholder="Nhập lại Mật Khẩu"
+                secureTextEntry={!showConfirm}
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="password"
+                className="flex-1 text-base text-black"
+                returnKeyType="next"
+                placeholderTextColor="#9CA3AF"
+              />
+
+              <TouchableOpacity
+                onPress={() => setShowConfirm(s => !s)}
+                className="p-2"
+              >
+                <Feather
+                  name={showConfirm ? 'eye' : 'eye-off'}
+                  size={20}
+                  color="#CD853F"
                 />
-
-                <TouchableOpacity
-                  onPress={() => setShowPassword(s => !s)}
-                  className="p-2"
-                >
-                  <Feather
-                    name={showPassword ? 'eye' : 'eye-off'}
-                    size={20}
-                    color="#CD853F"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {password.length < 6 && password.length > 0 && (
-                <Text className="mt-1 text-xs text-red-500">
-                  Mật khẩu tối thiểu 6 ký tự
-                </Text>
-              )}
+              </TouchableOpacity>
             </View>
 
-            {/* Confirm Password */}
-            <View className="mt-4">
-              <Text className="mb-1 text-secondaryText">
-                Xác nhận mật khẩu
+            {confirmPassword.length > 0 && password !== confirmPassword && (
+              <Text className="mt-1 text-xs text-red-500">
+                Mật khẩu không khớp
               </Text>
+            )}
+          </View>
 
-              <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
-                <TextInput
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="Nhập lại Mật Khẩu"
-                  secureTextEntry={!showConfirm}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="password"
-                  className="flex-1 text-base text-black"
-                  returnKeyType="next"
-                  placeholderTextColor="#9CA3AF"
-                />
+          <View
+            className="mt-4"
+            onLayout={e => saveInputPosition('phone', e)}
+          >
+            <Text className="mb-1 text-secondaryText">Số điện thoại</Text>
 
-                <TouchableOpacity
-                  onPress={() => setShowConfirm(s => !s)}
-                  className="p-2"
-                >
-                  <Feather
-                    name={showConfirm ? 'eye' : 'eye-off'}
-                    size={20}
-                    color="#CD853F"
-                  />
-                </TouchableOpacity>
-              </View>
+            <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                onFocus={scrollToPhoneInput}
+                placeholder="Nhập Số Điện Thoại"
+                className="flex-1 text-base text-black"
+                keyboardType="phone-pad"
+                returnKeyType="done"
+                placeholderTextColor="#9CA3AF"
+              />
 
-              {confirmPassword.length > 0 && password !== confirmPassword && (
-                <Text className="mt-1 text-xs text-red-500">
-                  Mật khẩu không khớp
-                </Text>
-              )}
+              <Feather name="phone" size={20} color="#CD853F" />
             </View>
 
-            {/* Phone Number */}
-            <View className="mt-4">
-              <Text className="mb-1 text-secondaryText">Số điện thoại</Text>
-
-              <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
-                <TextInput
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="Nhập Số Điện Thoại"
-                  className="flex-1 text-base text-black"
-                  keyboardType="phone-pad"
-                  returnKeyType="done"
-                  placeholderTextColor="#9CA3AF"
-                />
-
-                <Feather name="phone" size={20} color="#CD853F" />
-              </View>
-
-              {!validatePhone(phone) && phone.length > 0 && (
-                <Text className="mt-1 text-xs text-red-500">
-                  Số điện thoại không hợp lệ
-                </Text>
-              )}
-            </View>
-
-            {/* Register Button */}
-            <TouchableOpacity
-              className={`mt-6 h-12 rounded-lg items-center justify-center ${
-                canRegister ? 'bg-foreground' : 'bg-gray-300'
-              }`}
-              onPress={handleRegister}
-              disabled={!canRegister || loading}
-            >
-              <Text className="text-white text-lg font-semibold">
-                {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+            {!validatePhone(phone) && phone.length > 0 && (
+              <Text className="mt-1 text-xs text-red-500">
+                Số điện thoại không hợp lệ
               </Text>
-            </TouchableOpacity>
+            )}
+          </View>
 
-            {error ? (
-              <Text className="mt-2 text-red-500 text-center">{error}</Text>
-            ) : null}
+          <TouchableOpacity
+            className={`mt-6 h-12 rounded-lg items-center justify-center ${
+              canRegister ? 'bg-foreground' : 'bg-gray-300'
+            }`}
+            onPress={handleRegister}
+            disabled={!canRegister || loading}
+          >
+            <Text className="text-white text-lg font-semibold">
+              {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+            </Text>
+          </TouchableOpacity>
 
-            {/* Divider */}
-            <View className="flex-row items-center my-6">
-              <View className="flex-1 h-px bg-gray-300" />
-              <Text className="mx-3 text-gray-500">Hoặc tiếp tục với</Text>
-              <View className="flex-1 h-px bg-gray-300" />
-            </View>
+          {error ? (
+            <Text className="mt-2 text-red-500 text-center">{error}</Text>
+          ) : null}
 
-            {/* Google */}
-            <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3">
-              <Text className="text-base text-black">G</Text>
-              <Text className="ml-2 text-base text-black">
-                Tiếp tục với Google
+          <View className="flex-row items-center my-6">
+            <View className="flex-1 h-px bg-gray-300" />
+            <Text className="mx-3 text-gray-500">Hoặc tiếp tục với</Text>
+            <View className="flex-1 h-px bg-gray-300" />
+          </View>
+
+          <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3">
+            <Text className="text-base text-black">G</Text>
+            <Text className="ml-2 text-base text-black">
+              Tiếp tục với Google
+            </Text>
+          </TouchableOpacity>
+
+          <View className="mt-6 items-center">
+            <Text className="text-gray-700">
+              Bạn đã có tài khoản?{' '}
+              <Text
+                className="text-foreground font-semibold"
+                onPress={() => navigation.navigate('Login')}
+              >
+                Đăng nhập
               </Text>
-            </TouchableOpacity>
+            </Text>
 
-            {/* Footer */}
-            <View className="mt-6 items-center">
-              <Text className="text-gray-700">
-                Bạn đã có tài khoản?{' '}
-                <Text
-                  className="text-foreground font-semibold"
-                  onPress={() => navigation.navigate('Login')}
-                >
-                  Đăng nhập
-                </Text>
+            <View className="flex-row mt-3 mb-6">
+              <Text className="text-xs text-gray-500 mr-3">
+                Chính Sách Bảo Mật
               </Text>
-
-              <View className="flex-row mt-3 mb-6">
-                <Text className="text-xs text-gray-500 mr-3">
-                  Chính Sách Bảo Mật
-                </Text>
-                <Text className="text-xs text-gray-500">
-                  Điều Khoản Dịch Vụ
-                </Text>
-              </View>
+              <Text className="text-xs text-gray-500">
+                Điều Khoản Dịch Vụ
+              </Text>
             </View>
           </View>
         </ScrollView>
