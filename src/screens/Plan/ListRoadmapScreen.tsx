@@ -442,14 +442,27 @@ const RoadmapCard: React.FC<RoadmapCardProps> = ({ item, onPress }) => {
               ]}
             />
 
-            <Text
-              style={[
-                styles.statusText,
-                completed ? styles.statusTextCompleted : styles.statusTextActive,
-              ]}
-            >
-              {completed ? 'Hoàn thành' : 'Đang tập'}
-            </Text>
+            {item.status == 'PENDING' ?
+              (<Text
+                style={[
+                  styles.statusText,
+                  completed ? styles.statusTextCompleted : styles.statusTextActive,
+                ]}
+              >
+                Chờ xác nhận
+
+              </Text>
+              ) : (
+                <Text
+                  style={[
+                    styles.statusText,
+                    completed ? styles.statusTextCompleted : styles.statusTextActive,
+                  ]}
+                >
+                  {completed ? 'Hoàn thành' : 'Đang tập'}
+                </Text>
+              )
+            }
           </View>
         </View>
       </View>

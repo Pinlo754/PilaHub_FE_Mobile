@@ -435,24 +435,28 @@ export default function SchedulePlayer() {
       if (aiLaunchIndexRef.current === itemIndex) return;
 
       const exercise = item.ex ?? null;
-
       const exerciseId =
-        exercise?.exerciseId ??
-        exercise?.id ??
-        exercise?.exercise_id ??
-        exercise?.exerciseIdRaw ??
-        null;
-
+        exercise?.exerciseId ?? exercise?.id ?? exercise?.exercise_id ?? exercise?.exerciseIdRaw ?? null;
       if (!exerciseId) {
-        showToastMessage('Không xác định được ID bài tập AI', 'error');
+        setToastMessage('Không xác định được ID bài tập AI');
+        setToastType('error');
+        setToastVisible(true);
         return;
       }
 
       aiLaunchIndexRef.current = itemIndex;
 
       try {
-        const session = await workoutSessionService.startFreeWorkout({
-          exerciseId: String(exerciseId),
+        const personalExerciseId = getPersonalId(item);
+        if (!personalExerciseId) {
+          setToastMessage('Không xác định được Personal Exercise ID');
+          setToastType('error');
+          setToastVisible(true);
+          return;
+        }
+
+        const session = await workoutSessionService.startRoadmapWorkout({
+          personalExerciseId: String(personalExerciseId),
           haveAITracking: true,
           haveIOTDeviceTracking: true,
         });
@@ -466,12 +470,7 @@ export default function SchedulePlayer() {
 
         const timeout = Math.max(
           5,
-          Number(
-            item.durationSeconds ??
-              item?.ex?.durationSeconds ??
-              item?.ex?.duration ??
-              0,
-          ) || 5,
+          Number(item.durationSeconds ?? item?.ex?.durationSeconds ?? item?.ex?.duration ?? 0) || 5,
         );
 
         navigation.navigate('AIPracticeTimeout', {
@@ -488,13 +487,13 @@ export default function SchedulePlayer() {
         });
       } catch (error) {
         console.warn('[SchedulePlayer] start AI session failed', error);
-
-        showToastMessage('Không thể bắt đầu bài AI. Vui lòng thử lại', 'error');
-
+        setToastMessage('Không thể bắt đầu bài AI. Vui lòng thử lại');
+        setToastType('error');
+        setToastVisible(true);
         aiLaunchIndexRef.current = null;
       }
     },
-    [aiFlow, getPersonalId, navigation, showToastMessage],
+    [aiFlow, getPersonalId, navigation],
   );
 
   const handleAiSetCompleted = useCallback(
