@@ -614,7 +614,8 @@ export default function InputBodyScreen({ navigation, route }: Props) {
           accessibilityLabel="Quay lại"
           accessibilityRole="button"
         >
-          <Ionicons name="arrow-back" size={22} color="#A0522D" />
+                    <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        
         </Pressable>
 
         <ScrollView
