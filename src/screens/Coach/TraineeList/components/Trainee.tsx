@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  Easing 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing
 } from 'react-native-reanimated';
 
 interface TraineeProps {
@@ -14,9 +14,19 @@ interface TraineeProps {
   gender: string;
   progress: number; // Giá trị từ 0 đến 100
   imageUri?: string;
+  workoutLevel?: string;
+  workoutFrequency?: string; // Bổ sung thêm trường này
 }
 
-const Trainee = ({ name, birthday, gender, progress, imageUri }: TraineeProps) => {
+const Trainee = ({ 
+  name, 
+  birthday, 
+  gender, 
+  progress, 
+  imageUri, 
+  workoutLevel, 
+  workoutFrequency 
+}: TraineeProps) => {
   // 1. Khởi tạo giá trị shared value bắt đầu từ 0
   const animatedProgress = useSharedValue(0);
 
@@ -36,8 +46,8 @@ const Trainee = ({ name, birthday, gender, progress, imageUri }: TraineeProps) =
   });
 
   return (
-    <View className="bg-[#fdf2d9] rounded-[30px] p-5 mb-4 shadow-sm mx-4 relative">
-      
+    <View className="bg-[#fdf2d9] rounded-[30px] p-5 mb-4 mx-4 relative">
+
       {/* Icon Dấu chấm than */}
       <View className="absolute top-4 right-4 bg-[#7a5c41] rounded-full w-6 h-6 items-center justify-center">
         <Ionicons name="alert" size={14} color="#fdf2d9" />
@@ -45,8 +55,10 @@ const Trainee = ({ name, birthday, gender, progress, imageUri }: TraineeProps) =
 
       {/* Header */}
       <View className="flex-row items-center mb-4">
-        <Image 
-          source={{ uri: imageUri || 'https://via.placeholder.com/150' }} 
+        <Image
+          source={{
+            uri: imageUri || 'https://firebasestorage.googleapis.com/v0/b/pilahub.firebasestorage.app/o/avatars%2FProfile_avatar_placeholder_large.png?alt=media&token=6bf771ee-66fc-4ca1-930c-5f07c161292d'
+          }}
           className="w-16 h-16 rounded-full"
         />
         <Text className="ml-4 text-[#a65d37] text-xl font-bold flex-1 pr-6">
@@ -57,22 +69,39 @@ const Trainee = ({ name, birthday, gender, progress, imageUri }: TraineeProps) =
       {/* Chi tiết */}
       <View className="space-y-1 mb-4">
         <View className="flex-row">
-          <Text className="text-[#333] text-base font-medium">Ngày sinh: </Text>
+          <Text className="text-[#333] text-base font-medium">Tuổi: </Text>
           <Text className="text-[#333] text-base">{birthday}</Text>
         </View>
-        
+
         <View className="flex-row">
           <Text className="text-[#333] text-base font-medium">Giới tính: </Text>
           <Text className="text-[#333] text-base">{gender}</Text>
         </View>
-        <Text className="text-[#333] text-base font-medium">Tiến độ học tập:</Text>
+
+        {/* Hiển thị Trình độ tập luyện */}
+        {workoutLevel && (
+          <View className="flex-row">
+            <Text className="text-[#333] text-base font-medium">Trình độ: </Text>
+            <Text className="text-[#333] text-base">{workoutLevel}</Text>
+          </View>
+        )}
+
+        {/* Hiển thị Tần suất tập luyện */}
+        {workoutFrequency && (
+          <View className="flex-row">
+            <Text className="text-[#333] text-base font-medium">Tần suất tập: </Text>
+            <Text className="text-[#333] text-base">{workoutFrequency}</Text>
+          </View>
+        )}
+
+        <Text className="text-[#333] text-base font-medium mt-2">Tiến độ học tập:</Text>
       </View>
 
       {/* Thanh Progress Bar với Animation */}
       <View className="w-full h-3 bg-[#e0d7f7] rounded-full overflow-hidden">
-        <Animated.View 
-          className="h-full bg-[#8b4513]" 
-          style={animatedStyle} 
+        <Animated.View
+          className="h-full bg-[#8b4513]"
+          style={animatedStyle}
         />
       </View>
     </View>

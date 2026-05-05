@@ -15,6 +15,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { CoachService } from '../../../hooks/coach.service';
+import ModalPopup, { IconColor } from '../../../components/ModalPopup';
 
 interface CoachFormData {
   fullName: string;
@@ -26,6 +27,15 @@ interface CoachFormData {
   specialization: string;
   certificationsUrl: string;
 }
+
+type ModalState = {
+  visible: boolean;
+  mode: 'noti' | 'toast' | 'confirm';
+  title?: string;
+  message: string;
+  iconName?: string;
+  iconBgColor?: IconColor; // Dùng Type IconColor export từ ModalPopup
+};
 
 /* ============================
     INPUT FIELD
@@ -40,6 +50,8 @@ const InputField = memo(({
   multiline = false,
   editable = true
 }: any) => {
+
+
   return (
     <View className="mb-4">
       <Text className="text-gray-400 text-[10px] font-bold mb-1 ml-1 uppercase tracking-tighter">
@@ -64,6 +76,8 @@ const InputField = memo(({
           className="flex-1 text-[#424242] text-sm"
         />
       </View>
+
+
     </View>
   );
 });
@@ -72,35 +86,67 @@ const InputField = memo(({
     GENDER PICKER
 ============================ */
 interface GenderPickerProps {
-  selected: Gender;
-  onSelect: (val: Gender) => void;
+  selected: 'MALE' | 'FEMALE';
+  onSelect: (val: 'MALE' | 'FEMALE') => void;
   disabled?: boolean;
 }
 
-type Gender = 'MALE' | 'FEMALE';
-
-const genderOptions: { label: string; value: Gender }[] = [
-  { label: 'Nam', value: 'MALE' },
-  { label: 'Nữ', value: 'FEMALE' }
-];
-
-const GenderPicker = memo(({ selected }: { selected: 'MALE' | 'FEMALE' }) => {
+const GenderPicker = memo(({ selected, onSelect, disabled }: GenderPickerProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   const isMale = selected === 'MALE';
+
+  const handleSelect = (val: 'MALE' | 'FEMALE') => {
+    onSelect(val);
+    setIsOpen(false);
+  };
+
   return (
-    <View className="  ml-auto">
+    <View className="ml-auto relative z-50">
       <Text className="text-gray-400 text-[10px] font-bold mb-1 uppercase tracking-tighter">
         Giới tính
       </Text>
-      <View className="flex-row bg-gray-100 p-1 rounded-xl h-[45px] items-center px-4">
-        <Ionicons 
-          name={isMale ? "male-outline" : "female-outline"} 
-          size={16} 
-          color="#9CA3AF" 
-        />
-        <Text className="ml-2 text-gray-400 text-sm font-medium">
+
+      {/* Nút bấm để mở dropdown */}
+      <TouchableOpacity
+        disabled={disabled}
+        onPress={() => setIsOpen(!isOpen)}
+        className="flex-row bg-gray-50 border border-gray-100 rounded-2xl h-[45px] items-center px-3 min-w-[90px] justify-between"
+      >
+        <Text className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-[#424242]'}`}>
           {isMale ? 'Nam' : 'Nữ'}
         </Text>
-      </View>
+        {!disabled && (
+          <Ionicons
+            name={isOpen ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="#A0522D"
+            style={{ marginLeft: 8 }}
+          />
+        )}
+      </TouchableOpacity>
+
+      {/* Menu xổ xuống (Chỉ render khi isOpen = true) */}
+      {isOpen && !disabled && (
+        <View className="absolute top-[65px] left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-sm z-50 overflow-hidden">
+          <TouchableOpacity
+            onPress={() => handleSelect('MALE')}
+            className={`px-4 py-3 border-b border-gray-50 ${isMale ? 'bg-orange-50' : ''}`}
+          >
+            <Text className={`text-sm ${isMale ? 'text-[#A0522D] font-bold' : 'text-gray-600'}`}>
+              Nam
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleSelect('FEMALE')}
+            className={`px-4 py-3 ${!isMale ? 'bg-orange-50' : ''}`}
+          >
+            <Text className={`text-sm ${!isMale ? 'text-[#A0522D] font-bold' : 'text-gray-600'}`}>
+              Nữ
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 });
@@ -124,6 +170,20 @@ const CoachProfileScreen = () => {
     specialization: '',
     certificationsUrl: '',
   });
+
+  const [modalState, setModalState] = useState<ModalState>({
+    visible: false,
+    mode: 'noti',
+    message: '',
+  });
+
+  const closeModal = useCallback(() => { // Nên dùng useCallback nếu truyền vào memo component
+    setModalState((s) => ({
+      ...s,
+      visible: false,
+    }));
+  }, []);
+
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -176,6 +236,10 @@ const CoachProfileScreen = () => {
     );
   }
 
+
+
+
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -184,7 +248,7 @@ const CoachProfileScreen = () => {
 
       {/* HEADER */}
       <View className="flex-row justify-between items-center px-5 pt-12 pb-4 bg-white border-b border-gray-100 shadow-sm">
-<TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="#5D4037" />
         </TouchableOpacity>
 
@@ -225,10 +289,24 @@ const CoachProfileScreen = () => {
                   yearsOfExperience: Number(formData.yearsOfExperience),
                 });
 
-                Alert.alert('Thành công', 'Đã lưu thay đổi');
+                setModalState({
+                  visible: true,
+                  mode: 'noti',
+                  title: 'Thành công',
+                  message: 'Lưu hồ sơ thành công!', // Dùng contentText
+                  iconName: 'checkmark-circle',
+                  iconBgColor: 'green',
+                });
                 setIsEditing(false);
               } catch (e) {
-                Alert.alert('Lỗi', 'Lưu thất bại');
+                setModalState({
+                  visible: true,
+                  mode: 'noti',
+                  title: 'Lỗi',
+                  message: `Lưu hồ sơ thất bại!`,
+                  iconName: 'alert-circle',
+                  iconBgColor: 'red',
+                });
               } finally {
                 setSubmitting(false);
               }
@@ -272,7 +350,11 @@ const CoachProfileScreen = () => {
               <View className="flex-[0.8]">
                 <InputField label="Tuổi" icon="calendar-outline" value={formData.age} onChange={updateField('age')} keyboardType="numeric" editable={isEditing} />
               </View>
-              <GenderPicker selected={formData.gender} />
+              <GenderPicker
+                selected={formData.gender}
+                onSelect={handleGenderSelect}
+                disabled={!isEditing}
+              />
             </View>
 
             <InputField label="Lĩnh vực thế mạnh" icon="fitness-outline" value={formData.specialization} onChange={updateField('specialization')} editable={isEditing} />
@@ -282,6 +364,14 @@ const CoachProfileScreen = () => {
 
           </View>
         </View>
+        <ModalPopup
+          {...(modalState as any)}
+          titleText={modalState.title}
+          contentText={modalState.message}
+          iconName={modalState.iconName}
+          iconBgColor={modalState.iconBgColor}
+          onClose={closeModal}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

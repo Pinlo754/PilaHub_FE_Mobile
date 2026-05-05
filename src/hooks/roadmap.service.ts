@@ -39,4 +39,30 @@ export const RoadmapServices = {
         }
         return res.data.data;
     },
+
+    getMyRoadmap: async (): Promise<any> => {
+        const res = await api.get<ApiResponse<any>>('/roadmaps/my?page=0&size=1');
+
+        if (!res.data.success) {
+            throw {
+                type: 'BUSINESS_ERROR',
+                message: res.data.message,
+                errorCode: res.data.errorCode,
+            };
+        }
+        return res.data.data;
+    },
+
+    getById: async (id: string): Promise<any> => {
+        const res = await api.get<ApiResponse<any>>(`/roadmaps/${id}`);
+
+        if (!res.data.success) {
+            throw {
+                type: 'BUSINESS_ERROR',
+                message: res.data.message,
+                errorCode: res.data.errorCode,
+            };
+        }
+        return res.data.data;
+    },
 };

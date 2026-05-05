@@ -270,69 +270,6 @@ export default function ScheduleDetail({
     );
   };
 
-  const startAiExercise = async (ex: any) => {
-    if (!aiAllowed) {
-      setToastMessage('Tính năng AI chỉ dành cho hội viên VIP');
-      setToastType('error');
-      setToastVisible(true);
-      return;
-    }
-
-    if (!supportsAI(ex)) {
-      await startSingleExercise(ex);
-      return;
-    }
-
-    const actual = getExerciseObject(ex);
-    const exerciseId =
-      actual?.exerciseId ?? actual?.id ?? actual?.exercise_id ?? actual?.exerciseIdRaw ?? null;
-    if (!exerciseId) {
-      setToastMessage('Không xác định được ID bài tập');
-      setToastType('error');
-      setToastVisible(true);
-      return;
-    }
-
-    try {
-      const session = await workoutSessionService.startRoadmapWorkout({
-        personalExerciseId: String(ex.personalExerciseId || exerciseId),
-        haveAITracking: true,
-        haveIOTDeviceTracking: true,
-      });
-
-      const videoUrl = await resolveExerciseVideo(ex);
-      const nameAITracking =
-        actual?.nameInModelAI ?? actual?.name_in_model_ai ?? '';
-
-      if (!session?.workoutSessionId) {
-        throw new Error('Không tạo được phiên AI');
-      }
-
-      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
-
-      const timeout = Math.max(
-        5,
-        Number(actual?.durationSeconds ?? actual?.duration ?? 0) || 5,
-      );
-
-      navigation.navigate('AIPracticeTimeout', {
-        exercise_id: String(exerciseId),
-        imgUrl: actual?.imageUrl ?? actual?.image ?? '',
-        videoUrl: videoUrl ?? '',
-        workoutSessionId: session.workoutSessionId,
-        nameAITracking: nameAITracking,
-        timeout,
-        autoStart: true,
-        skipSummary: true,
-      });
-    } catch (err) {
-      console.warn('[ScheduleDetail] startAiExercise failed', err);
-      setToastMessage('Không thể bắt đầu AI Practice. Vui lòng thử lại');
-      setToastType('error');
-      setToastVisible(true);
-    }
-  };
-
   const buildQueue = async (exercises: any[]) => {
     const queue: any[] = [];
 
