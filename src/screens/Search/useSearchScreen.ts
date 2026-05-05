@@ -298,7 +298,6 @@ export const useSearchScreen = ({ navigation, route }: Props) => {
 
   useEffect(() => {
     if (isSearching) return;
-    if (activeTab === SearchTab.Course && enrolledCourseIds.size === 0) return;
     fetchAllData(activeTab);
   }, [
     activeTab,

@@ -27,7 +27,7 @@ export const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
   },
   {
     id: 'ai',
-    title: 'Đăng ký AI',
+    title: 'Đăng ký gói',
     icon: 'sparkles',
     size: 18,
     bgColor: colors.info[20],
@@ -59,10 +59,17 @@ type QuickActionsProps = {
   // optional refs mapping for onboarding overlay: { [actionId]: ref }
   targetRefs?: Record<string, React.RefObject<any>>;
   // callback to report measured window positions when onLayout occurs
-  onMeasure?: (id: string, rect: { x: number; y: number; width: number; height: number }) => void;
+  onMeasure?: (
+    id: string,
+    rect: { x: number; y: number; width: number; height: number },
+  ) => void;
 };
 
-const QuickActions = ({ navigation, targetRefs, onMeasure }: QuickActionsProps) => {
+const QuickActions = ({
+  navigation,
+  targetRefs,
+  onMeasure,
+}: QuickActionsProps) => {
   return (
     <View className="flex-row flex-wrap gap-2 px-4 mb-4">
       {ACTIONS.map(item => (
@@ -73,9 +80,11 @@ const QuickActions = ({ navigation, targetRefs, onMeasure }: QuickActionsProps) 
             try {
               const ref = targetRefs?.[item.id];
               if (ref?.current?.measureInWindow) {
-                ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-                  onMeasure?.(item.id, { x, y, width, height });
-                });
+                ref.current.measureInWindow(
+                  (x: number, y: number, width: number, height: number) => {
+                    onMeasure?.(item.id, { x, y, width, height });
+                  },
+                );
               }
             } catch (err) {
               // ignore

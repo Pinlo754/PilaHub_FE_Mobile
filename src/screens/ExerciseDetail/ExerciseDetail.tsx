@@ -69,6 +69,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     showNotiModal,
     setShowWorkoutHistory,
     showWorkoutHistory,
+    isFromRoadmap,
   } = useExerciseDetail({
     route,
     navigation,
@@ -142,6 +143,7 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               isFromList={isFromList}
               isFromSearch={isFromSearch}
               equipments={exerciseEquipments}
+              isFromRoadmap={isFromRoadmap}
             />
           )}
 

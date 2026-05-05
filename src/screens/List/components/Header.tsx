@@ -17,12 +17,12 @@ const Header = ({ navigation }: Props) => {
       </Text>
 
       {/* Search */}
-      <Pressable
+      {/* <Pressable
         onPress={() => navigation.navigate('Search', { navigateHome: false })}
         className="absolute right-4 top-1 z-10"
       >
         <Ionicons name="search-outline" size={24} color={colors.foreground} />
-      </Pressable>
+      </Pressable> */}
     </View>
   );
 };
