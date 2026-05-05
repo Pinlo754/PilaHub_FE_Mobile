@@ -471,12 +471,12 @@ export default function ResultScreen({ route, navigation }: Props) {
 
     const metadata = parseMetadata(
       profile?.metadata ??
-        entry?.metadata ??
-        rawResponse?.metadata ??
-        rawResponse?.data?.metadata ??
-        (rawMeasurements && !Array.isArray(rawMeasurements)
-          ? rawMeasurements?.metadata
-          : undefined),
+      entry?.metadata ??
+      rawResponse?.metadata ??
+      rawResponse?.data?.metadata ??
+      (rawMeasurements && !Array.isArray(rawMeasurements)
+        ? rawMeasurements?.metadata
+        : undefined),
     );
 
     const extra = metadata?.extraMeasurements ?? {};
@@ -516,6 +516,7 @@ export default function ResultScreen({ route, navigation }: Props) {
     setIfExists('neckBase', 'neckBaseGirth');
     setIfExists('shoulder', 'acrossBackShoulderWidth');
     setIfExists('bicep', 'upperArmGirthR');
+
 
     out.heightCm = out.heightCm ?? profile?.heightCm;
     out.weightKg = out.weightKg ?? profile?.weightKg;
@@ -681,8 +682,8 @@ export default function ResultScreen({ route, navigation }: Props) {
       setToastType('error');
       setToastMsg(
         err?.response?.data?.message ??
-          err?.message ??
-          'Không thể cập nhật số đo cuối cho lộ trình.',
+        err?.message ??
+        'Không thể cập nhật số đo cuối cho lộ trình.',
       );
       setToastVisible(true);
 
@@ -790,19 +791,19 @@ export default function ResultScreen({ route, navigation }: Props) {
       const healthProfilePayload =
         source === 'Manual'
           ? buildManualHealthProfilePayload({
-              measurements: rawMeasurements,
-              onboarding,
-            })
+            measurements: rawMeasurements,
+            onboarding,
+          })
           : source === 'InBody'
             ? buildInBodyHealthProfilePayload({
-                data: rawResponse ?? rawMeasurements,
-                onboarding,
-              })
+              data: rawResponse ?? rawMeasurements,
+              onboarding,
+            })
             : mapBodygramToHealthProfilePayload({
-                bodyGram: rawResponse,
-                onboarding,
-                source: 'BodyGram',
-              });
+              bodyGram: rawResponse,
+              onboarding,
+              source: 'BodyGram',
+            });
 
       console.log('RESULT source:', source);
       console.log(
@@ -943,9 +944,8 @@ export default function ResultScreen({ route, navigation }: Props) {
           </Pressable>
 
           <Text className="text-center text-gray-700 flex-1 px-2">
-            {`Chiều cao: ${summary.height ?? '-'}cm   Cân nặng: ${
-              summary.weight ?? '-'
-            }kg   ${summary.age ?? ''} tuổi   ${summary.gender ?? ''}`}
+            {`Chiều cao: ${summary.height ?? '-'}cm   Cân nặng: ${summary.weight ?? '-'
+              }kg   ${summary.age ?? ''} tuổi   ${summary.gender ?? ''}`}
           </Text>
 
           <View className="w-8" />
@@ -1075,6 +1075,7 @@ export default function ResultScreen({ route, navigation }: Props) {
               styles.saveBtn,
               loading ? styles.saveBtnDisabled : null,
             ]}
+            className='mb-8'
           >
             {loading ? (
               <ActivityIndicator color="#fff" />

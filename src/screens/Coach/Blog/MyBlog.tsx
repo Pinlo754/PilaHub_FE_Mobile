@@ -18,6 +18,8 @@ import { PostService } from '../../../hooks/post.service';
 import Header from '../components/Header';
 import Video from 'react-native-video';
 import { useNavigation } from '@react-navigation/native';
+import { CoachService } from '../../../hooks/coach.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 /* ============================ 
     INTERFACES 
    ============================ */
@@ -212,13 +214,30 @@ export const MyBlogScreen = () => {
             Alert.alert("Lỗi", "Không thể xóa bài viết");
         }
     };
+    const [coachInfo, setCoachInfo] = useState<any>(null);
+    const fetchMe = async () => {
+        try {
+            const idStr = await AsyncStorage.getItem('id');
+            const currentId = idStr ? JSON.parse(idStr) : null;
+            const res = await CoachService.getById(currentId);
+            setCoachInfo(res);
+            console.log("Thông tin coach:", res);
+        } catch (error) {
+            console.error("Lỗi khi lấy thông tin coach:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchMe();
+    }, []);
+
 
     const renderPostItem = ({ item }: { item: Post }) => (
         <View className="bg-white mb-3 shadow-sm py-2">
             {/* Header: Avatar + Tên + More Button */}
             <View className="flex-row justify-between items-center px-4 py-2">
                 <View className="flex-row items-center">
-                    <Image source={{ uri: 'https://via.placeholder.com/100' }} className="w-10 h-10 rounded-full bg-gray-200" />
+                    <Image source={{ uri: coachInfo?.avatarUrl || 'https://via.placeholder.com/100' }} className="w-10 h-10 rounded-full bg-gray-200" />
                     <View className="ml-3">
                         <Text className="font-bold text-gray-900">{item.coachName}</Text>
                         <Text className="text-gray-400 text-[10px]">{new Date(item.createdAt).toLocaleDateString()}</Text>

@@ -88,6 +88,12 @@ generateRoadmapReview: async (roadmapId: string): Promise<any> => {
   const res = await axios.post(`/roadmap-reviews/generate/${roadmapId}`);
   return res.data?.data ?? res.data ?? res;
 },
+
+getMyRoadmap: async (): Promise<any> => {
+  const res = await axios.get('/roadmaps/my?page=0&size=1');
+  return res.data?.data ?? res.data ?? res;
+},
+
 };
 
 export default RoadmapApi;
