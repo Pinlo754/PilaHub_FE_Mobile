@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 
@@ -76,6 +76,8 @@ export default function StageCalendar({
   onSelectDate,
   completedDateMap = {},
 }: any) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
     const SEVEN_HOURS_IN_MS = 7 * 60 * 60 * 1000;
@@ -111,7 +113,8 @@ export default function StageCalendar({
   }, [stage, completedDateMap]);
 
   const handleDateSelect = (day: any) => {
-    const date = new Date(day.dateString);
+    const dateString = day?.dateString;
+    if (!dateString) return;
 
     setSelectedDate(dateString);
 
@@ -363,3 +366,5 @@ function LegendDot({ color, label }: { color: string; label: string }) {
     </View>
   );
 }
+
+

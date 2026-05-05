@@ -110,49 +110,69 @@ export default function ScheduleDetail({
     })();
   }, [schedule, normalizeExercises]);
 
-  // Lắng nghe sự kiện hoàn thành bài tập/lịch tập để tự động mở khóa theo trình tự
+
+
+  const showToast = (
+    message: string,
+    type: 'success' | 'error' | 'info' = 'info',
+  ) => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  const checkCanWorkout = async () => {
+    try {
+      const me = await getProfile();
+
+      if (!me.ok) {
+        showToast('Không thể kiểm tra gói tập. Vui lòng thử lại', 'error');
+        return false;
+      }
+
+      const activePackageType = me.data?.activePackageType ?? null;
+
+      if (!activePackageType) {
+        // goToPackageAfterToast();
+
+        showToast(
+          'Bạn cần đăng ký gói tập trước khi bắt đầu luyện tập',
+          'error',
+        );
+
+        return false;
+      }
+
+      return true;
+    } catch {
+      showToast('Không thể kiểm tra gói tập. Vui lòng thử lại', 'error');
+      return false;
+    }
+  };
+
   useEffect(() => {
     const subEx = DeviceEventEmitter.addListener(
       'exerciseCompleted',
       (evt: any) => {
         const id = evt?.personalExerciseId ?? null;
+
         if (!id) return;
 
-     setLocalExercises(prev => {
-  const mapped = prev.map(it => {
-    const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
+        setLocalExercises(prev => {
+          const mapped = prev.map(it => {
+            const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
 
-    if (pid === evt?.personalExerciseId) {
-      return { ...it, completed: true };
-    }
-    return it;
-  });
+            if (pid === id) {
+              return { ...it, completed: true };
+            }
 
-  const normalized = normalizeExercises(mapped);
+            return it;
+          });
 
-  // ✅ CHECK ALL DONE
-  const allDone =
-    normalized.length > 0 &&
-    normalized.every(e => e.completed === true);
+          return normalizeExercises(mapped);
+        });
 
-  if (allDone) {
-    const scheduleId = getScheduleId();
-
-    if (scheduleId) {
-      markPersonalScheduleCompleted(scheduleId);
-
-      DeviceEventEmitter.emit('scheduleCompleted', {
-        scheduleId,
-      });
-    }
-  }
-
-  return normalized;
-});
-
-        setToastMessage('Đã hoàn thành động tác');
-        setToastType('success');
-        setToastVisible(true);
+        showToast('Đã hoàn thành động tác', 'success');
       },
     );
 
@@ -243,9 +263,9 @@ export default function ScheduleDetail({
 
     return Boolean(
       item?.haveAIsupported ||
-        item?.nameInModelAI ||
-        item?.haveAiSupported ||
-        item?.name_in_model_ai,
+      item?.nameInModelAI ||
+      item?.haveAiSupported ||
+      item?.name_in_model_ai,
     );
   };
 
@@ -594,121 +614,6 @@ export default function ScheduleDetail({
     }
   };
 
-  const viewAIReview = async (ex: any) => {
-    if (!ex.completed) {
-      setToastMessage('Bài tập chưa hoàn thành');
-      setToastType('info');
-      setToastVisible(true);
-      return;
-    }
-
-    if (!supportsAI(ex)) {
-      setToastMessage('Bài tập này không hỗ trợ AI');
-      setToastType('info');
-      setToastVisible(true);
-      return;
-    }
-
-    const exerciseId = ex.exerciseId ?? ex.id ?? ex.exercise_id ?? ex.exerciseIdRaw ?? null;
-    const personalExerciseId = ex.personalExerciseId ?? ex.id ?? null;
-
-    if (!exerciseId) {
-      setToastMessage('Không xác định được ID bài tập');
-      setToastType('error');
-      setToastVisible(true);
-      return;
-    }
-
-    const fetchAISummary = async (workoutSessionId: string) => {
-      try {
-        const workout = await workoutSessionService.getById(workoutSessionId);
-        const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
-          workoutFeedbackService.getByWorkoutSessionId(workoutSessionId),
-          mistakeLogService.getByWorkoutSessionId(workoutSessionId),
-          heartRateService.getByWorkoutSessionId(workoutSessionId),
-        ]);
-
-        navigation.navigate('AISummary', {
-          feedback,
-          videoUrl: workout.recordUrl,
-          mistakeLog,
-          heartRateLogs: heartRateLogs.map(h => ({
-            heartRate: h.heartRate,
-            recordedAt: h.recordedAt,
-          })),
-        });
-      } catch (err) {
-        console.error('Fetch AI summary error:', err);
-      } finally {
-      }
-    };
-
-    try {
-      // Lấy danh sách workout sessions của bài tập này
-      const sessions = await workoutSessionService.getByExerciseId(String(exerciseId), {
-        personalExerciseId: personalExerciseId ? String(personalExerciseId) : undefined,
-      });
-      console.log('Sessions for exercise', exerciseId, sessions);
-
-      // Lọc ra sessions có AI tracking và đã hoàn thành
-      const aiSessions = sessions.filter(
-        s => s.haveAITracking === true && s.completed === true,
-      );
-      console.log('AI sessions completed', aiSessions);
-      if (aiSessions.length === 0) {
-        setToastMessage('Không tìm thấy phiên tập AI đã hoàn thành');
-        setToastType('info');
-        setToastVisible(true);
-        return;
-      }
-
-      // Lấy session gần nhất (theo thời gian kết thúc)
-      const latestSession = aiSessions.sort((a, b) => {
-        const timeA = new Date(a.endTime || a.startTime).getTime();
-        const timeB = new Date(b.endTime || b.startTime).getTime();
-        return timeB - timeA;
-      })[0];
-
-      // Fetch feedback cho session này
-      const feedback = await workoutSessionService.getfeedbackWorkout(
-        latestSession.workoutSessionId,
-      );
-
-      // Fetch heart rate logs nếu có
-      let heartRateLogs: any[] = [];
-      try {
-        heartRateLogs = await heartRateService.getByWorkoutSessionId(
-          latestSession.workoutSessionId,
-        );
-      } catch (err) {
-        console.warn('[ScheduleDetail] heart rate logs fetch failed', err);
-      }
-
-      // Fetch mistake logs nếu có
-      let mistakeLog: any[] = [];
-      try {
-        mistakeLog = await mistakeLogService.getByWorkoutSessionId(
-          latestSession.workoutSessionId,
-        );
-      } catch (err) {
-        console.warn('[ScheduleDetail] mistake logs fetch failed', err);
-      }
-
-      if (typeof onVideoModalChange === 'function') onVideoModalChange(false);
-
-      navigation.navigate('AISummary', {
-        feedback,
-        videoUrl: latestSession.recordUrl,
-        mistakeLog,
-        heartRateLogs,
-      });
-    } catch (err) {
-      console.warn('[ScheduleDetail] viewAIReview failed', err);
-      setToastMessage('Không thể tải đánh giá AI. Vui lòng thử lại');
-      setToastType('error');
-      setToastVisible(true);
-    }
-  };
 
   return (
     <ScrollView>
@@ -719,12 +624,6 @@ export default function ScheduleDetail({
           type={toastType}
           onHidden={() => {
             setToastVisible(false);
-
-            if (shouldGoPackage) {
-              setShouldGoPackage(false);
-
-              navigation.navigate('UpgradePlan' as never);
-            }
           }}
         />
 
@@ -819,9 +718,8 @@ export default function ScheduleDetail({
                         ex.image ??
                         'https://via.placeholder.com/72',
                     }}
-                    className={`w-16 h-16 rounded-lg bg-gray-100 ${
-                      ex.locked ? 'opacity-50' : ''
-                    }`}
+                    className={`w-16 h-16 rounded-lg bg-gray-100 ${ex.locked ? 'opacity-50' : ''
+                      }`}
                     resizeMode="cover"
                   />
 
@@ -835,9 +733,8 @@ export default function ScheduleDetail({
                       }}
                     >
                       <Text
-                        className={`text-base font-semibold ${
-                          ex.locked ? 'text-gray-400' : 'text-[#3A2A1A]'
-                        }`}
+                        className={`text-base font-semibold ${ex.locked ? 'text-gray-400' : 'text-[#3A2A1A]'
+                          }`}
                       >
                         {idx + 1}. {ex.exerciseName}
                       </Text>
@@ -872,21 +769,12 @@ export default function ScheduleDetail({
                         </TouchableOpacity>
                       ) : null}
 
-                      {!isPreview && ex.completed && supportsAI(ex) && (
-                        <TouchableOpacity
-                          className="px-3 py-1 rounded-md bg-[#10B981] mr-3"
-                          activeOpacity={0.8}
-                          onPress={() => viewAIReview(ex)}
-                        >
-                          <Text style={modalStyles.reviewBtnText}>Xem đánh giá</Text>
-                        </TouchableOpacity>
-                      )}
+
 
                       {!isPreview ? (
                         <TouchableOpacity
-                          className={`px-3 py-1 rounded-md ${
-                            ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'
-                          }`}
+                          className={`px-3 py-1 rounded-md ${ex.locked ? 'bg-gray-300' : 'bg-[#8B4513]'
+                            }`}
                           activeOpacity={0.8}
                           disabled={ex.locked}
                           onPress={() => startAiExercise(ex)}
@@ -902,7 +790,19 @@ export default function ScheduleDetail({
                           </Text>
                         </TouchableOpacity>
                       ) : null}
+
+
                     </View>
+
+                    {!isPreview && ex.completed && supportsAI(ex) && (
+                      <TouchableOpacity
+                        className="px-3 py-1 rounded-md bg-[#10B981] mr-3 mt-2"
+                        activeOpacity={0.8}
+                        onPress={() => viewAIReview(ex)}
+                      >
+                        <Text style={modalStyles.reviewBtnText}>Xem đánh giá AI</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   <View style={modalStyles.controlWrapper}>
