@@ -75,29 +75,29 @@ export default function StageCalendar({
     });
 
     // Xử lý selectedDate (cần cộng thêm 7 tiếng nếu selectedDate cũng là UTC)
-    if (selectedDate) {
-      const adjustedSelected = getAdjustedDateStr(selectedDate);
-      if (adjustedSelected) {
-        marks[adjustedSelected] = {
-          ...marks[adjustedSelected], // Giữ lại thuộc tính nếu trùng ngày với schedule
-          selected: true,
-          selectedColor: "#8B4513",
-        };
-      }
-    }
+    // if (selectedDate) {
+    //   const adjustedSelected = getAdjustedDateStr(selectedDate);
+    //   if (adjustedSelected) {
+    //     marks[adjustedSelected] = {
+    //       ...marks[adjustedSelected], // Giữ lại thuộc tính nếu trùng ngày với schedule
+    //       selected: true,
+    //       selectedColor: "#8B4513",
+    //     };
+    //   }
+    // }
 
     return marks;
   }, [stage, completedDateMap]);
 
-  const handleDateSelect = (day: any) => {
-    const date = new Date(day.dateString);
+  // const handleDateSelect = (day: any) => {
+  //   const date = new Date(day.dateString);
 
-    date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
+  //   date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
 
-    const adjustedDateString = date.toISOString().split("T")[0];
+  //   const adjustedDateString = date.toISOString().split("T")[0];
 
-    onSelectDate(adjustedDateString);
-  };
+  //   onSelectDate(adjustedDateString);
+  // };
 
   const handleDateSelect = (day: any) => {
     // 1. Tạo đối tượng Date từ chuỗi

@@ -9,6 +9,7 @@ import SettingList from './components/SettingList';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import LoadingOverlay from '../../components/LoadingOverlay';
 const localStyles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF6EE' },
   scrollPadding: { paddingBottom: 40 },
@@ -68,14 +69,15 @@ const TraineeProfileScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={localStyles.loadingWrap}>
-        <ActivityIndicator />
-      </SafeAreaView>
+      // <SafeAreaView style={localStyles.loadingWrap}>
+      //   <ActivityIndicator />
+      // </SafeAreaView>
+      <LoadingOverlay />
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-amber-50">
+    <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
         <View className="w-8" />
         <View className="flex-1 items-center">

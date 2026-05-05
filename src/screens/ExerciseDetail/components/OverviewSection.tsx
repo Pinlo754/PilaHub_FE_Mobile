@@ -23,6 +23,7 @@ type Props = {
   isFromList: boolean;
   isFromSearch: boolean;
   equipments: ExerciseEquipment[];
+  isFromRoadmap: boolean;
 };
 
 const OverviewSection = ({
@@ -41,6 +42,7 @@ const OverviewSection = ({
   isFromList,
   isFromSearch,
   equipments,
+  isFromRoadmap,
 }: Props) => {
   return (
     <View
@@ -63,11 +65,13 @@ const OverviewSection = ({
       </Text>
 
       {/* Tabs */}
-      <Tabs
-        tabId={activeTab}
-        onChange={onChangeTab}
-        isVideoPlay={isVideoPlay}
-      />
+      {!isFromRoadmap && (
+        <Tabs
+          tabId={activeTab}
+          onChange={onChangeTab}
+          isVideoPlay={isVideoPlay}
+        />
+      )}
 
       {/* Description */}
       <Description
@@ -86,7 +90,6 @@ const OverviewSection = ({
           activePackage={activePackage}
           haveAIsupported={exerciseDetail.haveAIsupported}
           hasAccess={hasAccess}
-          canPractice={canPractice}
           isFromList={isFromList}
           isFromSearch={isFromSearch}
         />

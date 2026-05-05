@@ -17,6 +17,11 @@ type Props = {
   activePackage: PackageType | null;
   source: string;
   programId: string;
+  onStartLesson: (lesson: CourseLessonDetailType, progressId: string) => void;
+  onStartAILesson: (lesson: CourseLessonDetailType, progressId: string) => void; // ← thêm
+  aiAllowed: boolean;
+  isFromList: boolean;
+  isFromSearch: boolean;
 };
 
 const ProgrameContent = ({
@@ -29,6 +34,11 @@ const ProgrameContent = ({
   activePackage,
   source,
   programId,
+  onStartLesson,
+  aiAllowed,
+  onStartAILesson,
+  isFromList,
+  isFromSearch,
 }: Props) => {
   // USE REF
   const listRef = useRef<FlatList>(null);
@@ -61,6 +71,11 @@ const ProgrameContent = ({
         source={source}
         programId={programId}
         currentLessonIndex={safeCurrentIndex}
+        onStartLesson={onStartLesson}
+        onStartAILesson={onStartAILesson}
+        aiAllowed={aiAllowed}
+        isFromList={isFromList}
+        isFromSearch={isFromSearch}
       />
     );
   };

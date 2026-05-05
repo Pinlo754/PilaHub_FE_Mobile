@@ -3,6 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import { colors } from '../../../theme/colors';
 import CardFeedback from './CardFeedback';
 import { CoachFeedbackType } from '../../../utils/CoachFeedbackType';
+import { useState } from 'react';
+import FeedbackScreen from './FeedbackScreen';
 
 type Props = {
   feedbackData: CoachFeedbackType[];
@@ -12,10 +14,15 @@ const FeedbackSection = ({ feedbackData }: Props) => {
   // CONSTANTS
   const PREVIEW_COUNT = 3;
 
+  const [showAll, setShowAll] = useState(false);
+
   return (
-    <View className="w-full mt-4 pb-6">
+    <View className="w-full mt-2 pb-6">
       {/* Header */}
-      <Pressable className="flex-row items-center gap-2 mb-2">
+      <Pressable
+        onPress={() => setShowAll(true)}
+        className="flex-row items-center gap-2 mb-2"
+      >
         <Text className="text-lg font-semibold color-foreground">Đánh giá</Text>
 
         <Ionicons
@@ -41,6 +48,23 @@ const FeedbackSection = ({ feedbackData }: Props) => {
           </Text>
         </View>
       )}
+
+      {feedbackData.length > PREVIEW_COUNT && (
+        <Pressable
+          onPress={() => setShowAll(true)}
+          className="mt-3 py-2 items-center rounded-xl bg-background-sub1"
+        >
+          <Text className="color-foreground font-semibold text-sm">
+            Xem tất cả {feedbackData.length} đánh giá
+          </Text>
+        </Pressable>
+      )}
+
+      <FeedbackScreen
+        visible={showAll}
+        onClose={() => setShowAll(false)}
+        feedbackData={feedbackData}
+      />
     </View>
   );
 };

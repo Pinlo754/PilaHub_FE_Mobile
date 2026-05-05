@@ -12,13 +12,17 @@ const Header = ({ navigation }: Props) => {
   return (
     <View className="flex-row px-4 pb-2 justify-between items-center">
       {/* Logo */}
-      <Text className="color-foreground text-3xl font-bold">Pilahub</Text>
+      <Text className="color-foreground text-3xl font-bold">PilaHub</Text>
 
       {/* Right section */}
-      <View className="flex-row gap-3 items-center">
+      <View className="flex-row gap-4 items-center">
         {/* Bluetooth - open DeviceScan */}
         <Pressable onPress={() => navigation.navigate('DeviceScan')}>
-          <Ionicons name="bluetooth-outline" size={22} color={colors.foreground} />
+          <Ionicons
+            name="bluetooth-outline"
+            size={22}
+            color={colors.foreground}
+          />
         </Pressable>
         {/* Search */}
         <Pressable onPress={() => navigation.navigate('Search')}>
@@ -39,7 +43,6 @@ const Header = ({ navigation }: Props) => {
             color={colors.foreground}
           />
         </Pressable>
-        
       </View>
     </View>
   );
