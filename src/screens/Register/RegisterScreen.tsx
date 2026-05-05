@@ -179,7 +179,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           contentContainerStyle={{
             paddingHorizontal: 24,
-            paddingBottom: Platform.OS === 'ios' ? 100 : 100,
+            paddingBottom: Platform.OS === 'ios' ? 100 : 100
           }}
         >
           <View className="items-center mt-6 mb-4">
@@ -338,13 +338,16 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           <TouchableOpacity
-            className={`mt-6 h-12 rounded-lg items-center justify-center ${
-              canRegister ? 'bg-foreground' : 'bg-gray-300'
-            }`}
+            className={`mt-6 h-12 rounded-lg items-center justify-center ${canRegister ? 'bg-foreground' : 'bg-gray-300'
+              }`}
             onPress={handleRegister}
             disabled={!canRegister || loading}
           >
-            <Text className="text-white text-lg font-semibold">
+            <Text
+              className="text-white text-lg font-semibold"
+              numberOfLines={1}
+              ellipsizeMode="tail" // Hiện "Đang đăng k..." nếu quá dài
+            >
               {loading ? 'Đang đăng ký...' : 'Đăng ký'}
             </Text>
           </TouchableOpacity>

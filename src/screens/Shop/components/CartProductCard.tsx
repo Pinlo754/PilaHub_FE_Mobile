@@ -375,7 +375,7 @@ const CartProductCard: React.FC<Props> = ({
                   }
 
                   if (validation.stock !== null && nextQty > validation.stock) {
-                    nextQty = validation.stock;
+                    nextQty = Math.floor(nextQty/10);
                   }
 
                   onChangeQuantityText(String(nextQty));

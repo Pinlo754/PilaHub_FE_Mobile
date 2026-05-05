@@ -19,7 +19,7 @@ const features: FeatureItem[] = [
   { id: '3', title: 'Danh sách yêu cầu', icon: "list-circle-outline", screen: 'ListRequest' },
   { id: '4', title: 'Tin nhắn', icon: "chatbubbles-outline", screen: 'ListChatScreen' },
   { id: '5', title: 'Hồ sơ cá nhân', icon: "person-outline", screen: 'CoachProfileScreen' },
-  { id: '6', title: 'Blog của tôi', icon: "settings-outline", screen: 'MyBlogScreen' },
+  { id: '6', title: 'Blog của tôi', icon: "newspaper-outline", screen: 'MyBlogScreen' },
 ];
 
 const FeatureGrid = () => {

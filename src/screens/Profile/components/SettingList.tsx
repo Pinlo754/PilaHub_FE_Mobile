@@ -57,7 +57,7 @@ export default function SettingList(_: Props) {
           <Text className="ml-3">Thiết bị kết nối</Text>
         </Pressable>
 
-        <Pressable className="p-4 flex-row items-center" onPress={showLogoutConfirm}>
+        <Pressable className="8 p-4 flex-row items-center" onPress={showLogoutConfirm}>
           <Ionicons name="log-out-outline" size={18} color="#ef4444" />
           <Text className="ml-3 text-red-500">Đăng xuất</Text>
         </Pressable>

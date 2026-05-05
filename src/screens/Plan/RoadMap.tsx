@@ -1476,6 +1476,15 @@ const styles = StyleSheet.create({
   bodyMetricButtonDisabled: {
     opacity: 0.55,
   },
+  bodyMetricButtonSecondary: {
+    backgroundColor: '#7A3E12',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  bodyMetricButtonDisabled: {
+    opacity: 0.55,
+  },
   bodyMetricButtonText: {
     color: '#FFFFFF',
     fontSize: 12,

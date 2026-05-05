@@ -74,9 +74,9 @@ const ProductPurchaseInfo: React.FC<Props> = ({
     setQuantity(quantity + 1);
   };
 
-  const onChangeQuantity = (text: string) => {
+  const onChangeQuantity = (text: string) => {    
     const digits = text.replace(/[^0-9]/g, '');
-
+    
     if (digits.length === 0) {
       setQuantity(1);
       return;
@@ -87,7 +87,7 @@ const ProductPurchaseInfo: React.FC<Props> = ({
     if (!Number.isFinite(n) || n <= 0) n = 1;
 
     if (validation.stock !== null && n > validation.stock) {
-      n = validation.stock;
+      n = Math.floor(n / 10);
     }
 
     setQuantity(n);
