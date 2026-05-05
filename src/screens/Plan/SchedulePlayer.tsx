@@ -760,10 +760,10 @@ export default function SchedulePlayer() {
           </View>
 
           <View style={styles.progressRowAlt}>
-            <View style={styles.heartBlock}>
+            {/* <View style={styles.heartBlock}>
               <Ionicons name="heart" size={18} color="#D9532F" />
               <Text style={styles.heartText}>100 bpm</Text>
-            </View>
+            </View> */}
 
             <View style={styles.playCenter}>
               <TouchableOpacity

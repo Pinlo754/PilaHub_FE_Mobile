@@ -481,6 +481,14 @@ export default function ResultScreen({ route, navigation }: Props) {
 
     const extra = metadata?.extraMeasurements ?? {};
 
+
+    const calculateBmiLocal = (heightCm?: number | null, weightKg?: number | null) => {
+      if (!heightCm || !weightKg) return null;
+      const h = heightCm / 100;
+      if (h <= 0) return null;
+      return round1(weightKg / ((h * h)*10));
+    };
+
     const setIfExists = (key: string, bodygramName: string) => {
       const value = getMeasurementCm(arr, bodygramName);
 
@@ -511,10 +519,9 @@ export default function ResultScreen({ route, navigation }: Props) {
 
     out.heightCm = out.heightCm ?? profile?.heightCm;
     out.weightKg = out.weightKg ?? profile?.weightKg;
-    out.bmi = out.bmi ?? profile?.bmi;
-    out.bodyFatPercentage =
-      out.bodyFatPercentage ?? profile?.bodyFatPercentage;
-    out.muscleMassKg = out.muscleMassKg ?? profile?.muscleMassKg;
+    out.bmi = out.bmi ?? profile?.bmi ?? calculateBmiLocal(profile.input.photoScan.height, profile.input.photoScan.weight);
+    out.bodyFatPercentage =out.bodyFatPercentage ?? profile?.bodyFatPercentage ?? profile?.bodyComposition?.bodyFatPercentage.toFixed(2);
+    out.muscleMassKg = out.muscleMassKg ?? profile?.muscleMassKg ?? (profile?.bodyComposition?.skeletalMuscleMass / 1000).toFixed(1);
 
     out.waist = out.waist ?? profile?.waistCm;
     out.hip = out.hip ?? profile?.hipCm;
