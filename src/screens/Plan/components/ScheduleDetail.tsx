@@ -18,6 +18,7 @@ import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
 import { workoutFeedbackService } from '../../../hooks/workoutFeedback.service';
+import { markPersonalScheduleCompleted } from '../../../services/personalSchedule.service';
 
 // Helper: Phân giải URL video
 function resolveVideoSrc(raw?: string | null) {
@@ -119,18 +120,37 @@ export default function ScheduleDetail({
         const id = evt?.personalExerciseId ?? null;
         if (!id) return;
 
-        setLocalExercises(prev => {
-          const mapped = prev.map(it => {
-            const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
-            if (pid === id) {
-              return { ...it, completed: true };
-            }
-            return it;
-          });
+     setLocalExercises(prev => {
+  const mapped = prev.map(it => {
+    const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
 
-          // Gọi lại normalizeExercises để mở khóa bài tiếp theo
-          return normalizeExercises(mapped);
-        });
+    if (pid === evt?.personalExerciseId) {
+      return { ...it, completed: true };
+    }
+    return it;
+  });
+
+  const normalized = normalizeExercises(mapped);
+
+  // ✅ CHECK ALL DONE
+  const allDone =
+    normalized.length > 0 &&
+    normalized.every(e => e.completed === true);
+
+  if (allDone) {
+    const scheduleId = getScheduleId();
+
+    if (scheduleId) {
+      markPersonalScheduleCompleted(scheduleId);
+
+      DeviceEventEmitter.emit('scheduleCompleted', {
+        scheduleId,
+      });
+    }
+  }
+
+  return normalized;
+});
 
         setToastMessage('Đã hoàn thành động tác');
         setToastType('success');

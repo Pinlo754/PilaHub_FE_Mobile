@@ -363,12 +363,8 @@ export default function ResultScreen({ route, navigation }: Props) {
     return value !== null && value !== undefined && value !== '' && value !== '-';
   };
 
-  const getFadedStyle = (value: any) => {
-    return hasValue(value) ? null : styles.fadedItem;
-  };
-
   const renderValue = (value: any, unit = '') => {
-    return hasValue(value) ? `${value}${unit}` : '-';
+    return hasValue(value) ? `${value}${unit}` : '';
   };
 
   const summary = useMemo(() => {
@@ -481,12 +477,17 @@ export default function ResultScreen({ route, navigation }: Props) {
 
     const extra = metadata?.extraMeasurements ?? {};
 
-
-    const calculateBmiLocal = (heightCm?: number | null, weightKg?: number | null) => {
+    const calculateBmiLocal = (
+      heightCm?: number | null,
+      weightKg?: number | null,
+    ) => {
       if (!heightCm || !weightKg) return null;
+
       const h = heightCm / 100;
+
       if (h <= 0) return null;
-      return round1(weightKg / ((h * h)*10));
+
+      return round1(weightKg / (h * h));
     };
 
     const setIfExists = (key: string, bodygramName: string) => {
@@ -519,9 +520,28 @@ export default function ResultScreen({ route, navigation }: Props) {
 
     out.heightCm = out.heightCm ?? profile?.heightCm;
     out.weightKg = out.weightKg ?? profile?.weightKg;
-    out.bmi = out.bmi ?? profile?.bmi ?? calculateBmiLocal(profile.input.photoScan.height, profile.input.photoScan.weight);
-    out.bodyFatPercentage =out.bodyFatPercentage ?? profile?.bodyFatPercentage ?? profile?.bodyComposition?.bodyFatPercentage.toFixed(2);
-    out.muscleMassKg = out.muscleMassKg ?? profile?.muscleMassKg ?? (profile?.bodyComposition?.skeletalMuscleMass / 1000).toFixed(1);
+
+    out.bmi =
+      out.bmi ??
+      profile?.bmi ??
+      calculateBmiLocal(
+        profile?.input?.photoScan?.height,
+        profile?.input?.photoScan?.weight,
+      );
+
+    out.bodyFatPercentage =
+      out.bodyFatPercentage ??
+      profile?.bodyFatPercentage ??
+      (profile?.bodyComposition?.bodyFatPercentage != null
+        ? Number(profile.bodyComposition.bodyFatPercentage).toFixed(2)
+        : undefined);
+
+    out.muscleMassKg =
+      out.muscleMassKg ??
+      profile?.muscleMassKg ??
+      (profile?.bodyComposition?.skeletalMuscleMass != null
+        ? (Number(profile.bodyComposition.skeletalMuscleMass) / 1000).toFixed(1)
+        : undefined);
 
     out.waist = out.waist ?? profile?.waistCm;
     out.hip = out.hip ?? profile?.hipCm;
@@ -560,7 +580,7 @@ export default function ResultScreen({ route, navigation }: Props) {
 
   const whr =
     display.waist && display.hip
-      ? (display.waist / display.hip).toFixed(2)
+      ? (Number(display.waist) / Number(display.hip)).toFixed(2)
       : undefined;
 
   const [loading, setLoading] = useState(false);
@@ -905,6 +925,8 @@ export default function ResultScreen({ route, navigation }: Props) {
     { key: 'calf', label: 'Bắp chân', unit: 'cm' },
   ];
 
+  const visibleDetailItems = detailItems.filter((t) => hasValue(display[t.key]));
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView className="flex-1 p-4">
@@ -959,113 +981,108 @@ export default function ResultScreen({ route, navigation }: Props) {
               resizeMode="contain"
             />
 
-            <View className="absolute top-8 left-3">
-              <View
-                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
-                style={getFadedStyle(display.bust)}
-              >
-                <Text className="text-xs text-gray-800">Ngực</Text>
-                <Text className="text-lg font-extrabold">
-                  {renderValue(display.bust, 'cm')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="absolute top-24 left-4">
-              <View
-                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
-                style={getFadedStyle(display.waist)}
-              >
-                <Text className="text-xs text-gray-800">Eo</Text>
-                <Text className="text-lg font-extrabold">
-                  {renderValue(display.waist, 'cm')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="absolute top-24 right-4">
-              <View
-                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
-                style={getFadedStyle(display.hip)}
-              >
-                <Text className="text-xs text-gray-800">Hông</Text>
-                <Text className="text-lg font-extrabold">
-                  {renderValue(display.hip, 'cm')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="absolute bottom-9 left-7">
-              <View
-                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
-                style={getFadedStyle(display.thigh)}
-              >
-                <Text className="text-xs text-gray-800">Đùi</Text>
-                <Text className="text-lg font-extrabold">
-                  {renderValue(display.thigh, 'cm')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="absolute top-9 right-7">
-              <View
-                className="bg-amber-200 rounded-lg px-3 py-2 shadow"
-                style={getFadedStyle(display.bicep)}
-              >
-                <Text className="text-xs text-gray-800">Bắp tay</Text>
-                <Text className="text-lg font-extrabold">
-                  {renderValue(display.bicep, 'cm')}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View
-          className="bg-amber-100 rounded-xl p-4 mb-4"
-          style={getFadedStyle(whr)}
-        >
-          <Text className="text-base font-semibold mb-2">
-            Chỉ số sức khỏe
-          </Text>
-
-          <View className="flex-row justify-between items-center">
-            <Text className="text-sm text-gray-700">
-              Waist-to-Hip Ratio
-            </Text>
-
-            <Text className="text-xl font-extrabold">
-              {hasValue(whr) ? whr : '-'}
-            </Text>
-          </View>
-        </View>
-
-        <Text className="text-lg font-extrabold mb-3">
-          Số đo chi tiết
-        </Text>
-
-        <View className="flex-row flex-wrap -m-2">
-          {detailItems.map((t) => {
-            const value = display[t.key];
-
-            return (
-              <View key={t.key} className="w-1/2 p-2">
-                <View
-                  className="bg-background-sub2 rounded-xl p-4 shadow"
-                  style={getFadedStyle(value)}
-                >
-                  <Text className="text-sm text-gray-700">
-                    {t.label}
-                  </Text>
-
-                  <Text className="text-2xl font-extrabold mt-2">
-                    {renderValue(value, t.unit)}
+            {hasValue(display.bust) ? (
+              <View className="absolute top-8 left-3">
+                <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                  <Text className="text-xs text-gray-800">Ngực</Text>
+                  <Text className="text-lg font-extrabold">
+                    {renderValue(display.bust, 'cm')}
                   </Text>
                 </View>
               </View>
-            );
-          })}
+            ) : null}
+
+            {hasValue(display.waist) ? (
+              <View className="absolute top-24 left-4">
+                <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                  <Text className="text-xs text-gray-800">Eo</Text>
+                  <Text className="text-lg font-extrabold">
+                    {renderValue(display.waist, 'cm')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {hasValue(display.hip) ? (
+              <View className="absolute top-24 right-4">
+                <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                  <Text className="text-xs text-gray-800">Hông</Text>
+                  <Text className="text-lg font-extrabold">
+                    {renderValue(display.hip, 'cm')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {hasValue(display.thigh) ? (
+              <View className="absolute bottom-9 left-7">
+                <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                  <Text className="text-xs text-gray-800">Đùi</Text>
+                  <Text className="text-lg font-extrabold">
+                    {renderValue(display.thigh, 'cm')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {hasValue(display.bicep) ? (
+              <View className="absolute top-9 right-7">
+                <View className="bg-amber-200 rounded-lg px-3 py-2 shadow">
+                  <Text className="text-xs text-gray-800">Bắp tay</Text>
+                  <Text className="text-lg font-extrabold">
+                    {renderValue(display.bicep, 'cm')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
         </View>
+
+        {hasValue(whr) ? (
+          <View className="bg-amber-100 rounded-xl p-4 mb-4">
+            <Text className="text-base font-semibold mb-2">
+              Chỉ số sức khỏe
+            </Text>
+
+            <View className="flex-row justify-between items-center">
+              <Text className="text-sm text-gray-700">
+                Waist-to-Hip Ratio
+              </Text>
+
+              <Text className="text-xl font-extrabold">
+                {whr}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {visibleDetailItems.length > 0 ? (
+          <>
+            <Text className="text-lg font-extrabold mb-3">
+              Số đo chi tiết
+            </Text>
+
+            <View className="flex-row flex-wrap -m-2">
+              {visibleDetailItems.map((t) => {
+                const value = display[t.key];
+
+                return (
+                  <View key={t.key} className="w-1/2 p-2">
+                    <View className="bg-background-sub2 rounded-xl p-4 shadow">
+                      <Text className="text-sm text-gray-700">
+                        {t.label}
+                      </Text>
+
+                      <Text className="text-2xl font-extrabold mt-2">
+                        {renderValue(value, t.unit)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
 
         <View className="mt-6">
           <TouchableOpacity
@@ -1134,8 +1151,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
-  },
-  fadedItem: {
-    opacity: 0.35,
   },
 });

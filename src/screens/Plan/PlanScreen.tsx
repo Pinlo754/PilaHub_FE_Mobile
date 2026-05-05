@@ -401,23 +401,38 @@ const PlanScreen = () => {
         createdAt: Date.now(),
       });
 
-      showModal({
-        mode: "noti",
-        titleText: "Thành công",
-        contentText: "Lộ trình đã được lưu.",
-        onConfirm: () => {
-          closeModal();
-          nav.reset({
-            index: 0,
-            routes: [
-              {
-                name: "MainTabs",
-                params: { screen: "Roadmap" },
+     showModal({
+  mode: "noti",
+  titleText: "Thành công",
+  contentText: "Lộ trình đã được lưu.",
+  onConfirm: () => {
+    closeModal();
+
+    const roadmapId =
+      roadmapFromServer?.roadmapId ??
+      roadmapFromServer?.id ??
+      roadmapFromServer?._id ??
+      null;
+
+    nav.reset({
+      index: 0,
+      routes: [
+        {
+          name: "MainTabs",
+          params: {
+            screen: "Roadmap",
+            params: {
+              screen: "RoadmapDetail",
+              params: {
+                roadmapId,
               },
-            ],
-          });
+            },
+          },
         },
-      });
+      ],
+    });
+  },
+});
     } catch (e: any) {
       console.error("Save roadmap error:", e);
 

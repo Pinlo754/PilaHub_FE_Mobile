@@ -66,7 +66,12 @@ const QuickActions = ({ navigation, targetRefs }: QuickActionsProps) => {
         <Pressable
           key={item.id}
           ref={targetRefs?.[item.id]}
-          onPress={() => navigation.navigate(item.route as any)}
+          onPress={() => {
+  console.log('[QuickActions] pressed:', item.id);
+  console.log('[QuickActions] navigate to:', item.route);
+
+  navigation.navigate(item.route as any);
+}}
           className="w-[49%] bg-white rounded-xl p-4 flex-row items-center shadow-md elevation-md border border-background-sub1_30"
         >
           <View

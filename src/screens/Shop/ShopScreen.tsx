@@ -108,7 +108,7 @@ function SearchSummary({
   if (!query.trim()) return null;
 
   return (
-    <View className="mx-4 mt-4 rounded-2xl bg-white border border-[#F1E7DC] p-3">
+    <View className="mx-4 mt-4 rounded-2xl bg-white border border-[#F1E7DC] ">
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
           <Text className="text-[#64748B] text-xs font-semibold">
@@ -146,10 +146,6 @@ function ListHeader({
 }: ListHeaderProps) {
   return (
     <>
-      <View className="pt-2">
-        <BannerCarousel data={[{ id: 'b1', image: bannerImg }]} />
-      </View>
-
       <SearchSummary
         query={query}
         total={total}

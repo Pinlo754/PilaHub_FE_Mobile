@@ -41,10 +41,6 @@ export default function SettingList(_: Props) {
     <View className="px-4 my-4">
       <Text className="text-sm font-medium text-gray-700 mb-2">Cài đặt</Text>
       <View className="bg-white rounded-xl shadow">
-        <Pressable className="p-4 border-b border-gray-100 flex-row items-center" onPress={() => (navigation as any).navigate('Notifications')}> 
-          <Ionicons name="notifications-outline" size={18} color="#A0522D" />
-          <Text className="ml-3">Thông báo</Text>
-        </Pressable>
 
         <Pressable className="p-4 border-b border-gray-100 flex-row items-center" onPress={() => (navigation as any).navigate('ProfileInfo')}>
           <Ionicons name="person-outline" size={18} color="#A0522D" />
