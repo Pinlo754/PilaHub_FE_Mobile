@@ -20,12 +20,14 @@ export default function BodyInputOptions({
         title="InBody Scan"
         desc="Sử dụng dữ liệu từ thiết bị InBody nếu bạn đã có kết quả đo."
         onPress={onInBodyPress}
+        recommended
       />
 
       <OptionCard
         icon="camera-outline"
         title="Dùng camera quét cơ thể"
         desc="Quét cơ thể bằng camera để lấy số đo tự động."
+        note="Thông tin có thể không chính xác hoàn toàn."
         onPress={onBodyScanPress}
       />
 
@@ -43,12 +45,16 @@ function OptionCard({
   icon,
   title,
   desc,
+  note,
   onPress,
+  recommended = false,
 }: {
   icon: string;
   title: string;
   desc: string;
+  note?: string;
   onPress: () => void;
+  recommended?: boolean;
 }) {
   return (
     <Pressable onPress={onPress} style={styles.card}>
@@ -57,8 +63,29 @@ function OptionCard({
       </View>
 
       <View style={styles.textBox}>
-        <Text style={styles.title}>{title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{title}</Text>
+
+          {recommended ? (
+            <View style={styles.recommendBadge}>
+              <Ionicons name="sparkles" size={11} color="#FFFFFF" />
+              <Text style={styles.recommendText}>Khuyến nghị</Text>
+            </View>
+          ) : null}
+        </View>
+
         <Text style={styles.desc}>{desc}</Text>
+
+        {note ? (
+          <View style={styles.noteBox}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={14}
+              color="#B45309"
+            />
+            <Text style={styles.noteText}>{note}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
@@ -96,15 +123,52 @@ const styles = StyleSheet.create({
   textBox: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   title: {
     fontSize: 16,
     fontWeight: '800',
     color: '#111827',
+  },
+  recommendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#B5651D',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  recommendText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   desc: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 18,
     color: '#6B7280',
+  },
+  noteBox: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  noteText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '800',
+    color: '#B45309',
   },
 });

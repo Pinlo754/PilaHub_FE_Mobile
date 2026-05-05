@@ -31,6 +31,8 @@ export default function RoadmapBodyMetricModal({
   loadingProfile = false,
   healthProfile,
 }: Props) {
+  const isCompleted = Number(progressPercent ?? 0) >= 100;
+
   const profileItems = [
     { label: 'Chiều cao', value: healthProfile?.display?.height },
     { label: 'Cân nặng', value: healthProfile?.display?.weight },
@@ -45,6 +47,11 @@ export default function RoadmapBodyMetricModal({
     { label: 'Bắp chân', value: healthProfile?.display?.calf },
   ];
 
+  const handleConfirm = () => {
+    if (!isCompleted) return;
+    onConfirm();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -55,19 +62,33 @@ export default function RoadmapBodyMetricModal({
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <View style={styles.iconWrap}>
-            <Ionicons name="body-outline" size={30} color="#8B4513" />
+            <Ionicons
+              name={isCompleted ? 'body-outline' : 'lock-closed-outline'}
+              size={30}
+              color="#8B4513"
+            />
           </View>
 
-          <Text style={styles.title}>Cập nhật số đo cuối</Text>
+          <Text style={styles.title}>Số đo cơ thể</Text>
 
           <Text style={styles.description}>
-            Bạn đã hoàn thành lộ trình. Hãy cập nhật số đo cuối để lưu kết quả
-            sau lộ trình và tạo đánh giá sức khỏe mới nhất.
+            {isCompleted
+              ? 'Bạn đã hoàn thành lộ trình. Hãy cập nhật số đo cuối để lưu kết quả sau lộ trình và tạo đánh giá sức khỏe mới nhất.'
+              : 'Bạn cần hoàn thành 100% lộ trình trước khi cập nhật số đo sau lộ trình.'}
           </Text>
+
+          {!isCompleted && (
+            <View style={styles.warningBox}>
+              <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
+              <Text style={styles.warningText}>
+                Tiến độ hiện tại chưa đủ 100%, nút cập nhật đang bị khóa.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.infoBox}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Lộ trình</Text>
+              <Text style={styles.infoLabel}>Số đo</Text>
               <Text style={styles.infoValue} numberOfLines={1}>
                 {roadmapTitle || 'Lộ trình hiện tại'}
               </Text>
@@ -75,7 +96,14 @@ export default function RoadmapBodyMetricModal({
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Tiến độ</Text>
-              <Text style={styles.infoValue}>{progressPercent}%</Text>
+              <Text
+                style={[
+                  styles.infoValue,
+                  isCompleted ? styles.successValue : styles.warningValue,
+                ]}
+              >
+                {progressPercent}%
+              </Text>
             </View>
 
             <View style={[styles.infoRow, styles.infoRowLast]}>
@@ -85,9 +113,7 @@ export default function RoadmapBodyMetricModal({
           </View>
 
           <View style={styles.profileBox}>
-            <Text style={styles.profileTitle}>
-              Số đo ban đầu của lộ trình
-            </Text>
+            <Text style={styles.profileTitle}>Số đo ban đầu của lộ trình</Text>
 
             {loadingProfile ? (
               <View style={styles.loadingBox}>
@@ -101,7 +127,7 @@ export default function RoadmapBodyMetricModal({
                 showsVerticalScrollIndicator={false}
               >
                 <View style={styles.profileGrid}>
-                  {profileItems.map((item) => {
+                  {profileItems.map(item => {
                     const empty =
                       item.value === null ||
                       item.value === undefined ||
@@ -138,11 +164,23 @@ export default function RoadmapBodyMetricModal({
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={onConfirm}
-              style={styles.confirmBtn}
-              activeOpacity={0.85}
+              onPress={handleConfirm}
+              disabled={!isCompleted}
+              style={[
+                styles.confirmBtn,
+                !isCompleted && styles.confirmBtnDisabled,
+              ]}
+              activeOpacity={isCompleted ? 0.85 : 1}
             >
-              <Text style={styles.confirmText}>Đi cập nhật</Text>
+              <Ionicons
+                name={isCompleted ? 'create-outline' : 'lock-closed-outline'}
+                size={17}
+                color="#FFFFFF"
+                style={styles.confirmIcon}
+              />
+              <Text style={styles.confirmText}>
+                {isCompleted ? 'Đi cập nhật' : 'Chưa đủ 100%'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -190,6 +228,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
   },
+  warningBox: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  warningText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   infoBox: {
     marginTop: 16,
     padding: 14,
@@ -218,6 +275,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#3A2A1A',
+  },
+  successValue: {
+    color: '#15803D',
+  },
+  warningValue: {
+    color: '#B45309',
   },
   profileBox: {
     marginTop: 14,
@@ -297,6 +360,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#8B4513',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  confirmBtnDisabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  confirmIcon: {
+    marginRight: 6,
   },
   confirmText: {
     color: '#FFFFFF',
