@@ -253,6 +253,8 @@ export type RootStackParamList = {
   TraineeDetailScreen: { traineeId: string, roadmapId: string };
   MyInjuries: undefined;
   NotificationScreen: undefined;
+  SentRequests: undefined;
+  SentRequestDetail: { request?: any } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -346,6 +348,8 @@ const AppNavigator: React.FC = () => {
               name="TraineeProfile"
               component={TraineeProfileScreen}
             />
+            <Stack.Screen name="SentRequests" component={require('../screens/RegisterCoachRoadmap/SentRequestsScreen').default} />
+            <Stack.Screen name="SentRequestDetail" component={require('../screens/RegisterCoachRoadmap/SentRequestDetail').default} />
             <Stack.Screen name="ProfileInfo" component={ProfileInfoScreen} />
             <Stack.Screen
               name="HealthProfiles"
