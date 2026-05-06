@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@react-native-vector-icons/feather';
 import { register } from '../../services/auth';
 import Toast from '../../components/Toast';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 

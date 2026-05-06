@@ -167,7 +167,7 @@ export type RootStackParamList = {
   RegisterCalendar:
     | { coach_id?: string | null; pricePerHour?: number }
     | undefined;
-  TraineeFeedback: { liveSessionId?: string } | undefined;
+  TraineeFeedback: { liveSessionId?: string; coachId?: string } | undefined;
   TraineeReport:
     | {
         coach_id?: string | null;
@@ -402,7 +402,10 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="TraineeReport" component={TraineeReport} />
             <Stack.Screen name="AISummary" component={AISummary} />
             <Stack.Screen name="AIPractice" component={AIPractice} />
-            <Stack.Screen name="AIPracticeTimeout" component={AIPracticeTimeout} />
+            <Stack.Screen
+              name="AIPracticeTimeout"
+              component={AIPracticeTimeout}
+            />
 
             <Stack.Screen
               name="CoachProfileScreen"

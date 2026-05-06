@@ -98,6 +98,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   // CHECK
   const isFromList = source === 'List';
   const isFromSearch = source === 'Search';
+  const isFromRoadmap = source === 'Roadmap';
   const isPracticeTab = activeTab === ExerciseTab.Practice;
   const id = route.params.exercise_id;
   const isPaidUser = [PackageType.VIP_MEMBER, PackageType.MEMBER].includes(
@@ -490,6 +491,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       await endWorkout();
 
       if (!isLast) {
+        setIsPlaying(false);
         const rest =
           practicePayload!.restSeconds?.[currentExerciseIndexRef.current] ??
           COUNTDOWN_REST;
@@ -700,17 +702,20 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const onPressAIPractice = async () => {
     if (!exerciseDetail || !tutorial) return;
 
-    if (!exerciseDetail.haveAIsupported || !exerciseDetail.nameInModelAI?.trim()) {
-      // Nếu bài không hỗ trợ AI, chuyển về self-practice
-      await onPressPractice();
-      return;
-    }
-
     if (activePackage !== PackageType.VIP_MEMBER) {
       openRecommendModal(
         'Tính năng này chỉ dành cho gói VIP. Bạn có muốn tham khảo thử không?',
         'UPGRADE',
       );
+      return;
+    }
+
+    if (
+      !exerciseDetail.haveAIsupported ||
+      !exerciseDetail.nameInModelAI?.trim()
+    ) {
+      // Nếu bài không hỗ trợ AI, chuyển về self-practice
+      await onPressPractice();
       return;
     }
 
@@ -903,6 +908,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     hasAccess,
     isFromList,
     isFromSearch,
+    isFromRoadmap,
     // countdown
     showStartCountdown,
     onStartCountdownFinished,

@@ -2,6 +2,14 @@ import { colors } from '../theme/colors';
 import { BookingStatus } from './CoachBookingType';
 import { TrainingDay } from './CourseLessonProgressType';
 import { LevelType } from './CourseType';
+import { BreathingRuleType, ExerciseTypeEnum } from './ExerciseType';
+
+// TYPE
+type MapType = {
+  bgColor: string;
+  textColor: string;
+  label: string;
+};
 
 // RULES
 const PROGRESS_RULES = [
@@ -108,6 +116,132 @@ export const TRAINING_DAYS: Record<TrainingDay, string> = {
   6: 'CN',
 };
 
+export const EXERCISE_TYPE_MAP: Record<ExerciseTypeEnum, MapType> = {
+  CORE_STRENGTHENING: {
+    label: 'Tăng cường core',
+    bgColor: 'bg-red-100',
+    textColor: 'text-red-700',
+  },
+  PELVIC_FLOOR_ENGAGEMENT: {
+    label: 'Sàn chậu',
+    bgColor: 'bg-pink-100',
+    textColor: 'text-pink-700',
+  },
+  SPINAL_ARTICULATION: {
+    label: 'Cột sống linh hoạt',
+    bgColor: 'bg-indigo-100',
+    textColor: 'text-indigo-700',
+  },
+  SPINAL_FLEXION: {
+    label: 'Gập cột sống',
+    bgColor: 'bg-blue-100',
+    textColor: 'text-blue-700',
+  },
+  SPINAL_EXTENSION: {
+    label: 'Duỗi cột sống',
+    bgColor: 'bg-cyan-100',
+    textColor: 'text-cyan-700',
+  },
+  SPINAL_ROTATION_TWIST: {
+    label: 'Xoay cột sống',
+    bgColor: 'bg-purple-100',
+    textColor: 'text-purple-700',
+  },
+  LATERAL_FLEXION: {
+    label: 'Nghiêng người',
+    bgColor: 'bg-teal-100',
+    textColor: 'text-teal-700',
+  },
+  HIP_WORK: {
+    label: 'Hông',
+    bgColor: 'bg-orange-100',
+    textColor: 'text-orange-700',
+  },
+  LEG_STRENGTHENING: {
+    label: 'Chân',
+    bgColor: 'bg-yellow-100',
+    textColor: 'text-yellow-700',
+  },
+  SHOULDER_STABILIZATION: {
+    label: 'Ổn định vai',
+    bgColor: 'bg-emerald-100',
+    textColor: 'text-emerald-700',
+  },
+  ARM_STRENGTHENING: {
+    label: 'Tay',
+    bgColor: 'bg-lime-100',
+    textColor: 'text-lime-700',
+  },
+  BALANCE_STABILITY: {
+    label: 'Thăng bằng',
+    bgColor: 'bg-gray-100',
+    textColor: 'text-gray-700',
+  },
+  FLEXIBILITY_STRETCHING: {
+    label: 'Giãn cơ',
+    bgColor: 'bg-rose-100',
+    textColor: 'text-rose-700',
+  },
+  BREATHING_RELAXATION: {
+    label: 'Thở & thư giãn',
+    bgColor: 'bg-sky-100',
+    textColor: 'text-sky-700',
+  },
+  FULL_BODY_INTEGRATION: {
+    label: 'Toàn thân',
+    bgColor: 'bg-green-100',
+    textColor: 'text-green-700',
+  },
+};
+
+export const BREATHING_RULE_MAP: Record<BreathingRuleType, MapType> = {
+  INHALE_ON_EFFORT: {
+    label: 'Hít khi gắng sức',
+    bgColor: 'bg-blue-100',
+    textColor: 'text-blue-700',
+  },
+  EXHALE_ON_EFFORT: {
+    label: 'Thở ra khi gắng sức',
+    bgColor: 'bg-green-100',
+    textColor: 'text-green-700',
+  },
+  NASAL_BREATHING: {
+    label: 'Thở bằng mũi',
+    bgColor: 'bg-cyan-100',
+    textColor: 'text-cyan-700',
+  },
+  MOUTH_BREATHING: {
+    label: 'Thở bằng miệng',
+    bgColor: 'bg-gray-100',
+    textColor: 'text-gray-700',
+  },
+  BOX_BREATHING: {
+    label: 'Box breathing',
+    bgColor: 'bg-purple-100',
+    textColor: 'text-purple-700',
+  },
+  DIAPHRAGMATIC: {
+    label: 'Thở bụng',
+    bgColor: 'bg-emerald-100',
+    textColor: 'text-emerald-700',
+  },
+  RHYTHMIC: {
+    label: 'Thở theo nhịp',
+    bgColor: 'bg-indigo-100',
+    textColor: 'text-indigo-700',
+  },
+  HOLD_BREATH: {
+    label: 'Nín thở',
+    bgColor: 'bg-red-100',
+    textColor: 'text-red-700',
+  },
+  FREE_BREATHING: {
+    label: 'Thở tự do',
+    bgColor: 'bg-yellow-100',
+    textColor: 'text-yellow-700',
+  },
+};
+
 // FUNCTIONS
 export const getProgressColor = (progress: number) =>
   PROGRESS_RULES.find(r => progress >= r.min)?.color ?? colors.danger.DEFAULT;
@@ -125,3 +259,15 @@ export const getLevelTarget = (level: LevelType) => LEVEL_MAP[level].target;
 
 export const getBookingStatusConfig = (status: BookingStatus) =>
   BOOKING_STATUS_MAP[status];
+
+export const getExerciseTypeConfig = (type: ExerciseTypeEnum) =>
+  EXERCISE_TYPE_MAP[type];
+
+export const getExerciseTypeLabel = (type: ExerciseTypeEnum) =>
+  EXERCISE_TYPE_MAP[type].label;
+
+export const getBreathingRuleConfig = (rule: BreathingRuleType) =>
+  BREATHING_RULE_MAP[rule];
+
+export const getBreathingRuleLabel = (rule: BreathingRuleType) =>
+  BREATHING_RULE_MAP[rule].label;

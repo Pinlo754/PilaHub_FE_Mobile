@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AssessmentCriterionType } from '../../utils/AssessmentCriterionType';
 import { SessionAssessmentService } from '../../hooks/sessionAssessment.service';
 import { AssessmentCriterionService } from '../../hooks/assessmentCriterion.service';
+import { coachFeedbackService } from '../../hooks/coachFeedback.service';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'TraineeFeedback'>;
@@ -40,6 +41,7 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
 
   // PARAM
   const liveSessionIdParam = route.params?.liveSessionId;
+  const coachIdParam = route.params?.coachId;
 
   // STATE
   const [info, setInfo] = useState<infoType>(mockInfo);
@@ -71,8 +73,8 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
       title: 'Bạn thấy HLV dạy như thế nào?',
       showInfo: false,
       showRating: true,
-      showComment: false,
-      validate: () => rating > 0,
+      showComment: true,
+      validate: () => rating > 0 && comment.trim().length > 0,
       submit: () => {
         feedbackForCoach();
       },
@@ -116,11 +118,12 @@ export const useTraineeFeedback = ({ route, navigation }: Props) => {
     setIsLoading(true);
     try {
       if (!liveSessionIdParam) return null;
-      console.log(
-        `Submitting feedback for coach id: ${liveSessionIdParam} with rating:`,
+      await coachFeedbackService.createCoachFeedback({
+        coachId: coachIdParam,
+        liveSessionId: liveSessionIdParam,
         rating,
-      );
-      await LiveSessionService.feedbackForCoach(liveSessionIdParam, rating);
+        comment,
+      });
 
       openSuccessModal('Đã đánh giá thành công!');
 

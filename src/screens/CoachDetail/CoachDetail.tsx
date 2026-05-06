@@ -30,7 +30,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
   if (!coachDetail) return null;
 
   return (
-    <View className="w-full flex-1  bg-background">
+    <View className="w-full flex-1 bg-background">
       {/* Header */}
       <Header
         navigation={navigation}
@@ -68,23 +68,27 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
         <BlogSection coachId={coachDetail.coachId} />
       </Animated.ScrollView>
 
-      <View className="pt-2 px-4 pb-6 flex-row justify-center gap-4 flex-wrap">
-        <Button
-          text="Đăng ký lịch"
-          onPress={onPressBtn}
-          colorType="sub1"
-          rounded="xl"
-          iconName="today-outline"
-          iconSize={26}
-        />
-        <Button
-          text="Đăng ký Roadmap"
-          onPress={sendRequestRoadmap}
-          colorType="sub1"
-          rounded="xl"
-          iconName="today-outline"
-          iconSize={26}
-        />
+      <View className="pt-2 px-4 pb-8 gap-4">
+        <View className="flex-row justify-between">
+          <Button
+            text="Đăng ký lịch"
+            onPress={onPressBtn}
+            colorType="sub1"
+            rounded="xl"
+            iconName="today-outline"
+            iconSize={26}
+            width={160}
+          />
+          <Button
+            text="Đăng ký Roadmap"
+            onPress={sendRequestRoadmap}
+            colorType="sub1"
+            rounded="xl"
+            iconName="today-outline"
+            iconSize={26}
+            width={205}
+          />
+        </View>
         <Button
           text="Nhắn tin"
           onPress={onChatPress}
