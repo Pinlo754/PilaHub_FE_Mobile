@@ -75,6 +75,7 @@ import OrdersScreen from '../screens/Profile/OrdersScreen';
 import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import OrderSuccessScreen from '../screens/Shop/OrderSuccessScreen';
+import VendorShopScreen from '../screens/Shop/VendorShopScreen';
 import { PracticePayload } from '../utils/CourseLessonProgressType';
 import CreatePostScreen from '../screens/Coach/Blog/CreatePostScreen';
 import ChatScreen from '../screens/Chat/ChatScreen';
@@ -121,6 +122,7 @@ export type RootStackParamList = {
     source?: string;
   };
   ProductDetail: { productId: string };
+  VendorShop: { vendorId: string };
   Cart: undefined;
   InputBody: undefined;
   BodyScanFlow: undefined;
@@ -326,6 +328,7 @@ const AppNavigator: React.FC = () => {
               component={ProductDetailScreen}
             />
             <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="VendorShop" component={VendorShopScreen} />
             <Stack.Screen
               name="RoadmapProducts"
               component={RoadmapProductsScreen}
