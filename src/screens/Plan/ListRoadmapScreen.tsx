@@ -473,7 +473,7 @@ const RoadmapCard: React.FC<RoadmapCardProps> = ({ item, onPress }) => {
 const getOwnerBadge = (item: RoadmapItem): {
   type: OwnerBadgeType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: string;
   color: string;
 } => {
   const hasTraineeId = Boolean(item.traineeId);

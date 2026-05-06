@@ -16,7 +16,7 @@ import {
 } from '../../utils/CourseLessonProgressType';
 import { fetchTraineeProfile } from '../../services/profile';
 import { formatVND } from '../../utils/number';
-import { ExerciseType, PackageType } from '../../utils/ExerciseType';
+import { ExerciseType, PackageType, TutorialType } from '../../utils/ExerciseType';
 import { getProfile } from '../../services/auth';
 import { WalletType } from '../../utils/WalletType';
 import { WalletService } from '../../hooks/wallet.service';
@@ -168,7 +168,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     try {
       const res = await getProfile();
       if (!res.ok) return;
-
       setActivePackage(res.data.activePackageType);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
@@ -180,17 +179,11 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   };
 
   const fetchById = async () => {
-    if (!program_id) {
-      console.log('FETCH_PROGRAM_DETAIL_ERROR: missing program_id');
-      openErrorModal('Không tìm thấy khóa học.');
-      return;
-    }
+    if (!program_id) return;
 
     try {
       let programDetail;
       let enrolled = false;
-
-      console.log('FETCH_PROGRAM_DETAIL_BY_ID:', program_id);
 
       if (traineeCourseId) {
         const [resProgram, resCompletedLesson] = await Promise.all([
@@ -218,10 +211,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
       } else {
         const resTrainee = await fetchTraineeProfile();
 
-        if (!resTrainee.ok) {
-          console.log('FETCH_TRAINEE_PROFILE_ERROR:', resTrainee);
-          return;
-        }
+        if (!resTrainee.ok) return;
 
         const currentTraineeId = resTrainee.data.traineeId;
         setTraineeId(currentTraineeId);
@@ -235,13 +225,9 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
         enrolled = resEnrolled;
       }
 
-      console.log('FETCH_PROGRAM_DETAIL_SUCCESS:', programDetail);
-
       setProgramFullDetail(programDetail);
       setIsEnrolled(enrolled);
     } catch (err: any) {
-      console.log('FETCH_PROGRAM_DETAIL_ERROR:', err);
-
       if (err?.type === 'BUSINESS_ERROR') {
         openErrorModal(err.message);
       } else {
@@ -255,7 +241,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     if (!program_id || selectedDays.length === 0 || !traineeId) return;
 
     setIsLoading(true);
-
     try {
       const resEnroll = await traineeCourseService.enrollCourse(
         traineeId,
@@ -292,7 +277,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     if (!traineeCourseId) return;
 
     setIsLoading(true);
-
     try {
       const res = await courseLessonProgressService.getProgressOfCourseLesson(
         traineeCourseId,
@@ -315,7 +299,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     if (!traineeCourseId || resetSelectedDays.length === 0) return;
 
     setIsLoading(true);
-
     try {
       const payload: CreateScheduleReq = {
         traineeCourseId,
@@ -342,7 +325,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     if (!traineeCourseId || resetSelectedDays.length === 0) return;
 
     setIsLoading(true);
-
     try {
       const payload: CreateScheduleReq = {
         traineeCourseId,
@@ -824,10 +806,9 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
       navigation.navigate('MainTabs', {
         screen: 'List',
       });
-      return;
-    }
 
-    if (isFromSearch) {
+      return;
+    } else if (isFromSearch) {
       navigation.navigate('Search', { navigateHome: true });
       return;
     }
@@ -900,27 +881,33 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     setShowErrorModal(false);
   };
 
-    navigation.goBack();
+  const openConfirmModal = (msg: string) => {
+    setConfirmMsg(msg);
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmMsg('');
+    setShowConfirmModal(false);
   };
 
   const onConfirmModal = () => {
     closeConfirmModal();
 
     if (pendingReset) {
+      // Đây là confirm reset
       const { startDate, mode } = pendingReset;
       setPendingReset(null);
-
       if (mode === 'full') {
         resetSchedule(startDate);
       } else {
         resetIncompleteLesson(startDate);
       }
-
-      return;
+    } else {
+      // Đây là confirm đăng ký khóa học
+      closeSchedule();
+      enrollCourse();
     }
-
-    closeSchedule();
-    enrollCourse();
   };
 
   const openRecommendModal = (msg: string, action: 'UPGRADE' | 'LIST') => {
@@ -972,18 +959,10 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
   // ─── EFFECTS ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    let mounted = true;
+    if (!program_id) return;
 
     const fetchAll = async () => {
-      if (!program_id) {
-        console.log('PROGRAM_DETAIL_MISSING_ID:', params);
-        openErrorModal('Không tìm thấy khóa học.');
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
-
       try {
         await Promise.allSettled([
           fetchInformation(),
@@ -992,22 +971,15 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
           fetchAiAllowed(),
         ]);
       } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
     fetchAll();
-
-    return () => {
-      mounted = false;
-    };
   }, [program_id]);
 
   useEffect(() => {
     if (!programFullDetail || !wallet) return;
-
     setIsInsufficientBalance(
       wallet.availableVND < programFullDetail.course.price,
     );

@@ -182,5 +182,21 @@ export const CoachService = {
     }
 
     return res.data.data;
+  },
+
+  getBusyTimeAll: async (coachId: string) => {
+    const res = await api.get<ApiResponse<[]>>(
+      `/coach-time-offs/coach/${coachId}/busy-schedule`
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
   }
 };

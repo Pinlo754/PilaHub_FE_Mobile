@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 
@@ -76,8 +76,6 @@ export default function StageCalendar({
   onSelectDate,
   completedDateMap = {},
 }: any) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
     const SEVEN_HOURS_IN_MS = 7 * 60 * 60 * 1000;
@@ -113,19 +111,14 @@ export default function StageCalendar({
   }, [stage, completedDateMap]);
 
   const handleDateSelect = (day: any) => {
-    const dateString = day?.dateString;
-    if (!dateString) return;
+    const date = new Date(day.dateString);
 
-    setSelectedDate(dateString);
+    date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
 
-    const date = new Date(dateString);
+    const adjustedDateString = date.toISOString().split("T")[0];
 
-  //   date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
-
-  //   const adjustedDateString = date.toISOString().split("T")[0];
-
-  //   onSelectDate(adjustedDateString);
-  // };
+    onSelectDate(adjustedDateString);
+  };
 
   return (
     <View
@@ -239,22 +232,17 @@ export default function StageCalendar({
 
           const hasSchedule = Boolean(mark);
           const isCompleted = mark?.completed === true;
-          const isSelected = selectedDate === dateString;
           const isDisabled = state === "disabled";
 
           const bgColor = hasSchedule
             ? mark?.selectedColor ?? COLORS.schedule
-            : isSelected
-              ? COLORS.scheduleSoft
-              : "transparent";
+            : "transparent";
 
           const textColor = hasSchedule
             ? COLORS.white
-            : isSelected
-              ? COLORS.primary
-              : isDisabled
-                ? COLORS.disabled
-                : COLORS.title;
+            : isDisabled
+              ? COLORS.disabled
+              : COLORS.title;
 
           return (
             <TouchableOpacity
@@ -268,8 +256,8 @@ export default function StageCalendar({
                 justifyContent: "center",
                 backgroundColor: bgColor,
                 position: "relative",
-                borderWidth: isSelected ? 2 : 0,
-                borderColor: isSelected ? COLORS.primary : "transparent",
+                borderWidth: 0,
+                borderColor: "transparent",
                 opacity: isDisabled ? 0.55 : 1,
               }}
             >
@@ -277,7 +265,7 @@ export default function StageCalendar({
                 style={{
                   color: textColor,
                   fontSize: 15,
-                  fontWeight: hasSchedule || isSelected ? "800" : "500",
+                  fontWeight: hasSchedule ? "800" : "500",
                 }}
               >
                 {date?.day}
@@ -366,5 +354,3 @@ function LegendDot({ color, label }: { color: string; label: string }) {
     </View>
   );
 }
-
-

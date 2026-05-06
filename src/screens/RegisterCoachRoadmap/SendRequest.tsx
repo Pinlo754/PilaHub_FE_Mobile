@@ -167,7 +167,7 @@
     const [timeOffs, setTimeOffs] = useState<any[]>([])
 
     const fetchTimeOffs = async () => {
-      const res = await CoachService.getTimeOffById(coach_id)
+      const res = await CoachService.getBusyTimeAll(coach_id);
 
       if (res) {
         setTimeOffs(res)

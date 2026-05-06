@@ -158,7 +158,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
             console.log("saveRoadmap result", res);
 
             if (res) {
-                Alert.alert("Thành công", "Roadmap đã được lưu");
+
                 navigation.navigate('ListRequest');
             } else {
                 Alert.alert("Lỗi", "Không thể lưu roadmap");
@@ -197,6 +197,51 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
         fetchExercises();
 
     }, [])
+
+    const mapDayOfWeekEngToVie = (dayOfWeekEng: string | null | undefined): string => {
+        if (!dayOfWeekEng) return '';
+
+        // Chuẩn hóa dữ liệu đầu vào: viết hoa toàn bộ và xóa khoảng trắng 2 đầu
+        const cleanDay = dayOfWeekEng.trim().toUpperCase();
+
+        const dayMap: Record<string, string> = {
+            'MONDAY': 'Thứ Hai',
+            'TUESDAY': 'Thứ Ba',
+            'WEDNESDAY': 'Thứ Tư',
+            'THURSDAY': 'Thứ Năm',
+            'FRIDAY': 'Thứ Sáu',
+            'SATURDAY': 'Thứ Bảy',
+            'SUNDAY': 'Chủ Nhật',
+        };
+
+        return dayMap[cleanDay] || dayOfWeekEng;
+    };
+
+
+    const mapWorkoutLevel = (level: string | null | undefined) => {
+        const cleanLevel = level?.trim().toUpperCase() || 'BEGINNER';
+
+        const levelMap: Record<string, { text: string; textColor: string; bgColor: string }> = {
+            'BEGINNER': {
+                text: 'Người mới (Cơ bản)',
+                textColor: 'text-green-700',
+                bgColor: 'bg-green-50',
+            },
+            'INTERMEDIATE': {
+                text: 'Trung cấp',
+                textColor: 'text-blue-700',
+                bgColor: 'bg-blue-50',
+            },
+            'ADVANCED': {
+                text: 'Nâng cao (Chuyên nghiệp)',
+                textColor: 'text-red-700',
+                bgColor: 'bg-red-50',
+            },
+        };
+
+        // Trả về giá trị map được, nếu không khớp trả về mặc định của BEGINNER
+        return levelMap[cleanLevel] || levelMap['BEGINNER'];
+    };
 
     const generateRoadmap = async () => {
         setLoading(true);
@@ -291,6 +336,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
         SUNDAY: 'CN',
     };
 
+
     return (
         <SafeAreaView className="flex-1 bg-background">
             {/* HEADER: centered title + back */}
@@ -353,7 +399,10 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                         <Ionicons name="barbell-outline" size={18} color="#6B7280" />
 
                         <Text className="ml-2 text-gray-700">
-                            Cấp độ: <Text className="font-semibold">{RequestItem.workoutLevel}</Text>
+                            Cấp độ:{' '}
+                            <Text className="font-semibold text-amber-950">
+                                {mapWorkoutLevel(RequestItem?.workoutLevel).text}
+                            </Text>
                         </Text>
 
                     </View>
@@ -435,14 +484,14 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                 <View className="bg-amber-100 rounded-xl p-4 mb-4">
                     <Text className="text-base font-semibold mb-2">Chỉ số sức khỏe</Text>
                     <View className="flex-row justify-between items-center">
-                        <Text className="text-sm text-gray-700">Waist-to-Hip Ratio</Text>
+                        <Text className="text-sm text-gray-700">Tỷ lệ eo trên hông</Text>
                         <Text className="text-xl font-extrabold">{whr ?? '-'}</Text>
                     </View>
                 </View>
 
 
                 {roadmap && (
-                    <ScrollView className="flex-1 bg-gray-100 p-4">
+                    <ScrollView className="flex-1 p-4">
 
                         <Text className="text-2xl font-bold mb-2">
                             {roadmap?.title}
@@ -454,7 +503,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                         {roadmap?.stages?.map((stage: any, stageIndex: number) => (
 
-                            <View key={stageIndex} style={styles.stageCard}>
+                            <View key={stageIndex} style={styles.stageCard} className='bg-background-sub1'>
 
                                 {/* Stage header */}
                                 <View style={styles.stageHeader}>
@@ -491,12 +540,12 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                                             </View>
 
-                                            <Text style={styles.scheduleMeta}>
-                                                {schedule.dayOfWeek} • {schedule.durationMinutes} phút
-                                            </Text>
+
 
                                         </View>
-
+                                        <Text style={styles.scheduleMeta}>
+                                            {mapDayOfWeekEngToVie(schedule.dayOfWeek)} • {schedule.durationMinutes} phút
+                                        </Text>
                                         {/* exercises */}
                                         {schedule.exercises.map((ex: any, exerciseIndex: number) => (
 
@@ -511,9 +560,10 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                                                     )
                                                 }
                                                 style={styles.exerciseRow}
+                                                className='flex-wrap'
                                             >
 
-                                                <View style={styles.exerciseLeft}>
+                                                <View style={styles.exerciseLeft} className='w-full'>
                                                     <View style={styles.exerciseOrder}>
                                                         <Text style={styles.exerciseOrderText}>
                                                             {ex.exerciseOrder}
@@ -525,7 +575,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                                                     </Text>
                                                 </View>
 
-                                                <View style={styles.exerciseMeta}>
+                                                <View style={styles.exerciseMeta} className='w-full pt-2'>
                                                     <Text style={styles.exerciseBadge}>
                                                         {ex.sets} sets
                                                     </Text>
@@ -534,6 +584,7 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
                                                         {ex.durationSeconds ?? 0}s
                                                     </Text>
 
+                                                    <View className='flex-grow' />
                                                     <Ionicons name="create-outline" size={18} color="#9CA3AF" />
                                                 </View>
 
@@ -597,14 +648,30 @@ export default function TraineeHealthProfileResult({ route, navigation }: Props)
 
                         <Text style={styles.sheetLabel}>Bài tập</Text>
 
-                        <Picker
-                            selectedValue={selectedExerciseName}
-                            onValueChange={(v) => setSelectedExerciseName(v)}
-                        >
-                            {exerciseList.map((ex) => (
-                                <Picker.Item key={ex.id} label={ex.name} value={ex.name} />
-                            ))}
-                        </Picker>
+                        <View className="border border-gray-300 rounded-lg bg-white overflow-hidden w-full my-2 justify-center">
+                            <Picker
+                                selectedValue={selectedExerciseName}
+                                onValueChange={(v) => setSelectedExerciseName(v)}
+                                // Ép chiều cao cố định trực tiếp bằng style (Thông thường từ 45px đến 55px tùy thiết kế)
+                                style={{
+                                    height: 50,
+                                    width: '100%',
+                                    backgroundColor: '#ffffff',
+                                    color: '#111827' // Đổi màu chữ hiển thị sau khi chọn trên Android
+                                }}
+                                // Trên Android, chế độ 'dropdown' giúp hiển thị gọn gàng và không bị lỗi đè chữ
+                                mode="dropdown"
+                            >
+                                {exerciseList.map((ex) => (
+                                    <Picker.Item
+                                        key={ex.id}
+                                        label={ex.name}
+                                        value={ex.name}
+
+                                    />
+                                ))}
+                            </Picker>
+                        </View>
 
                         {/* Trong Modal UI */}
                         <View style={styles.rowInputs}>
@@ -700,7 +767,6 @@ const styles = StyleSheet.create({
         marginBottom: 12
     },
     stageCard: {
-        backgroundColor: '#fff',
         borderRadius: 16,
         padding: 16,
         marginBottom: 20,
