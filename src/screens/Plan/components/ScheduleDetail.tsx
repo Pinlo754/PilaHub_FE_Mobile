@@ -8,6 +8,7 @@ import {
   DeviceEventEmitter,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import api from '../../../hooks/axiosInstance';
 import { tutorialService } from '../../../hooks/tutorial.service';
@@ -17,7 +18,6 @@ import { mistakeLogService } from '../../../hooks/mistakeLog.service';
 import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
-import { workoutFeedbackService } from '../../../hooks/workoutFeedback.service';
 import { markPersonalScheduleCompleted } from '../../../services/personalSchedule.service';
 
 // Helper: Phân giải URL video
@@ -46,6 +46,7 @@ export default function ScheduleDetail({
   onVideoModalChange,
   isPreview = false,
   onEditExercise,
+  onScheduleCompleted,
 }: any) {
   const navigation: any = useNavigation();
 
@@ -110,6 +111,15 @@ export default function ScheduleDetail({
     })();
   }, [schedule, normalizeExercises]);
 
+  // 🔄 Sync localExercises khi schedule.exercises thay đổi (từ parent re-fetch)
+  useEffect(() => {
+    if (Array.isArray(schedule?.exercises)) {
+      const exs = schedule.exercises.map((e: any) => ({ ...e }));
+      setLocalExercises(normalizeExercises(exs));
+      setScheduleCompleted(Boolean(schedule?.completed));
+    }
+  }, [schedule?.exercises, schedule?.completed, normalizeExercises]);
+
 
 
   const showToast = (
@@ -150,6 +160,58 @@ export default function ScheduleDetail({
     }
   };
 
+  // 🔄 Refresh exercises khi user quay lại từ SchedulePlayer
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[ScheduleDetail] 👁️ Screen focused, re-fetching exercises...');
+      
+      // Fetch latest exercises from backend
+      const fetchLatestExercises = async () => {
+        try {
+          const scheduleId = 
+            schedule?.personalScheduleId ?? 
+            schedule?.id ?? 
+            schedule?.scheduleId ?? 
+            null;
+          
+          if (!scheduleId) return;
+          
+          console.log('[ScheduleDetail] 📥 Fetching latest exercises for schedule:', scheduleId);
+          const res = await api.get(`/personal-exercises/schedule/${scheduleId}`);
+          const exercisesFromServer = Array.isArray(res?.data?.data) 
+            ? res.data.data 
+            : schedule?.exercises ?? [];
+          
+          console.log('[ScheduleDetail] ✅ Got exercises from server:', exercisesFromServer.length, 'items');
+          
+          // Check if all are completed
+          const allCompleted = exercisesFromServer.length > 0 && 
+            exercisesFromServer.every((e: any) => e.completed === true);
+          
+          if (allCompleted) {
+            console.log('[ScheduleDetail] 🎉 All exercises completed from server!');
+            
+            // 🔄 Trigger parent callback to refresh roadmap data
+            if (typeof onScheduleCompleted === 'function') {
+              console.log('[ScheduleDetail] 🔄 Calling onScheduleCompleted from focus effect...');
+              onScheduleCompleted();
+            }
+          }
+          
+          // Update localExercises with fresh data
+          setLocalExercises(normalizeExercises(exercisesFromServer));
+        } catch (err: any) {
+          console.warn('[ScheduleDetail] ❌ Failed to fetch exercises:', err.message);
+        }
+      };
+      
+      fetchLatestExercises();
+      
+      // Cleanup
+      return () => {};
+    }, [schedule?.personalScheduleId, schedule?.id, schedule?.scheduleId, schedule?.exercises, normalizeExercises, onScheduleCompleted])
+  );
+
   useEffect(() => {
     const subEx = DeviceEventEmitter.addListener(
       'exerciseCompleted',
@@ -176,11 +238,26 @@ export default function ScheduleDetail({
     normalized.every(e => e.completed === true);
 
   if (allDone) {
-    const scheduleId = getScheduleId();
+    const scheduleId = 
+      schedule?.personalScheduleId ??
+      schedule?.id ??
+      schedule?.scheduleId ??
+      schedule?.personalScheduleIdRaw ??
+      null;
 
     if (scheduleId) {
-      markPersonalScheduleCompleted(scheduleId);
+      console.log('[ScheduleDetail] 🎉 Tất cả bài tập hoàn thành! Marking schedule as completed...');
+      
+      // Call API and handle async
+      markPersonalScheduleCompleted(scheduleId)
+        .then(() => {
+          console.log('[ScheduleDetail] ✅ markPersonalScheduleCompleted thành công!');
+        })
+        .catch((err: any) => {
+          console.error('[ScheduleDetail] ❌ markPersonalScheduleCompleted failed:', err.message);
+        });
 
+      console.log('[ScheduleDetail] 📤 Emitting scheduleCompleted event with scheduleId:', scheduleId);
       DeviceEventEmitter.emit('scheduleCompleted', {
         scheduleId,
       });
@@ -197,6 +274,7 @@ export default function ScheduleDetail({
     const subSchedule = DeviceEventEmitter.addListener(
       'scheduleCompleted',
       (evt: any) => {
+        console.log('[ScheduleDetail] 📡 Received scheduleCompleted event:', evt);
         const sid = evt?.scheduleId ?? null;
         const thisSid =
           schedule?.personalScheduleId ??
@@ -204,12 +282,32 @@ export default function ScheduleDetail({
           schedule?.scheduleId ??
           null;
 
-        if (!sid || sid !== thisSid) return;
+        console.log(`[ScheduleDetail] Checking IDs: event=${sid}, this=${thisSid}, match=${sid === thisSid}`);
 
+        if (!sid || sid !== thisSid) {
+          console.log('[ScheduleDetail] ⚠️ IDs do not match, skipping');
+          return;
+        }
+
+        console.log('[ScheduleDetail] ✅ IDs match! Setting scheduleCompleted=true');
         setScheduleCompleted(true);
         setToastMessage('Hoàn thành lịch tập');
         setToastType('success');
         setToastVisible(true);
+
+        // 🔄 Refresh exercises data từ backend để cập nhật completed status
+        if (Array.isArray(schedule?.exercises)) {
+          const refreshed = schedule.exercises.map((e: any) => ({ ...e }));
+          setLocalExercises(normalizeExercises(refreshed));
+        }
+
+        // 📞 Gọi callback để parent re-fetch dữ liệu
+        if (typeof onScheduleCompleted === 'function') {
+          console.log('[ScheduleDetail] 🔄 Calling onScheduleCompleted callback...');
+          onScheduleCompleted();
+        } else {
+          console.log('[ScheduleDetail] ⚠️ onScheduleCompleted is not a function!');
+        }
 
         if (typeof onVideoModalChange === 'function') {
           onVideoModalChange(false);
@@ -221,7 +319,7 @@ export default function ScheduleDetail({
       subEx.remove();
       subSchedule.remove();
     };
-  }, [schedule, onVideoModalChange, normalizeExercises]);
+  }, [schedule, onVideoModalChange, onScheduleCompleted, normalizeExercises]);
 
   useEffect(() => {
     const current = Number(
@@ -533,30 +631,6 @@ export default function ScheduleDetail({
       setToastVisible(true);
       return;
     }
-
-    const fetchAISummary = async (workoutSessionId: string) => {
-      try {
-        const workout = await workoutSessionService.getById(workoutSessionId);
-        const [feedback, mistakeLog, heartRateLogs] = await Promise.all([
-          workoutFeedbackService.getByWorkoutSessionId(workoutSessionId),
-          mistakeLogService.getByWorkoutSessionId(workoutSessionId),
-          heartRateService.getByWorkoutSessionId(workoutSessionId),
-        ]);
-
-        navigation.navigate('AISummary', {
-          feedback,
-          videoUrl: workout.recordUrl,
-          mistakeLog,
-          heartRateLogs: heartRateLogs.map(h => ({
-            heartRate: h.heartRate,
-            recordedAt: h.recordedAt,
-          })),
-        });
-      } catch (err) {
-        console.error('Fetch AI summary error:', err);
-      } finally {
-      }
-    };
 
     try {
       // Lấy danh sách workout sessions của bài tập này
