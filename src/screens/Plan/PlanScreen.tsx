@@ -1,28 +1,31 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ScrollView,
   Text,
   View,
   StyleSheet,
   Modal,
-  TextInput,
   TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Image,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { Picker } from "@react-native-picker/picker";
-import { SafeAreaView } from "react-native-safe-area-context";
-
 import { useRoadmapStore } from "../../store/roadmap.store";
+
 import SupplementSection from "./components/SupplementSection";
 import StageCalendar from "./components/StageCalendar";
 import ScheduleDetail from "./components/ScheduleDetail";
 import BottomActionBar from "./components/BottomActionBar";
+import { SafeAreaView } from "react-native-safe-area-context";
 import StageCarousel from "./components/StageCarousel";
-import StageRendererApi from "./components/StageRendererApi";
-import ModalPopup from "../../components/ModalPopup";
-
 import axios from "../../hooks/axiosInstance";
 import { getProfile } from "../../services/auth";
+import StageRendererApi from "./components/StageRendererApi";
+import ModalPopup from "../../components/ModalPopup";
 import { exerciseService } from "../../hooks/exercise.service";
 
 const PlanScreen = () => {
@@ -32,13 +35,25 @@ const PlanScreen = () => {
   const storeList = useRoadmapStore((s) => s.list);
   const addRoadmap = useRoadmapStore((s) => s.addRoadmap);
 
-  /**
-   * Roadmap mới tạo từ CreateRoadmapScreen sẽ nằm trong addedRoadmap.
-   * Nếu có paramAdded => preview mode.
-   */
+  const [modalProps, setModalProps] = React.useState<any>({
+    visible: false,
+    mode: "noti",
+    titleText: "",
+    contentText: "",
+    onConfirm: undefined,
+  });
+
+  const showModal = React.useCallback((props: Partial<any>) => {
+    setModalProps((prev: any) => ({ ...prev, ...props, visible: true }));
+  }, []);
+
+  const closeModal = React.useCallback(() => {
+    setModalProps((prev: any) => ({ ...prev, visible: false }));
+  }, []);
+
   const paramAdded = route.params?.addedRoadmap ?? null;
 
-  const roadmap = React.useMemo(() => {
+  const roadmap = useMemo(() => {
     return (
       paramAdded?.roadmap ??
       route.params?.roadmap ??
@@ -47,7 +62,7 @@ const PlanScreen = () => {
     );
   }, [paramAdded, route.params?.roadmap, storeList]);
 
-  const stages = React.useMemo(() => {
+  const sourceStages = useMemo(() => {
     return (
       paramAdded?.stages ??
       route.params?.stages ??
@@ -56,270 +71,258 @@ const PlanScreen = () => {
     );
   }, [paramAdded, route.params?.stages, storeList]);
 
-  /**
-   * editableStages là bản stages cho phép sửa trước khi lưu.
-   * Không sửa trực tiếp stages gốc.
-   */
-  const [editableStages, setEditableStages] = useState<any[]>([]);
+  const [stages, setStages] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (Array.isArray(sourceStages)) {
+      setStages(sourceStages);
+    }
+  }, [sourceStages]);
 
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [modalProps, setModalProps] = useState<any>({ visible: false });
-  const showModal = (opts: any) => setModalProps({ visible: true, ...opts });
-  const closeModal = () => setModalProps({ visible: false });
+  const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
+  const [editingExerciseIndex, setEditingExerciseIndex] = useState<number | null>(
+    null
+  );
+  const [editingExercise, setEditingExercise] = useState<any>(null);
 
-  /**
-   * Danh sách bài tập từ API để chọn bài tập khác.
-   */
-  const [exerciseList, setExerciseList] = useState<any[]>([]);
-  const [loadingExercises, setLoadingExercises] = useState(false);
-
-  /**
-   * Modal edit exercise.
-   */
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editContext, setEditContext] = useState<any>(null);
-
-  const [editExerciseId, setEditExerciseId] = useState("");
-  const [editExerciseName, setEditExerciseName] = useState("");
   const [editSets, setEditSets] = useState("");
   const [editReps, setEditReps] = useState("");
   const [editDurationSeconds, setEditDurationSeconds] = useState("");
+  const [editRestSeconds, setEditRestSeconds] = useState("");
 
-  React.useEffect(() => {
-    if (Array.isArray(stages) && stages.length > 0) {
-      setEditableStages(stages);
-    }
-  }, [stages]);
+  const [showExercisePickerModal, setShowExercisePickerModal] = useState(false);
+  const [exerciseList, setExerciseList] = useState<any[]>([]);
+  const [exerciseLoading, setExerciseLoading] = useState(false);
+  const [exerciseSearchText, setExerciseSearchText] = useState("");
 
-  React.useEffect(() => {
-    const fetchExercises = async () => {
-      try {
-        setLoadingExercises(true);
+  const selectedStage = stages?.[selectedStageIndex];
 
-        const res = await exerciseService.getAll();
+  const selectedSchedule =
+    selectedStage?.schedules?.find((s: any) =>
+      selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false
+    ) ?? null;
 
-        setExerciseList(Array.isArray(res) ? res : []);
-      } catch (error) {
-        console.log("Fetch exercises error:", error);
-        setExerciseList([]);
-      } finally {
-        setLoadingExercises(false);
-      }
-    };
+  const isApiShaped =
+    Array.isArray(stages) &&
+    stages.length > 0 &&
+    Boolean(stages[0]?.stage || stages[0]?._raw);
 
-    fetchExercises();
-  }, []);
+  const filteredExerciseList = useMemo(() => {
+    const keyword = exerciseSearchText.trim().toLowerCase();
 
-  const stagesSource = editableStages.length ? editableStages : stages;
+    if (!keyword) return exerciseList;
 
-  /**
-   * Bỏ logic cộng +7 giờ.
-   * Preview sẽ dùng đúng data backend trả về.
-   */
-  const displayRoadmap = useMemo(() => {
-    return roadmap;
-  }, [roadmap]);
+    return exerciseList.filter((item: any) => {
+      const name = String(
+        item?.exerciseName ?? item?.name ?? item?.title ?? ""
+      ).toLowerCase();
 
-  const displayStages = useMemo(() => {
-    return stagesSource;
-  }, [stagesSource]);
-
-  const isPreview = Boolean(paramAdded);
+      return name.includes(keyword);
+    });
+  }, [exerciseList, exerciseSearchText]);
 
   const handleSelectDate = (date: string | null) => {
     setSelectedDate(date);
     setShowScheduleModal(true);
   };
 
-  const getExerciseId = (exercise: any) => {
-    return String(
-      exercise?.exerciseId ??
-        exercise?.id ??
-        exercise?.exercise_id ??
-        exercise?.exerciseIdRaw ??
-        ""
+  const getExerciseId = (item: any) => {
+    return (
+      item?.exerciseId ??
+      item?.id ??
+      item?.exercise_id ??
+      item?.exerciseIdRaw ??
+      null
     );
   };
 
-  const getExerciseName = (exercise: any) => {
-    return String(
-      exercise?.name ??
-        exercise?.exerciseName ??
-        exercise?.title ??
-        "Không tên"
+  const getExerciseName = (item: any) => {
+    return item?.exerciseName ?? item?.name ?? item?.title ?? "";
+  };
+
+  const getExerciseImage = (item: any) => {
+    return (
+      item?.thumbnailUrl ??
+      item?.imageUrl ??
+      item?.image ??
+      item?.image_url ??
+      null
     );
   };
 
-  const findExerciseIndexInSchedule = (
-    schedule: any,
-    exerciseIndexFromUI: number,
-    exercise: any
-  ) => {
-    const exercises = Array.isArray(schedule?.exercises)
-      ? schedule.exercises
-      : [];
+  const getExerciseVideo = (item: any) => {
+    return item?.practiceVideoUrl ?? item?.practice_video_url ?? null;
+  };
 
-    const targetId = getExerciseId(exercise);
+  const handleEditExercise = (idx: number, ex: any) => {
+    setEditingExerciseIndex(idx);
+    setEditingExercise(ex);
 
-    if (targetId) {
-      const foundIndex = exercises.findIndex((item: any) => {
-        return getExerciseId(item) === targetId;
+    setEditSets(ex?.sets ? String(ex.sets) : "");
+    setEditReps(ex?.reps ? String(ex.reps) : "");
+    setEditDurationSeconds(
+      ex?.durationSeconds ? String(ex.durationSeconds) : ""
+    );
+    setEditRestSeconds(ex?.restSeconds ? String(ex.restSeconds) : "");
+
+    setShowEditExerciseModal(true);
+  };
+
+  const closeEditExerciseModal = () => {
+    setShowEditExerciseModal(false);
+    setEditingExerciseIndex(null);
+    setEditingExercise(null);
+
+    setEditSets("");
+    setEditReps("");
+    setEditDurationSeconds("");
+    setEditRestSeconds("");
+  };
+
+  const loadExercises = async () => {
+    try {
+      setExerciseLoading(true);
+      const data = await exerciseService.getAll();
+      setExerciseList(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      console.error("Load exercises error:", e);
+
+      showModal({
+        mode: "noti",
+        titleText: "Lỗi",
+        contentText:
+          e?.message || "Không thể tải danh sách bài tập. Vui lòng thử lại.",
       });
-
-      if (foundIndex >= 0) return foundIndex;
+    } finally {
+      setExerciseLoading(false);
     }
-
-    return exerciseIndexFromUI;
   };
 
-  const openExerciseEditor = (
-    stageIndex: number,
-    scheduleIndex: number,
-    exerciseIndex: number,
-    exercise: any
-  ) => {
-    setEditContext({
-      stageIndex,
-      scheduleIndex,
-      exerciseIndex,
-    });
+  const openExercisePicker = async () => {
+    setShowExercisePickerModal(true);
 
-    setEditExerciseId(getExerciseId(exercise));
-    setEditExerciseName(exercise.exerciseName ?? exercise.name ?? "");
-    setEditSets(String(exercise.sets ?? ""));
-    setEditReps(String(exercise.reps ?? ""));
-    setEditDurationSeconds(String(exercise.durationSeconds ?? ""));
-
-    setEditModalVisible(true);
+    if (exerciseList.length === 0) {
+      await loadExercises();
+    }
   };
 
-  const handleSelectExerciseFromPicker = (value: string) => {
-    const selected = exerciseList.find((ex: any) => {
-      return getExerciseId(ex) === String(value);
-    });
+  const handleSelectExerciseFromPicker = (item: any) => {
+    const exerciseId = getExerciseId(item);
+    const exerciseName = getExerciseName(item);
+    const image = getExerciseImage(item);
+    const video = getExerciseVideo(item);
 
-    if (!selected) {
-      setEditExerciseId("");
-      setEditExerciseName(String(value));
+    setEditingExercise((prev: any) => ({
+      ...prev,
+
+      exerciseId,
+      id: exerciseId,
+
+      exerciseName,
+      name: exerciseName,
+
+      thumbnailUrl: image,
+      imageUrl: image,
+      image,
+
+      practiceVideoUrl: video,
+      practice_video_url: video,
+
+      haveAIsupported:
+        item?.haveAIsupported ??
+        item?.haveAISupported ??
+        item?.haveAiSupported ??
+        false,
+
+      haveAISupported:
+        item?.haveAISupported ??
+        item?.haveAIsupported ??
+        item?.haveAiSupported ??
+        false,
+
+      haveAiSupported:
+        item?.haveAiSupported ??
+        item?.haveAIsupported ??
+        item?.haveAISupported ??
+        false,
+
+      nameInModelAI: item?.nameInModelAI ?? item?.name_in_model_ai ?? "",
+      name_in_model_ai: item?.name_in_model_ai ?? item?.nameInModelAI ?? "",
+    }));
+
+    setShowExercisePickerModal(false);
+  };
+
+  const handleSaveEditExercise = () => {
+    if (
+      editingExerciseIndex === null ||
+      selectedStageIndex === null ||
+      !selectedDate ||
+      !editingExercise
+    ) {
       return;
     }
 
-    setEditExerciseId(getExerciseId(selected));
-    setEditExerciseName(getExerciseName(selected));
+    setStages((prevStages) => {
+      const nextStages = [...prevStages];
 
-    /**
-     * Nếu exercise API có default duration thì có thể auto fill.
-     * Không ép nếu backend không có field này.
-     */
-    const defaultDuration =
-      selected.durationSeconds ??
-      selected.defaultDurationSeconds ??
-      selected.duration ??
-      null;
+      const stage = nextStages[selectedStageIndex];
+      if (!stage) return prevStages;
 
-    if (defaultDuration != null && !editDurationSeconds) {
-      setEditDurationSeconds(String(defaultDuration));
-    }
-  };
+      const schedules = Array.isArray(stage.schedules)
+        ? [...stage.schedules]
+        : [];
 
-  const handleSaveExerciseEdit = () => {
-    if (!editContext) return;
+      const scheduleIndex = schedules.findIndex((s: any) =>
+        s?.scheduledDate?.startsWith(selectedDate)
+      );
 
-    const { stageIndex, scheduleIndex, exerciseIndex } = editContext;
+      if (scheduleIndex === -1) return prevStages;
 
-    setEditableStages((prev) => {
-      const newStages = [...prev];
+      const schedule = { ...schedules[scheduleIndex] };
 
-      const oldExercise =
-        newStages[stageIndex]?.schedules?.[scheduleIndex]?.exercises?.[
-          exerciseIndex
-        ];
+      const exercises = Array.isArray(schedule.exercises)
+        ? [...schedule.exercises]
+        : [];
 
-      if (!oldExercise) return prev;
+      const oldExercise = exercises[editingExerciseIndex];
+      if (!oldExercise) return prevStages;
 
-      const selectedExercise = exerciseList.find((ex: any) => {
-        return getExerciseId(ex) === editExerciseId;
-      });
+      const updatedExercise = {
+        ...oldExercise,
+        ...editingExercise,
 
-      newStages[stageIndex].schedules[scheduleIndex].exercises[exerciseIndex] =
-        {
-          ...oldExercise,
+        sets: editSets ? Number(editSets) : oldExercise.sets,
+        reps: editReps ? Number(editReps) : oldExercise.reps,
 
-          /**
-           * Giữ các field cũ, chỉ thay field cần sửa.
-           * Có exerciseId thì update để backend biết bài mới.
-           */
-          exerciseId: editExerciseId || oldExercise.exerciseId,
-          id: oldExercise.id,
-          personalExerciseId: oldExercise.personalExerciseId,
+        durationSeconds: editDurationSeconds
+          ? Number(editDurationSeconds)
+          : oldExercise.durationSeconds,
 
-          exerciseName: editExerciseName,
+        restSeconds: editRestSeconds
+          ? Number(editRestSeconds)
+          : oldExercise.restSeconds,
+      };
 
-          /**
-           * Nếu bài tập mới có ảnh thì update luôn để preview đẹp hơn.
-           */
-          imageUrl:
-            selectedExercise?.imageUrl ??
-            selectedExercise?.thumbnailUrl ??
-            oldExercise.imageUrl,
-          thumbnailUrl:
-            selectedExercise?.thumbnailUrl ??
-            selectedExercise?.imageUrl ??
-            oldExercise.thumbnailUrl,
+      exercises[editingExerciseIndex] = updatedExercise;
+      schedule.exercises = exercises;
+      schedules[scheduleIndex] = schedule;
 
-          /**
-           * Nếu bài tập mới có video thì update luôn nếu field tồn tại.
-           */
-          practiceVideoUrl:
-            selectedExercise?.practiceVideoUrl ??
-            selectedExercise?.practice_video_url ??
-            oldExercise.practiceVideoUrl,
-          practice_video_url:
-            selectedExercise?.practice_video_url ??
-            selectedExercise?.practiceVideoUrl ??
-            oldExercise.practice_video_url,
+      nextStages[selectedStageIndex] = {
+        ...stage,
+        schedules,
+      };
 
-          sets: editSets ? Number(editSets) : oldExercise.sets,
-          reps: editReps ? Number(editReps) : oldExercise.reps,
-          durationSeconds: editDurationSeconds
-            ? Number(editDurationSeconds)
-            : oldExercise.durationSeconds,
-        };
-
-      return newStages;
+      return nextStages;
     });
 
-    setEditModalVisible(false);
+    closeEditExerciseModal();
   };
-
-  if (!roadmap || !stagesSource?.length) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center">
-        <Text>Không có dữ liệu lộ trình</Text>
-      </SafeAreaView>
-    );
-  }
-
-  const selectedStage = displayStages[selectedStageIndex];
-
-  const selectedScheduleIndex =
-    selectedStage?.schedules?.findIndex((s: any) =>
-      selectedDate ? s.scheduledDate?.startsWith(selectedDate) : false
-    ) ?? -1;
-
-  const selectedSchedule =
-    selectedScheduleIndex >= 0
-      ? selectedStage?.schedules?.[selectedScheduleIndex]
-      : null;
-
-  const isApiShaped =
-    Array.isArray(stagesSource) &&
-    stagesSource.length > 0 &&
-    Boolean(stagesSource[0]?.stage || stagesSource[0]?._raw);
 
   const handleSaveToServer = async () => {
     try {
@@ -337,29 +340,23 @@ const PlanScreen = () => {
 
       if (role === "COACH") {
         showModal({
+          mode: "noti",
           titleText: "Chú ý",
           contentText:
             "Bạn đang ở vai trò HLV. Vui lòng chọn học viên trước khi lưu lộ trình.",
-          mode: "noti",
-          onClose: () => {
-            setSaving(false);
-            closeModal();
-          },
         });
-
+        setSaving(false);
         return;
       }
 
-      /**
-       * Quan trọng:
-       * Gửi stages đã sửa lên server.
-       */
       const aiResponse = {
         ...(roadmap?.raw ?? roadmap),
-        stages: editableStages.length ? editableStages : stages,
+        stages,
       };
 
-      const acceptPayload: any = { aiResponse };
+      const acceptPayload: any = {
+        aiResponse,
+      };
 
       if (userId) {
         acceptPayload.traineeId = userId;
@@ -373,16 +370,12 @@ const PlanScreen = () => {
 
       if (!primaryGoalId) {
         showModal({
+          mode: "noti",
           titleText: "Thiếu mục tiêu chính",
           contentText:
             "Vui lòng chọn mục tiêu chính trước khi lưu lộ trình lên server.",
-          mode: "noti",
-          onClose: () => {
-            setSaving(false);
-            closeModal();
-          },
         });
-
+        setSaving(false);
         return;
       }
 
@@ -400,7 +393,7 @@ const PlanScreen = () => {
       const data = res.data?.data ?? res.data ?? res;
 
       const roadmapFromServer = data?.roadmap ?? roadmap;
-      const stagesFromServer = data?.stages ?? editableStages ?? stages;
+      const stagesFromServer = data?.stages ?? stages;
 
       addRoadmap({
         roadmap: roadmapFromServer,
@@ -408,29 +401,38 @@ const PlanScreen = () => {
         createdAt: Date.now(),
       });
 
-      const goToRoadmap = () => {
-        closeModal();
+     showModal({
+  mode: "noti",
+  titleText: "Thành công",
+  contentText: "Lộ trình đã được lưu.",
+  onConfirm: () => {
+    closeModal();
 
-        nav.reset({
-          index: 0,
-          routes: [
-            {
-              name: "MainTabs",
+    const roadmapId =
+      roadmapFromServer?.roadmapId ??
+      roadmapFromServer?.id ??
+      roadmapFromServer?._id ??
+      null;
+
+    nav.reset({
+      index: 0,
+      routes: [
+        {
+          name: "MainTabs",
+          params: {
+            screen: "Roadmap",
+            params: {
+              screen: "RoadmapDetail",
               params: {
-                screen: "Roadmap",
+                roadmapId,
               },
             },
-          ],
-        });
-      };
-
-      showModal({
-        titleText: "Thành công",
-        contentText: "Lộ trình đã được lưu.",
-        mode: "noti",
-        onConfirm: goToRoadmap,
-        onClose: goToRoadmap,
-      });
+          },
+        },
+      ],
+    });
+  },
+});
     } catch (e: any) {
       console.error("Save roadmap error:", e);
 
@@ -438,75 +440,33 @@ const PlanScreen = () => {
         e?.response?.data?.message || e?.message || "Không thể lưu lộ trình.";
 
       showModal({
+        mode: "noti",
         titleText: "Lưu thất bại",
         contentText: message,
-        mode: "noti",
-        onClose: () => {
-          closeModal();
-        },
       });
     } finally {
       setSaving(false);
     }
   };
 
-  const renderExercisePicker = () => {
-    const currentValue = editExerciseId || editExerciseName;
-
-    const currentExistsInList = exerciseList.some((ex: any) => {
-      return getExerciseId(ex) === editExerciseId;
-    });
-
+  if (!roadmap || !stages?.length) {
     return (
-      <View style={styles.pickerBox}>
-        <Picker
-          selectedValue={currentValue}
-          onValueChange={(value) => handleSelectExerciseFromPicker(String(value))}
-        >
-          {editExerciseName && !currentExistsInList ? (
-            <Picker.Item
-              label={editExerciseName}
-              value={editExerciseId || editExerciseName}
-            />
-          ) : null}
-
-          {loadingExercises ? (
-            <Picker.Item label="Đang tải bài tập..." value={currentValue} />
-          ) : null}
-
-          {!loadingExercises && exerciseList.length === 0 ? (
-            <Picker.Item label="Không có danh sách bài tập" value={currentValue} />
-          ) : null}
-
-          {exerciseList.map((ex: any) => {
-            const id = getExerciseId(ex);
-            const name = getExerciseName(ex);
-
-            return (
-              <Picker.Item
-                key={id || name}
-                label={name}
-                value={id || name}
-              />
-            );
-          })}
-        </Picker>
-      </View>
+      <SafeAreaView className="flex-1 items-center justify-center">
+        <Text>Không có dữ liệu lộ trình</Text>
+      </SafeAreaView>
     );
-  };
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#F3EDE3]">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View className="px-5 mt-4">
           <Text className="text-2xl font-bold text-[#8B4513]">
-            {displayRoadmap?.title ?? roadmap.title}
+            {roadmap?.title}
           </Text>
 
-          {displayRoadmap?.description ?? roadmap.description ? (
-            <Text className="text-gray-600 mt-2">
-              {displayRoadmap?.description ?? roadmap.description}
-            </Text>
+          {roadmap?.description ? (
+            <Text className="text-gray-600 mt-2">{roadmap.description}</Text>
           ) : null}
         </View>
 
@@ -516,13 +476,10 @@ const PlanScreen = () => {
           </Text>
 
           {isApiShaped ? (
-            <StageRendererApi
-              apiStages={displayStages}
-              roadmap={displayRoadmap ?? roadmap}
-            />
+            <StageRendererApi apiStages={stages} roadmap={roadmap} />
           ) : (
             <StageCarousel
-              stages={displayStages}
+              stages={stages}
               onChangeIndex={setSelectedStageIndex}
             />
           )}
@@ -555,24 +512,8 @@ const PlanScreen = () => {
                   {selectedSchedule ? (
                     <ScheduleDetail
                       schedule={selectedSchedule}
-                      isPreview={isPreview}
-                      onVideoModalChange={() => {}}
-                      onEditExercise={(exerciseIndexFromUI: number, exercise: any) => {
-                        if (selectedScheduleIndex < 0) return;
-
-                        const realExerciseIndex = findExerciseIndexInSchedule(
-                          selectedSchedule,
-                          exerciseIndexFromUI,
-                          exercise
-                        );
-
-                        openExerciseEditor(
-                          selectedStageIndex,
-                          selectedScheduleIndex,
-                          realExerciseIndex,
-                          exercise
-                        );
-                      }}
+                      isPreview={true}
+                      onEditExercise={handleEditExercise}
                     />
                   ) : (
                     <View style={styles.emptyModalContent}>
@@ -594,94 +535,215 @@ const PlanScreen = () => {
         )}
       </ScrollView>
 
-      <BottomActionBar onSave={handleSaveToServer} saving={saving} />
-
       <Modal
-        visible={editModalVisible}
-        transparent
+        visible={showEditExerciseModal}
         animationType="slide"
-        onRequestClose={() => setEditModalVisible(false)}
+        transparent
+        onRequestClose={closeEditExerciseModal}
       >
-        <View style={styles.editBackdrop}>
-          <View style={styles.editSheet}>
-            <View style={styles.sheetHandle} />
+        <KeyboardAvoidingView
+          style={styles.editOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.editModal}>
+            <Text style={styles.editTitle}>Sửa bài tập</Text>
 
-            <Text style={styles.editTitle}>Chỉnh sửa bài tập</Text>
+            <Text style={styles.inputLabel}>Bài tập</Text>
 
-            <Text style={styles.editLabel}>Chọn bài tập</Text>
-            {renderExercisePicker()}
+            <TouchableOpacity
+              style={styles.exercisePickerButton}
+              onPress={openExercisePicker}
+              activeOpacity={0.8}
+            >
+              <View style={styles.exercisePickerContent}>
+                {getExerciseImage(editingExercise) ? (
+                  <Image
+                    source={{ uri: getExerciseImage(editingExercise) }}
+                    style={styles.selectedExerciseImage}
+                  />
+                ) : (
+                  <View style={styles.selectedExercisePlaceholder}>
+                    <Text style={styles.selectedExercisePlaceholderText}>
+                      ?
+                    </Text>
+                  </View>
+                )}
 
-            <View style={styles.editRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.editLabel}>Sets</Text>
+                <View style={styles.exercisePickerTextWrap}>
+                  <Text style={styles.exercisePickerTitle} numberOfLines={1}>
+                    {getExerciseName(editingExercise) || "Chọn bài tập"}
+                  </Text>
+
+                  <Text style={styles.exercisePickerSub}>
+                    Bấm để chọn từ danh sách bài tập
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.row}>
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Số set</Text>
                 <TextInput
-                  style={styles.editInput}
                   value={editSets}
                   onChangeText={setEditSets}
+                  placeholder="VD: 3"
                   keyboardType="numeric"
-                  placeholder="Sets"
+                  style={styles.input}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
 
-              <View style={{ flex: 1 }}>
-                <Text style={styles.editLabel}>Reps</Text>
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Số reps</Text>
                 <TextInput
-                  style={styles.editInput}
                   value={editReps}
                   onChangeText={setEditReps}
+                  placeholder="VD: 12"
                   keyboardType="numeric"
-                  placeholder="Reps"
+                  style={styles.input}
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
 
-            <Text style={styles.editLabel}>Thời lượng giây</Text>
-            <TextInput
-              style={styles.editInput}
-              value={editDurationSeconds}
-              onChangeText={setEditDurationSeconds}
-              keyboardType="numeric"
-              placeholder="Duration seconds"
-            />
+            <View style={styles.row}>
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Thời gian tập</Text>
+                <TextInput
+                  value={editDurationSeconds}
+                  onChangeText={setEditDurationSeconds}
+                  placeholder="Giây"
+                  keyboardType="numeric"
+                  style={styles.input}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
 
-            <View style={styles.editActions}>
-              <TouchableOpacity
-                style={styles.cancelEditBtn}
-                onPress={() => setEditModalVisible(false)}
-              >
-                <Text style={styles.cancelEditText}>Huỷ</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.saveEditBtn}
-                onPress={handleSaveExerciseEdit}
-              >
-                <Text style={styles.saveEditText}>Lưu thay đổi</Text>
-              </TouchableOpacity>
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Thời gian nghỉ</Text>
+                <TextInput
+                  value={editRestSeconds}
+                  onChangeText={setEditRestSeconds}
+                  placeholder="Giây"
+                  keyboardType="numeric"
+                  style={styles.input}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.saveEditButton}
+              onPress={handleSaveEditExercise}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.saveEditButtonText}>Lưu thay đổi</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelEditButton}
+              onPress={closeEditExerciseModal}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cancelEditButtonText}>Hủy</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {modalProps?.visible ? (
-        <ModalPopup
-          visible={modalProps.visible}
-          titleText={modalProps.titleText}
-          contentText={modalProps.contentText}
-          mode={modalProps.mode}
-          onConfirm={() => {
-            modalProps.onConfirm?.();
-          }}
-          onCancel={() => {
-            modalProps.onCancel?.();
-            closeModal();
-          }}
-          onClose={() => {
-            modalProps.onClose?.();
-            closeModal();
-          }}
-        />
-      ) : null}
+      <Modal
+        visible={showExercisePickerModal}
+        animationType="slide"
+        onRequestClose={() => setShowExercisePickerModal(false)}
+      >
+        <SafeAreaView style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Chọn bài tập</Text>
+
+            <TouchableOpacity
+              onPress={() => setShowExercisePickerModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pickerCloseText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchBox}>
+            <TextInput
+              value={exerciseSearchText}
+              onChangeText={setExerciseSearchText}
+              placeholder="Tìm bài tập..."
+              style={styles.searchInput}
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          {exerciseLoading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color="#8B4513" />
+              <Text style={styles.loadingText}>Đang tải bài tập...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredExerciseList}
+              keyExtractor={(item: any, index: number) =>
+                String(getExerciseId(item) ?? index)
+              }
+              contentContainerStyle={styles.exerciseListContent}
+              renderItem={({ item }) => {
+                const image = getExerciseImage(item);
+                const name = getExerciseName(item);
+
+                return (
+                  <TouchableOpacity
+                    style={styles.exerciseItem}
+                    activeOpacity={0.85}
+                    onPress={() => handleSelectExerciseFromPicker(item)}
+                  >
+                    {image ? (
+                      <Image
+                        source={{ uri: image }}
+                        style={styles.exerciseItemImage}
+                      />
+                    ) : (
+                      <View style={styles.exerciseItemPlaceholder}>
+                        <Text style={styles.exerciseItemPlaceholderText}>
+                          ?
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.exerciseItemInfo}>
+                      <Text style={styles.exerciseItemName} numberOfLines={1}>
+                        {name || "Không có tên bài tập"}
+                      </Text>
+
+                      <Text style={styles.exerciseItemMeta} numberOfLines={1}>
+                        {item?.difficultyLevel ??
+                          item?.level ??
+                          item?.category ??
+                          "Bài tập"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.emptyExerciseList}>
+                  <Text style={styles.emptyExerciseText}>
+                    Không tìm thấy bài tập.
+                  </Text>
+                </View>
+              }
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      <ModalPopup {...(modalProps as any)} onClose={closeModal} />
+
+      <BottomActionBar onSave={handleSaveToServer} saving={saving} />
     </SafeAreaView>
   );
 };
@@ -724,93 +786,246 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  editBackdrop: {
+  editOverlay: {
     flex: 1,
-    justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
   },
 
-  editSheet: {
-    backgroundColor: "#fff",
+  editModal: {
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-  },
-
-  sheetHandle: {
-    width: 42,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#D1D5DB",
-    alignSelf: "center",
-    marginBottom: 14,
+    paddingBottom: 32,
   },
 
   editTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "800",
     color: "#3A2A1A",
-    marginBottom: 12,
+    marginBottom: 18,
   },
 
-  editLabel: {
-    fontSize: 13,
-    color: "#6B6B6B",
-    fontWeight: "600",
-    marginTop: 10,
-    marginBottom: 6,
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#8B4513",
+    marginBottom: 8,
   },
 
-  editInput: {
+  input: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#111827",
-    backgroundColor: "#F9FAFB",
+    borderColor: "#E5D6C8",
+    backgroundColor: "#FFFDFB",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#3A2A1A",
+    marginBottom: 14,
   },
 
-  pickerBox: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    backgroundColor: "#F9FAFB",
-    overflow: "hidden",
-  },
-
-  editRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
-  editActions: {
+  row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
   },
 
-  cancelEditBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+  halfInput: {
+    width: "48%",
+  },
+
+  exercisePickerButton: {
+    borderWidth: 1,
+    borderColor: "#E5D6C8",
+    backgroundColor: "#FFFDFB",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 14,
+  },
+
+  exercisePickerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  selectedExerciseImage: {
+    width: 52,
+    height: 52,
     borderRadius: 12,
     backgroundColor: "#F3EDE3",
   },
 
-  cancelEditText: {
+  selectedExercisePlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "#F3EDE3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  selectedExercisePlaceholderText: {
+    color: "#8B4513",
+    fontWeight: "800",
+  },
+
+  exercisePickerTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  exercisePickerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#3A2A1A",
+  },
+
+  exercisePickerSub: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#6B6B6B",
+  },
+
+  saveEditButton: {
+    marginTop: 8,
+    backgroundColor: "#8B4513",
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+
+  saveEditButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+
+  cancelEditButton: {
+    marginTop: 10,
+    backgroundColor: "#F3EDE3",
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+
+  cancelEditButtonText: {
+    color: "#8B4513",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+
+  pickerContainer: {
+    flex: 1,
+    backgroundColor: "#F3EDE3",
+  },
+
+  pickerHeader: {
+    height: 58,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  pickerTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#3A2A1A",
+  },
+
+  pickerCloseText: {
     color: "#8B4513",
     fontWeight: "700",
   },
 
-  saveEditBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    backgroundColor: "#8B4513",
+  searchBox: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
 
-  saveEditText: {
-    color: "#fff",
+  searchInput: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5D6C8",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "#3A2A1A",
+    fontSize: 15,
+  },
+
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: "#6B6B6B",
+  },
+
+  exerciseListContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 30,
+  },
+
+  exerciseItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#EFE2D6",
+  },
+
+  exerciseItemImage: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+    backgroundColor: "#F3EDE3",
+  },
+
+  exerciseItemPlaceholder: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+    backgroundColor: "#F3EDE3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  exerciseItemPlaceholderText: {
+    color: "#8B4513",
     fontWeight: "800",
+  },
+
+  exerciseItemInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  exerciseItemName: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#3A2A1A",
+  },
+
+  exerciseItemMeta: {
+    marginTop: 5,
+    fontSize: 13,
+    color: "#6B6B6B",
+  },
+
+  emptyExerciseList: {
+    padding: 24,
+    alignItems: "center",
+  },
+
+  emptyExerciseText: {
+    color: "#6B6B6B",
   },
 });

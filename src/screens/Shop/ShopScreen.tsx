@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   View,
   FlatList,
@@ -17,6 +23,7 @@ import BannerCarousel from './components/BannerCarousel';
 import CategoryList from './components/CategoryList';
 import CardProduct from '../Home/components/CardProduct';
 import ProductSkeleton from './components/ProductSkeleton';
+import Toast from '../../components/Toast';
 
 import {
   getCategories,
@@ -27,6 +34,9 @@ import {
 import bannerImg from '../../assets/banner.png';
 
 const PAGE_SIZE = 12;
+const CARD_HEIGHT = 360;
+const CARD_BOTTOM_SPACE = 20;
+const ROW_HEIGHT = CARD_HEIGHT + CARD_BOTTOM_SPACE;
 
 const COLORS = {
   bg: '#FFF8F0',
@@ -38,6 +48,8 @@ const COLORS = {
   border: '#F1E7DC',
   soft: '#FFF7ED',
 };
+
+type ToastType = 'success' | 'error' | 'info';
 
 type ListHeaderProps = {
   categories: any[];
@@ -96,7 +108,7 @@ function SearchSummary({
   if (!query.trim()) return null;
 
   return (
-    <View className="mx-4 mt-4 rounded-2xl bg-white border border-[#F1E7DC] p-3">
+    <View className="mx-4 mt-4 rounded-2xl bg-white border border-[#F1E7DC] ">
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
           <Text className="text-[#64748B] text-xs font-semibold">
@@ -134,17 +146,11 @@ function ListHeader({
 }: ListHeaderProps) {
   return (
     <>
-      <View className="pt-2">
-        <BannerCarousel data={[{ id: 'b1', image: bannerImg }]} />
-      </View>
-
       <SearchSummary
         query={query}
         total={total}
         onClearSearch={onClearSearch}
       />
-
-
 
       <CategoryList
         data={categories}
@@ -281,21 +287,51 @@ const ShopScreen = () => {
   const [query, setQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success');
+
+  const lastToastTimeRef = useRef(0);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback(
+    (message: string, type: ToastType = 'info') => {
+      const now = Date.now();
+
+      if (now - lastToastTimeRef.current < 700) {
+        return;
+      }
+
+      lastToastTimeRef.current = now;
+
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+
+      setToastMsg(message);
+      setToastType(type);
+      setToastVisible(false);
+
+      toastTimerRef.current = setTimeout(() => {
+        setToastVisible(true);
+      }, 50);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
   const hasMore = useMemo(() => {
     return products.length < total;
   }, [products.length, total]);
 
-  useEffect(() => {
-    loadInitial();
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      doSearch.cancel();
-    };
-  }, []);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const categoryData = await getCategories();
       setCategories(Array.isArray(categoryData) ? categoryData : []);
@@ -303,9 +339,9 @@ const ShopScreen = () => {
       console.warn('load categories failed', err);
       setCategories([]);
     }
-  };
+  }, []);
 
-  async function loadInitial() {
+  const loadInitial = useCallback(async () => {
     setLoading(true);
     setErrorMessage('');
 
@@ -327,9 +363,51 @@ const ShopScreen = () => {
     }
 
     await loadCategories();
-  }
+  }, [loadCategories]);
 
-  const loadMore = async () => {
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
+
+  const doSearch = useMemo(
+    () =>
+      debounce(async (keyword: string) => {
+        const cleanKeyword = keyword.trim();
+
+        setQuery(cleanKeyword);
+        setLoading(true);
+        setErrorMessage('');
+
+        try {
+          const response = await getProducts(
+            0,
+            PAGE_SIZE,
+            cleanKeyword || undefined,
+          );
+
+          setProducts(response.items ?? []);
+          setPage(0);
+          setTotal(response.total ?? 0);
+        } catch (err) {
+          console.warn('search products failed', err);
+          setProducts([]);
+          setPage(0);
+          setTotal(0);
+          setErrorMessage('Không thể tìm kiếm sản phẩm lúc này.');
+        } finally {
+          setLoading(false);
+        }
+      }, 400),
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      doSearch.cancel();
+    };
+  }, [doSearch]);
+
+  const loadMore = useCallback(async () => {
     if (loadingMore || loading || refreshing) return;
     if (!hasMore) return;
 
@@ -352,9 +430,9 @@ const ShopScreen = () => {
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [loadingMore, loading, refreshing, hasMore, page, query, total]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setErrorMessage('');
 
@@ -376,44 +454,16 @@ const ShopScreen = () => {
     }
 
     await loadCategories();
-  };
+  }, [query, loadCategories]);
 
-  const doSearch = useCallback(
-    debounce(async (keyword: string) => {
-      const cleanKeyword = keyword.trim();
-
-      setQuery(cleanKeyword);
-      setLoading(true);
-      setErrorMessage('');
-
-      try {
-        const response = await getProducts(
-          0,
-          PAGE_SIZE,
-          cleanKeyword || undefined,
-        );
-
-        setProducts(response.items ?? []);
-        setPage(0);
-        setTotal(response.total ?? 0);
-      } catch (err) {
-        console.warn('search products failed', err);
-        setProducts([]);
-        setPage(0);
-        setTotal(0);
-        setErrorMessage('Không thể tìm kiếm sản phẩm lúc này.');
-      } finally {
-        setLoading(false);
-      }
-    }, 400),
-    [],
+  const onSearch = useCallback(
+    (keyword: string) => {
+      doSearch(keyword);
+    },
+    [doSearch],
   );
 
-  function onSearch(keyword: string) {
-    doSearch(keyword);
-  }
-
-  const clearSearch = async () => {
+  const clearSearch = useCallback(async () => {
     doSearch.cancel();
 
     setQuery('');
@@ -435,38 +485,72 @@ const ShopScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [doSearch]);
 
-  const goToCategory = (category: any) => {
-    navigation.navigate('ShopSearchResult' as any, {
-      q: '',
-      category: category?.name,
-      categoryId: category?.id,
-    });
-  };
+  const goToCategory = useCallback(
+    (category: any) => {
+      navigation.navigate('ShopSearchResult' as any, {
+        q: '',
+        category: category?.name,
+        categoryId: category?.id,
+      });
+    },
+    [navigation],
+  );
 
-  const goToProductDetail = (item: ProductItem) => {
+  const goToProductDetail = useCallback(
+    (item: ProductItem) => {
+      const productId =
+        item.productId ??
+        item.raw?.product_id ??
+        item.raw?.id ??
+        item.raw?.productId;
+
+      if (!productId) return;
+
+      navigation.navigate('ProductDetail' as any, { productId });
+    },
+    [navigation],
+  );
+
+  const renderProduct = useCallback(
+    ({ item }: { item: ProductItem }) => {
+      return (
+        <View style={styles.itemContainer}>
+          <CardProduct
+            item={item as any}
+            onPress={() => goToProductDetail(item)}
+            onNotify={showToast}
+          />
+        </View>
+      );
+    },
+    [goToProductDetail, showToast],
+  );
+
+  const keyExtractor = useCallback((item: ProductItem, index: number) => {
     const productId =
       item.productId ??
       item.raw?.product_id ??
       item.raw?.id ??
-      item.raw?.productId;
+      item.raw?.productId ??
+      'unknown';
 
-    if (!productId) return;
+    return `${String(productId)}-${index}`;
+  }, []);
 
-    navigation.navigate('ProductDetail' as any, { productId });
-  };
+  const getItemLayout = useCallback(
+    (_: ArrayLike<ProductItem> | null | undefined, index: number) => {
+      const rowIndex = Math.floor(index / 2);
 
-  const renderProduct = ({ item }: { item: ProductItem }) => {
-    return (
-      <View style={styles.itemContainer} className="px-3 pb-6">
-        <CardProduct
-          item={item as any}
-          onPress={() => goToProductDetail(item)}
-        />
-      </View>
-    );
-  };
+      return {
+        length: ROW_HEIGHT,
+        offset: ROW_HEIGHT * rowIndex,
+        index,
+      };
+    },
+    [],
+  );
 
   if (loading) {
     return (
@@ -485,6 +569,7 @@ const ShopScreen = () => {
   return (
     <View className="flex-1 bg-[#FFF8F0]">
       <ShopHeader onSearch={onSearch} />
+
       <ErrorBox
         message={errorMessage}
         onRetry={query.trim() ? clearSearch : loadInitial}
@@ -492,21 +577,18 @@ const ShopScreen = () => {
 
       <FlatList
         data={products}
-        keyExtractor={(item, index) => {
-          const productId =
-            item.productId ??
-            item.raw?.product_id ??
-            item.raw?.id ??
-            item.raw?.productId ??
-            'unknown';
-
-          return `${String(productId)}-${index}`;
-        }}
+        keyExtractor={keyExtractor}
         numColumns={2}
         renderItem={renderProduct}
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
-        onEndReachedThreshold={0.5}
+        removeClippedSubviews={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={40}
+        windowSize={9}
+        getItemLayout={getItemLayout}
+        onEndReachedThreshold={0.4}
         onEndReached={loadMore}
         ListHeaderComponent={
           <ListHeader
@@ -538,24 +620,32 @@ const ShopScreen = () => {
             tintColor={COLORS.primary}
           />
         }
-        contentContainerStyle={{
-          paddingBottom: 28,
-        }}
+        contentContainerStyle={styles.listContent}
+      />
+
+      <Toast
+        visible={toastVisible}
+        message={toastMsg}
+        type={toastType}
+        onHidden={() => setToastVisible(false)}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  listContent: {
+    paddingBottom: 28,
+  },
   itemContainer: {
     flex: 1,
-    paddingHorizontal: 6,
     maxWidth: '50%',
+    paddingHorizontal: 6,
+    paddingBottom: 20,
   },
   columnWrapper: {
     justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingBottom: 6,
   },
 });
 

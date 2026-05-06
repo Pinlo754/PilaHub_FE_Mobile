@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { CartLine } from '../../../services/cart';
@@ -162,6 +169,7 @@ const CartProductCard: React.FC<Props> = ({
             onPress={onToggleSelect}
             disabled={!validation.canSelect}
             className="mr-2 pt-7"
+            activeOpacity={0.75}
           >
             <Ionicons
               name={selected ? 'checkmark-circle' : 'ellipse-outline'}
@@ -198,17 +206,22 @@ const CartProductCard: React.FC<Props> = ({
               </Text>
 
               <TouchableOpacity onPress={onPressDetail} activeOpacity={0.75}>
-                <Text className="font-extrabold text-[#0F172A]" numberOfLines={2}>
+                <Text
+                  className="font-extrabold text-[#0F172A]"
+                  numberOfLines={2}
+                >
                   {item.product_name}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {!selectMode ? (
-              <TouchableOpacity onPress={onRemove} className="w-8 h-8 items-center justify-center">
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
-              </TouchableOpacity>
-            ) : null}
+            <TouchableOpacity
+              onPress={onRemove}
+              activeOpacity={0.75}
+              className="w-8 h-8 rounded-full bg-[#FEE2E2] items-center justify-center"
+            >
+              <Ionicons name="trash-outline" size={17} color="#DC2626" />
+            </TouchableOpacity>
           </View>
 
           <Text className="text-orange-600 font-extrabold mt-2">
@@ -238,17 +251,25 @@ const CartProductCard: React.FC<Props> = ({
             <View
               className="px-2 py-1 rounded-full mr-2 mb-2 flex-row items-center"
               style={{
-                backgroundColor: validation.isOutOfStock ? '#FEE2E2' : '#ECFDF5',
+                backgroundColor: validation.isOutOfStock
+                  ? '#FEE2E2'
+                  : '#ECFDF5',
               }}
             >
               <Ionicons
-                name={validation.isOutOfStock ? 'close-circle-outline' : 'cube-outline'}
+                name={
+                  validation.isOutOfStock
+                    ? 'close-circle-outline'
+                    : 'cube-outline'
+                }
                 size={13}
                 color={validation.isOutOfStock ? '#B91C1C' : '#047857'}
               />
               <Text
                 className="ml-1 text-[11px] font-bold"
-                style={{ color: validation.isOutOfStock ? '#B91C1C' : '#047857' }}
+                style={{
+                  color: validation.isOutOfStock ? '#B91C1C' : '#047857',
+                }}
               >
                 {getStockLabel(validation)}
               </Text>
@@ -258,12 +279,17 @@ const CartProductCard: React.FC<Props> = ({
               className="px-2 py-1 rounded-full mr-2 mb-2 flex-row items-center"
               style={{ backgroundColor: expiryBg }}
             >
-              <Ionicons name={expiryIcon as any} size={13} color={expiryColor} />
+              <Ionicons
+                name={expiryIcon as any}
+                size={13}
+                color={expiryColor}
+              />
               <Text
                 className="ml-1 text-[11px] font-bold"
                 style={{ color: expiryColor }}
               >
-                {validation.requireExpiryDate ? 'HSD' : 'Hạn'}: {getExpiryLabel(validation)}
+                {validation.requireExpiryDate ? 'HSD' : 'Hạn'}:{' '}
+                {getExpiryLabel(validation)}
               </Text>
             </View>
 
@@ -279,9 +305,14 @@ const CartProductCard: React.FC<Props> = ({
           {isSupplement ? (
             <View className="bg-[#FFF7ED] rounded-xl p-2 mt-1 border border-[#FED7AA]">
               <View className="flex-row items-start">
-                <Ionicons name="information-circle-outline" size={15} color="#C2410C" />
+                <Ionicons
+                  name="information-circle-outline"
+                  size={15}
+                  color="#C2410C"
+                />
                 <Text className="ml-1 flex-1 text-[11px] leading-4 font-semibold text-[#C2410C]">
-                  Bấm vào sản phẩm để xem cảnh báo, hướng dẫn sử dụng và chống chỉ định.
+                  Bấm vào sản phẩm để xem cảnh báo, hướng dẫn sử dụng và chống
+                  chỉ định.
                 </Text>
               </View>
             </View>
@@ -291,13 +322,19 @@ const CartProductCard: React.FC<Props> = ({
             <View className="bg-white/70 rounded-xl p-2 mt-2 border border-[#FED7AA]">
               <View className="flex-row items-start">
                 <Ionicons
-                  name={validation.canCheckout ? 'information-circle-outline' : 'alert-circle-outline'}
+                  name={
+                    validation.canCheckout
+                      ? 'information-circle-outline'
+                      : 'alert-circle-outline'
+                  }
                   size={15}
                   color={validation.canCheckout ? '#C2410C' : '#B91C1C'}
                 />
                 <Text
                   className="ml-1 flex-1 text-[11px] leading-4 font-semibold"
-                  style={{ color: validation.canCheckout ? '#C2410C' : '#B91C1C' }}
+                  style={{
+                    color: validation.canCheckout ? '#C2410C' : '#B91C1C',
+                  }}
                 >
                   {invalidReason}
                 </Text>
@@ -311,6 +348,7 @@ const CartProductCard: React.FC<Props> = ({
                 onPress={onDecrease}
                 disabled={!canDecrease}
                 className="px-3 py-2"
+                activeOpacity={0.75}
               >
                 <Text
                   className="text-lg font-extrabold"
@@ -337,7 +375,7 @@ const CartProductCard: React.FC<Props> = ({
                   }
 
                   if (validation.stock !== null && nextQty > validation.stock) {
-                    nextQty = validation.stock;
+                    nextQty = Math.floor(nextQty/10);
                   }
 
                   onChangeQuantityText(String(nextQty));
@@ -355,6 +393,7 @@ const CartProductCard: React.FC<Props> = ({
                 onPress={onIncrease}
                 disabled={!canIncrease}
                 className="px-3 py-2"
+                activeOpacity={0.75}
               >
                 <Text
                   className="text-lg font-extrabold"

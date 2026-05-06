@@ -37,6 +37,22 @@ export const TraineeService = {
     }
   },
 
+  getTraineesByCoach: async (coachId: string | null): Promise<TraineeType[]> => {
+    if (!coachId) {
+      throw new Error("Không tìm thấy ID huấn luyện viên");
+    }
+    try {
+      const res = await api.get<ApiResponse<TraineeType[]>>(`/trainees`);
+      if (!res.data || res.data.success === false) {
+        throw new Error(res.data?.message || "Lỗi lấy danh sách học viên");
+      }
+      return res.data.data;
+    } catch (error: any) {
+      console.error("[TraineeService] Error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
   getHealthProfile: async (traineeId: string) => {
     try {
       const res = await api.get<ApiResponse<HealthProfileType>>(`/health-profiles/trainee/${traineeId}`);

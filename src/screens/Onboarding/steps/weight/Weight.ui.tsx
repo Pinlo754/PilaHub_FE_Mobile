@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 import {
   View,
   Text,
@@ -6,48 +6,52 @@ import {
   Animated,
   Dimensions,
   StyleSheet,
-} from 'react-native'
-import { useWeightLogic, ITEM_WIDTH } from './Weight.logic'
+} from 'react-native';
+import { useWeightLogic, ITEM_WIDTH } from './Weight.logic';
 
-const SCREEN_WIDTH = Dimensions.get('window').width
-const PICKER_HEIGHT = 70
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const PICKER_WIDTH = SCREEN_WIDTH - 48;
+const PICKER_HEIGHT = 70;
 
 export default function WeightUI() {
   const {
     weights,
     unit,
     displayWeight,
-    scrollX,
+    prevDisplayWeight,
+    nextDisplayWeight,
     listRef,
     setUnit,
+    onScroll,
     onMomentumEnd,
     onNext,
     onBack,
+    getItemLayout,
     canContinue,
-  } = useWeightLogic()
+  } = useWeightLogic();
 
   return (
-    <View className="flex-1 bg-[#FFF8ED] ">
-      {/* ===== Header ===== */}
+    <View className="flex-1 bg-[#FFF8ED]">
+      {/* HEADER */}
       <Pressable onPress={onBack} className="mb-6">
         <Text className="text-foreground text-base">← Quay lại</Text>
       </Pressable>
 
-      {/* ===== Title ===== */}
+      {/* TITLE */}
       <Text className="text-2xl font-semibold text-foreground text-center">
         Cân Nặng Của Bạn?
       </Text>
 
       <Text className="text-sm text-secondaryText text-center mt-3 px-6">
-        Nhập cân nặng của bạn (nếu biết) để cải thiện độ chính xác của BMI và gợi ý dinh dưỡng. Có thể cập nhật sau.
+        Nhập cân nặng của bạn để cải thiện độ chính xác của BMI và gợi ý dinh dưỡng. Có thể cập nhật sau.
       </Text>
 
-      {/* ===== Unit Switch ===== */}
+      {/* UNIT SWITCH */}
       <View className="mt-10 bg-[#D28A45] rounded-2xl flex-row overflow-hidden">
-        {['kg', 'lb'].map((u) => (
+        {(['kg', 'lb'] as const).map(u => (
           <Pressable
             key={u}
-            onPress={() => setUnit(u as 'kg' | 'lb')}
+            onPress={() => setUnit(u)}
             className={`flex-1 py-4 items-center ${
               unit === u ? 'bg-[#9A4F1E]' : ''
             }`}
@@ -59,49 +63,52 @@ export default function WeightUI() {
         ))}
       </View>
 
-      {/* ===== Numbers (74 75 76) ===== */}
+      {/* NUMBERS */}
       <View className="mt-20 flex-row justify-center gap-10">
-        {[displayWeight - 1, displayWeight, displayWeight + 1].map(
-          (num, idx) => (
-            <Text
-              key={idx}
-              className={`text-3xl font-semibold ${
-                idx === 1
-                  ? 'text-[#FF8C1A]'
-                  : 'text-[#F5B98A]'
-              }`}
-            >
-              {num}
-            </Text>
-          )
-        )}
+        <Text className="text-3xl font-semibold text-[#F5B98A]">
+          {prevDisplayWeight}
+        </Text>
+
+        <Text className="text-3xl font-semibold text-[#FF8C1A]">
+          {displayWeight}
+        </Text>
+
+        <Text className="text-3xl font-semibold text-[#F5B98A]">
+          {nextDisplayWeight}
+        </Text>
       </View>
 
-      {/* ===== Scale ===== */}
+      {/* SCALE */}
       <View className="mt-4 items-center">
         <View
           className="rounded-xl overflow-hidden"
-          style={[styles.scaleContainer, { width: SCREEN_WIDTH - 48, height: PICKER_HEIGHT }]}
+          style={[
+            styles.scaleContainer,
+            {
+              width: PICKER_WIDTH,
+              height: PICKER_HEIGHT,
+            },
+          ]}
         >
           <Animated.FlatList
             ref={listRef}
             horizontal
             data={weights}
-            keyExtractor={(item) => item.toString()}
+            keyExtractor={item => item.toString()}
             showsHorizontalScrollIndicator={false}
             snapToInterval={ITEM_WIDTH}
             decelerationRate="fast"
+            bounces={false}
+            getItemLayout={getItemLayout}
             onMomentumScrollEnd={onMomentumEnd}
+            scrollEventThrottle={16}
             contentContainerStyle={{
-              paddingHorizontal:
-                (SCREEN_WIDTH - 48) / 2 - ITEM_WIDTH / 2,
+              paddingHorizontal: PICKER_WIDTH / 2 - ITEM_WIDTH / 2,
             }}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false }
-            )}
+            onScroll={onScroll}
             renderItem={({ index }) => {
-              const isMajor = index % 2 === 0
+              const isMajor = index % 2 === 0;
+
               return (
                 <View
                   style={{ width: ITEM_WIDTH }}
@@ -113,15 +120,14 @@ export default function WeightUI() {
                     }`}
                   />
                 </View>
-              )
+              );
             }}
           />
         </View>
       </View>
 
-      {/* ===== Indicator + Result ===== */}
+      {/* INDICATOR + RESULT */}
       <View className="mt-8 items-center">
-        {/* Arrow */}
         <View
           className="mb-3 w-0 h-0
           border-l-[12px] border-r-[12px] border-b-[14px]
@@ -134,12 +140,14 @@ export default function WeightUI() {
         </Text>
       </View>
 
-      {/* ===== Button ===== */}
+      {/* BUTTON */}
       <View className="flex-1 justify-end mb-8">
         <Pressable
           onPress={onNext}
           disabled={!canContinue}
-          className={`h-14 rounded-xl ${!canContinue ? 'bg-gray-400' : 'bg-foreground'} items-center justify-center`}
+          className={`h-14 rounded-xl ${
+            !canContinue ? 'bg-gray-400' : 'bg-foreground'
+          } items-center justify-center`}
         >
           <Text className="text-white font-semibold text-lg">
             Tiếp tục
@@ -147,9 +155,11 @@ export default function WeightUI() {
         </Pressable>
       </View>
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-  scaleContainer: { backgroundColor: '#D28A45' },
+  scaleContainer: {
+    backgroundColor: '#D28A45',
+  },
 });

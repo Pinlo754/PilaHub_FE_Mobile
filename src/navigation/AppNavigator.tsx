@@ -248,7 +248,7 @@ export type RootStackParamList = {
   ChatScreen: { id: string };
   MyBlogScreen: undefined;
   ListChatScreen: undefined;
-  TraineeDetailScreen: { traineeId: string };
+  TraineeDetailScreen: { traineeId: string, roadmapId: string };
   MyInjuries: undefined;
   NotificationScreen: undefined;
 };

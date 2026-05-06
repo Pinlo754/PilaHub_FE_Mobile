@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { createWalletDeposit, createWalletMomoDeposit, fetchMyWallet } from '../../services/wallet';
+import ModalPopup from '../../components/ModalPopup';
 
 export default function DepositScreen() {
   const navigation = useNavigation<any>();
@@ -10,6 +11,23 @@ export default function DepositScreen() {
   const [loading, setLoading] = useState(false);
   const [wallet, setWallet] = useState<any | null>(null);
   const [provider, setProvider] = useState<'vnpay' | 'momo'>('vnpay');
+
+  // modal state for replacing Alert.alert
+  const [modalProps, setModalProps] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    titleText: '',
+    contentText: '',
+    onConfirm: undefined,
+  });
+
+  const showModal = React.useCallback((props: Partial<any>) => {
+    setModalProps((prev: any) => ({ ...prev, ...props, visible: true }));
+  }, []);
+
+  const closeModal = React.useCallback(() => {
+    setModalProps((prev: any) => ({ ...prev, visible: false }));
+  }, []);
 
   const quickAmounts = [50000, 100000, 200000, 500000];
 
@@ -53,7 +71,7 @@ export default function DepositScreen() {
     const cleaned = Number((amount || '').toString().replace(/[^0-9]/g, '')) || 0;
     const min = 10000;
     if (!cleaned || cleaned < min) {
-      Alert.alert('Lỗi', `Số tiền nạp tối thiểu là ${min.toLocaleString('vi-VN')}₫`);
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: `Số tiền nạp tối thiểu là ${min.toLocaleString('vi-VN')}₫` });
       return;
     }
 
@@ -67,7 +85,7 @@ export default function DepositScreen() {
       console.log('[DepositScreen] create deposit response:', res);
 
       if (!res.ok) {
-        Alert.alert('Lỗi', res.error?.message ?? 'Không thể tạo URL thanh toán');
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: res.error?.message ?? 'Không thể tạo URL thanh toán' });
         return;
       }
 
@@ -79,7 +97,7 @@ export default function DepositScreen() {
       const orderCode = d.orderCode ?? d.order_code ?? d.orderCode;
 
       if (!paymentUrl && !deeplink) {
-        Alert.alert('Lỗi', 'Server không trả về URL thanh toán');
+        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Server không trả về URL thanh toán' });
         return;
       }
 
@@ -99,7 +117,7 @@ export default function DepositScreen() {
       navigation.navigate('DepositWebView', { paymentUrl, transactionId, orderCode });
     } catch (e) {
       console.warn('deposit err', e);
-      Alert.alert('Lỗi', 'Không thể tạo giao dịch nạp tiền');
+      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Không thể tạo giao dịch nạp tiền' });
     } finally {
       setLoading(false);
     }
@@ -185,6 +203,12 @@ export default function DepositScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* ModalPopup rendered at root */}
+      <ModalPopup
+        {...(modalProps as any)}
+        onClose={closeModal}
+      />
     </View>
   );
 }

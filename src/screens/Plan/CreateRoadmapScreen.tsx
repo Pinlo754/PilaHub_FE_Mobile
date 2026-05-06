@@ -1,14 +1,41 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import axios from '../../hooks/axiosInstance';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { Calendar } from 'react-native-calendars';
+
 import { useOnboardingStore } from '../../store/onboarding.store';
 import { useRoadmapStore } from '../../store/roadmap.store';
 import GoalPicker from './components/GoalPicker';
-import Ionicons from '@react-native-vector-icons/ionicons';
-import { Calendar } from 'react-native-calendars';
 import ModalPopup from '../../components/ModalPopup';
+import { exerciseService } from '../../hooks/exercise.service';
+import { ExerciseType } from '../../utils/ExerciseType';
+
+import ManualRoadmapBuilder from './ManualRoadmapBuilder';
+import { ManualStageItem } from './types/manualRoadmap.types';
+import {
+  addDays,
+  calculateScheduleDuration,
+  getFirstDateOfWeekday,
+  toIsoStartOfDay,
+} from './utils/manualRoadmap.utils';
+import RoadmapApi from '../../hooks/roadmap.api';
+
+type TabType = 'AI' | 'MANUAL';
 
 const WEEKDAY_LABELS_VN: Record<string, string> = {
   MONDAY: 'Thứ 2',
@@ -20,206 +47,720 @@ const WEEKDAY_LABELS_VN: Record<string, string> = {
   SUNDAY: 'Chủ nhật',
 };
 
+const getErrorMessage = (err: any) => {
+  return (
+    err?.response?.data?.message ||
+    err?.message ||
+    err?.message?.toString?.() ||
+    'Đã có lỗi xảy ra.'
+  );
+};
+
 const CreateRoadmapScreen: React.FC = () => {
   const nav: any = useNavigation();
+
   const onboarding = useOnboardingStore(s => s.data);
   const addRoadmap = useRoadmapStore(s => s.addRoadmap);
 
-  // Do not prefill goals from onboarding — require manual selection here
-  const [primaryGoalIdState, setPrimaryGoalIdState] = useState<string | null>(null);
-  const [secondaryGoalIdsState, setSecondaryGoalIdsState] = useState<string[]>([]);
-  // workout level must come from onboarding (read-only here)
-  const workoutLevelFromOnboarding = (onboarding.workoutLevel as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | undefined) ?? 'INTERMEDIATE';
-  const [workoutLevel] = useState<typeof workoutLevelFromOnboarding>(workoutLevelFromOnboarding);
-  const [trainingDays, setTrainingDays] = useState<string[]>(['MONDAY','WEDNESDAY','FRIDAY']);
-  const [durationWeeks, setDurationWeeks] = useState<string>('5');
-  // Backend requires a startDate (LocalDate YYYY-MM-DD). Default to today and disallow past dates.
-  const today = new Date().toISOString().slice(0,10);
+  const [activeTab, setActiveTab] = useState<TabType>('AI');
+
+  const [primaryGoalIdState, setPrimaryGoalIdState] = useState<string | null>(
+    null,
+  );
+
+  const [secondaryGoalIdsState, setSecondaryGoalIdsState] = useState<string[]>(
+    [],
+  );
+
+  const workoutLevelFromOnboarding =
+    (onboarding.workoutLevel as
+      | 'BEGINNER'
+      | 'INTERMEDIATE'
+      | 'ADVANCED'
+      | undefined) ?? 'INTERMEDIATE';
+
+  const [workoutLevel] = useState<typeof workoutLevelFromOnboarding>(
+    workoutLevelFromOnboarding,
+  );
+
+  const [trainingDays, setTrainingDays] = useState<string[]>([
+    'MONDAY',
+    'WEDNESDAY',
+    'FRIDAY',
+  ]);
+
+  const [durationWeeks, setDurationWeeks] = useState<string>('4');
+
+  const today = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState<string>(today);
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
 
   const [submitting, setSubmitting] = useState(false);
 
-  // modal props for confirmations/notifications
-  const [modalProps, setModalProps] = useState<any>({ visible: false });
-  const showModal = (p: any) => setModalProps({ ...p, visible: true });
+  const [modalProps, setModalProps] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    titleText: '',
+    contentText: '',
+  });
 
-  const toggleDay = (d: string) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d]);
+  const [exercises, setExercises] = useState<ExerciseType[]>([]);
+  const [loadingExercises, setLoadingExercises] = useState(false);
 
-  const onSubmit = async () => {
-    console.log('CreateRoadmap onSubmit invoked, primaryGoalId:', primaryGoalIdState, 'workoutLevel:', workoutLevel, 'startDate:', startDate);
+  const [manualTitle, setManualTitle] = useState('Lộ trình tự tạo');
+  const [manualDescription, setManualDescription] = useState(
+    'Lộ trình tập luyện được tạo thủ công.',
+  );
+  const [manualStages, setManualStages] = useState<ManualStageItem[]>([]);
+
+  const traineeId =
+    (onboarding as any)?.traineeId ||
+    (onboarding as any)?.profileId ||
+    (onboarding as any)?.customerProfileId ||
+    undefined;
+
+  const totalWeeks = useMemo(() => {
+    return parseInt(durationWeeks, 10) || 4;
+  }, [durationWeeks]);
+
+  const roadmapEndDate = useMemo(() => {
+    return addDays(startDate, totalWeeks * 7 - 1);
+  }, [startDate, totalWeeks]);
+
+  const showModal = (p: any) => {
+    setModalProps({ ...p, visible: true });
+  };
+
+  const closeModal = () => {
+    setModalProps((prev: any) => ({ ...prev, visible: false }));
+  };
+
+  const toggleDay = (d: string) => {
+    setTrainingDays(prev => {
+      const next = prev.includes(d)
+        ? prev.filter(x => x !== d)
+        : [...prev, d];
+
+      setManualStages([]);
+
+      return next;
+    });
+  };
+
+  const loadExercises = async () => {
+    try {
+      setLoadingExercises(true);
+
+      console.log('Loading exercises...');
+      const data = await exerciseService.getAll();
+      console.log('Exercises response:', data);
+
+      setExercises(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.log('Load exercises error:', err);
+
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: getErrorMessage(err),
+      });
+    } finally {
+      setLoadingExercises(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'MANUAL' && exercises.length === 0) {
+      loadExercises();
+    }
+  }, [activeTab]);
+
+  const validateCommonForm = () => {
     if (!primaryGoalIdState) {
-      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.' });
-      return;
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.',
+      });
+      return false;
     }
+
     if (trainingDays.length === 0) {
-      showModal({ mode: 'noti', titleText: 'Lỗi', contentText: 'Vui lòng chọn ít nhất một ngày trong tuần để tập luyện.' });
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Vui lòng chọn ít nhất một ngày trong tuần để tập luyện.',
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const submitAiRoadmap = async () => {
+    console.log(
+      'CreateRoadmap AI submit, primaryGoalId:',
+      primaryGoalIdState,
+      'workoutLevel:',
+      workoutLevel,
+      'startDate:',
+      startDate,
+    );
+
+    if (!primaryGoalIdState) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.',
+      });
       return;
     }
+
+    if (trainingDays.length === 0) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Vui lòng chọn ít nhất một ngày trong tuần để tập luyện.',
+      });
+      return;
+    }
+
     setSubmitting(true);
+
     try {
       const payload = {
         primaryGoalId: primaryGoalIdState,
         secondaryGoalIds: secondaryGoalIdsState,
         workoutLevel,
-        // send startDate as YYYY-MM-DD (LocalDate expected by backend)
         startDate,
         trainingDays,
-        durationWeeks: parseInt(durationWeeks, 10) || 4,
+        durationWeeks: totalWeeks,
       };
 
-      console.log('CreateRoadmap payload:', JSON.stringify(payload));
+      console.log('CreateRoadmap AI payload:', JSON.stringify(payload));
 
-      const { data } = await axios.post('/roadmaps/ai-generate', payload);
+      const inner = await RoadmapApi.generateAiRoadmap(payload);
 
-      // normalize and tolerate various response shapes
-      const resp = data ?? {};
-      const safeStringify = (obj: any) => {
-        const seen = new WeakSet();
-        return JSON.stringify(obj, (k, v) => {
-          if (typeof v === 'string' && v.length > 200) return v.slice(0, 200) + '...[TRUNCATED]';
-          if (v && typeof v === 'object') {
-            if (seen.has(v)) return '[Circular]';
-            seen.add(v);
-          }
-          return v;
-        }, 2);
-      };
-      console.log('AI roadmap full response (safe):', safeStringify(resp));
+      console.log('CreateRoadmap AI response:', JSON.stringify(inner));
 
-      // the backend may wrap the useful object under `data` (sample: { success, message, data: { title, stages } })
-      const inner = resp?.data ?? resp ?? {};
-
-      // normalize roadmap metadata
       const roadmapObj: any = {
-        title: inner.title ?? inner.name ?? `Lộ trình ${new Date().toISOString()}`,
-        description: inner.description ?? inner.summary ?? null,
-        confidenceScore: inner.confidenceScore ?? null,
-        aiModel: inner.aiModel ?? null,
-        generatedAt: inner.generatedAt ?? inner.generated_at ?? null,
-        notes: inner.notes ?? null,
-        supplementRecommendations: inner.supplementRecommendations ?? [],
-        raw: inner, // keep original payload for debugging
-        // include the user-selected goals so later save-to-server requests can provide them
+        title:
+          inner?.title ?? inner?.name ?? `Lộ trình ${new Date().toISOString()}`,
+        description: inner?.description ?? inner?.summary ?? null,
+        confidenceScore: inner?.confidenceScore ?? null,
+        aiModel: inner?.aiModel ?? null,
+        generatedAt: inner?.generatedAt ?? inner?.generated_at ?? null,
+        notes: inner?.notes ?? null,
+        supplementRecommendations: inner?.supplementRecommendations ?? [],
+        raw: inner,
         primaryGoalId: primaryGoalIdState,
         secondaryGoalIds: secondaryGoalIdsState,
       };
 
-      const stages = Array.isArray(inner.stages) ? inner.stages : (inner.stages ? [inner.stages] : []);
+      const stages = Array.isArray(inner?.stages)
+        ? inner.stages
+        : inner?.stages
+        ? [inner.stages]
+        : [];
 
-      if (!stages || stages.length === 0) {
-        console.warn('CreateRoadmap: no stages found in AI response. Response keys:', Object.keys(inner));
-      }
+      addRoadmap({
+        roadmap: roadmapObj,
+        stages,
+        createdAt: Date.now(),
+      });
 
-      // Persist locally and navigate into the main tab navigator to the Roadmap tab
-      // so the user sees the roadmap within the app's TabNavigator context.
-      addRoadmap({ roadmap: roadmapObj, stages, createdAt: Date.now() })
-       nav.navigate('Plan', { addedRoadmap: { roadmap: roadmapObj, stages, primaryGoalId: primaryGoalIdState, secondaryGoalIds: secondaryGoalIdsState } });
-      setSubmitting(false);
-      return;
-
+      nav.navigate('Plan', {
+        addedRoadmap: {
+          roadmap: roadmapObj,
+          stages,
+          primaryGoalId: primaryGoalIdState,
+          secondaryGoalIds: secondaryGoalIdsState,
+        },
+      });
     } catch (err: any) {
-      console.error('CreateRoadmap error:', err);
       const isServerError = err?.response?.status === 500;
+
       if (isServerError) {
-        // AI busy: allow retry or cancel
         showModal({
           mode: 'confirm',
           titleText: 'AI đang bận',
-          contentText: 'AI đang bận vui lòng thử lại sau',
-          onConfirm: async () => {
-            setModalProps({ visible: false });
-            try { await onSubmit(); } catch { /* ignore */ }
+          contentText: 'AI đang bận vui lòng thử lại sau.',
+          onConfirm: () => {
+            closeModal();
+            submitAiRoadmap();
           },
-          onCancel: () => setModalProps({ visible: false })
+          onCancel: closeModal,
         });
       } else {
-        const message = err?.response?.data?.message || err?.message || 'Tạo lộ trình thất bại.';
-        showModal({ mode: 'noti', titleText: 'Lỗi', contentText: message });
+        showModal({
+          mode: 'noti',
+          titleText: 'Lỗi',
+          contentText: getErrorMessage(err) || 'Tạo lộ trình AI thất bại.',
+        });
       }
     } finally {
       setSubmitting(false);
     }
   };
 
+  const goToRoadmapDetail = (roadmapId: string) => {
+    nav.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'MainTabs',
+          params: {
+            screen: 'Roadmap',
+            params: {
+              screen: 'RoadmapDetail',
+              params: {
+                roadmapId,
+              },
+            },
+          },
+        },
+      ],
+    });
+  };
+
+  const validateManualStages = () => {
+    if (manualStages.length === 0) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Thiếu cấu trúc lộ trình',
+        contentText: 'Vui lòng bấm “Tạo roadmap” trước khi tạo thủ công.',
+      });
+      return false;
+    }
+
+    const hasExercise = manualStages.some(stage =>
+      stage.schedules.some(schedule => schedule.exercises.length > 0),
+    );
+
+    if (!hasExercise) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Thiếu bài tập',
+        contentText: 'Vui lòng thêm ít nhất một bài tập vào lộ trình.',
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const buildManualStagesPayload = () => {
+    return manualStages.map((stage, stageIndex) => {
+      const stageDurationWeeks = parseInt(stage.durationWeeks, 10) || 4;
+
+      const stageStartDate = addDays(startDate, stageIndex * 4 * 7);
+      const stageEndDate = addDays(
+        stageStartDate,
+        stageDurationWeeks * 7 - 1,
+      );
+
+      return {
+        stageName: stage.stageName.trim() || `Giai đoạn ${stage.stageOrder}`,
+        description: stage.description.trim(),
+        stageOrder: stage.stageOrder,
+        startDate: toIsoStartOfDay(stageStartDate),
+        endDate: toIsoStartOfDay(stageEndDate),
+        schedules: stage.schedules.map(schedule => ({
+          scheduleName:
+            schedule.scheduleName.trim() ||
+            `Buổi tập ${WEEKDAY_LABELS_VN[schedule.dayOfWeek] ?? ''}`,
+          description: schedule.description.trim(),
+          dayOfWeek: schedule.dayOfWeek,
+          scheduledDate: getFirstDateOfWeekday(
+            stageStartDate,
+            schedule.dayOfWeek,
+          ),
+          durationMinutes: calculateScheduleDuration(schedule.exercises),
+          exercises: schedule.exercises.map((exercise, exerciseIndex) => ({
+            exerciseId: exercise.exerciseId,
+            exerciseOrder: exerciseIndex + 1,
+            sets: parseInt(exercise.sets, 10) || 1,
+            reps: parseInt(exercise.reps, 10) || 1,
+            durationSeconds: parseInt(exercise.durationSeconds, 10) || 60,
+            restSeconds: parseInt(exercise.restSeconds, 10) || 30,
+            notes: exercise.notes?.trim() || '',
+          })),
+        })),
+      };
+    });
+  };
+
+  const submitManualRoadmap = async () => {
+    if (!validateCommonForm()) return;
+
+    const primaryGoalId = primaryGoalIdState;
+
+    if (!primaryGoalId) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Vui lòng chọn mục tiêu chính trước khi tạo lộ trình.',
+      });
+      return;
+    }
+
+    if (!manualTitle.trim()) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Vui lòng nhập tên lộ trình.',
+      });
+      return;
+    }
+
+    if (!validateManualStages()) return;
+
+    setSubmitting(true);
+
+    try {
+      const stagesPayload = buildManualStagesPayload();
+
+      const payload = {
+        title: manualTitle.trim(),
+        description: manualDescription.trim(),
+        startDate: toIsoStartOfDay(startDate),
+        endDate: toIsoStartOfDay(roadmapEndDate),
+        source: 'MANUAL',
+        traineeId,
+        primaryGoalId,
+        secondaryGoalIds: secondaryGoalIdsState,
+        stages: stagesPayload,
+      };
+
+      console.log('CreateRoadmap MANUAL payload:', JSON.stringify(payload));
+
+      const data = await RoadmapApi.createWithDetails(payload);
+
+      console.log('CreateRoadmap MANUAL response:', JSON.stringify(data));
+
+      const roadmapId =
+        data?.roadmap?.roadmapId ??
+        data?.roadmapId ??
+        data?.id ??
+        data?._id ??
+        null;
+
+      showModal({
+        mode: 'noti',
+        titleText: 'Thành công',
+        contentText: 'Tạo lộ trình thủ công thành công.',
+        onConfirm: () => {
+          closeModal();
+
+          if (roadmapId) {
+            goToRoadmapDetail(roadmapId);
+            return;
+          }
+
+          nav.goBack();
+        },
+      });
+    } catch (err: any) {
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: getErrorMessage(err) || 'Tạo lộ trình thủ công thất bại.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderTabButton = (tab: TabType, label: string, icon: string) => {
+    const active = activeTab === tab;
+
+    return (
+      <TouchableOpacity
+        onPress={() => setActiveTab(tab)}
+        style={[styles.tabButton, active && styles.tabButtonActive]}
+      >
+        <Ionicons
+          name={icon as any}
+          size={18}
+          color={active ? '#FFFFFF' : '#6B7280'}
+        />
+
+        <Text
+          style={[styles.tabButtonText, active && styles.tabButtonTextActive]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderGoalAndDateSection = () => {
+    return (
+      <>
+        <GoalPicker
+          initialPrimaryId={primaryGoalIdState ?? undefined}
+          initialSecondaryIds={secondaryGoalIdsState}
+          initialOpenPrimary={true}
+          initialOpenSecondary={false}
+          onChange={(p, s) => {
+            setPrimaryGoalIdState(p ?? null);
+            setSecondaryGoalIdsState(s ?? []);
+          }}
+        />
+
+        <Text className="font-semibold mt-6">Mức độ theo onboarding</Text>
+
+        <View className="mt-2 p-4 bg-gray-100 rounded-lg border border-gray-200">
+          <Text className="text-base">
+            {workoutLevel === 'BEGINNER'
+              ? 'Mới'
+              : workoutLevel === 'INTERMEDIATE'
+              ? 'Trung bình'
+              : 'Nâng cao'}
+          </Text>
+        </View>
+
+        <Text className="font-semibold mt-6">Ngày tập</Text>
+
+        <View className="flex-row flex-wrap mt-3">
+          {Object.keys(WEEKDAY_LABELS_VN).map(d => {
+            const selected = trainingDays.includes(d);
+
+            return (
+              <TouchableOpacity
+                key={d}
+                onPress={() => toggleDay(d)}
+                className={`px-4 py-3 rounded-xl mr-2 mb-2 border ${
+                  selected
+                    ? 'bg-foreground border-foreground'
+                    : 'bg-white border-gray-200'
+                }`}
+              >
+                <Text className={selected ? 'text-white' : 'text-black'}>
+                  {WEEKDAY_LABELS_VN[d]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text className="font-semibold mt-6">Số tuần</Text>
+
+        <TextInput
+          className="border border-gray-200 rounded-lg px-4 py-3 mt-2 text-base"
+          value={durationWeeks}
+          onChangeText={text => {
+            setDurationWeeks(text);
+            setManualStages([]);
+          }}
+          keyboardType="numeric"
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
+          placeholder="Nhập số tuần"
+        />
+
+        <Text className="font-semibold mt-6">Ngày bắt đầu</Text>
+
+        <Pressable
+          onPress={() => setShowCalendar(prev => !prev)}
+          className="border border-gray-200 rounded-lg px-4 py-3 mt-2"
+        >
+          <Text className="text-base">{startDate}</Text>
+        </Pressable>
+
+        {showCalendar && (
+          <View className="mt-2 bg-white rounded-lg border border-gray-200">
+            <Calendar
+              minDate={today}
+              onDayPress={day => {
+                if (day.dateString < today) return;
+
+                setStartDate(day.dateString);
+                setShowCalendar(false);
+                setManualStages([]);
+              }}
+              markedDates={{
+                [startDate]: {
+                  selected: true,
+                  selectedColor: '#A0522D',
+                },
+              }}
+              theme={{
+                todayTextColor: '#A0522D',
+              }}
+            />
+          </View>
+        )}
+      </>
+    );
+  };
+
+  const renderAiTab = () => {
+    return (
+      <View className="bg-white rounded-lg p-6 border border-gray-200 mt-4">
+        {renderGoalAndDateSection()}
+
+        <TouchableOpacity
+          onPress={submitAiRoadmap}
+          disabled={submitting}
+          className={`h-12 rounded-lg items-center justify-center mt-6 ${
+            submitting ? 'bg-gray-400' : 'bg-foreground'
+          }`}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text className="text-white text-lg font-semibold">Tạo bằng AI</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderManualTab = () => {
+    return (
+      <View className="bg-white rounded-lg p-6 border border-gray-200 mt-4">
+        {renderGoalAndDateSection()}
+
+        <Text className="font-semibold mt-6">Tên lộ trình</Text>
+
+        <TextInput
+          className="border border-gray-200 rounded-lg px-4 py-3 mt-2 text-base"
+          value={manualTitle}
+          onChangeText={setManualTitle}
+          placeholder="Nhập tên lộ trình"
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
+        />
+
+        <Text className="font-semibold mt-6">Mô tả lộ trình</Text>
+
+        <TextInput
+          className="border border-gray-200 rounded-lg px-4 py-3 mt-2 text-base"
+          value={manualDescription}
+          onChangeText={setManualDescription}
+          placeholder="Nhập mô tả"
+          multiline
+          textAlignVertical="top"
+          style={styles.textArea}
+        />
+
+        <ManualRoadmapBuilder
+          exercises={exercises}
+          loadingExercises={loadingExercises}
+          onReloadExercises={loadExercises}
+          totalWeeks={totalWeeks}
+          trainingDays={trainingDays}
+          manualStages={manualStages}
+          setManualStages={setManualStages}
+        />
+
+        {manualStages.length > 0 ? (
+          <TouchableOpacity
+            onPress={submitManualRoadmap}
+            disabled={submitting}
+            className={`h-12 rounded-lg items-center justify-center mt-6 ${
+              submitting ? 'bg-gray-400' : 'bg-foreground'
+            }`}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white text-lg font-semibold">
+                Tạo thủ công
+              </Text>
+            )}
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
-        <TouchableOpacity onPress={() => nav.goBack()} className="w-7 items-center justify-center">
-          <Ionicons name="arrow-back" size={22} color="#333" />
-        </TouchableOpacity>
-
-        <Text className="flex-1 text-center text-lg font-semibold">Tạo Lộ Trình AI</Text>
-        <View className="w-7" />
-      </View>
-
-      <ScrollView className="px-4" contentContainerStyle={styles.scrollContent}>
-        <View className="bg-white rounded-lg p-6 border border-gray-200 mt-4">
-          
-          <GoalPicker
-            initialPrimaryId={primaryGoalIdState ?? undefined}
-            initialSecondaryIds={secondaryGoalIdsState}
-            initialOpenPrimary={true}
-            initialOpenSecondary={false}
-            onChange={(p, s) => {
-              setPrimaryGoalIdState(p ?? null);
-              setSecondaryGoalIdsState(s ?? []);
-            }}
-          />
-
-          
-
-          <Text className="font-semibold mt-6">Mức độ (theo onboarding)</Text>
-          <View className="mt-2 p-4 bg-gray-100 rounded-lg border border-gray-200">
-            <Text className="text-base">{workoutLevel === 'BEGINNER' ? 'Mới' : workoutLevel === 'INTERMEDIATE' ? 'Trung bình' : 'Nâng cao'}</Text>
-          </View>
-
-          <Text className="font-semibold mt-6">Ngày tập</Text>
-          <View className="flex-row flex-wrap mt-3">
-            {Object.keys(WEEKDAY_LABELS_VN).map(d => (
-              <TouchableOpacity key={d} onPress={() => toggleDay(d)} className={`px-4 py-3 rounded-xl mr-2 mb-2 border ${trainingDays.includes(d) ? 'bg-foreground border-foreground' : 'bg-white border-gray-200'}`}>
-                <Text className={`${trainingDays.includes(d) ? 'text-white' : 'text-black'}`}>{WEEKDAY_LABELS_VN[d]}</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View className="flex-1">
+            <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
+              <TouchableOpacity
+                onPress={() => nav.goBack()}
+                className="w-7 items-center justify-center"
+              >
+                <Ionicons name="arrow-back" size={22} color="#333" />
               </TouchableOpacity>
-            ))}
-          </View>
 
-          <Text className="font-semibold mt-6">Số tuần</Text>
-          <TextInput className="border border-gray-200 rounded-lg px-4 py-3 mt-2 text-base" value={durationWeeks} onChangeText={setDurationWeeks} keyboardType="numeric" />
+              <Text className="flex-1 text-center text-lg font-semibold">
+                Tạo Lộ Trình
+              </Text>
 
-          <Text className="font-semibold mt-6">Ngày bắt đầu</Text>
-          <Pressable onPress={() => setShowCalendar(true)} className="border border-gray-200 rounded-lg px-4 py-3 mt-2">
-            <Text className="text-base">{startDate}</Text>
-          </Pressable>
-
-          {showCalendar && (
-            <View className="mt-2 bg-white rounded-lg border border-gray-200">
-              <Calendar
-                minDate={today}
-                onDayPress={(day) => {
-                  // Calendar already prevents past-day presses via minDate, but guard defensively
-                  if (day.dateString < today) return;
-                  setStartDate(day.dateString);
-                  setShowCalendar(false);
-                }}
-                markedDates={{ [startDate]: { selected: true, selectedColor: '#A0522D' } }}
-                theme={{ todayTextColor: '#A0522D' }}
-              />
+              <View className="w-7" />
             </View>
-          )}
 
-          {/* Restore original position of Create button inside content card */}
-          <TouchableOpacity onPress={onSubmit} className="h-12 bg-foreground rounded-lg items-center justify-center mt-4">
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-lg font-semibold">Tạo ngay</Text>}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-      <ModalPopup {...(modalProps as any)} />
+            <ScrollView
+              className="px-4"
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.tabContainer}>
+                {renderTabButton('AI', 'Gen AI', 'sparkles-outline')}
+                {renderTabButton('MANUAL', 'Tự thêm', 'create-outline')}
+              </View>
+
+              {activeTab === 'AI' ? renderAiTab() : renderManualTab()}
+            </ScrollView>
+
+            <ModalPopup {...(modalProps as any)} onClose={closeModal} />
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  scrollContent: { paddingBottom: 40 },
-});
-
 export default CreateRoadmapScreen;
+
+const styles = StyleSheet.create({
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 6,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  tabButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: '#A0522D',
+  },
+  tabButtonText: {
+    color: '#6B7280',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  tabButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  textArea: {
+    minHeight: 90,
+  },
+});

@@ -133,7 +133,7 @@ export const PostService = {
         return res.data.data;
     }, 
     deletePost: async (id:string): Promise<void> => {
-        const res = await api.delete<ApiResponse<void>>(
+        const res = await api.put<ApiResponse<void>>(
             `/posts/${id}`);
         if (!res.data.success) {
             throw {

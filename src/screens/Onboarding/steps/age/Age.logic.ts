@@ -1,81 +1,118 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { Animated } from 'react-native';
 import { useOnboardingStore } from '../../../../store/onboarding.store';
 
-
 const MIN_AGE = 12;
 const MAX_AGE = 80;
-export const ITEM_WIDTH = 96; // larger item width for smoother interaction
+const DEFAULT_AGE = 21;
+
+export const ITEM_WIDTH = 96;
 
 export const useAgeLogic = () => {
   const { data, setData, step, setStep } = useOnboardingStore();
+
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<Animated.FlatList<number> | null>(null);
 
-  // compute initial index from stored age
-  const ages = Array.from(
-    { length: MAX_AGE - MIN_AGE + 1 },
-    (_, i) => MIN_AGE + i
-  );
-  
-  const initialIndex = Math.max(0, ages.findIndex(a => a === (data.age ?? 21)));
-  const [selectedIndex, setSelectedIndex] = useState<number>(initialIndex);
-  const selectedAge = ages[selectedIndex];
-
-  // getItemLayout helper so FlatList can measure items precisely
-  const getItemLayout = (_: any, index: number) => ({ length: ITEM_WIDTH, offset: ITEM_WIDTH * index, index });
-
-  // scroll to initial index once on mount using scrollToIndex on next animation frame
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      try {
-        if (listRef.current && typeof listRef.current?.scrollToIndex === 'function') {
-          // center the item roughly by using viewPosition 0.5
-          (listRef.current as any).scrollToIndex({ index: initialIndex, animated: false, viewPosition: 0.5 });
-        } else {
-          // fallback to scrollToOffset
-          listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_WIDTH, animated: false });
-        }
-      } catch {
-        // ignore index errors (may occur if list not yet populated)
-        // fallback to offset after small delay
-        setTimeout(() => {
-          try {
-            listRef.current?.scrollToOffset({ offset: initialIndex * ITEM_WIDTH, animated: false });
-          } catch {}
-        }, 50);
-      }
-    });
-
-    return () => cancelAnimationFrame(raf);
-    // run only once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ages = useMemo(() => {
+    return Array.from(
+      { length: MAX_AGE - MIN_AGE + 1 },
+      (_, i) => MIN_AGE + i,
+    );
   }, []);
 
-  const onMomentumEnd = (e: any) => {
-    const index = Math.round(
-      e.nativeEvent.contentOffset.x / ITEM_WIDTH
-    );
-    const safeIndex = Math.max(0, Math.min(ages.length - 1, index));
+  const getIndexFromAge = (age?: number) => {
+    const value = typeof age === 'number' ? age : DEFAULT_AGE;
+    const foundIndex = ages.findIndex(item => item === value);
+
+    if (foundIndex >= 0) {
+      return foundIndex;
+    }
+
+    return ages.findIndex(item => item === DEFAULT_AGE);
+  };
+
+  const initialIndex = getIndexFromAge(data.age);
+
+  const [selectedIndex, setSelectedIndex] = useState<number>(initialIndex);
+
+  const selectedAge = ages[selectedIndex] ?? DEFAULT_AGE;
+
+  const getItemLayout = (_: any, index: number) => ({
+    length: ITEM_WIDTH,
+    offset: ITEM_WIDTH * index,
+    index,
+  });
+
+  /**
+   * Khi vào lại màn Age:
+   * - Lấy age từ store
+   * - Set lại selectedIndex
+   * - Scroll thước về đúng vị trí
+   *
+   * Không dùng scrollToIndex + viewPosition nữa
+   * vì dễ lệch với paddingHorizontal.
+   */
+  useEffect(() => {
+    const index = getIndexFromAge(data.age);
+    const offset = index * ITEM_WIDTH;
+
+    setSelectedIndex(index);
+    scrollX.setValue(offset);
+
+    const timer = setTimeout(() => {
+      try {
+        listRef.current?.scrollToOffset({
+          offset,
+          animated: false,
+        });
+      } catch {}
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [data.age, ages, scrollX]);
+
+  const syncSelectedByOffset = (offsetX: number) => {
+    const rawIndex = Math.round(offsetX / ITEM_WIDTH);
+    const safeIndex = Math.max(0, Math.min(ages.length - 1, rawIndex));
+
     setSelectedIndex(safeIndex);
     setData({ age: ages[safeIndex] });
   };
 
-  const onNext = () => setStep(step + 1);
-  const onBack = () => step > 0 && setStep(step - 1);
+  /**
+   * Chỉ dùng onMomentumScrollEnd.
+   * Không dùng thêm onScrollEndDrag vì sẽ bị gọi 2 lần,
+   * gây hiện tượng nhảy qua lại liên tục.
+   */
+  const onMomentumEnd = (e: any) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    syncSelectedByOffset(offsetX);
+  };
 
-  // only allow continue when age has been saved into onboarding store (persisted)
-  const canContinue = typeof data.age === 'number' && !isNaN(data.age);
+  const onNext = () => {
+    setData({ age: selectedAge });
+    setStep(step + 1);
+  };
+
+  const onBack = () => {
+    if (step > 0) {
+      setData({ age: selectedAge });
+      setStep(step - 1);
+    }
+  };
+
+  const canContinue = typeof selectedAge === 'number' && !isNaN(selectedAge);
 
   return {
     ages,
     scrollX,
     listRef,
     selectedAge,
+    selectedIndex,
     onMomentumEnd,
     onNext,
     onBack,
-    // expose helper props for FlatList
     initialIndex,
     getItemLayout,
     canContinue,

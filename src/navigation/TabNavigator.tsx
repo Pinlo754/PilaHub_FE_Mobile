@@ -4,17 +4,17 @@ import { TabBarBg } from '../components/NotchedBackground';
 import { colors } from '../theme/colors';
 import { TabIcon } from '../components/TabIcon';
 import ListScreen from '../screens/List/ListScreen';
-
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { RenderCenterTabBtn } from '../components/TabCenterBtn';
 import ShopScreen from '../screens/Shop/ShopScreen';
 import AppLayout from '../components/AppLayout';
-import RoadMap from '../screens/Plan/RoadMap';
 import TraineeProfileScreen from '../screens/Profile/TraineeProfileScreen';
+import RoadmapStackNavigator, { RoadmapStackParamList } from './RoadmapStackNavigator';
 
 export type RootTabParamList = {
   Home: undefined;
   List: undefined;
-  Roadmap: undefined;
+  Roadmap: NavigatorScreenParams<RoadmapStackParamList> | undefined;
   TraineeProfile: undefined;
   Shop: undefined;
 };
@@ -63,20 +63,20 @@ const TabNavigator: React.FC = () => {
             tabBarIcon: TabIcon('list-circle-outline', 'list-circle', 28),
           }}
         />
-        <Tab.Screen
-          name="Roadmap"
-          component={RoadMap}
-          options={{
-            tabBarLabel: () => null,
-            tabBarIcon: TabIcon(
-              'git-network-outline',
-              'git-network-outline',
-              30,
-              '#FFF',
-            ),
-            tabBarButton: RenderCenterTabBtn,
-          }}
-        />
+     <Tab.Screen
+  name="Roadmap"
+  component={RoadmapStackNavigator}
+  options={{
+    tabBarLabel: () => null,
+    tabBarIcon: TabIcon(
+      'git-network-outline',
+      'git-network-outline',
+      30,
+      '#FFF',
+    ),
+    tabBarButton: RenderCenterTabBtn,
+  }}
+/>
         <Tab.Screen
           name="Shop"
           component={ShopScreen}

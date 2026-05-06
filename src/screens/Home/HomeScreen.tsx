@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { PermissionsAndroid, ScrollView, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { PermissionsAndroid, Platform, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import messaging from '@react-native-firebase/messaging';
+
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import Header from './components/Header';
 import DailyTask from './components/DailyTask';
@@ -10,54 +12,72 @@ import QuickActions, { ACTIONS } from './components/QuickActions';
 import RecommendCourse from './components/RecommendCourse';
 import NewExercise from './components/NewExercise';
 import NewProduct from './components/NewProduct';
-import messaging from '@react-native-firebase/messaging';
 import { saveFcmToken } from '../../services/auth';
 import MainGuideOverlay from '../../components/MainGuideOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
-  // HOOK
-  const { dailyTasks, recommendCourses, newExercises, newProducts, scrollRef } =
+  const {  scrollRef } =
     useHomeScreen();
 
-  // refs for onboarding overlay (stable refs created once)
+  /**
+   * Refs dùng cho MainGuideOverlay.
+   * Mỗi action trong QuickActions sẽ được gắn 1 ref riêng.
+   */
   const targetRefs = useMemo(() => {
-    const m: Record<string, React.RefObject<any>> = {};
-    ACTIONS.forEach((a) => { m[a.id] = React.createRef(); });
-    return m;
+    const refs: Record<string, React.RefObject<any>> = {};
+
+    ACTIONS.forEach(action => {
+      refs[action.id] = React.createRef();
+    });
+
+    return refs;
   }, []);
 
-  const [measures, setMeasures] = useState<Record<string, any>>({});
-  const handleMeasure = (id: string, rect: { x: number; y: number; width: number; height: number }) => {
-    setMeasures((s) => ({ ...s, [id]: rect }));
+  const requestPermission = async () => {
+    try {
+      /**
+       * Android 13+ cần xin quyền POST_NOTIFICATIONS.
+       * Android thấp hơn không cần request quyền này.
+       */
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        );
+      }
+
+      const token = await messaging().getToken();
+
+      console.log('FCM Token:', token);
+
+      if (token) {
+        await saveFcmToken(token);
+      }
+    } catch (error) {
+      console.log('Request notification permission error:', error);
+    }
   };
 
-  async function requestPermission() {
-    await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-    );
-    const token = await messaging().getToken();
-    console.log("FCM Token:", token);
-    saveFcmToken(token)
-  }
-
-  requestPermission();
-
   useEffect(() => {
-    const unsubscribe = messaging().onTokenRefresh(async (token) => {
+    requestPermission();
+
+    const unsubscribe = messaging().onTokenRefresh(async token => {
       console.log('New FCM Token:', token);
-      await saveFcmToken(token);
+
+      if (token) {
+        await saveFcmToken(token);
+      }
     });
 
     return unsubscribe;
   }, []);
+
   return (
     <View className="flex-1 bg-background pt-14 pb-10">
       {/* Header */}
       <Header navigation={navigation} />
 
-      <MainGuideOverlay targetRefs={targetRefs} measures={measures} />
       <ScrollView
         ref={scrollRef}
         className="pt-2"
@@ -65,23 +85,26 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Daily Task */}
-        <DailyTask data={dailyTasks} navigation={navigation} />
 
         {/* Roadmap Progress */}
         <RoadmapProgress />
 
         {/* Quick Actions */}
-        <QuickActions navigation={navigation} targetRefs={targetRefs} onMeasure={handleMeasure} />
+        <QuickActions navigation={navigation} targetRefs={targetRefs} />
+        <DailyTask navigation={navigation} />
 
-        {/* Recomend Course */}
-        <RecommendCourse data={recommendCourses} />
+        {/* Recommend Course */}
+        <RecommendCourse  />
 
         {/* New Exercise */}
-        <NewExercise data={newExercises} />
+        <NewExercise  />
 
         {/* New Product */}
-        <NewProduct data={newProducts} />
+        <NewProduct  />
       </ScrollView>
+
+      {/* Main Guide Overlay */}
+      <MainGuideOverlay targetRefs={targetRefs} />
     </View>
   );
 };

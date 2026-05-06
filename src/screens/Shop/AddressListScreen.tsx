@@ -55,6 +55,13 @@ export default function AddressListScreen({ route }: any) {
   const [loading, setLoading] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
 
+  /**
+   * mode = 'select' => đi từ Checkout sang để chọn địa chỉ
+   * mode = 'manage' hoặc undefined => đi từ Profile / quản lý địa chỉ
+   */
+  // If caller passes an onSelect callback we consider this a select flow as well.
+  const isSelectMode = route.params?.mode === 'select' || typeof route.params?.onSelect === 'function';
+
   const load = async () => {
     setLoading(true);
 
@@ -81,17 +88,9 @@ export default function AddressListScreen({ route }: any) {
     return unsub;
   }, [navigation]);
 
-  const onSelect = (addr: any) => {
-    if (route.params && typeof route.params.onSelect === 'function') {
-      route.params.onSelect(addr);
-      navigation.goBack();
-      return;
-    }
-
-    navigation.navigate('Checkout', { selectedAddress: addr });
+  const onBack = () => {
+    navigation.goBack();
   };
-
-  const onBack = () => navigation.goBack();
 
   const goAdd = () => {
     navigation.navigate('AddressForm', { onSaved: load });
@@ -104,7 +103,9 @@ export default function AddressListScreen({ route }: any) {
   const handleDelete = (addr: any) => {
     Alert.alert(
       'Xoá địa chỉ',
-      `Bạn có chắc muốn xoá địa chỉ của ${addr.receiverName || 'người nhận'} không?`,
+      `Bạn có chắc muốn xoá địa chỉ của ${
+        addr.receiverName || 'người nhận'
+      } không?`,
       [
         {
           text: 'Huỷ',
@@ -128,6 +129,28 @@ export default function AddressListScreen({ route }: any) {
         },
       ],
     );
+  };
+
+  const onSelect = (addr: any) => {
+    // If caller provided an onSelect callback (preferred pattern), call it and go back
+    if (typeof route.params?.onSelect === 'function') {
+      try {
+        route.params.onSelect(addr);
+      } catch (e) {
+        console.warn('AddressList: onSelect callback threw', e);
+      }
+      navigation.goBack();
+      return;
+    }
+
+    // Legacy select-mode navigation: navigate back to Checkout with param
+    if (isSelectMode) {
+      navigation.navigate('Checkout', { selectedAddress: addr });
+      return;
+    }
+
+    // Default: open edit form
+    handleEdit(addr);
   };
 
   const renderAddress = ({ item }: { item: any }) => {
@@ -160,7 +183,11 @@ export default function AddressListScreen({ route }: any) {
             </Text>
           </View>
 
-          <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+          <Ionicons
+            name={isSelectMode ? 'chevron-forward' : 'create-outline'}
+            size={20}
+            color="#CBD5E1"
+          />
         </View>
 
         <View style={styles.addressLineBox}>
@@ -171,21 +198,46 @@ export default function AddressListScreen({ route }: any) {
         </View>
 
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            onPress={() => onSelect(item)}
-            style={[styles.actionBtn, styles.selectBtn]}
-          >
-            <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-            <Text style={styles.selectBtnText}>Chọn địa chỉ</Text>
-          </TouchableOpacity>
+          {isSelectMode ? (
+            <TouchableOpacity
+              onPress={() => onSelect(item)}
+              style={[styles.actionBtn, styles.selectBtn]}
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={16}
+                color="#fff"
+              />
+              <Text style={styles.selectBtnText}>Chọn địa chỉ</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.manageHintBox}>
+              <Ionicons name="create-outline" size={15} color={COLORS.muted} />
+              <Text style={styles.manageHintText}>Bấm để sửa địa chỉ</Text>
+            </View>
+          )}
 
           <View style={styles.rightActions}>
-            <TouchableOpacity onPress={() => handleEdit(item)} style={styles.iconBtn}>
-              <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
+            <TouchableOpacity
+              onPress={() => handleEdit(item)}
+              style={styles.iconBtn}
+            >
+              <Ionicons
+                name="pencil-outline"
+                size={18}
+                color={COLORS.primary}
+              />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.iconBtnDanger}>
-              <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
+            <TouchableOpacity
+              onPress={() => handleDelete(item)}
+              style={styles.iconBtnDanger}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={18}
+                color={COLORS.danger}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -202,7 +254,10 @@ export default function AddressListScreen({ route }: any) {
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
-            <Text style={styles.title}>Địa chỉ giao hàng</Text>
+            <Text style={styles.title}>
+              {isSelectMode ? 'Chọn địa chỉ giao hàng' : 'Quản lý địa chỉ'}
+            </Text>
+
             <Text style={styles.subtitle}>
               {addresses.length > 0
                 ? `${addresses.length} địa chỉ đã lưu`
@@ -224,7 +279,9 @@ export default function AddressListScreen({ route }: any) {
       ) : (
         <FlatList
           data={addresses}
-          keyExtractor={(item: any, index) => String(item.addressId ?? index)}
+          keyExtractor={(item: any, index) =>
+            String(item.addressId ?? index)
+          }
           renderItem={renderAddress}
           contentContainerStyle={[
             styles.listContent,
@@ -405,6 +462,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 6,
     fontSize: 12,
+  },
+  manageHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  manageHintText: {
+    marginLeft: 5,
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   rightActions: {
     flexDirection: 'row',

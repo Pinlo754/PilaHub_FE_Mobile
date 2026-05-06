@@ -21,6 +21,12 @@ export type WorkoutExerciseReq = {
   haveIOTDeviceTracking: boolean;
 };
 
+export type WorkoutPersonalExerciseReq = {
+  personalExerciseId: string;
+  haveAITracking: boolean;
+  haveIOTDeviceTracking: boolean;
+};
+
 export type WorkoutLessonExerciseReq = {
   courseLessonProgressId: string;
   lessonExerciseId: string;

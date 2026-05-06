@@ -24,6 +24,8 @@ const Footer = ({
   const isPaidUser =
     activePackage === PackageType.VIP_MEMBER ||
     activePackage === PackageType.MEMBER;
+  const isPracticeDisabled = (() => {
+    if (isFromList) return false; // luôn enable
 
   const isPracticeDisabled = (() => {
     if (isFromList) return false; // luôn enable

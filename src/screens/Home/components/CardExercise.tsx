@@ -12,7 +12,7 @@ const CardExercise = ({ item, onPress }: Props) => {
       {/* Image */}
       <View className="w-[250px] h-[150px] rounded-lg overflow-hidden">
         <Image
-          source={{ uri: item.image_url }}
+          source={{ uri: item.imageUrl }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         />

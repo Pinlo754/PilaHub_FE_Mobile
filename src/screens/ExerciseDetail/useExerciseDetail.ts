@@ -31,7 +31,7 @@ type Props = {
 };
 
 export const useExerciseDetail = ({ route, navigation }: Props) => {
-  // ─── PARAMS ───────────────────────────────────────────────────────────────
+  // ─── PARAMS ───────────────────────────────────────────────────────────────z
   const { exercise_id, allowedPractice, allowedTheory } = route.params;
   const practicePayload = route.params.practicePayload ?? null;
   const lessonExerciseIdParam = route.params.lessonExerciseId ?? null;
@@ -302,10 +302,24 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
         heartRateService.getByWorkoutSessionId(workoutSessionId),
       ]);
 
+      const formattedMistakes = mistakeLog.map(log => {
+        // Trích xuất side từ chuỗi details (vd: lấy chữ "both" từ "Form error at Hips (both)")
+        const sideMatch = log.details.match(/\(([^)]+)\)/);
+        const side = sideMatch ? sideMatch[1] : "unknown";
+
+        return {
+          bodyPart: log.bodyPartName,
+          side: side,
+          recordedAtSecond: log.recordedAtSecond,
+          duration: log.duration,
+          imagePath: log.imageUrl
+        };
+      });
+
       navigation.navigate('AISummary', {
         feedback,
         videoUrl: recordUrl,
-        mistakeLog,
+        mistakeLog: formattedMistakes,
         heartRateLogs: heartRateLogs.map(h => ({
           heartRate: h.heartRate,
           recordedAt: h.recordedAt,

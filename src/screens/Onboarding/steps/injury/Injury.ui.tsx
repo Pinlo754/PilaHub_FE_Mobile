@@ -10,6 +10,7 @@ import {
 import { useInjuryLogic } from './Injury.logic';
 import Toast from '../../../../components/Toast';
 import ModalPopup from '../../../../components/ModalPopup';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function InjuryUI() {
   const {
@@ -38,8 +39,8 @@ export default function InjuryUI() {
   } = useInjuryLogic();
 
   return (
-    <View className="flex-1 bg-background w-full">
-      <Pressable onPress={onBack} className="mb-6 pt-6 px-6">
+    <SafeAreaView className="flex-1 bg-background w-full">
+      <Pressable onPress={onBack} >
         <Text className="text-secondaryText text-base">← Quay lại</Text>
       </Pressable>
 
@@ -169,6 +170,6 @@ export default function InjuryUI() {
         iconBgColor={modalIconBg as any}
         onClose={() => setModalVisible(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 }

@@ -3,7 +3,6 @@ import {
   Text,
   View,
   StyleSheet,
-  TouchableOpacity,
 } from 'react-native';
 import Header from './components/Header';
 import Control from './components/Control';

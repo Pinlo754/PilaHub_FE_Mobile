@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import {  View, Text, TouchableOpacity, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  DeviceEventEmitter,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import api from '../../hooks/axiosInstance';import { workoutSessionService } from '../../hooks/workoutSession.service';import { markPersonalExerciseCompleted } from '../../services/personalExercise.service';
+import api from '../../hooks/axiosInstance';
+import { workoutSessionService } from '../../hooks/workoutSession.service';
+import { markPersonalExerciseCompleted } from '../../services/personalExercise.service';
 import { markPersonalScheduleCompleted } from '../../services/personalSchedule.service';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from '../../components/Toast';
 import VideoPlayer from './components/RoadmapVideo/VideoPlayer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Memo video để timer setTimeLeft mỗi giây không làm VideoPlayer bị reset lại
 const MemoRoadmapVideoPlayer = React.memo(function MemoRoadmapVideoPlayer({
   videoKey,
   source,
@@ -35,21 +48,13 @@ const MemoRoadmapVideoPlayer = React.memo(function MemoRoadmapVideoPlayer({
   );
 });
 
-// Screen wrapper to play a queue of exercises sequentially by timer.
-// Params expected:
-// queue: Array<{ ex: any, videoSrc?: string | null }>
-// startIndex?: number
-// scheduleId?: string
-// title?: string
-// singleMode?: boolean
-
 export default function SchedulePlayer() {
   const route: any = useRoute();
   const navigation: any = useNavigation();
 
   const queue = useMemo(
     () => (Array.isArray(route.params?.queue) ? route.params.queue : []),
-    [route.params?.queue]
+    [route.params?.queue],
   );
 
   const startIndex = Number(route.params?.startIndex ?? 0);
@@ -61,7 +66,9 @@ export default function SchedulePlayer() {
   const [current, setCurrent] = useState<any>(queue[startIndex] ?? null);
   const aiLaunchIndexRef = useRef<number | null>(null);
 
-  const [phase, setPhase] = useState<'idle' | 'exercise' | 'rest' | 'completed'>('idle');
+  const [phase, setPhase] = useState<
+    'idle' | 'exercise' | 'rest' | 'completed'
+  >('idle');
   const [currentSet, setCurrentSet] = useState<number>(1);
   const [phaseDuration, setPhaseDuration] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -72,27 +79,85 @@ export default function SchedulePlayer() {
 
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>(
+    'info',
+  );
 
   const markedRef = useRef<Set<string>>(new Set());
   const intervalRef = useRef<any>(null);
   const processingPhaseRef = useRef(false);
+  const goBackTimeoutRef = useRef<any>(null);
+
+  /**
+   * Khi bấm "Tới 5s cuối", ref này sẽ báo cho handlePhaseFinished biết:
+   * Hết 5s thì hoàn thành bài luôn, không đi qua rest/set tiếp theo nữa.
+   */
+  const jumpToFinishRef = useRef(false);
 
   const exercise = current?.ex ?? current?.exercise ?? null;
 
   const progressFraction = useMemo(() => {
     if (phaseDuration <= 0) return 0;
-    return Math.max(0, Math.min(1, (phaseDuration - timeLeft) / phaseDuration));
+
+    return Math.max(
+      0,
+      Math.min(1, (phaseDuration - timeLeft) / phaseDuration),
+    );
   }, [phaseDuration, timeLeft]);
+
+  const elapsedTime = useMemo(() => {
+    if (phaseDuration <= 0) return 0;
+    return Math.max(0, phaseDuration - timeLeft);
+  }, [phaseDuration, timeLeft]);
+
+  const showToastMessage = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      setToastMessage(message);
+      setToastType(type);
+      setToastVisible(true);
+    },
+    [],
+  );
+
+  const resetToast = useCallback(() => {
+    setToastVisible(false);
+    setToastMessage('');
+    setToastType('info');
+  }, []);
+
+  const clearGoBackTimeout = useCallback(() => {
+    if (goBackTimeoutRef.current) {
+      clearTimeout(goBackTimeoutRef.current);
+      goBackTimeoutRef.current = null;
+    }
+  }, []);
+
+  const safeGoBack = useCallback(
+    (delayMs: number = 300) => {
+      clearGoBackTimeout();
+
+      goBackTimeoutRef.current = setTimeout(() => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        }
+
+        goBackTimeoutRef.current = null;
+      }, delayMs);
+    },
+    [clearGoBackTimeout, navigation],
+  );
 
   const getExerciseInfo = useCallback((item: any) => {
     const ex = item?.ex ?? item?.exercise ?? null;
 
     const sets = Math.max(1, Number(ex?.sets ?? ex?.totalSets ?? 1) || 1);
+
     const durationSeconds = Math.max(
       0,
-      Number(item?.durationSeconds ?? ex?.durationSeconds ?? ex?.duration ?? 0) || 0,
+      Number(item?.durationSeconds ?? ex?.durationSeconds ?? ex?.duration ?? 0) ||
+        0,
     );
+
     const restSeconds = Math.max(
       0,
       Number(item?.restSeconds ?? ex?.restSeconds ?? ex?.rest ?? 0) || 0,
@@ -118,6 +183,252 @@ export default function SchedulePlayer() {
     );
   }, []);
 
+  const stopTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const initializeExercise = useCallback(
+    (item: any) => {
+      if (!item) return;
+
+      const info = getExerciseInfo(item);
+
+      jumpToFinishRef.current = false;
+
+      setCurrentSet(1);
+      setPhase('exercise');
+      setPhaseDuration(info.durationSeconds);
+      setTimeLeft(info.durationSeconds);
+      setIsRunning(true);
+      setIsVideoPlay(Boolean(item?.videoSrc));
+
+      processingPhaseRef.current = false;
+    },
+    [getExerciseInfo],
+  );
+
+  const goTo = useCallback(
+    (idx: number) => {
+      const clamped = Math.max(0, Math.min(queue.length - 1, idx));
+      const nextItem = queue[clamped] ?? null;
+
+      stopTimer();
+      resetToast();
+      clearGoBackTimeout();
+
+      jumpToFinishRef.current = false;
+
+      setIndex(clamped);
+      setCurrent(nextItem);
+      setPhase('idle');
+      setCurrentSet(1);
+      setPhaseDuration(0);
+      setTimeLeft(0);
+      setIsRunning(false);
+      setIsVideoPlay(false);
+
+      setTimeout(() => {
+        if (nextItem) {
+          initializeExercise(nextItem);
+        }
+      }, 0);
+    },
+    [queue, stopTimer, initializeExercise, resetToast, clearGoBackTimeout],
+  );
+
+  const markAndEmitExercise = useCallback(
+    async (personalId: string | null) => {
+      if (!personalId) return;
+
+      const id = String(personalId);
+
+      if (markedRef.current.has(id)) {
+        return;
+      }
+
+      markedRef.current.add(id);
+
+      try {
+        await markPersonalExerciseCompleted(id);
+      } catch (err) {
+        console.warn(
+          '[SchedulePlayer] markPersonalExerciseCompleted failed',
+          id,
+          err,
+        );
+
+        showToastMessage('Không thể cập nhật trạng thái bài tập', 'error');
+      }
+
+      try {
+        DeviceEventEmitter.emit('exerciseCompleted', {
+          personalExerciseId: id,
+        });
+      } catch {
+        // ignore
+      }
+    },
+    [showToastMessage],
+  );
+
+  const reconcileServerAfterScheduleComplete = useCallback(
+    async (scheduleId: string) => {
+      try {
+        const res = await api.get(`/personal-exercises/schedule/${scheduleId}`);
+        const serverExercises = Array.isArray(res?.data?.data)
+          ? res.data.data
+          : [];
+
+        const doneSet = new Set(
+          serverExercises
+            .filter((e: any) => e.completed === true)
+            .map((e: any) =>
+              String(e.personalExerciseId ?? e.id ?? e.exerciseId),
+            ),
+        );
+
+        const queueIds = queue
+          .map((it: any) => getPersonalId(it))
+          .filter(Boolean)
+          .map((id: any) => String(id));
+
+        const toMark = queueIds.filter((id: string) => !doneSet.has(id));
+
+        if (toMark.length) {
+          await Promise.allSettled(
+            toMark.map((id: string) => markPersonalExerciseCompleted(id)),
+          );
+        }
+
+        const res2 = await api.get(`/personal-exercises/schedule/${scheduleId}`);
+        const serverAfter = Array.isArray(res2?.data?.data)
+          ? res2.data.data
+          : [];
+
+        serverAfter.forEach((se: any) => {
+          const pid = se.personalExerciseId ?? se.id ?? se.exerciseId ?? null;
+
+          if (pid && se.completed === true) {
+            try {
+              DeviceEventEmitter.emit('exerciseCompleted', {
+                personalExerciseId: String(pid),
+              });
+            } catch {
+              // ignore
+            }
+          }
+        });
+
+        const allDoneServer =
+          serverAfter.length > 0 &&
+          serverAfter.every((e: any) => e.completed === true);
+
+        if (allDoneServer) {
+          try {
+            DeviceEventEmitter.emit('scheduleCompleted', { scheduleId });
+          } catch {
+            // ignore
+          }
+        }
+      } catch (err) {
+        console.warn('[SchedulePlayer] reconcile failed', err);
+      }
+    },
+    [queue, getPersonalId],
+  );
+
+  const completeSchedule = useCallback(async () => {
+    const scheduleId = scheduleIdParam ?? null;
+
+    if (!scheduleId) {
+      showToastMessage('Đã hoàn thành tất cả bài trong lịch', 'success');
+      safeGoBack(300);
+      return;
+    }
+
+    try {
+      await markPersonalScheduleCompleted(scheduleId);
+
+      try {
+        DeviceEventEmitter.emit('scheduleCompleted', { scheduleId });
+      } catch {
+        // ignore
+      }
+
+      showToastMessage('Hoàn thành lịch tập', 'success');
+
+      await reconcileServerAfterScheduleComplete(scheduleId);
+    } catch (err) {
+      console.warn('[SchedulePlayer] markPersonalScheduleCompleted failed', err);
+
+      showToastMessage('Không thể cập nhật lịch tập', 'error');
+      return;
+    }
+
+    showToastMessage('Đã hoàn thành tất cả bài trong lịch', 'success');
+    safeGoBack(300);
+  }, [
+    scheduleIdParam,
+    reconcileServerAfterScheduleComplete,
+    showToastMessage,
+    safeGoBack,
+  ]);
+
+  const completeCurrentExerciseAndMaybeAdvance = useCallback(async () => {
+    if (!current) return;
+
+    stopTimer();
+
+    jumpToFinishRef.current = false;
+
+    setIsRunning(false);
+    setIsVideoPlay(false);
+
+    const personalId = getPersonalId(current);
+    const next = index + 1;
+    const hasNextExercise = !singleMode && next < queue.length;
+
+    if (personalId) {
+      if (!hasNextExercise) {
+        showToastMessage('Đã hoàn thành động tác', 'success');
+      }
+
+      await markAndEmitExercise(String(personalId));
+    }
+
+    if (singleMode) {
+      setPhase('completed');
+
+      showToastMessage('Đã hoàn thành bài tập', 'success');
+      safeGoBack(300);
+
+      return;
+    }
+
+    if (next < queue.length) {
+      goTo(next);
+      return;
+    }
+
+    setPhase('completed');
+    await completeSchedule();
+  }, [
+    current,
+    index,
+    queue.length,
+    singleMode,
+    stopTimer,
+    getPersonalId,
+    markAndEmitExercise,
+    goTo,
+    completeSchedule,
+    showToastMessage,
+    safeGoBack,
+  ]);
+
   const launchAiSession = useCallback(
     async (item: any, itemIndex: number) => {
       if (!item || !aiFlow || !item?.isAiSupported) return;
@@ -136,8 +447,16 @@ export default function SchedulePlayer() {
       aiLaunchIndexRef.current = itemIndex;
 
       try {
-        const session = await workoutSessionService.startFreeWorkout({
-          exerciseId: String(exerciseId),
+        const personalExerciseId = getPersonalId(item);
+        if (!personalExerciseId) {
+          setToastMessage('Không xác định được Personal Exercise ID');
+          setToastType('error');
+          setToastVisible(true);
+          return;
+        }
+
+        const session = await workoutSessionService.startRoadmapWorkout({
+          personalExerciseId: String(personalExerciseId),
           haveAITracking: true,
           haveIOTDeviceTracking: true,
         });
@@ -185,7 +504,6 @@ export default function SchedulePlayer() {
       const info = getExerciseInfo(current);
 
       if (currentSet < info.sets) {
-        // More sets to go, start rest
         if (info.restSeconds > 0) {
           setPhase('rest');
           setPhaseDuration(info.restSeconds);
@@ -193,18 +511,16 @@ export default function SchedulePlayer() {
           setIsRunning(true);
           setIsVideoPlay(false);
         } else {
-          // No rest, resume immediately
           DeviceEventEmitter.emit('resumeAiSession', {
             scheduleFlowIndex: index,
           });
         }
       } else {
-        // All sets done, end AI session
-        setIsRunning(false); // Pause timer until upload completes
+        setIsRunning(false);
+
         DeviceEventEmitter.emit('endAiSession', {
           scheduleFlowIndex: index,
         });
-        // Do not complete here, wait for upload to finish
       }
     },
     [current, getExerciseInfo, index, currentSet],
@@ -221,229 +537,6 @@ export default function SchedulePlayer() {
     [current, index, completeCurrentExerciseAndMaybeAdvance],
   );
 
-  const stopTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  const initializeExercise = useCallback((item: any) => {
-    if (!item) return;
-
-    const info = getExerciseInfo(item);
-
-    setCurrentSet(1);
-    setPhase('exercise');
-    setPhaseDuration(info.durationSeconds);
-    setTimeLeft(info.durationSeconds);
-    setIsRunning(true);
-    setIsVideoPlay(Boolean(item?.videoSrc));
-
-    processingPhaseRef.current = false;
-  }, [getExerciseInfo]);
-
-  const goTo = useCallback((idx: number) => {
-    const clamped = Math.max(0, Math.min(queue.length - 1, idx));
-    const nextItem = queue[clamped] ?? null;
-
-    console.log('[SchedulePlayer] goTo', clamped);
-
-    stopTimer();
-
-    setIndex(clamped);
-    setCurrent(nextItem);
-    setPhase('idle');
-    setCurrentSet(1);
-    setPhaseDuration(0);
-    setTimeLeft(0);
-    setIsRunning(false);
-    setIsVideoPlay(false);
-
-    setTimeout(() => {
-      if (nextItem) {
-        initializeExercise(nextItem);
-      }
-    }, 0);
-  }, [queue, stopTimer, initializeExercise]);
-
-  const markAndEmitExercise = useCallback(async (personalId: string | null) => {
-    if (!personalId) return;
-
-    const id = String(personalId);
-
-    if (markedRef.current.has(id)) {
-      console.log('[SchedulePlayer] skip duplicate mark', id);
-      return;
-    }
-
-    markedRef.current.add(id);
-
-    try {
-      const resp = await markPersonalExerciseCompleted(id);
-      console.log('[SchedulePlayer] markPersonalExerciseCompleted response', resp);
-    } catch (err) {
-      console.warn('[SchedulePlayer] markPersonalExerciseCompleted failed', id, err);
-      setToastMessage('Không thể cập nhật trạng thái bài tập');
-      setToastType('error');
-      setToastVisible(true);
-    }
-
-    try {
-      DeviceEventEmitter.emit('exerciseCompleted', { personalExerciseId: id });
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const reconcileServerAfterScheduleComplete = useCallback(async (scheduleId: string) => {
-    try {
-      console.log('[SchedulePlayer] reconcile: fetching server exercises for schedule', scheduleId);
-
-      const res = await api.get(`/personal-exercises/schedule/${scheduleId}`);
-      const serverExercises = Array.isArray(res?.data?.data) ? res.data.data : [];
-
-      const doneSet = new Set(
-        serverExercises
-          .filter((e: any) => e.completed === true)
-          .map((e: any) => String(e.personalExerciseId ?? e.id ?? e.exerciseId))
-      );
-
-      const queueIds = queue
-        .map((it: any) => getPersonalId(it))
-        .filter(Boolean)
-        .map((id: any) => String(id));
-
-      const toMark = queueIds.filter((id: string) => !doneSet.has(id));
-
-      if (toMark.length) {
-        await Promise.allSettled(toMark.map((id: string) => markPersonalExerciseCompleted(id)));
-      }
-
-      const res2 = await api.get(`/personal-exercises/schedule/${scheduleId}`);
-      const serverAfter = Array.isArray(res2?.data?.data) ? res2.data.data : [];
-
-      serverAfter.forEach((se: any) => {
-        const pid = se.personalExerciseId ?? se.id ?? se.exerciseId ?? null;
-
-        if (pid && se.completed === true) {
-          try {
-            DeviceEventEmitter.emit('exerciseCompleted', { personalExerciseId: String(pid) });
-          } catch {
-            // ignore
-          }
-        }
-      });
-
-      const allDoneServer =
-        serverAfter.length > 0 &&
-        serverAfter.every((e: any) => e.completed === true);
-
-      if (allDoneServer) {
-        try {
-          DeviceEventEmitter.emit('scheduleCompleted', { scheduleId });
-        } catch {
-          // ignore
-        }
-      }
-    } catch (err) {
-      console.warn('[SchedulePlayer] reconcile failed', err);
-    }
-  }, [queue, getPersonalId]);
-
-  const completeSchedule = useCallback(async () => {
-    const scheduleId = scheduleIdParam ?? null;
-
-    if (!scheduleId) {
-      Alert.alert('Hoàn thành', 'Đã hoàn thành tất cả bài trong lịch');
-
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      }
-
-      return;
-    }
-
-    try {
-      await markPersonalScheduleCompleted(scheduleId);
-
-      try {
-        DeviceEventEmitter.emit('scheduleCompleted', { scheduleId });
-      } catch {
-        // ignore
-      }
-
-      setToastMessage('Hoàn thành lịch tập');
-      setToastType('success');
-      setToastVisible(true);
-
-      await reconcileServerAfterScheduleComplete(scheduleId);
-    } catch (err) {
-      console.warn('[SchedulePlayer] markPersonalScheduleCompleted failed', err);
-      setToastMessage('Không thể cập nhật lịch tập');
-      setToastType('error');
-      setToastVisible(true);
-    }
-
-    Alert.alert('Hoàn thành', 'Đã hoàn thành tất cả bài trong lịch');
-
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    }
-  }, [scheduleIdParam, navigation, reconcileServerAfterScheduleComplete]);
-
-  const completeCurrentExerciseAndMaybeAdvance = useCallback(async () => {
-    if (!current) return;
-
-    stopTimer();
-
-    setIsRunning(false);
-    setIsVideoPlay(false);
-
-    const personalId = getPersonalId(current);
-
-    if (personalId) {
-      setToastMessage('Đã hoàn thành động tác');
-      setToastType('success');
-      setToastVisible(true);
-
-      await markAndEmitExercise(String(personalId));
-    }
-
-    const next = index + 1;
-
-    if (singleMode) {
-      setPhase('completed');
-
-      Alert.alert('Hoàn thành', 'Đã hoàn thành bài tập');
-
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      }
-
-      return;
-    }
-
-    if (next < queue.length) {
-      goTo(next);
-      return;
-    }
-
-    setPhase('completed');
-    await completeSchedule();
-  }, [
-    current,
-    index,
-    queue.length,
-    singleMode,
-    navigation,
-    stopTimer,
-    getPersonalId,
-    markAndEmitExercise,
-    goTo,
-    completeSchedule,
-  ]);
-
   const handlePhaseFinished = useCallback(async () => {
     if (!current) return;
     if (processingPhaseRef.current) return;
@@ -453,8 +546,21 @@ export default function SchedulePlayer() {
     const info = getExerciseInfo(current);
 
     if (phase === 'exercise') {
-      // Hết 1 set thì luôn nghỉ nếu có restSeconds,
-      // kể cả set cuối. Nghỉ cuối xong mới mark completed/chuyển bài.
+      /**
+       * Case đặc biệt:
+       * User bấm "Tới 5s cuối" => app nhảy tới set cuối.
+       * Khi timeLeft về 0 thì hoàn thành bài luôn.
+       * Không chạy rest, không chạy các set còn lại.
+       */
+      if (jumpToFinishRef.current && currentSet >= info.sets) {
+        jumpToFinishRef.current = false;
+
+        await completeCurrentExerciseAndMaybeAdvance();
+
+        processingPhaseRef.current = false;
+        return;
+      }
+
       if (info.restSeconds > 0) {
         setPhase('rest');
         setPhaseDuration(info.restSeconds);
@@ -465,9 +571,6 @@ export default function SchedulePlayer() {
         return;
       }
 
-      // Nếu không có restSeconds:
-      // - còn set thì qua set tiếp theo
-      // - set cuối thì hoàn thành bài
       if (currentSet < info.sets) {
         const nextSet = currentSet + 1;
 
@@ -477,6 +580,7 @@ export default function SchedulePlayer() {
         setTimeLeft(info.durationSeconds);
         setIsRunning(true);
         setIsVideoPlay(Boolean(current?.videoSrc));
+
         processingPhaseRef.current = false;
         return;
       }
@@ -487,15 +591,12 @@ export default function SchedulePlayer() {
     }
 
     if (phase === 'rest') {
-      // Nghỉ xong:
-      // - nếu còn set thì qua set tiếp theo
-      // - nếu vừa nghỉ sau set cuối thì hoàn thành bài và chuyển bài
       if (currentSet < info.sets) {
         const nextSet = currentSet + 1;
 
         setCurrentSet(nextSet);
+
         if (aiFlow && current?.isAiSupported) {
-          // For AI exercises, emit resume instead of setting phase
           DeviceEventEmitter.emit('resumeAiSession', {
             scheduleFlowIndex: index,
           });
@@ -506,6 +607,7 @@ export default function SchedulePlayer() {
           setIsRunning(true);
           setIsVideoPlay(Boolean(current?.videoSrc));
         }
+
         processingPhaseRef.current = false;
         return;
       }
@@ -528,9 +630,14 @@ export default function SchedulePlayer() {
 
   useEffect(() => {
     const item = queue[index] ?? null;
+
     setCurrent(item);
 
     stopTimer();
+    resetToast();
+    clearGoBackTimeout();
+
+    jumpToFinishRef.current = false;
 
     setPhase('idle');
     setCurrentSet(1);
@@ -548,11 +655,28 @@ export default function SchedulePlayer() {
         initializeExercise(item);
       }
     }
-  }, [index, queue, initializeExercise, launchAiSession, stopTimer, aiFlow]);
+  }, [
+    index,
+    queue,
+    initializeExercise,
+    launchAiSession,
+    stopTimer,
+    aiFlow,
+    resetToast,
+    clearGoBackTimeout,
+  ]);
 
   useEffect(() => {
-    const setSub = DeviceEventEmitter.addListener('aiSetCompleted', handleAiSetCompleted);
-    const endSub = DeviceEventEmitter.addListener('scheduleFlowAIExerciseCompleted', handleAiFlowCompletion);
+    const setSub = DeviceEventEmitter.addListener(
+      'aiSetCompleted',
+      handleAiSetCompleted,
+    );
+
+    const endSub = DeviceEventEmitter.addListener(
+      'scheduleFlowAIExerciseCompleted',
+      handleAiFlowCompletion,
+    );
+
     return () => {
       setSub.remove();
       endSub.remove();
@@ -589,11 +713,17 @@ export default function SchedulePlayer() {
   useEffect(() => {
     return () => {
       stopTimer();
+      clearGoBackTimeout();
     };
-  }, [stopTimer]);
+  }, [stopTimer, clearGoBackTimeout]);
 
   const handleBack = () => {
     stopTimer();
+    resetToast();
+    clearGoBackTimeout();
+
+    jumpToFinishRef.current = false;
+
     setIsRunning(false);
     setIsVideoPlay(false);
 
@@ -623,16 +753,61 @@ export default function SchedulePlayer() {
   const handleVideoOnEndFallback = useCallback(async () => {
     const info = getExerciseInfo(current);
 
-    // Nếu bài có durationSeconds thì không làm gì khi video end.
-    // Timer mới quyết định hết set.
-    // Video loop được xử lý bên trong VideoPlayer bằng repeat={true}.
     if (info.durationSeconds > 0) {
       return;
     }
 
-    // Chỉ khi bài không có durationSeconds mới dùng video end để kết thúc.
     setTimeLeft(0);
   }, [current, getExerciseInfo]);
+
+  const handleSeekBy = useCallback(
+    (deltaSeconds: number) => {
+      if (!current) return;
+      if (phase === 'idle' || phase === 'completed') return;
+      if (phaseDuration <= 0) return;
+
+      setTimeLeft(prev => {
+        const safePrev = Number(prev ?? 0);
+        const currentElapsed = Math.max(0, phaseDuration - safePrev);
+
+        const nextElapsed = Math.max(
+          0,
+          Math.min(phaseDuration, currentElapsed + deltaSeconds),
+        );
+
+        const nextLeft = Math.max(0, phaseDuration - nextElapsed);
+
+        return nextLeft;
+      });
+    },
+    [current, phase, phaseDuration],
+  );
+
+  /**
+   * Bấm 1 phát:
+   * - Bỏ qua tất cả set còn lại
+   * - Nhảy tới set cuối
+   * - Còn 5 giây
+   * - Hết 5 giây thì hoàn thành bài luôn
+   */
+  const handleJumpToLast5Seconds = useCallback(() => {
+    if (!current) return;
+    if (phase === 'idle' || phase === 'completed') return;
+
+    const info = getExerciseInfo(current);
+
+    const lastSet = Math.max(1, Number(info.sets ?? 1) || 1);
+    const finalDuration = Math.max(1, Number(info.durationSeconds ?? 0) || 1);
+
+    jumpToFinishRef.current = true;
+
+    setCurrentSet(lastSet);
+    setPhase('exercise');
+    setPhaseDuration(finalDuration);
+    setTimeLeft(finalDuration <= 5 ? 1 : 5);
+    setIsRunning(true);
+    setIsVideoPlay(Boolean(current?.videoSrc));
+  }, [current, phase, getExerciseInfo]);
 
   if (!current) {
     return (
@@ -657,8 +832,13 @@ export default function SchedulePlayer() {
   const displayIndex = index + 1;
   const totalExercises = queue.length;
 
-  const videoKey = current?.ex?.personalExerciseId ?? current?.ex?.exerciseId ?? index;
+  const videoKey =
+    current?.ex?.personalExerciseId ?? current?.ex?.exerciseId ?? index;
+
   const shouldPlayVideo = isRunning && phase === 'exercise' && isVideoPlay;
+
+  const isSeekDisabled =
+    phase === 'idle' || phase === 'completed' || phaseDuration <= 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -713,7 +893,8 @@ export default function SchedulePlayer() {
             <TouchableOpacity
               style={[
                 styles.nextBtn,
-                (index >= queue.length - 1 || singleMode) && styles.disabledControl,
+                (index >= queue.length - 1 || singleMode) &&
+                  styles.disabledControl,
               ]}
               disabled={index >= queue.length - 1 || singleMode}
               onPress={() => {
@@ -741,12 +922,14 @@ export default function SchedulePlayer() {
 
           <View style={styles.phaseBox}>
             <Text style={styles.phaseText}>
-              {phase === 'rest' ? 'Nghỉ giữa set' : phase === 'completed' ? 'Hoàn thành' : 'Đang tập'}
+              {phase === 'rest'
+                ? 'Nghỉ giữa set'
+                : phase === 'completed'
+                  ? 'Hoàn thành'
+                  : 'Đang tập'}
             </Text>
 
-            <Text style={styles.timerText}>
-              {formatTime(timeLeft)}
-            </Text>
+            <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
 
             <Text style={styles.restText}>
               {phase === 'rest'
@@ -760,9 +943,18 @@ export default function SchedulePlayer() {
           </View>
 
           <View style={styles.progressRowAlt}>
-            <View style={styles.heartBlock}>
-              <Ionicons name="heart" size={18} color="#D9532F" />
-              <Text style={styles.heartText}>100 bpm</Text>
+            <View style={styles.leftSideControl}>
+              <TouchableOpacity
+                onPress={() => handleSeekBy(-5)}
+                style={[
+                  styles.seekButton,
+                  isSeekDisabled && styles.disabledControl,
+                ]}
+                disabled={isSeekDisabled}
+              >
+                <Ionicons name="play-back-outline" size={24} color="#8B4513" />
+                <Text style={styles.seekButtonText}>5s</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.playCenter}>
@@ -770,21 +962,61 @@ export default function SchedulePlayer() {
                 onPress={handleTogglePlay}
                 style={[styles.playButton, isRunning ? styles.playing : {}]}
               >
-                <Ionicons name={isRunning ? 'pause' : 'play'} size={28} color="#8B4513" />
+                <Ionicons
+                  name={isRunning ? 'pause' : 'play'}
+                  size={28}
+                  color="#8B4513"
+                />
               </TouchableOpacity>
-
-             
             </View>
 
-            <View style={styles.rightSpacer} />
+            <View style={styles.rightSideControl}>
+              <TouchableOpacity
+                onPress={() => handleSeekBy(5)}
+                style={[
+                  styles.seekButton,
+                  isSeekDisabled && styles.disabledControl,
+                ]}
+                disabled={isSeekDisabled}
+              >
+                <Text style={styles.seekButtonText}>5s</Text>
+                <Ionicons
+                  name="play-forward-outline"
+                  size={24}
+                  color="#8B4513"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.jumpRow}>
+            <TouchableOpacity
+              onPress={handleJumpToLast5Seconds}
+              disabled={isSeekDisabled}
+              style={[
+                styles.jumpLastButton,
+                isSeekDisabled && styles.disabledControl,
+              ]}
+            >
+              <Ionicons name="play-skip-forward" size={20} color="#FFFFFF" />
+              <Text style={styles.jumpLastButtonText}>Tới 5s cuối</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>
+            <Text style={styles.timeText}>{formatTime(elapsedTime)}</Text>
 
             <View style={styles.timeBarBg}>
               <View style={[styles.timeBarFill, { flex: progressFraction }]} />
-              <View style={[styles.timeBarEmpty, { flex: Math.max(0, 1 - progressFraction) }]} />
+
+              <View
+                style={[
+                  styles.timeBarEmpty,
+                  {
+                    flex: Math.max(0, 1 - progressFraction),
+                  },
+                ]}
+              />
             </View>
 
             <Text style={styles.timeTextLeft}>-{formatTime(timeLeft)}</Text>
@@ -792,30 +1024,25 @@ export default function SchedulePlayer() {
 
           <View style={styles.controlsRow}>
             <TouchableOpacity
-              onPress={() => {
-                if (index > 0) {
-                  goTo(index - 1);
-                }
-              }}
-              disabled={index <= 0}
-              style={[styles.iconControl, index <= 0 && styles.disabledControl]}
+              onPress={() => handleSeekBy(-5)}
+              disabled={isSeekDisabled}
+              style={[
+                styles.iconControl,
+                isSeekDisabled && styles.disabledControl,
+              ]}
             >
-              <Ionicons name="play-skip-back" size={22} color="#3A2A1A" />
+              <Ionicons name="play-back-outline" size={24} color="#3A2A1A" />
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => {
-                if (!singleMode && index < queue.length - 1) {
-                  goTo(index + 1);
-                }
-              }}
-              disabled={index >= queue.length - 1 || singleMode}
+              onPress={() => handleSeekBy(5)}
+              disabled={isSeekDisabled}
               style={[
                 styles.iconControl,
-                (index >= queue.length - 1 || singleMode) && styles.disabledControl,
+                isSeekDisabled && styles.disabledControl,
               ]}
             >
-              <Ionicons name="play-skip-forward" size={22} color="#3A2A1A" />
+              <Ionicons name="play-forward-outline" size={24} color="#3A2A1A" />
             </TouchableOpacity>
           </View>
         </View>
@@ -851,9 +1078,15 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 40 },
 
-  videoWrap: { height: '50%', backgroundColor: '#000' },
+  videoWrap: {
+    height: '50%',
+    backgroundColor: '#000',
+  },
 
-  bottomCardWrap: { flex: 1, justifyContent: 'flex-end' },
+  bottomCardWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   bottomCard: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
@@ -873,10 +1106,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  prevBtn: { flexDirection: 'row', alignItems: 'center' },
-  nextBtn: { flexDirection: 'row', alignItems: 'center' },
-  prevNextText: { color: '#3A2A1A', fontSize: 14, marginHorizontal: 6 },
-  disabledControl: { opacity: 0.35 },
+  prevBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  prevNextText: {
+    color: '#3A2A1A',
+    fontSize: 14,
+    marginHorizontal: 6,
+  },
+  disabledControl: {
+    opacity: 0.35,
+  },
 
   exerciseInfo: {
     marginTop: 4,
@@ -922,18 +1167,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
   },
-  heartBlock: { flexDirection: 'row', alignItems: 'center' },
-  heartText: { color: '#D9532F', marginLeft: 8, fontWeight: '700' },
 
-  rightSpacer: { width: 40 },
-
-  controlsRow: {
+  leftSideControl: {
+    width: 72,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  rightSideControl: {
+    width: 72,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  seekButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
+    paddingVertical: 8,
   },
-  iconControl: { padding: 8 },
+  seekButtonText: {
+    color: '#8B4513',
+    fontSize: 14,
+    fontWeight: '700',
+    marginHorizontal: 4,
+  },
 
   playButton: {
     width: 72,
@@ -945,14 +1200,36 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#F3EDE3',
   },
-  playing: { backgroundColor: '#FBEAD8' },
-  playCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  playing: {
+    backgroundColor: '#FBEAD8',
+  },
+  playCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  repCountBelow: {
-    fontSize: 20,
-    color: '#E06B3A',
+  jumpRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  jumpLastButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8B4513',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    minWidth: 150,
+  },
+  jumpLastButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
-    marginTop: 8,
+    marginLeft: 6,
   },
 
   timeRow: {
@@ -960,24 +1237,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  timeText: { color: '#3A2A1A', width: 48 },
-  timeTextLeft: { color: '#3A2A1A', width: 48, textAlign: 'right' },
+  timeText: {
+    color: '#3A2A1A',
+    width: 52,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timeTextLeft: {
+    color: '#3A2A1A',
+    width: 58,
+    textAlign: 'right',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   timeBarBg: {
     flex: 1,
-    height: 4,
+    height: 6,
     backgroundColor: '#EEE',
-    borderRadius: 2,
+    borderRadius: 999,
     marginHorizontal: 8,
     flexDirection: 'row',
     overflow: 'hidden',
   },
-  timeBarFill: { height: 4, backgroundColor: '#8B4513' },
-  timeBarEmpty: { height: 4, backgroundColor: 'transparent' },
+  timeBarFill: {
+    height: 6,
+    backgroundColor: '#8B4513',
+  },
+  timeBarEmpty: {
+    height: 6,
+    backgroundColor: 'transparent',
+  },
+
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  iconControl: {
+    padding: 8,
+  },
 });
 
 function formatTime(s: number) {
   const sec = Math.max(0, Math.floor(s || 0));
-  const mm = Math.floor(sec / 60).toString().padStart(2, '0');
+  const mm = Math.floor(sec / 60)
+    .toString()
+    .padStart(2, '0');
   const ss = (sec % 60).toString().padStart(2, '0');
+
   return `${mm}:${ss}`;
 }
