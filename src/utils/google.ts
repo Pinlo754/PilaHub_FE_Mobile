@@ -1,20 +1,21 @@
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { ANDROID_CLIENT_ID_2 } from '../config/key';
 
-let WEB_CLIENT_ID: string | undefined;
+let ANDROID_CLIENT_ID: string | undefined;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const env = require('../config/env.json');
-  WEB_CLIENT_ID = env?.webClientId;
+  ANDROID_CLIENT_ID = env?.androidClientId ?? env?.webClientId?? env?.androidClientId2;
 } catch {
   // env.json absent — okay
 }
 
 export function configureGoogleSignIn({ webClientId }: { webClientId?: string } = {}) {
   try {
-    const finalWeb = webClientId ?? WEB_CLIENT_ID;
-    if (!finalWeb) return;
+    const finalClientId = webClientId ?? ANDROID_CLIENT_ID ?? ANDROID_CLIENT_ID_2 ?? undefined;
+    if (!finalClientId) return;
     GoogleSignin.configure({
-      webClientId: finalWeb,
+      webClientId: finalClientId,
       offlineAccess: false,
     } as any);
   } catch {
