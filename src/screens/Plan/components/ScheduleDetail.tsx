@@ -158,19 +158,37 @@ export default function ScheduleDetail({
 
         if (!id) return;
 
-        setLocalExercises(prev => {
-          const mapped = prev.map(it => {
-            const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
+     setLocalExercises(prev => {
+  const mapped = prev.map(it => {
+    const pid = it.personalExerciseId ?? it.id ?? it.exerciseId ?? null;
 
-            if (pid === id) {
-              return { ...it, completed: true };
-            }
+    if (pid === evt?.personalExerciseId) {
+      return { ...it, completed: true };
+    }
+    return it;
+  });
 
-            return it;
-          });
+  const normalized = normalizeExercises(mapped);
 
-          return normalizeExercises(mapped);
-        });
+  // ✅ CHECK ALL DONE
+  const allDone =
+    normalized.length > 0 &&
+    normalized.every(e => e.completed === true);
+
+  if (allDone) {
+    const scheduleId = getScheduleId();
+
+    if (scheduleId) {
+      markPersonalScheduleCompleted(scheduleId);
+
+      DeviceEventEmitter.emit('scheduleCompleted', {
+        scheduleId,
+      });
+    }
+  }
+
+  return normalized;
+});
 
         showToast('Đã hoàn thành động tác', 'success');
       },

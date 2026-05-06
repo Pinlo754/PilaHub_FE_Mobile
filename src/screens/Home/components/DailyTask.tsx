@@ -19,6 +19,13 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
+const ItemSeparator = () => <View className="w-3" />;
+
+const contentContainerStyle = {
+  paddingRight: 16,
+  paddingVertical: 4,
+};
+
 const DailyTask = ({ navigation }: Props) => {
   const [tasks, setTasks] = useState<DailyTaskItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -52,7 +59,19 @@ const DailyTask = ({ navigation }: Props) => {
     (item: DailyTaskItem) => {
       console.log('PRESS DAILY TASK:', item);
 
-      navigation.navigate('DailyTask');
+      if (item.type === 'BOOKING') {
+        const booking = item.raw as any;
+        // Navigate to VideoCall if available
+        if (booking.id) {
+          navigation.navigate('VideoCall', { bookingId: booking.id });
+        }
+      } else if (item.type === 'ROADMAP') {
+        // Navigate to Roadmap/SchedulePlayer
+        navigation.navigate('Roadmap');
+      } else if (item.type === 'COURSE') {
+        // Navigate to Courses
+        navigation.navigate('Courses');
+      }
     },
     [navigation],
   );
@@ -119,11 +138,8 @@ const DailyTask = ({ navigation }: Props) => {
           renderItem={renderItem}
           horizontal
           showsHorizontalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View className="w-3" />}
-          contentContainerStyle={{
-            paddingRight: 16,
-            paddingVertical: 4,
-          }}
+          ItemSeparatorComponent={ItemSeparator}
+          contentContainerStyle={contentContainerStyle}
         />
       )}
     </View>

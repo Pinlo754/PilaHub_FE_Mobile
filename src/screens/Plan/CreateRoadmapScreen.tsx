@@ -147,7 +147,7 @@ const CreateRoadmapScreen: React.FC = () => {
     });
   };
 
-  const loadExercises = async () => {
+  const loadExercises = React.useCallback(async () => {
     try {
       setLoadingExercises(true);
 
@@ -167,13 +167,13 @@ const CreateRoadmapScreen: React.FC = () => {
     } finally {
       setLoadingExercises(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'MANUAL' && exercises.length === 0) {
       loadExercises();
     }
-  }, [activeTab]);
+  }, [activeTab, exercises.length, loadExercises]);
 
   const validateCommonForm = () => {
     if (!primaryGoalIdState) {
@@ -380,7 +380,7 @@ const CreateRoadmapScreen: React.FC = () => {
             exerciseId: exercise.exerciseId,
             exerciseOrder: exerciseIndex + 1,
             sets: parseInt(exercise.sets, 10) || 1,
-            reps: parseInt(exercise.reps, 10) || 1,
+            reps: parseInt(exercise.reps, 10) || 0,
             durationSeconds: parseInt(exercise.durationSeconds, 10) || 60,
             restSeconds: parseInt(exercise.restSeconds, 10) || 30,
             notes: exercise.notes?.trim() || '',
@@ -658,9 +658,9 @@ const CreateRoadmapScreen: React.FC = () => {
         {manualStages.length > 0 ? (
           <TouchableOpacity
             onPress={submitManualRoadmap}
-            disabled={submitting}
+            disabled={submitting || trainingDays.length === 0}
             className={`h-12 rounded-lg items-center justify-center mt-6 ${
-              submitting ? 'bg-gray-400' : 'bg-foreground'
+              submitting || trainingDays.length === 0 ? 'bg-gray-400' : 'bg-foreground'
             }`}
           >
             {submitting ? (
@@ -764,3 +764,4 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
 });
+

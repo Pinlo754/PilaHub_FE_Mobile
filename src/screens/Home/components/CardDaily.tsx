@@ -1,12 +1,13 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, Text, View, Pressable } from 'react-native';
 
 import { colors } from '../../../theme/colors';
 import { DailyTaskItem } from '../../../hooks/dailyTask.service';
 
 type Props = {
   item?: DailyTaskItem;
+  onPress?: () => void;
 };
 
 const getIconName = (type?: DailyTaskItem['type']) => {
@@ -71,24 +72,26 @@ const getStyleByType = (type?: DailyTaskItem['type']) => {
   }
 };
 
-const CardDaily = ({ item }: Props) => {
+const CardDaily = ({ item, onPress }: Props) => {
   if (!item || !item.type) {
     return null;
   }
 
   const style = getStyleByType(item.type);
+  const shadowStyle = {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  };
 
   return (
-    <View
-      className="w-[245px] rounded-3xl bg-white p-4 ml-2"
-      style={{
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 3,
-      }}
-    >
+    <Pressable onPress={onPress}>
+      <View
+        className="w-[245px] rounded-3xl bg-white p-4 ml-2"
+        style={shadowStyle}
+      >
       <View className="flex-row items-center">
         <View
           className={`w-12 h-12 rounded-2xl ${style.iconBg} items-center justify-center overflow-hidden`}
@@ -157,7 +160,8 @@ const CardDaily = ({ item }: Props) => {
 
         <Text className="text-xs color-secondaryText">Hôm nay</Text>
       </View>
-    </View>
+      </View>
+    </Pressable>
   );
 };
 

@@ -1,19 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, SafeAreaView, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import { getVendorById, VendorItem } from '../../services/vendors';
 import { getProducts, ProductItem } from '../../services/products';
 import { normalizeImageUrl } from '../../services/products';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import CardProduct from '../Home/components/CardProduct';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const COLORS = {
-  primary: '#0ea5a4',
-  warm: '#F59E0B',
-  text: '#0F172A',
-  muted: '#6B7280',
-  bg: '#FFFAF0',
+  // aligned with tailwind.config.js colors for consistency
+  primary: '#A0522D', // foreground (brown)
+  warm: '#CD853F', // secondaryText
+  text: '#A0522D',
+  muted: '#6B7280', // inactive.darker
+  bg: '#FFFAF0', // background.DEFAULT
   card: '#FFFFFF',
+  success: '#37C16D',
 };
 
 type Props = { route: any };
@@ -84,50 +87,86 @@ const VendorShopScreen: React.FC<Props> = ({ route }) => {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.bg }}>
-      <View className="flex-row items-center justify-between px-3 py-2">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2">
+    <SafeAreaView style={[localStyles.root, { backgroundColor: COLORS.bg }]}> 
+      {/* Header */}
+      <View style={localStyles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={localStyles.headerButton} accessibilityLabel="Back">
           <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text className="text-[18px] font-extrabold">{vendor?.businessName ?? 'Cửa hàng'}</Text>
-        <View style={localStyles.topRightPlaceholder} />
+
+        <Text style={localStyles.headerTitle} numberOfLines={1}>Thông tin cửa hàng</Text>
+
+        <View style={localStyles.headerButton} />
       </View>
 
+      {/* Vendor hero */}
       {vendor ? (
-        <View className="mx-4 mt-3 bg-white rounded-xl p-3" style={localStyles.heroShadow}>
-          <Image source={vendor.logoUrl ? { uri: normalizeImageUrl(vendor.logoUrl) } : require('../../assets/placeholderAvatar.png')} style={localStyles.logo} />
-          <View className="ml-3 flex-1">
-            <View className="flex-row items-center">
-              <Text className="text-[18px] font-extrabold text-[#0F172A]">{vendor.businessName}</Text>
-              {vendor.verified ? <Ionicons name="checkmark-circle" size={18} color="#10B981" className="ml-2" /> : null}
+        <View style={[localStyles.vendorCard, localStyles.heroShadow]}>
+          <Image
+            source={vendor.logoUrl ? { uri: normalizeImageUrl(vendor.logoUrl) } : require('../../assets/placeholderAvatar.png')}
+            style={localStyles.logoLarge}
+          />
+
+          <View style={localStyles.vendorInfo}>
+            <View style={localStyles.nameRow}>
+              <Text style={localStyles.vendorName} numberOfLines={1}>{vendor.businessName}</Text>
+              <Text style={localStyles.productCount}>{total ?? 0} sản phẩm</Text>
             </View>
-            <Text className="text-sm text-[#6B7280] mt-1">{vendor.city ?? ''}</Text>
-            <View className="flex-row mt-3">
-              <TouchableOpacity className="border border-teal-500 px-3 py-2 rounded-lg mr-2"><Text className="text-teal-500 font-bold">Theo dõi</Text></TouchableOpacity>
-              <TouchableOpacity className="bg-teal-500 px-3 py-2 rounded-lg"><Text className="text-white font-bold">Liên hệ</Text></TouchableOpacity>
+
+            <View style={localStyles.metaRow}>
+              <Text style={localStyles.vendorLocation}>{vendor.city ?? ''}</Text>
+              {vendor.verified ? (
+                <View style={localStyles.verifiedBadge}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              ) : null}
+            </View>
+
+            {vendor.description ? <Text style={localStyles.vendorDescription} numberOfLines={2}>{vendor.description}</Text> : null}
+
+            <View style={localStyles.infoRowContainer}>
+              {vendor.address ? (
+                <View style={localStyles.infoRowFull}>
+                  <Ionicons name="location-outline" size={16} color={COLORS.muted} style={localStyles.infoIcon} />
+                  <Text style={localStyles.infoText} numberOfLines={2}>{vendor.address}</Text>
+                </View>
+              ) : null}
+
+              {vendor.phoneNumber ? (
+                <TouchableOpacity onPress={() => Linking.openURL(`tel:${vendor.phoneNumber}`)} style={localStyles.phoneWrap}>
+                  <Ionicons name="call-outline" size={16} color={COLORS.primary} style={localStyles.infoIcon} />
+                  <Text style={localStyles.phoneText}>{vendor.phoneNumber}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>
       ) : null}
 
-      <View className="flex-1 px-3 mt-3">
-        <Text className="font-extrabold text-[16px] text-[#0F172A] mb-3">Sản phẩm của cửa hàng</Text>
+      <View style={localStyles.contentContainer}>
+        <Text style={localStyles.sectionTitle}>Sản phẩm của cửa hàng</Text>
 
-        <FlatList
-          data={products}
-          numColumns={2}
-          keyExtractor={(it) => it.productId}
-          renderItem={({ item }) => (
-            <View className="flex-1 p-1">
-              <CardProduct item={item as any} onPress={() => openProduct(item)} />
-            </View>
-          )}
-          columnWrapperStyle={localStyles.columnWrapper}
-          onEndReachedThreshold={0.6}
-          onEndReached={loadMore}
-          ListFooterComponent={loadingMore ? <ActivityIndicator style={localStyles.listFooterLoader} /> : null}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        />
+        {(!loading && products.length === 0) ? (
+          <View style={localStyles.emptyContainer}>
+            <Text style={localStyles.emptyText}>Chưa có sản phẩm nào từ cửa hàng này.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={products}
+            numColumns={2}
+            keyExtractor={(it) => it.productId}
+            renderItem={({ item }) => (
+              <View style={localStyles.cardWrapper}>
+                <CardProduct item={item as any} onPress={() => openProduct(item)} />
+              </View>
+            )}
+            columnWrapperStyle={localStyles.columnWrapper}
+            onEndReachedThreshold={0.6}
+            onEndReached={loadMore}
+            ListFooterComponent={loadingMore ? <ActivityIndicator style={localStyles.listFooterLoader} /> : null}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -136,9 +175,31 @@ const VendorShopScreen: React.FC<Props> = ({ route }) => {
 const localStyles = StyleSheet.create({
   root: { flex: 1 },
   centerLoader: { marginTop: 40 },
-  topRightPlaceholder: { width: 40 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
+  headerButton: { width: 40, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800', color: COLORS.text },
   heroShadow: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 3 },
-  logo: { width: 72, height: 72, borderRadius: 12, backgroundColor: '#f1f5f9' },
+  vendorCard: { flexDirection: 'row', backgroundColor: COLORS.card, borderRadius: 14, padding: 16, marginHorizontal: 12, alignItems: 'flex-start', marginTop: 8 },
+  logoLarge: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#f1f5f9' },
+  vendorInfo: { marginLeft: 14, flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  vendorName: { fontSize: 20, fontWeight: '800', color: COLORS.primary },
+  productCount: { color: COLORS.warm, fontSize: 13, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  vendorLocation: { color: COLORS.muted, marginRight: 8 },
+  verifiedBadge: { backgroundColor: COLORS.success, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 12, marginLeft: 6 },
+  vendorDescription: { color: COLORS.muted, marginTop: 8, fontSize: 13 },
+  infoRowContainer: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  infoRowFull: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
+  infoIcon: { marginRight: 8 },
+  infoText: { color: COLORS.muted, fontSize: 13, flexShrink: 1 },
+  phoneWrap: { flexDirection: 'row', alignItems: 'center' },
+  phoneText: { color: COLORS.primary, textDecorationLine: 'underline', fontWeight: '600' },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  emptyContainer: { alignItems: 'center', padding: 40 },
+  emptyText: { color: COLORS.muted },
+  contentContainer: { flex: 1, paddingHorizontal: 12, marginTop: 12 },
+  cardWrapper: { flex: 1, padding: 4 },
   listFooterLoader: { margin: 12 },
   columnWrapper: { justifyContent: 'space-between' },
 });

@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -129,9 +129,9 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
     const newExercise: ManualExerciseItem = {
       exerciseId,
       exerciseName: getExerciseName(exercise),
-      imageUrl: getExerciseImage(exercise),
+      imageUrl: null, // remove image
       sets: '3',
-      reps: '12',
+      reps: '2', // reps removed
       durationSeconds: '60',
       restSeconds: '30',
       notes: '',
@@ -349,10 +349,13 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.inlineExerciseList}>
+          <ScrollView
+            style={styles.inlineExerciseList}
+            nestedScrollEnabled={true}
+            contentContainerStyle={styles.inlineExerciseListContent}
+          >
             {filteredExercises.map((item, index) => {
               const exerciseId = getExerciseId(item);
-              const image = getExerciseImage(item);
               const name = getExerciseName(item);
 
               return (
@@ -362,22 +365,11 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
                   onPress={() => addExerciseToSchedule(item)}
                   activeOpacity={0.85}
                 >
-                  {image ? (
-                    <Image
-                      source={{ uri: image }}
-                      style={styles.exerciseOptionImage}
-                    />
-                  ) : (
-                    <View style={styles.exerciseOptionPlaceholder}>
-                      <Ionicons
-                        name="barbell-outline"
-                        size={22}
-                        color="#8B4513"
-                      />
-                    </View>
-                  )}
+                  <View style={styles.exerciseOptionPlaceholder}>
+                    <Ionicons name="barbell-outline" size={22} color="#8B4513" />
+                  </View>
 
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.flex1}>
                     <Text style={styles.exerciseOptionName} numberOfLines={1}>
                       {name || 'Không có tên bài tập'}
                     </Text>
@@ -389,15 +381,11 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
                     </Text>
                   </View>
 
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={24}
-                    color="#8B4513"
-                  />
+                  <Ionicons name="add-circle-outline" size={24} color="#8B4513" />
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         )}
       </View>
     );
@@ -425,16 +413,9 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
             <Text style={styles.exerciseIndexText}>{exerciseIndex + 1}</Text>
           </View>
 
-          {exercise.imageUrl ? (
-            <Image
-              source={{ uri: exercise.imageUrl }}
-              style={styles.exerciseImageCompact}
-            />
-          ) : (
-            <View style={styles.exerciseImagePlaceholderCompact}>
-              <Ionicons name="barbell-outline" size={20} color="#8B4513" />
-            </View>
-          )}
+          <View style={styles.exerciseImagePlaceholderCompact}>
+            <Ionicons name="barbell-outline" size={20} color="#8B4513" />
+          </View>
 
           <View style={styles.exerciseCompactInfo}>
             <Text style={styles.exerciseNameCompact} numberOfLines={1}>
@@ -442,8 +423,7 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
             </Text>
 
             <Text style={styles.exerciseSummary} numberOfLines={1}>
-              {exercise.sets} sets • 
-              {exercise.durationSeconds}s tập • {exercise.restSeconds}s nghỉ
+              {exercise.sets} sets • {exercise.durationSeconds}s tập • {exercise.restSeconds}s nghỉ
             </Text>
           </View>
 
@@ -499,7 +479,7 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
              
 
               <SmallField
-                label="Tập giây"
+                label="Thời gian tập(s)"
                 value={exercise.durationSeconds}
                 onChangeText={value =>
                   updateExerciseField(
@@ -513,7 +493,7 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
               />
 
               <SmallField
-                label="Nghỉ giây"
+                label="Thời gian nghỉ(s)"
                 value={exercise.restSeconds}
                 onChangeText={value =>
                   updateExerciseField(
@@ -553,12 +533,20 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
 
   return (
     <View style={styles.container}>
+      {trainingDays.length === 0 ? (
+        <View style={styles.topWarningBox}>
+          <Text style={styles.topWarningText}>
+            Vui lòng chọn ít nhất một ngày tập ở trên. Nút tạo thủ công sẽ bị vô hiệu hóa nếu không có ngày tập.
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.infoCard}>
         <View style={styles.infoIconBox}>
           <Ionicons name="layers-outline" size={22} color="#8B4513" />
         </View>
 
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex1}>
           <Text style={styles.infoTitle}>Tạo lộ trình thủ công</Text>
 
           <Text style={styles.infoText}>
@@ -587,7 +575,7 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
               <Text style={styles.stageBadgeText}>{stage.stageOrder}</Text>
             </View>
 
-            <View style={{ flex: 1 }}>
+            <View style={styles.flex1}>
               <Text style={styles.stageTitle}>Giai đoạn {stage.stageOrder}</Text>
 
               <Text style={styles.stageSub}>
@@ -713,6 +701,9 @@ const ManualRoadmapBuilder: React.FC<Props> = ({
                     <Text style={styles.emptyExerciseText}>
                       Chưa có bài tập trong buổi này.
                     </Text>
+                    <Text style={styles.scheduleWarningText}>
+                      Buổi tập trống — vui lòng thêm ít nhất 1 bài để có thể tạo roadmap.
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.addedExerciseList}>
@@ -753,10 +744,15 @@ const SmallField = ({ label, value, onChangeText }: SmallFieldProps) => {
       <TextInput
         style={styles.smallInput}
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={v => {
+          // do not accept a single '0' as input, allow empty string
+          if (v === '0') return;
+          onChangeText(v);
+        }}
         keyboardType="numeric"
         placeholder="0"
         placeholderTextColor="#9CA3AF"
+        editable={true}
       />
     </View>
   );
@@ -781,17 +777,6 @@ const getExerciseName = (item: any) => {
     item?.exercise?.exerciseName ??
     item?.exercise?.name ??
     ''
-  );
-};
-
-const getExerciseImage = (item: any) => {
-  return (
-    item?.imageUrl ??
-    item?.thumbnailUrl ??
-    item?.image ??
-    item?.image_url ??
-    item?.exercise?.imageUrl ??
-    null
   );
 };
 
@@ -989,6 +974,13 @@ const styles = StyleSheet.create({
   },
   inlineExerciseList: {
     gap: 10,
+    maxHeight: 240,
+  },
+  inlineExerciseListContent: {
+    paddingBottom: 10,
+  },
+  flex1: {
+    flex: 1,
   },
   copyButton: {
     marginTop: 12,
@@ -1194,5 +1186,24 @@ const styles = StyleSheet.create({
   reloadButtonText: {
     color: '#FFFFFF',
     fontWeight: '900',
+  },
+  topWarningBox: {
+    marginTop: 12,
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 10,
+    borderRadius: 12,
+  },
+  topWarningText: {
+    color: '#B91C1C',
+    fontWeight: '700',
+  },
+  scheduleWarningText: {
+    marginTop: 8,
+    color: '#B91C1C',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
