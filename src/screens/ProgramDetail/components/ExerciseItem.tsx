@@ -24,6 +24,11 @@ type Props = {
   source: string;
   programId: string;
   currentLessonIndex: number;
+  onStartLesson: (lesson: CourseLessonDetailType, progressId: string) => void;
+  onStartAILesson: (lesson: CourseLessonDetailType, progressId: string) => void; // ← thêm
+  aiAllowed: boolean;
+  isFromList: boolean;
+  isFromSearch: boolean;
 };
 
 const ExerciseItem = ({
@@ -38,6 +43,11 @@ const ExerciseItem = ({
   source,
   programId,
   currentLessonIndex,
+  onStartLesson,
+  aiAllowed,
+  onStartAILesson,
+  isFromList,
+  isFromSearch,
 }: Props) => {
   // VARIABLE
   const isFirst = index === 0;
@@ -46,15 +56,31 @@ const ExerciseItem = ({
   const isMember = activePackage === PackageType.MEMBER;
   const hasPackage = isVip || isMember;
   const isLocked = index > currentLessonIndex;
+  const isPaidUser =
+    activePackage === PackageType.VIP_MEMBER ||
+    activePackage === PackageType.MEMBER;
+  const isPracticeDisabled = (() => {
+    if (isFromList) return false;
+    if (isFromSearch) return !isPaidUser;
+    return !isPaidUser && !isEnrolled;
+  })();
 
   // STATE
   const [isExpand, setIsExpand] = useState<boolean>(false);
 
-  // API
-
   // HANDLERS
   const onToggle = () => {
     setIsExpand(prev => !prev);
+  };
+
+  const handleStartLesson = async () => {
+    const progressId = await getProgressOfCourseLesson(item.courseLessonId);
+    onStartLesson(item, progressId ?? '');
+  };
+
+  const handleStartAILesson = async () => {
+    const progressId = await getProgressOfCourseLesson(item.courseLessonId);
+    onStartAILesson(item, progressId ?? '');
   };
 
   const buildPracticePayload = (
@@ -112,6 +138,7 @@ const ExerciseItem = ({
       source,
     });
   };
+
   return (
     <View>
       {/* Course Lesson */}
@@ -135,9 +162,43 @@ const ExerciseItem = ({
           </View>
         )}
         {/* Name */}
-        <Text className="flex-grow color-foreground text-xl font-bold line-clamp-1 max-w-[320px]">
+        <Text
+          className="flex-grow color-foreground text-xl font-bold line-clamp-1"
+          style={{ maxWidth: 170 }}
+        >
           {item.lesson.name}
         </Text>
+
+        {/* Btn */}
+        <Pressable
+          className={`px-2 py-1 rounded-lg z-10 ${isPracticeDisabled ? 'bg-inactive-lighter' : 'bg-foreground'}`}
+          onPress={handleStartLesson}
+        >
+          <Text
+            className={
+              isPracticeDisabled
+                ? 'text-inactive-darker font-medium'
+                : 'text-background font-medium'
+            }
+          >
+            Tự tập
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={handleStartAILesson}
+          className={`px-2 py-1 rounded-lg z-10 ${aiAllowed ? 'bg-foreground' : 'bg-inactive-lighter'}`}
+        >
+          <Text
+            className={
+              aiAllowed
+                ? 'text-background font-medium'
+                : 'text-inactive-darker font-medium'
+            }
+          >
+            Tập với AI
+          </Text>
+        </Pressable>
+
         {/* Arrow */}
         <Ionicons
           name={isExpand ? 'chevron-down-outline' : 'chevron-forward-outline'}

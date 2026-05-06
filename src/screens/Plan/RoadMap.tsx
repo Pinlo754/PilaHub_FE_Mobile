@@ -32,9 +32,10 @@ import {
   mapStoredHealthProfile,
 } from '../../services/profile';
 import RoadmapBodyMetricModal from './components/RoadmapVideo/RoadmapBodyMetricModal';
+import RoadmapBeforeAfterCard from './components/RoadmapVideo/RoadmapBeforeAfterCard';
 
 const RoadMap = () => {
-  const storeList = useRoadmapStore(s => s.list);
+  const storeList = useRoadmapStore((s) => s.list);
   const route: any = useRoute();
   const navigation: any = useNavigation();
 

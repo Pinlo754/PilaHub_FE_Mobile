@@ -270,6 +270,11 @@ export default function InBodyScan() {
         và lưu thành hồ sơ mới.
       </Text>
 
+      <Text style={styles.description}>
+        Chụp hoặc chọn ảnh kết quả InBody. Hệ thống sẽ trích xuất chỉ số sức khỏe
+        và lưu thành hồ sơ mới.
+      </Text>
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.btn, styles.primary]}

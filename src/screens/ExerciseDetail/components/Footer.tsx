@@ -27,6 +27,9 @@ const Footer = ({
   const isPracticeDisabled = (() => {
     if (isFromList) return false; // luôn enable
 
+  const isPracticeDisabled = (() => {
+    if (isFromList) return false; // luôn enable
+
     if (isFromSearch) return !isPaidUser; // chỉ disable nếu chưa mua gói
 
     return !isPaidUser; // fallback

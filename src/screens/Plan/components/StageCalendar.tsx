@@ -120,12 +120,12 @@ export default function StageCalendar({
 
     const date = new Date(dateString);
 
-    date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
+  //   date.setTime(date.getTime() - 7 * 60 * 60 * 1000);
 
-    const adjustedDateString = date.toISOString().split("T")[0];
+  //   const adjustedDateString = date.toISOString().split("T")[0];
 
-    onSelectDate(adjustedDateString);
-  };
+  //   onSelectDate(adjustedDateString);
+  // };
 
   return (
     <View

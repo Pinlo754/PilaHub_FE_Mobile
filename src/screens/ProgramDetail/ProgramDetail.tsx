@@ -13,48 +13,86 @@ import Button from '../../components/Button';
 import ModalPopup from '../../components/ModalPopup';
 import ScheduleModal from './components/ScheduleModal';
 import ResetScheduleModal from './components/ResetScheduleModal';
+import StatsSection from './components/StatsSection';
+import CountdownModal from './components/CountdownModal';
+import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProgramDetail'>;
 
 const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
   const {
+    // Program
     programDetail,
     lessons,
     isLoading,
     isEnrolled,
-    closeConfirmModal,
-    closeErrorModal,
-    closeSuccessModal,
-    confirmMsg,
-    errorMsg,
-    successMsg,
-    onConfirmModal,
-    showConfirmModal,
-    showErrorModal,
-    showSuccessModal,
+    progressOfCourse,
+    completedLessonIds,
+    activePackage,
+    source,
+    isFromList,
+    isFromSearch,
+    isValid,
+    isInsufficientBalance,
+    walletError,
+    traineeCourseId,
+    getProgressOfCourseLessonRaw,
     onPress,
+    onPressBack,
+    // Schedule
     showSchedule,
     closeSchedule,
     handleSelectDay,
     selectedDays,
     onPressRegister,
-    getProgressOfCourseLesson,
-    traineeCourseId,
-    progressOfCourse,
-    completedLessonIds,
-    activePackage,
-    source,
-    onPressBack,
     showResetSchedule,
     closeResetSchedule,
     openResetSchedule,
     handleSelectResetDay,
     resetSelectedDays,
     onPressConfirmReset,
-    isFromList,
-    isInsufficientBalance,
-    walletError,
-    isValid,
+    // Modals: Program
+    errorMsg,
+    showErrorModal,
+    closeErrorModal,
+    successMsg,
+    showSuccessModal,
+    closeSuccessModal,
+    confirmMsg,
+    showConfirmModal,
+    closeConfirmModal,
+    onConfirmModal,
+    recommendMsg,
+    showRecommendModal,
+    closeRecommendModal,
+    onConfirmRecommendModal,
+    // Practice
+    isPracticing,
+    isPlaying,
+    currentExercise,
+    currentTutorial,
+    onStartLesson,
+    togglePlayButton,
+    aiAllowed,
+    onStartAILesson,
+    // Countdown
+    showStartCountdown,
+    onStartCountdownFinished,
+    showRestCountdown,
+    restCountdownDuration,
+    onRestCountdownFinished,
+    COUNTDOWN_START,
+    // Timer
+    exerciseTimeLeft,
+    isExerciseRunning,
+    // Modals: Practice
+    practiceSuccessMsg,
+    showPracticeSuccessModal,
+    closePracticeSuccessModal,
+    practiceConfirmMsg,
+    showPracticeConfirmModal,
+    closePracticeConfirmModal,
+    onPracticeConfirmModal,
   } = useProgramDetail({
     route,
     navigation,
@@ -74,130 +112,226 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
       <Header
         navigation={navigation}
         onPressBack={onPressBack}
-        showResetButton={!!isFromList}
+        showResetButton={!!isFromList && !isPracticing}
         onPressReset={openResetSchedule}
       />
-      <ImageProgram
-        imgUrl={programDetail.imageUrl}
-        programName={programDetail.name}
-      />
-      <ProgressConsume
-        traineeCourseId={traineeCourseId}
-        progress={progressOfCourse}
-        number_of_programs={programDetail.totalLesson}
-        price={programDetail.price}
-      />
-      <ProgramInformation
-        goal={programDetail.description}
-        level={programDetail.level}
-      />
-      <ProgrameContent
-        data={lessons}
-        navigation={navigation}
-        isEnrolled={isEnrolled}
-        getProgressOfCourseLesson={getProgressOfCourseLesson}
-        traineeCourseId={traineeCourseId}
-        completedLessonIds={completedLessonIds}
-        activePackage={activePackage}
-        source={source}
-        programId={programDetail.courseId}
-      />
 
-      {!isEnrolled ? (
-        <View className="pt-2 mx-4 pb-6">
-          {isInsufficientBalance && !walletError && (
-            <Text className="text-danger-darker text-center mb-2">
-              Số dư ví không đủ để đăng ký khóa học. Vui lòng nạp thêm.
-            </Text>
-          )}
-
-          {walletError && (
-            <Text className="text-danger-darker font-medium text-center mb-2">
-              Bạn chưa mở ví để thanh toán!
-            </Text>
-          )}
-          <Button
-            text="Đăng ký khóa học"
-            onPress={onPress}
-            colorType={!isValid ? 'grey' : 'sub1'}
-            rounded="full"
-            iconName="log-in-outline"
-            iconSize={26}
-            disabled={!isValid}
+      {/* ── PRACTICE MODE ── */}
+      {isPracticing && currentExercise && currentTutorial ? (
+        <>
+          {/* Video luôn expand */}
+          <VideoPlayer
+            source={currentTutorial.practiceVideoUrl}
+            isVideoPlay={isPlaying}
+            isVideoExpand={true}
+            toggleVideoExpand={() => {}}
+            isPracticeTab={true}
+            setIsShowFlag={() => {}}
+            onVideoEnd={() => {}}
           />
-        </View>
+
+          {/* Stats */}
+          <StatsSection
+            isPracticeTab={true}
+            exerciseName={currentExercise.name}
+            isVideoPlay={isPlaying}
+            togglePlayButton={togglePlayButton}
+            exerciseDuration={currentExercise.duration}
+            exerciseTimeLeft={exerciseTimeLeft}
+            isExerciseRunning={isExerciseRunning}
+          />
+        </>
       ) : (
-        !traineeCourseId && (
-          <View className="pt-2 mx-4 pb-6">
-            <Button
-              text="Khóa học đã được đăng ký"
-              onPress={() => {}}
-              colorType="green"
-              rounded="full"
-            />
-          </View>
-        )
+        /* ── NORMAL MODE ── */
+        <>
+          <ImageProgram
+            imgUrl={programDetail.imageUrl}
+            programName={programDetail.name}
+          />
+          <ProgressConsume
+            traineeCourseId={traineeCourseId}
+            progress={progressOfCourse}
+            number_of_programs={programDetail.totalLesson}
+            price={programDetail.price}
+          />
+          <ProgramInformation
+            goal={programDetail.description}
+            level={programDetail.level}
+          />
+          <ProgrameContent
+            data={lessons}
+            navigation={navigation}
+            isEnrolled={isEnrolled}
+            getProgressOfCourseLesson={getProgressOfCourseLessonRaw}
+            traineeCourseId={traineeCourseId}
+            completedLessonIds={completedLessonIds}
+            activePackage={activePackage}
+            source={source}
+            programId={programDetail.courseId}
+            onStartLesson={onStartLesson}
+            aiAllowed={aiAllowed}
+            onStartAILesson={onStartAILesson}
+            isFromList={isFromList}
+            isFromSearch={isFromSearch}
+          />
+
+          {!isEnrolled ? (
+            <View className="pt-2 mx-4 pb-6">
+              {isInsufficientBalance && !walletError && (
+                <Text className="text-danger-darker text-center mb-2">
+                  Số dư ví không đủ để đăng ký khóa học. Vui lòng nạp thêm.
+                </Text>
+              )}
+
+              {walletError && (
+                <Text className="text-danger-darker font-medium text-center mb-2">
+                  Bạn chưa mở ví để thanh toán!
+                </Text>
+              )}
+              <Button
+                text="Đăng ký khóa học"
+                onPress={onPress}
+                colorType={!isValid ? 'grey' : 'sub1'}
+                rounded="full"
+                iconName="log-in-outline"
+                iconSize={26}
+                disabled={!isValid}
+              />
+            </View>
+          ) : (
+            !traineeCourseId && (
+              <View className="pt-2 mx-4 pb-6">
+                <Button
+                  text="Khóa học đã được đăng ký"
+                  onPress={() => {}}
+                  colorType="green"
+                  rounded="full"
+                />
+              </View>
+            )
+          )}
+
+          {/* Schedule Modal */}
+          <ScheduleModal
+            visible={showSchedule}
+            onClose={closeSchedule}
+            handleSelectDay={handleSelectDay}
+            selectedDays={selectedDays}
+            onPressRegister={onPressRegister}
+          />
+
+          {/* Reset Schedule Modal */}
+          <ResetScheduleModal
+            visible={showResetSchedule}
+            onClose={closeResetSchedule}
+            handleSelectDay={handleSelectResetDay}
+            selectedDays={resetSelectedDays}
+            onPressReset={onPressConfirmReset}
+          />
+
+          {/* Confirm Modal */}
+          <ModalPopup
+            visible={showConfirmModal}
+            mode="confirm"
+            contentText={confirmMsg}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="yellow"
+            confirmBtnText="Xác nhận"
+            confirmBtnColor="green"
+            cancelBtnText="Đóng"
+            cancelBtnColor="grey"
+            onConfirm={onConfirmModal}
+            onClose={closeConfirmModal}
+            modalWidth={355}
+          />
+
+          {/* Success Modal */}
+          <ModalPopup
+            visible={showSuccessModal}
+            mode="toast"
+            contentText={successMsg}
+            iconName="checkmark"
+            iconSize={35}
+            iconBgColor="green"
+            onClose={closeSuccessModal}
+            modalWidth={355}
+          />
+
+          {/* Recommend Modal */}
+          <ModalPopup
+            visible={showRecommendModal}
+            mode="confirm"
+            contentText={recommendMsg}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="yellow"
+            confirmBtnText="Chuyển trang"
+            confirmBtnColor="green"
+            cancelBtnText="Đóng"
+            cancelBtnColor="grey"
+            onConfirm={onConfirmRecommendModal}
+            onClose={closeRecommendModal}
+            modalWidth={355}
+            btnWidth={110}
+          />
+
+          {/* Error Modal */}
+          <ModalPopup
+            visible={showErrorModal}
+            mode="noti"
+            contentText={errorMsg || ''}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="red"
+            confirmBtnText="Đóng"
+            confirmBtnColor="grey"
+            onClose={closeErrorModal}
+            modalWidth={355}
+          />
+        </>
       )}
 
-      {/* Schedule Modal */}
-      <ScheduleModal
-        visible={showSchedule}
-        onClose={closeSchedule}
-        handleSelectDay={handleSelectDay}
-        selectedDays={selectedDays}
-        onPressRegister={onPressRegister}
+      {/* ── COUNTDOWN: luôn render ở tầng ngoài, hiển thị overlay cả 2 mode ── */}
+      <CountdownModal
+        visible={showStartCountdown}
+        duration={COUNTDOWN_START}
+        onFinish={onStartCountdownFinished}
       />
 
-      {/* Reset Schedule Modal */}
-      <ResetScheduleModal
-        visible={showResetSchedule}
-        onClose={closeResetSchedule}
-        handleSelectDay={handleSelectResetDay}
-        selectedDays={resetSelectedDays}
-        onPressReset={onPressConfirmReset}
+      <CountdownModal
+        visible={showRestCountdown}
+        duration={restCountdownDuration}
+        onFinish={onRestCountdownFinished}
       />
 
-      {/* Confirm Modal */}
+      {/* ── MODALS PRACTICE ── */}
       <ModalPopup
-        visible={showConfirmModal}
-        mode="confirm"
-        contentText={confirmMsg}
-        iconName="alert"
-        iconSize={35}
-        iconBgColor="yellow"
-        confirmBtnText="Xác nhận"
-        confirmBtnColor="green"
-        cancelBtnText="Đóng"
-        cancelBtnColor="grey"
-        onConfirm={onConfirmModal}
-        onClose={closeConfirmModal}
-        modalWidth={355}
-      />
-
-      {/* Success Modal */}
-      <ModalPopup
-        visible={showSuccessModal}
+        visible={showPracticeSuccessModal}
         mode="toast"
-        contentText={successMsg}
+        contentText={practiceSuccessMsg}
         iconName="checkmark"
         iconSize={35}
         iconBgColor="green"
-        onClose={closeSuccessModal}
+        onClose={closePracticeSuccessModal}
         modalWidth={355}
       />
 
-      {/* Error Modal */}
       <ModalPopup
-        visible={showErrorModal}
-        mode="noti"
-        contentText={errorMsg || ''}
+        visible={showPracticeConfirmModal}
+        mode="confirm"
+        contentText={practiceConfirmMsg}
         iconName="alert"
         iconSize={35}
-        iconBgColor="red"
-        confirmBtnText="Đóng"
-        confirmBtnColor="grey"
-        onClose={closeErrorModal}
+        iconBgColor="yellow"
+        confirmBtnText="Thoát"
+        confirmBtnColor="green"
+        cancelBtnText="Tiếp tục tập"
+        cancelBtnColor="grey"
+        onConfirm={onPracticeConfirmModal}
+        onClose={closePracticeConfirmModal}
         modalWidth={355}
+        btnWidth={100}
       />
     </View>
   );

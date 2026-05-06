@@ -27,7 +27,7 @@ export const ACTIONS: ActionItem<keyof RootStackParamList>[] = [
   },
   {
     id: 'ai',
-    title: 'Đăng ký AI',
+    title: 'Đăng ký gói',
     icon: 'sparkles',
     size: 18,
     bgColor: colors.info[20],

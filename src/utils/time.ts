@@ -54,23 +54,22 @@ export const formatTime = (
 
   // Text style: 1h 2p 3s
   if (hours > 0) {
-  return showSeconds
-    ? seconds > 0
-      ? `${hours}h ${minutes}p ${seconds}s`
+    return showSeconds
+      ? seconds > 0
+        ? `${hours}h ${minutes}p ${seconds}s`
+        : minutes > 0
+          ? `${hours}h ${minutes}p`
+          : `${hours}h`
       : minutes > 0
         ? `${hours}h ${minutes}p`
-        : `${hours}h`
-    : minutes > 0
-      ? `${hours}h ${minutes}p`
-      : `${hours}h`;
-}
-
+        : `${hours}h`;
+  }
 
   if (minutes > 0) {
     return showSeconds ? `${minutes}p ${seconds}s` : `${minutes}p`;
   }
 
-  return showSeconds ? `${seconds}s` : `0p`;
+  return `${seconds}s`;
 };
 
 export const formatHours = (hours: number) => {

@@ -185,6 +185,7 @@ export const useVideoCall = ({ navigation, route }: Props) => {
           await agoraService.leaveChannel();
           navigation.navigate('TraineeFeedback', {
             liveSessionId: liveSessionDetail?.liveSessionId,
+            coachId: liveSessionDetail?.coachBooking.coach.coachId,
           });
         } catch (leftErr) {
           console.error('[VideoCall] markLeft failed', leftErr);
