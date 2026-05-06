@@ -1,6 +1,7 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../../theme/colors';
 import ProgressCircle from '../../../components/ProgressCircle';
 import axios from '../../../hooks/axiosInstance';
@@ -13,41 +14,53 @@ const RoadmapProgress = () => {
   const [roadmap, setRoadmap] = useState<any | null>(null);
   const [hasRoadmap, setHasRoadmap] = useState<boolean>(false);
 
-  useEffect(() => {
-    let mounted = true;
+  // Style for progress circle container
+  const progressContainerStyle = {
+    width: 72,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    position: 'relative' as const,
+  };
 
-    const fetchNewest = async () => {
-      try {
-        const res = await axios.get('/roadmaps/newest');
-        const newestData = res.data?.data ?? res.data ?? res;
-        const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
+  // Hàm fetch dữ liệu roadmap
+  const fetchRoadmapData = useCallback(async () => {
+    try {
+      const res = await axios.get('/roadmaps/newest');
+      const newestData = res.data?.data ?? res.data ?? res;
+      const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
 
-        if (roadmapFromServer && mounted) {
-          const t = roadmapFromServer?.title ?? roadmapFromServer?.name ?? 'Lộ trình của tôi';
-          const p = Number(roadmapFromServer?.progressPercent ?? roadmapFromServer?.progress ?? 0);
+      if (roadmapFromServer) {
+        const t = roadmapFromServer?.title ?? roadmapFromServer?.name ?? 'Lộ trình của tôi';
+        const p = Number(roadmapFromServer?.progressPercent ?? roadmapFromServer?.progress ?? 0);
 
-          setTitle(t);
-          if (!Number.isNaN(p)) setPercent(Math.max(0, Math.min(100, p)));
-          setRoadmap(roadmapFromServer);
-          setHasRoadmap(true);
-        } else if (mounted) {
-          // no roadmap available
-          setRoadmap(null);
-          setHasRoadmap(false);
-          setTitle('');
-          setPercent(0);
-        }
-      } catch (err) {
-        console.warn('RoadmapProgress fetchNewest error', err);
+        setTitle(t);
+        if (!Number.isNaN(p)) setPercent(Math.max(0, Math.min(100, p)));
+        setRoadmap(roadmapFromServer);
+        setHasRoadmap(true);
+      } else {
+        // no roadmap available
+        setRoadmap(null);
+        setHasRoadmap(false);
+        setTitle('');
+        setPercent(0);
       }
-    };
-
-    fetchNewest();
-
-    return () => {
-      mounted = false;
-    };
+    } catch (err) {
+      console.warn('RoadmapProgress fetchNewest error', err);
+    }
   }, []);
+
+  // 🔄 Fetch khi component mount
+  useEffect(() => {
+    fetchRoadmapData();
+  }, [fetchRoadmapData]);
+
+  // 🔄 Fetch lại khi screen focus (quay lại từ RoadMap)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[RoadmapProgress] Screen focused, refreshing roadmap data...');
+      fetchRoadmapData();
+    }, [fetchRoadmapData])
+  );
 
   if (!hasRoadmap) {
     return (
@@ -74,7 +87,19 @@ const RoadmapProgress = () => {
 
   return (
     <Pressable
-      onPress={() => navigation.navigate('Roadmap')}
+      onPress={() => {
+        // Navigate directly to RoadmapDetail with the roadmap data
+        if (roadmap?.roadmapId) {
+          navigation.navigate('Roadmap', {
+            screen: 'RoadmapDetail',
+            params: {
+              roadmapId: roadmap.roadmapId,
+              roadmap: roadmap,
+              source: 'home',  // Track source
+            },
+          });
+        }
+      }}
       className="m-4 p-4 rounded-xl bg-white border border-background-sub1_30 elevation-md shadow-md flex-row justify-between items-center gap-6"
     >
       {/* Left section */}
@@ -90,7 +115,7 @@ const RoadmapProgress = () => {
       </View>
 
       {/* Progress */}
-      <View style={{ width: 72, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      <View style={progressContainerStyle}>
         <ProgressCircle size={50} strokeWidth={5} bgColor={colors.inactive.lighter} progressColor={colors.foreground} percent={percent} />
         <View className="absolute inset-0 items-center justify-center">
           <Text className="color-foreground font-semibold">{percent}%</Text>

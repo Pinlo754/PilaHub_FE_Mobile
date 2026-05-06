@@ -207,7 +207,7 @@ export default function ShopHeader({ onSearch }: { onSearch?: (q: string) => voi
                 )}
               />
             ) : (
-              <View className="p-4">
+              <View className="p-2">
                 <Text className="text-sm text-secondaryText">Không có tìm gần đây</Text>
               </View>
             )}

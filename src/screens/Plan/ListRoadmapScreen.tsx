@@ -195,6 +195,10 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
   }, [roadmaps, searchText, activeTab]);
 
   const onRefresh = () => {
+    // Prevent refresh if already loading
+    if (loading || refreshing || loadingMore) {
+      return;
+    }
     fetchRoadmaps(0, 'refresh');
   };
 
@@ -209,8 +213,13 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
   const handlePressRoadmap = (roadmapId: string) => {
     console.log('[RoadmapList] Press roadmap:', roadmapId);
 
+    // Find the roadmap item from the list
+    const selectedRoadmap = filteredRoadmaps.find(r => r.roadmapId === roadmapId);
+
     navigation.navigate('RoadmapDetail', {
       roadmapId,
+      roadmap: selectedRoadmap,
+      source: 'list',  // Track source
     });
   };
 
