@@ -1,228 +1,404 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
-// If your backend uses SockJS (Spring SockJS endpoint) uncomment below and install sockjs-client
-// import SockJS from 'sockjs-client';
 
 type HeartRatePayload = {
   liveSessionId: string;
   heartRate: number;
 };
 
+type PendingSubscription = {
+  destination: string;
+  cb: (payload: HeartRatePayload) => void;
+};
+
 type UseHeartRateSocket = {
-  connect: (opts: { url: string; token?: string; useSockJS?: boolean }) => void;
+  connect: (opts: {
+    url: string;
+    token?: string;
+    useSockJS?: boolean;
+  }) => void;
+
   disconnect: () => void;
+
   sendHeartRate: (payload: HeartRatePayload) => void;
-  subscribeToCoach: (coachAccountId: string, cb: (payload: HeartRatePayload) => void) => () => void;
+
+  subscribeToCoach: (
+    coachAccountId: string,
+    cb: (payload: HeartRatePayload) => void
+  ) => () => void;
+
   latestHeartRate: HeartRatePayload | null;
+
   isConnected: boolean;
 };
 
 export const useHeartRateSocket = (): UseHeartRateSocket => {
   const clientRef = useRef<Client | null>(null);
-  const connectingRef = useRef<boolean>(false);
+
   const subsRef = useRef<Record<string, StompSubscription | null>>({});
-  const pendingSubsRef = useRef<Array<{ destination: string; cb: (payload: HeartRatePayload) => void }>>([]);
-  const [latestHeartRate, setLatestHeartRate] = useState<HeartRatePayload | null>(null);
+
+  const pendingSubsRef = useRef<PendingSubscription[]>([]);
+
+  const connectingRef = useRef(false);
+
+  const [latestHeartRate, setLatestHeartRate] =
+    useState<HeartRatePayload | null>(null);
+
   const [isConnected, setIsConnected] = useState(false);
 
-  const connect = useCallback(({ url, token, useSockJS = false }: { url: string; token?: string; useSockJS?: boolean }) => {
-    // Prevent concurrent activation attempts
-    if (clientRef.current && clientRef.current.active) return;
-    if (connectingRef.current) return;
+  /**
+   * CONNECT
+   */
+  const connect = useCallback(
+    ({
+      url,
+      token,
+      useSockJS = false,
+    }: {
+      url: string;
+      token?: string;
+      useSockJS?: boolean;
+    }) => {
+      // already connected
+      if (clientRef.current?.connected) {
+        console.log('[HeartRateSocket] already connected');
+        return;
+      }
 
-    console.log('[HeartRateSocket] connecting to', url, 'useSockJS=', useSockJS);
+      // already connecting
+      if (connectingRef.current) {
+        console.log('[HeartRateSocket] already connecting');
+        return;
+      }
 
-    const client = new Client({
-      // If using SockJS, we will set webSocketFactory below
-      brokerURL: useSockJS ? undefined : url,
-      // Heartbeat to avoid server-side timeouts and detect dead sockets
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
-      reconnectDelay: 5000,
-      debug: (msg: string) => console.log('[STOMP DEBUG]', msg),
-      connectHeaders: {
-        Authorization: `Bearer ${token}`
-      },
-      onConnect: () => {
-        console.log('[HeartRateSocket] connected');
-        connectingRef.current = false;
-        setIsConnected(true);
-        // Drain any pending subscriptions requested before connection
-        // Use setTimeout to ensure client is fully ready before subscribing
-        const drainPending = () => {
-          console.log('[HeartRateSocket] draining pending subscriptions, count:', pendingSubsRef.current.length);
-          try {
-            const pending = pendingSubsRef.current.splice(0, pendingSubsRef.current.length);
-            if (pending.length === 0) {
-              console.log('[HeartRateSocket] no pending subscriptions to drain');
-              return;
-            }
-            pending.forEach((p, idx) => {
+      console.log(
+        '[HeartRateSocket] connecting to',
+        url,
+        'useSockJS=',
+        useSockJS
+      );
+
+      connectingRef.current = true;
+
+      const client = new Client({
+        brokerURL: useSockJS ? undefined : url,
+
+        reconnectDelay: 5000,
+
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
+
+        debug: (msg: string) => {
+          console.log('[STOMP DEBUG]', msg);
+        },
+
+        connectHeaders: token
+          ? {
+            Authorization: `Bearer ${token}`,
+          }
+          : {},
+
+        onConnect: () => {
+          console.log('[HeartRateSocket] ✅ CONNECTED');
+
+          connectingRef.current = false;
+
+          setIsConnected(true);
+
+          /**
+           * Drain pending subscriptions
+           */
+          if (pendingSubsRef.current.length > 0) {
+            console.log(
+              '[HeartRateSocket] draining pending subscriptions:',
+              pendingSubsRef.current.length
+            );
+
+            const pending = [...pendingSubsRef.current];
+
+            pendingSubsRef.current = [];
+
+            pending.forEach((item) => {
               try {
-                console.log(`[HeartRateSocket] draining pending sub ${idx + 1}/${pending.length}: ${p.destination}`);
-                const sub = client.subscribe(p.destination, (message: IMessage) => {
-                  try {
-                    console.log('[HeartRateSocket] message received raw (pending):', message.body);
-                    const payload = JSON.parse(message.body) as HeartRatePayload;
-                    setLatestHeartRate(payload);
-                    p.cb(payload);
-                  } catch (e) {
-                    console.warn('[HeartRateSocket] invalid pending message', e);
+                const sub = client.subscribe(
+                  item.destination,
+                  (message: IMessage) => {
+                    try {
+                      console.log(
+                        '[HeartRateSocket] ✅ MESSAGE RECEIVED (pending)'
+                      );
+
+                      const payload = JSON.parse(
+                        message.body
+                      ) as HeartRatePayload;
+
+                      setLatestHeartRate(payload);
+
+                      item.cb(payload);
+                    } catch (e) {
+                      console.warn(
+                        '[HeartRateSocket] invalid pending message',
+                        e
+                      );
+                    }
                   }
-                });
-                // store subscription by destination
-                const key = p.destination;
-                subsRef.current[key] = sub;
-                console.log(`[HeartRateSocket] ✅ subscription drained: ${p.destination}`);
+                );
+
+                subsRef.current[item.destination] = sub;
+
+                console.log(
+                  '[HeartRateSocket] ✅ pending subscription restored:',
+                  item.destination
+                );
               } catch (e) {
-                console.warn(`[HeartRateSocket] failed to drain pending sub ${idx}:`, e);
+                console.error(
+                  '[HeartRateSocket] failed pending subscription',
+                  e
+                );
               }
             });
-          } catch (e) {
-            console.warn('[HeartRateSocket] error draining pending subs', e);
           }
-        };
-        // Defer draining to ensure client is fully ready
-        setTimeout(drainPending, 200);
-      },
-      onStompError: (frame) => {
-        console.warn('[STOMP] broker error', frame);
-      },
-      onWebSocketClose: () => {
-        console.log('[HeartRateSocket] websocket closed');
-        connectingRef.current = false;
-        setIsConnected(false);
-      },
-      onWebSocketError: (ev) => {
-        console.warn('[STOMP] websocket error', ev);
-      },
+        },
+
+        onDisconnect: () => {
+          console.log('[HeartRateSocket] 🔌 DISCONNECTED');
+
+          setIsConnected(false);
+        },
+
+        onStompError: (frame) => {
+          console.error('[HeartRateSocket] ❌ STOMP ERROR', frame);
+        },
+
+        onWebSocketClose: () => {
+          console.log('[HeartRateSocket] websocket closed');
+
+          connectingRef.current = false;
+
+          setIsConnected(false);
+        },
+
+        onWebSocketError: (ev) => {
+          console.error('[HeartRateSocket] ❌ websocket error', ev);
+        },
+      });
+
+      /**
+       * SOCKJS
+       */
+      if (useSockJS) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const SockJS = require('sockjs-client');
+
+        client.webSocketFactory = () => new SockJS(url);
+
+        console.log('[HeartRateSocket] using SockJS');
+      }
+
+      clientRef.current = client;
+
+      client.activate();
+    },
+    []
+  );
+
+  /**
+   * DISCONNECT
+   */
+  const disconnect = useCallback(() => {
+    console.log('[HeartRateSocket] disconnecting');
+
+    // unsubscribe all
+    Object.values(subsRef.current).forEach((sub) => {
+      try {
+        sub?.unsubscribe();
+      } catch (e) {
+        console.warn('[HeartRateSocket] unsubscribe error', e);
+      }
     });
 
-    // Optional: use SockJS transport when backend endpoint uses SockJS (Spring)
-    if (useSockJS) {
-      // @ts-ignore - sockjs-client type may differ; ensure you have it installed
-      const SockJS = require('sockjs-client');
-      client.webSocketFactory = () => new SockJS(url);
-      console.log('[HeartRateSocket] using SockJS transport');
-    }
-
-    console.log('[HeartRateSocket] activating STOMP client');
-    connectingRef.current = true;
-    client.activate();
-    clientRef.current = client;
-
-  }, []);
-
-  const disconnect = useCallback(() => {
-    // 1. Hủy tất cả các subscription đang active
-    Object.values(subsRef.current).forEach((s) => s && s.unsubscribe());
     subsRef.current = {};
 
-    // 2. XÓA SẠCH hàng đợi pending (để đảm bảo trạng thái hoàn toàn mới khi mount lại)
     pendingSubsRef.current = [];
 
-    // 3. Ngắt kết nối socket
     if (clientRef.current) {
       try {
         clientRef.current.deactivate();
       } catch (e) {
-        console.log('[HeartRateSocket] error during disconnect', e);
+        console.warn('[HeartRateSocket] deactivate error', e);
       }
-      clientRef.current = null;
-      connectingRef.current = false;
     }
 
+    clientRef.current = null;
+
+    connectingRef.current = false;
+
     setIsConnected(false);
-    console.log('[HeartRateSocket] disconnected and cleaned up completely');
+
+    console.log('[HeartRateSocket] ✅ disconnected completely');
   }, []);
 
-  useEffect(() => {
-    return () => {
-      disconnect(); // Tự động chạy khi rời trang
-    };
-  }, [disconnect]);
-
+  /**
+   * SEND HEART RATE
+   */
   const sendHeartRate = useCallback((payload: HeartRatePayload) => {
     const client = clientRef.current;
-    if (!client || !client.active) {
-      console.warn('[HeartRateSocket] cannot send, client not connected', payload);
+
+    if (!client || !client.connected) {
+      console.warn(
+        '[HeartRateSocket] cannot send, not connected',
+        payload
+      );
       return;
     }
 
-    console.log('[HeartRateSocket] publishing heart rate', payload);
-    client.publish({
-      destination: '/app/heartrate/send',
-      body: JSON.stringify(payload),
-      skipContentLengthHeader: true,
-    });
+    try {
+      console.log('[HeartRateSocket] publishing heart rate', payload);
+
+      client.publish({
+        destination: '/app/heartrate/send',
+        body: JSON.stringify(payload),
+        skipContentLengthHeader: true,
+      });
+
+      console.log('[HeartRateSocket] ✅ publish success');
+    } catch (e) {
+      console.error('[HeartRateSocket] ❌ publish failed', e);
+    }
   }, []);
 
-  const subscribeToCoach = useCallback((coachAccountId: string, cb: (payload: HeartRatePayload) => void) => {
-    const client = clientRef.current;
-    const endId = coachAccountId ? coachAccountId.replace(/^"|"$/g, '') : null;
-    // Use user-specific destination that Spring maps to the coach's session
-    const destination = `/queue/heartrate/${endId}`;
+  /**
+   * SUBSCRIBE COACH
+   */
+  const subscribeToCoach = useCallback(
+    (
+      coachAccountId: string,
+      cb: (payload: HeartRatePayload) => void
+    ) => {
+      const client = clientRef.current;
 
-    console.log('[HeartRateSocket] subscribeToCoach called, client:', client ? 'exists' : 'null', 'active:', client?.active ?? 'N/A');
+      const destination = `/queue/heartrate/${coachAccountId.replace(/^"|"$/g, '')}`;
 
-    // If client not yet created or not active, queue subscription until connected
-    if (!client || !client.active) {
-      console.log('[HeartRateSocket] queuing subscribe until connected for', destination);
-      pendingSubsRef.current.push({ destination, cb });
-      console.log('[HeartRateSocket] pending queue now has', pendingSubsRef.current.length, 'items');
-      // return unsubscribe that removes pending
-      return () => {
-        pendingSubsRef.current = pendingSubsRef.current.filter(p => p.destination !== destination || p.cb !== cb);
-      };
-    }
+      console.log(
+        '[HeartRateSocket] subscribeToCoach called',
+        {
+          coachAccountId,
+          connected: client?.connected,
+          active: client?.active,
+        }
+      );
 
-    // Queue subscription to ensure STOMP is fully ready
-    console.log('[HeartRateSocket] will subscribe after delay to ensure STOMP is ready');
-    const timeoutId = setTimeout(() => {
-      try {
-        console.log('[HeartRateSocket] attempting subscription now to', destination, 'for coach:', coachAccountId);
-        const sub = client.subscribe(destination, (message: IMessage) => {
-          try {
-            console.log('[HeartRateSocket] ✅ MESSAGE RECEIVED on', destination);
-            console.log('[HeartRateSocket] raw message body:', message.body);
-            console.log('[HeartRateSocket] message headers:', message.headers);
-            const payload = JSON.parse(message.body) as HeartRatePayload;
-            console.log('[HeartRateSocket] ✅ PARSED PAYLOAD:', payload);
-            setLatestHeartRate(payload);
-            console.log('[HeartRateSocket] ✅ STATE UPDATED, about to call callback');
-            cb(payload);
-            console.log('[HeartRateSocket] ✅ CALLBACK EXECUTED');
-          } catch (e) {
-            console.warn('[HeartRateSocket] ❌ ERROR processing message:', e);
-            console.warn('[HeartRateSocket] raw message:', message.body);
-          }
+      /**
+       * not connected yet
+       */
+      if (!client || !client.connected) {
+        console.log(
+          '[HeartRateSocket] queue subscription until connected:',
+          destination
+        );
+
+        pendingSubsRef.current.push({
+          destination,
+          cb,
         });
 
-        // store subscription keyed by destination
-        const key = destination;
-        subsRef.current[key] = sub;
-        console.log('[HeartRateSocket] ✅ SUBSCRIPTION OBJECT STORED:', key, 'subscription exists:', subsRef.current[key] !== null);
-      } catch (e) {
-        console.error('[HeartRateSocket] ❌ FAILED to subscribe:', e);
+        return () => {
+          pendingSubsRef.current = pendingSubsRef.current.filter(
+            (p) => !(p.destination === destination && p.cb === cb)
+          );
+        };
       }
-    }, 300); // wait 300ms to ensure STOMP is fully ready
 
-    return () => {
-      clearTimeout(timeoutId);
+      /**
+       * subscribe immediately
+       */
       try {
-        console.log('[HeartRateSocket] unsubscribing from', destination);
-        const sub = subsRef.current[destination];
-        if (sub) {
-          sub.unsubscribe();
-        }
-      } catch (e) {
-        console.warn('[HeartRateSocket] error unsubscribing', e);
-      }
-      subsRef.current[destination] = null;
-    };
-  }, []);
+        console.log(
+          '[HeartRateSocket] subscribing to',
+          destination
+        );
 
-  // auto-clean on unmount
+        const sub = client.subscribe(
+          destination,
+          (message: IMessage) => {
+            try {
+              console.log(
+                '[HeartRateSocket] ✅ MESSAGE RECEIVED'
+              );
+
+              console.log(
+                '[HeartRateSocket] raw:',
+                message.body
+              );
+
+              const payload = JSON.parse(
+                message.body
+              ) as HeartRatePayload;
+
+              console.log(
+                '[HeartRateSocket] parsed payload:',
+                payload
+              );
+
+              setLatestHeartRate(payload);
+
+              cb(payload);
+
+              console.log(
+                '[HeartRateSocket] ✅ callback executed'
+              );
+            } catch (e) {
+              console.error(
+                '[HeartRateSocket] ❌ message parse error',
+                e
+              );
+            }
+          }
+        );
+
+        subsRef.current[destination] = sub;
+
+        console.log(
+          '[HeartRateSocket] ✅ SUBSCRIBED SUCCESS'
+        );
+      } catch (e) {
+        console.error(
+          '[HeartRateSocket] ❌ FAILED TO SUBSCRIBE',
+          e
+        );
+      }
+
+      /**
+       * unsubscribe
+       */
+      return () => {
+        try {
+          console.log(
+            '[HeartRateSocket] unsubscribing from',
+            destination
+          );
+
+          subsRef.current[destination]?.unsubscribe();
+
+          subsRef.current[destination] = null;
+
+          console.log(
+            '[HeartRateSocket] ✅ unsubscribed'
+          );
+        } catch (e) {
+          console.warn(
+            '[HeartRateSocket] unsubscribe failed',
+            e
+          );
+        }
+      };
+    },
+    []
+  );
+
+  /**
+   * AUTO CLEANUP
+   */
   useEffect(() => {
     return () => {
       disconnect();

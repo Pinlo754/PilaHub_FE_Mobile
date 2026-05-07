@@ -24,7 +24,7 @@ const globalAny = globalThis as any;
 if (typeof globalAny.TextEncoder === 'undefined') globalAny.TextEncoder = TextEncoder as any;
 if (typeof globalAny.TextDecoder === 'undefined') globalAny.TextDecoder = TextDecoder as any;
 
-const BACKEND_URL = 'http://192.168.2.242:8080';
+const BACKEND_URL = 'https://pilahub.io.vn';
 
 type UserRole = 'COACH' | 'TRAINEE' | 'VENDOR';
 const SERVICE_MAP: Record<UserRole, any> = {

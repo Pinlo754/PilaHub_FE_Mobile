@@ -28,6 +28,7 @@ import {
 } from '../../utils/WorkoutSessionType';
 import { exerciseService } from '../../hooks/exercise.service';
 import { tutorialService } from '../../hooks/tutorial.service';
+import { useBle } from '../../services/BleProvider';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ProgramDetail'>;
@@ -651,11 +652,22 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
         await onStartLesson(lesson, progressId);
         return;
       }
+
+      const { isIotDeviceConnected, hr, status, } = useBle();
+
+      useEffect(() => {
+        if (isIotDeviceConnected) {
+          console.log("Thiết bị đã sẵn sàng với nhịp tim:", hr);
+        } else {
+          console.log("Đang chờ thiết bị... Trạng thái hiện tại:", status);
+        }
+      }, [isIotDeviceConnected, hr]);
+      
       const req: WorkoutLessonExerciseReq = {
         courseLessonProgressId: progressId,
         lessonExerciseId: payload.lessonExerciseIds[0],
         haveAITracking: true,
-        haveIOTDeviceTracking: true,
+        haveIOTDeviceTracking: isIotDeviceConnected,
       };
 
       const session =

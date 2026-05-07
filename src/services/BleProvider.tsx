@@ -52,6 +52,25 @@ export const BleProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
+  useEffect(() => {
+    // Tự động scan khi mở App
+    const autoConnect = async () => {
+      // Nếu đã kết nối hoặc đang kết nối thì bỏ qua
+      if (connectedDevice || status === 'connecting' || status === 'receiving') return;
+      
+      console.log("Global BLE: Starting auto-scan...");
+      await startScanForPolar();
+    };
+
+    autoConnect();
+
+    // Dọn dẹp khi đóng App hẳn
+    return () => {
+      stopScan();
+      // Không gọi disconnect() ở đây để tránh mất kết nối khi reload component
+    };
+  }, []);
+
   function parseHeartRate(base64Value: string | null) {
     if (!base64Value) return null;
     try {
@@ -77,6 +96,7 @@ export const BleProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       scanRef.current?.remove?.();
       getBleManager().stopDeviceScan();
     } catch {}
+    // Chỉ set idle nếu đang scan dở, nếu đã connected thì giữ nguyên status đó
     setStatus(prev => (prev === 'scanning' ? 'idle' : prev));
   }
 
