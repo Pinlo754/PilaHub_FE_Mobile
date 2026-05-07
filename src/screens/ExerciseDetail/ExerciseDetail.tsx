@@ -70,6 +70,13 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
     setShowWorkoutHistory,
     showWorkoutHistory,
     isFromRoadmap,
+    showErrorModal,
+    errorMsg,
+    closeErrorModal,
+    currentSet,
+    totalSets,
+    showSetRestCountdown,
+    onSetRestCountdownFinished,
   } = useExerciseDetail({
     route,
     navigation,
@@ -125,6 +132,8 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
               exerciseDuration={currentExercise.duration}
               exerciseTimeLeft={exerciseTimeLeft}
               isExerciseRunning={isExerciseRunning}
+              currentSet={currentSet}
+              totalSets={totalSets}
             />
           ) : (
             <OverviewSection
@@ -156,6 +165,20 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             iconSize={35}
             iconBgColor="green"
             onClose={closeSuccessModal}
+            modalWidth={355}
+          />
+
+          {/* Error Modal */}
+          <ModalPopup
+            visible={showErrorModal}
+            mode="noti"
+            contentText={errorMsg || ''}
+            iconName="alert"
+            iconSize={35}
+            iconBgColor="red"
+            confirmBtnText="Đóng"
+            confirmBtnColor="grey"
+            onClose={closeErrorModal}
             modalWidth={355}
           />
 
@@ -220,6 +243,12 @@ const ExerciseDetail: React.FC<Props> = ({ route, navigation }) => {
             visible={showRestCountdown}
             duration={restCountdownDuration}
             onFinish={onRestCountdownFinished}
+          />
+
+          <CountdownModal
+            visible={showSetRestCountdown}
+            duration={restCountdownDuration}
+            onFinish={onSetRestCountdownFinished}
           />
 
           <WorkoutHistoryScreen
