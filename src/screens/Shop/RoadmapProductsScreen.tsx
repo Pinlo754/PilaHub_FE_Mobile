@@ -6,6 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { formatVND } from '../../utils/number';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import Toast from '../../components/Toast';
 
 // SmallCard moved outside to avoid defining inside render
 function SmallCard({ item, onPress, onBuy }: { item: any; onPress: (i: any) => void; onBuy: (i: any) => void }) {
@@ -37,8 +38,13 @@ export default function RoadmapProductsScreen() {
   const [equipmentByStage, setEquipmentByStage] = useState<Record<string, any>>({});
   const [supplementsByStage, setSupplementsByStage] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
-  const { addToCart } = useCart();
+  const { addToCart, totalItems } = useCart();
   const navigation = useNavigation<any>();
+  
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
 
   useEffect(() => {
     let mounted = true;
@@ -164,10 +170,14 @@ export default function RoadmapProductsScreen() {
         raw: item.raw ?? item,
       } as any;
       await addToCart(cartItem, 1);
-      Alert.alert('Thành công', 'Đã thêm vào giỏ hàng');
+      setToastMsg(`Đã thêm ${item.name ?? 'sản phẩm'} vào giỏ hàng`);
+      setToastType('success');
+      setToastVisible(true);
     } catch (e: any) {
       console.warn('addToCart failed', e);
-      Alert.alert('Lỗi', 'Không thể thêm sản phẩm vào giỏ');
+      setToastMsg('Không thể thêm sản phẩm vào giỏ');
+      setToastType('error');
+      setToastVisible(true);
     }
   };
 
@@ -182,8 +192,21 @@ export default function RoadmapProductsScreen() {
 
   if (loading) return (
     <SafeAreaView className="flex-1 bg-[#FFF8F0]">
-      <View className="px-3 py-3 border-b border-[#F3F4F6] bg-[#FFF8F0]">
-        <Text className="text-lg font-extrabold text-[#0F172A]">Sản phẩm của lộ trình</Text>
+      <View className="px-3 py-3 border-b border-[#F3F4F6] bg-[#FFF8F0] flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3 p-1">
+            <Ionicons name="chevron-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text className="text-lg font-extrabold text-[#0F172A]">Sản phẩm của lộ trình</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Cart' as any)} className="relative">
+          <Ionicons name="cart-outline" size={24} color="#0F172A" />
+          {totalItems > 0 && (
+            <View className="absolute -top-2 -right-2 bg-amber-500 rounded-full w-5 h-5 items-center justify-center">
+              <Text className="text-white text-xs font-bold">{totalItems > 99 ? '99+' : totalItems}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
       <View className="flex-1 justify-center items-center"><ActivityIndicator /></View>
     </SafeAreaView>
@@ -191,11 +214,21 @@ export default function RoadmapProductsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#FFF8F0]">
-      <View className="px-3 py-3 border-b border-[#F3F4F6] bg-[#FFF8F0] flex-row items-center">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3 p-1">
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
+      <View className="px-3 py-3 border-b border-[#F3F4F6] bg-[#FFF8F0] flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3 p-1">
+            <Ionicons name="chevron-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text className="text-lg font-extrabold text-[#0F172A]">Sản phẩm của lộ trình</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Cart' as any)} className="relative">
+          <Ionicons name="bag-outline" size={24} color="#0F172A" />
+          {totalItems > 0 && (
+            <View className="absolute -top-2 -right-2 bg-amber-500 rounded-full w-5 h-5 items-center justify-center">
+              <Text className="text-white text-xs font-bold">{totalItems > 99 ? '99+' : totalItems}</Text>
+            </View>
+          )}
         </TouchableOpacity>
-        <Text className="text-lg font-extrabold text-[#0F172A]">Sản phẩm của lộ trình</Text>
       </View>
 
       {error ? (
@@ -234,6 +267,13 @@ export default function RoadmapProductsScreen() {
           ) : null}
         </View>
       )}
+
+      <Toast
+        visible={toastVisible}
+        message={toastMsg}
+        type={toastType}
+        onHidden={() => setToastVisible(false)}
+      />
     </SafeAreaView>
   );
 }

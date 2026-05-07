@@ -2,17 +2,22 @@ import { Image } from 'react-native';
 import RNFS from 'react-native-fs';
 import ImageResizer from 'react-native-image-resizer';
 
-/* ================== CONFIG ================== */
-
-const API_KEY = 'zWEpcPP03RcyECfDl1WmD4DKL419BWZFAEEike0jRJn';
-const ORG_ID = 'org_z4OIWgJN62OUQPxHMZoJY';
-
+/* ================== CONFIG (fallback mặc định) ================== */
+const DEFAULT_API_KEY = 'zWEpcPP03RcyECfDl1WmD4DKL419BWZFAEEike0jRJn';
+const DEFAULT_ORG_ID = 'org_z4OIWgJN62OUQPxHMZoJY';
 const TARGET_W = 1080;
 const TARGET_H = 1920;
 
-/* ================== UTILS ================== */
+/* ================== TYPES ================== */
+export interface BodygramCredentials {
+  apiKey: string;
+  orgId: string;
+}
 
-async function getImageSize(uri: string): Promise<{ width: number; height: number }> {
+/* ================== UTILS ================== */
+async function getImageSize(
+  uri: string,
+): Promise<{ width: number; height: number }> {
   const src = uri.startsWith('file://') ? uri : `file://${uri}`;
   return new Promise((resolve, reject) => {
     Image.getSize(src, (w, h) => resolve({ width: w, height: h }), reject);
@@ -26,7 +31,6 @@ export async function fileToBase64(uri: string) {
 
 function sanitizeBodygramResponse(response: any) {
   if (!response?.entry) return response;
-
   return {
     ...response,
     entry: {
@@ -53,7 +57,6 @@ function sanitizeRawBodygramText(raw: string) {
 }
 
 /* ================== CORE ================== */
-
 export async function cropTo9by16Center(uri: string): Promise<string> {
   const src = uri.startsWith('file://') ? uri : `file://${uri}`;
 
@@ -66,13 +69,13 @@ export async function cropTo9by16Center(uri: string): Promise<string> {
     100,
     0,
     undefined,
-    false
+    false,
   );
 
   const { width, height } = await getImageSize(normalized.uri);
   console.log(`Normalized: ${width}x${height}`);
 
-  /** 2️⃣ Resize thẳng về 1080x1920 với mode stretch */
+  /** 2️⃣ Resize về 1080x1920 với mode stretch */
   const resized = await ImageResizer.createResizedImage(
     normalized.uri,
     TARGET_W,
@@ -82,7 +85,7 @@ export async function cropTo9by16Center(uri: string): Promise<string> {
     0,
     undefined,
     false,
-    { mode: 'stretch', onlyScaleDown: false }
+    { mode: 'stretch', onlyScaleDown: false },
   );
 
   /** 3️⃣ VALIDATE */
@@ -91,7 +94,7 @@ export async function cropTo9by16Center(uri: string): Promise<string> {
 
   if (finalSize.width !== TARGET_W || finalSize.height !== TARGET_H) {
     throw new Error(
-      `❌ Invalid final size ${finalSize.width}x${finalSize.height} (expected ${TARGET_W}x${TARGET_H})`
+      `❌ Invalid final size ${finalSize.width}x${finalSize.height} (expected ${TARGET_W}x${TARGET_H})`,
     );
   }
 
@@ -99,7 +102,6 @@ export async function cropTo9by16Center(uri: string): Promise<string> {
 }
 
 /* ================== UPLOAD ================== */
-
 export async function uploadToBodygram(
   frontUri: string,
   sideUri: string,
@@ -108,8 +110,20 @@ export async function uploadToBodygram(
     gender: 'male' | 'female';
     height: number;
     weight: number;
-  }
+  },
+  credentials?: BodygramCredentials, // 👈 optional, nếu có sẽ override hardcode
 ) {
+  // Dùng credentials tùy chỉnh nếu có, không thì fallback về mặc định
+  const API_KEY_USED =
+    credentials?.apiKey?.trim() || DEFAULT_API_KEY;
+  const ORG_ID_USED =
+    credentials?.orgId?.trim() || DEFAULT_ORG_ID;
+
+  console.log(
+    'uploadToBodygram using orgId:',
+    ORG_ID_USED === DEFAULT_ORG_ID ? '(default)' : '(custom)',
+  );
+
   const front = await cropTo9by16Center(frontUri);
   const side = await cropTo9by16Center(sideUri);
 
@@ -129,16 +143,16 @@ export async function uploadToBodygram(
   };
 
   const res = await fetch(
-    `https://platform.bodygram.com/api/orgs/${ORG_ID}/scans`,
+    `https://platform.bodygram.com/api/orgs/${ORG_ID_USED}/scans`,
     {
       method: 'POST',
       headers: {
-        Authorization: API_KEY,
+        Authorization: API_KEY_USED,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
       body: JSON.stringify(payload),
-    }
+    },
   );
 
   const raw = await res.text();
@@ -151,6 +165,5 @@ export async function uploadToBodygram(
 
   const parsed = JSON.parse(raw);
   console.log('Bodygram parsed:', sanitizeBodygramResponse(parsed));
-
   return parsed;
 }
