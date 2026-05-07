@@ -23,7 +23,7 @@ function SmallCard({ item, onPress, onBuy }: { item: any; onPress: (i: any) => v
           <View className="flex-row justify-between items-center mt-2">
             <Text className="font-extrabold text-amber-600 text-lg">{price > 0 ? formatVND(price) : 'Liên hệ'}</Text>
             <TouchableOpacity onPress={() => onBuy(item)} className="bg-amber-500 px-3 py-2 rounded-lg">
-              <Text className="text-white text-sm font-bold">Mua</Text>
+              <Text className="text-white text-sm font-bold">Thêm</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -55,6 +55,14 @@ const Header = ({
       <Text className="color-foreground text-3xl font-bold text-center">
         Đăng ký lịch
       </Text>
+
+      {/* History button: navigate to SentRequests */}
+      <Pressable
+        onPress={() => navigation.navigate('SentRequests' as any)}
+        className="absolute right-4 top-1 z-10"
+      >
+        <Ionicons name="time-outline" size={22} color={colors.foreground} />
+      </Pressable>
     </View>
   );
 };

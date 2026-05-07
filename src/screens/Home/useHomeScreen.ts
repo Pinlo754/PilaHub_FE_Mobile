@@ -1,31 +1,26 @@
-import { useCallback, useRef, useState } from 'react';
-import { courseMock, exerciseMock, productMock } from '../../mocks/searchData';
-import { PermissionsAndroid, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-
+import { useRef, useState } from 'react';
+import { ScrollView } from 'react-native';
 
 export const useHomeScreen = () => {
-  // STATE
-  const [dailyTasks, setDailyTasks] = useState(courseMock);
-  const [recommendCourses, setRecommendCourses] = useState(courseMock);
-  const [newExercises, setNewExercises] = useState(exerciseMock);
-  const [newProducts, setNewProducts] = useState(productMock);
-
-  // USE REF
   const scrollRef = useRef<ScrollView>(null);
+  const [loading, setLoading] = useState(false);
 
-  // USE FOCUS EFFECT
-  useFocusEffect(
-    useCallback(() => {
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
-    }, []),
-  );
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      // Gọi các API của bạn ở đây
+      // await Promise.all([fetchRoadmap(), fetchTasks()]);
+      console.log("Data Refreshed!");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return {
-    dailyTasks,
-    recommendCourses,
-    newExercises,
-    newProducts,
     scrollRef,
+    loading,
+    refreshData
   };
 };

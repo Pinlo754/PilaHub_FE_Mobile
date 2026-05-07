@@ -19,7 +19,6 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { debounce } from 'lodash';
 
 import ShopHeader from './components/ShopHeader';
-import BannerCarousel from './components/BannerCarousel';
 import CategoryList from './components/CategoryList';
 import CardProduct from '../Home/components/CardProduct';
 import ProductSkeleton from './components/ProductSkeleton';
@@ -31,7 +30,6 @@ import {
   getProducts,
 } from '../../services/products';
 
-import bannerImg from '../../assets/banner.png';
 
 const PAGE_SIZE = 12;
 const CARD_HEIGHT = 360;

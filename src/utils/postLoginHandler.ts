@@ -6,7 +6,9 @@ import { getBodySavedFor } from './bodyCache';
 import useAuthStore from '../store/auth.store';
 
 export async function handlePostLogin(loginPayload: any, navigation: any) {
-  const account = loginPayload?.account ?? loginPayload ?? {};
+  // Handle different response structures from backend
+  const authResponse = loginPayload?.authResponse ?? loginPayload;
+  const account = authResponse?.account ?? loginPayload?.account ?? loginPayload ?? {};
   let role: string | null = account?.role ?? null;
 
   // try to read persisted role if payload missing it

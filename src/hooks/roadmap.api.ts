@@ -191,6 +191,11 @@ getMyRoadmap: async (): Promise<any> => {
   return res.data?.data ?? res.data ?? res;
 },
 
+cancelCoachRequest: async (requestId: string): Promise<any> => {
+  const res = await axios.delete(`/coach-roadmap-requests/${requestId}/cancel`);
+  return res.data ?? res;
+},
+
 };
 
 export default RoadmapApi;

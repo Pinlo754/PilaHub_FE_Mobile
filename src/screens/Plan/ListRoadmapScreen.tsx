@@ -46,14 +46,13 @@ type RoadmapItem = {
   updatedAt?: string;
 };
 
-type OwnerBadgeType = 'TRAINEE' | 'COACH' | 'UNKNOWN';
-
 const PAGE_SIZE = 10;
 
 const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
   const [roadmaps, setRoadmaps] = useState<RoadmapItem[]>([]);
 
   const [searchText, setSearchText] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'TRAINEE' | 'COACH'>('TRAINEE');
 
   const [page, setPage] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -80,10 +79,6 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
         }
 
         if (mode === 'loadMore') {
-          if (loadingMore || !hasMore) {
-            return;
-          }
-
           setLoadingMore(true);
         }
 
@@ -145,21 +140,44 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
         setLoadingMore(false);
       }
     },
-    [hasMore, loadingMore],
+    [],
   );
 
   useEffect(() => {
     fetchRoadmaps(0, 'initial');
-  }, []);
+  }, [fetchRoadmaps]);
+
+  // Reset and reload when tab changes
+  useEffect(() => {
+    setPage(0);
+    setTotalPages(1);
+    setRoadmaps([]);
+    fetchRoadmaps(0, 'initial');
+  }, [activeTab, fetchRoadmaps]);
 
   const filteredRoadmaps = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
 
+    let filtered = roadmaps;
+
+    // Filter by tab (TRAINEE or COACH)
+    filtered = filtered.filter(item => {
+      const hasTraineeId = Boolean(item.traineeId);
+      const hasCoachId = Boolean(item.coachId);
+
+      if (activeTab === 'TRAINEE') {
+        return hasTraineeId && !hasCoachId;
+      } else {
+        return hasTraineeId && hasCoachId;
+      }
+    });
+
+    // Filter by search keyword
     if (!keyword) {
-      return roadmaps;
+      return filtered;
     }
 
-    return roadmaps.filter(item => {
+    return filtered.filter(item => {
       const title = item.title?.toLowerCase() ?? '';
       const desc = item.description?.toLowerCase() ?? '';
       const goalName =
@@ -174,9 +192,13 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
         goalName.includes(keyword)
       );
     });
-  }, [roadmaps, searchText]);
+  }, [roadmaps, searchText, activeTab]);
 
   const onRefresh = () => {
+    // Prevent refresh if already loading
+    if (loading || refreshing || loadingMore) {
+      return;
+    }
     fetchRoadmaps(0, 'refresh');
   };
 
@@ -191,8 +213,13 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
   const handlePressRoadmap = (roadmapId: string) => {
     console.log('[RoadmapList] Press roadmap:', roadmapId);
 
+    // Find the roadmap item from the list
+    const selectedRoadmap = filteredRoadmaps.find(r => r.roadmapId === roadmapId);
+
     navigation.navigate('RoadmapDetail', {
       roadmapId,
+      roadmap: selectedRoadmap,
+      source: 'list',  // Track source
     });
   };
 
@@ -254,6 +281,53 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.errorText}>{errorMessage}</Text>
         </View>
       ) : null}
+
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        <Pressable
+          style={[
+            styles.tabButton,
+            activeTab === 'TRAINEE' && styles.tabButtonActive,
+          ]}
+          onPress={() => setActiveTab('TRAINEE')}
+        >
+          <Ionicons
+            name="person-outline"
+            size={18}
+            color={activeTab === 'TRAINEE' ? '#FFFFFF' : colors.foreground}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'TRAINEE' && styles.tabTextActive,
+            ]}
+          >
+            Tôi tạo
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.tabButton,
+            activeTab === 'COACH' && styles.tabButtonActive,
+          ]}
+          onPress={() => setActiveTab('COACH')}
+        >
+          <Ionicons
+            name="fitness-outline"
+            size={18}
+            color={activeTab === 'COACH' ? '#FFFFFF' : colors.foreground}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'COACH' && styles.tabTextActive,
+            ]}
+          >
+            HLV tạo
+          </Text>
+        </Pressable>
+      </View>
 
       <FlatList
         data={filteredRoadmaps}
@@ -323,8 +397,6 @@ const RoadmapCard: React.FC<RoadmapCardProps> = ({ item, onPress }) => {
 
   const primaryGoal = item.goals?.find(goal => goal.isPrimary);
   const completed = isCompletedStatus(item.status ?? '');
-
-  const ownerBadge = getOwnerBadge(item);
 
   return (
     <Pressable
@@ -412,25 +484,6 @@ const RoadmapCard: React.FC<RoadmapCardProps> = ({ item, onPress }) => {
         <View style={styles.bottomRow}>
           <View
             style={[
-              styles.ownerBadge,
-              ownerBadge.type === 'TRAINEE' && styles.ownerBadgeTrainee,
-              ownerBadge.type === 'COACH' && styles.ownerBadgeCoach,
-              ownerBadge.type === 'UNKNOWN' && styles.ownerBadgeUnknown,
-            ]}
-          >
-            <Ionicons
-              name={ownerBadge.icon}
-              size={15}
-              color={ownerBadge.color}
-            />
-
-            <Text style={[styles.ownerBadgeText, { color: ownerBadge.color }]}>
-              {ownerBadge.label}
-            </Text>
-          </View>
-
-          <View
-            style={[
               styles.statusBadge,
               completed ? styles.statusBadgeCompleted : styles.statusBadgeActive,
             ]}
@@ -442,7 +495,7 @@ const RoadmapCard: React.FC<RoadmapCardProps> = ({ item, onPress }) => {
               ]}
             />
 
-            {item.status == 'PENDING' ?
+            {item.status === 'PENDING' ?
               (<Text
                 style={[
                   styles.statusText,
@@ -468,41 +521,6 @@ const RoadmapCard: React.FC<RoadmapCardProps> = ({ item, onPress }) => {
       </View>
     </Pressable>
   );
-};
-
-const getOwnerBadge = (item: RoadmapItem): {
-  type: OwnerBadgeType;
-  label: string;
-  icon: string;
-  color: string;
-} => {
-  const hasTraineeId = Boolean(item.traineeId);
-  const hasCoachId = Boolean(item.coachId);
-
-  if (hasTraineeId && hasCoachId) {
-    return {
-      type: 'COACH',
-      label: 'Huấn luyện viên',
-      icon: 'fitness-outline',
-      color: '#7C3AED',
-    };
-  }
-
-  if (hasTraineeId && !hasCoachId) {
-    return {
-      type: 'TRAINEE',
-      label: 'Người tập',
-      icon: 'person-outline',
-      color: '#0F766E',
-    };
-  }
-
-  return {
-    type: 'UNKNOWN',
-    label: 'Không xác định',
-    icon: 'help-circle-outline',
-    color: '#92400E',
-  };
 };
 
 const isCompletedStatus = (status: string) => {
@@ -596,6 +614,37 @@ const styles = StyleSheet.create({
       height: 4,
     },
     elevation: 2,
+  },
+
+  tabsContainer: {
+    flexDirection: 'row',
+    marginBottom: 14,
+    gap: 10,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    gap: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.foreground,
+    borderColor: colors.foreground,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.foreground,
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
   },
   searchInput: {
     flex: 1,
