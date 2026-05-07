@@ -13,6 +13,8 @@ type Props = {
   exerciseDuration: number;
   exerciseTimeLeft: number;
   isExerciseRunning: boolean;
+  currentSet?: number;
+  totalSets?: number;
 };
 
 const StatsSection = ({
@@ -22,6 +24,8 @@ const StatsSection = ({
   togglePlayButton,
   exerciseDuration,
   exerciseTimeLeft,
+  currentSet = 1,
+  totalSets = 1,
 }: Props) => {
   // STATE
   const [remainingTime, setRemainingTime] = useState(exerciseDuration);
@@ -63,13 +67,15 @@ const StatsSection = ({
           <View className="absolute -top-6 left-4">
             <View className="flex-row gap-1 items-center">
               <Ionicons
-                name="fitness-outline"
+                name="repeat-outline"
                 size={20}
-                color={colors.danger.darker}
+                color={colors.foreground}
               />
               <View className="flex-row gap-1 items-end">
-                <Text className="color-foreground font-bold">100</Text>
-                <Text className="color-foreground text-sm">bpm</Text>
+                <Text className="color-foreground font-bold">
+                  {currentSet}/{totalSets}
+                </Text>
+                <Text className="color-foreground text-sm">sets</Text>
               </View>
             </View>
           </View>

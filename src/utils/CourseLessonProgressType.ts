@@ -24,9 +24,10 @@ export type PracticePayload = {
   progressId: string;
   lessonExerciseIds: string[];
   exerciseIds: ExerciseType['exerciseId'][];
-  durations: number[]; 
+  durations: number[];
   lessonDurations: number[];
-  restSeconds: number[]; 
+  sets: number[];
+  restSeconds: number[];
   programId: string;
   traineeCourseId: string | null;
 };

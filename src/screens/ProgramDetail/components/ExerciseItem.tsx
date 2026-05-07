@@ -103,6 +103,7 @@ const ExerciseItem = ({
         ex => ex.durationSeconds ?? ex.exercise.duration ?? 60,
       ),
       restSeconds: sortedExercises.map(ex => ex.restSeconds ?? 15),
+      sets: sortedExercises.map(ex => ex.sets ?? 1),
       programId: programId,
       traineeCourseId: traineeCourseId,
     };

@@ -6,6 +6,7 @@ import { colors } from '../../../theme/colors';
 import { useEffect, useRef, useState } from 'react';
 import { ExerciseEquipment } from '../../../utils/EquipmentType';
 import {
+  getBodyPartLabel,
   getBreathingRuleConfig,
   getExerciseTypeConfig,
 } from '../../../utils/uiMapper';
@@ -143,7 +144,7 @@ const Description = ({ exerciseDetail, isPracticeTab, equipments }: Props) => {
                   className="px-2 py-0.5 rounded-full bg-background-sub1"
                 >
                   <Text className="text-sm font-medium text-secondaryText">
-                    {bp.name}
+                    {getBodyPartLabel(bp.name)}
                   </Text>
                 </View>
               ))}
