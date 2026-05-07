@@ -487,7 +487,7 @@ export default function ResultScreen({ route, navigation }: Props) {
 
       if (h <= 0) return null;
 
-      return round1(weightKg / (h * h));
+      return round1(weightKg / (h * h)/10);
     };
 
     const setIfExists = (key: string, bodygramName: string) => {
@@ -534,7 +534,7 @@ export default function ResultScreen({ route, navigation }: Props) {
       out.bodyFatPercentage ??
       profile?.bodyFatPercentage ??
       (profile?.bodyComposition?.bodyFatPercentage != null
-        ? Number(profile.bodyComposition.bodyFatPercentage).toFixed(2)
+        ? Number(profile.bodyComposition.bodyFatPercentage ).toFixed(2)
         : undefined);
 
     out.muscleMassKg =

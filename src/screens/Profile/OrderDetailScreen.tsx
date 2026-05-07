@@ -512,6 +512,194 @@ const OrderDetailScreen: React.FC = () => {
           ))}
         </View>
 
+        {tracking && Array.isArray(tracking.shipments) && tracking.shipments.length > 0 ? (
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="cube-outline" size={19} color={COLORS.primary} />
+              <Text style={styles.sectionTitle}>Vận chuyển</Text>
+            </View>
+
+            {tracking.shipments.map((shipment: any, shipmentIdx: number) => {
+              const shipmentKey = `shipment-${shipmentIdx}`;
+              const isExpanded = expandedShipments[shipmentKey] ?? false;
+              
+              // Define all possible shipment statuses in order
+              const allStatuses = [
+                { value: 'READY_TO_PICK', label: 'Chuẩn bị giao', group: 'waiting' },
+                { value: 'PICKING', label: 'Đang chuẩn bị', group: 'waiting' },
+                { value: 'PICKED', label: 'Đã chuẩn bị', group: 'waiting' },
+                { value: 'TRANSPORTING', label: 'Đang vận chuyển', group: 'shipping' },
+                { value: 'DELIVERING', label: 'Đang giao hàng', group: 'shipping' },
+                { value: 'DELIVERED', label: 'Đã giao', group: 'success' },
+              ];
+
+              const currentStatus = String(shipment.status).toUpperCase();
+              const currentIdx = allStatuses.findIndex(s => s.value === currentStatus);
+
+              const getStatusColor = (idx: number, isCurrent: boolean, isPast: boolean) => {
+                if (isPast) return { dotColor: '#10B981', lineColor: '#10B981', dotBg: '#ECFDF5' };
+                if (isCurrent) return { dotColor: COLORS.primary, lineColor: COLORS.primary, dotBg: '#FEF3C7' };
+                return { dotColor: '#94A3B8', lineColor: '#CBD5E1', dotBg: '#F1F5F9' };
+              };
+
+              return (
+                <View key={shipmentKey} style={styles.shipmentTimelineWrap}>
+                  {/* Header */}
+                  <Pressable
+                    style={styles.shipmentTimelineHeader}
+                    onPress={() => toggleShipment(shipmentKey)}
+                  >
+                    <View style={styles.flex1}>
+                      <Text style={styles.vendorTitle}>
+                        {shipment.vendor || `Lô hàng ${shipmentIdx + 1}`}
+                      </Text>
+                      {shipment.trackingNumber ? (
+                        <Text style={styles.trackingNo}>Mã: {shipment.trackingNumber}</Text>
+                      ) : null}
+                    </View>
+
+                    <Ionicons
+                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={COLORS.primary}
+                    />
+                  </Pressable>
+
+                  {/* Timeline - Always show summary, expand for full */}
+                  <View style={styles.timelineVertical}>
+                    {allStatuses.slice(0, isExpanded ? allStatuses.length : 3).map((status, idx) => {
+                      const isPast = currentIdx > idx;
+                      const isCurrent = currentIdx === idx;
+                      const colors = getStatusColor(idx, isCurrent, isPast);
+
+                      return (
+                        <View key={status.value} style={styles.timelineRowWrap}>
+                          <View style={styles.timelineLeftCol}>
+                            {/* Timeline line (before dot) */}
+                            {idx > 0 && (
+                              <View
+                                style={[
+                                  styles.timelineLineBefore,
+                                  { backgroundColor: colors.lineColor },
+                                ]}
+                              />
+                            )}
+
+                            {/* Dot */}
+                            <View
+                              style={[
+                                styles.timelineDotLarge,
+                                { backgroundColor: colors.dotBg, borderColor: colors.dotColor },
+                              ]}
+                            >
+                              {isPast ? (
+                                <Ionicons name="checkmark" size={12} color={colors.dotColor} />
+                              ) : isCurrent ? (
+                                <View style={styles.timelineActiveDot} />
+                              ) : (
+                                <View style={styles.timelineInactiveDot} />
+                              )}
+                            </View>
+
+                            {/* Timeline line (after dot) */}
+                            {idx < allStatuses.length - 1 && (
+                              <View
+                                style={[
+                                  styles.timelineLineAfter,
+                                  {
+                                    backgroundColor: currentIdx > idx ? colors.lineColor : '#E2E8F0',
+                                  },
+                                ]}
+                              />
+                            )}
+                          </View>
+
+                          {/* Right side: Text */}
+                          <View style={styles.timelineRightCol}>
+                            <Text
+                              style={[
+                                styles.timelineStepLabel,
+                                {
+                                  color: isCurrent ? COLORS.primary : isPast ? '#047857' : '#94A3B8',
+                                  fontWeight: isCurrent ? '900' : isPast ? '800' : '700',
+                                  fontSize: isCurrent ? 14 : 13,
+                                },
+                              ]}
+                            >
+                              {status.label}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    {!isExpanded && allStatuses.length > 3 && (
+                      <View style={styles.timelineMoreHint}>
+                        <Text style={styles.timelineMoreText}>
+                          +{allStatuses.length - 3} bước khác
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Expanded details */}
+                  {isExpanded && (
+                    <View style={styles.shipmentExpandedDetails}>
+                      {(shipment.provider || shipment.shippedAt || shipment.estimatedDeliveryDate || shipment.deliveredAt) ? (
+                        <View style={styles.detailsGrid}>
+                          {shipment.provider ? (
+                            <View style={styles.detailsBox}>
+                              <Text style={styles.detailsLabel}>Nhà cung cấp</Text>
+                              <Text style={styles.detailsValue}>{shipment.provider}</Text>
+                            </View>
+                          ) : null}
+
+                          {shipment.shippedAt ? (
+                            <View style={styles.detailsBox}>
+                              <Text style={styles.detailsLabel}>Ngày gửi</Text>
+                              <Text style={styles.detailsValue}>
+                                {formatDate(shipment.shippedAt)}
+                              </Text>
+                            </View>
+                          ) : null}
+
+                          {shipment.estimatedDeliveryDate ? (
+                            <View style={styles.detailsBox}>
+                              <Text style={styles.detailsLabel}>Dự kiến</Text>
+                              <Text style={styles.detailsValue}>
+                                {formatDate(shipment.estimatedDeliveryDate)}
+                              </Text>
+                            </View>
+                          ) : null}
+
+                          {shipment.deliveredAt ? (
+                            <View style={styles.detailsBox}>
+                              <Text style={styles.detailsLabel}>Giao thực tế</Text>
+                              <Text style={styles.detailsValue}>
+                                {formatDate(shipment.deliveredAt)}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+
+                      {shipment.trackingNumber ? (
+                        <Pressable
+                          style={styles.copyTrackBtn}
+                          onPress={() => copyToClipboard(shipment.trackingNumber)}
+                        >
+                          <Ionicons name="copy-outline" size={14} color="#fff" />
+                          <Text style={styles.copyTrackText}>Sao chép mã vận đơn</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="card-outline" size={19} color={COLORS.primary} />
@@ -855,6 +1043,130 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F3E7D9',
   },
+  shipmentTimelineWrap: {
+    backgroundColor: '#FFFBF7',
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F3E7D9',
+    overflow: 'hidden',
+  },
+  shipmentTimelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3E7D9',
+  },
+  timelineVertical: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  timelineRowWrap: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  timelineLeftCol: {
+    width: 50,
+    alignItems: 'center',
+  },
+  timelineLineBefore: {
+    width: 2,
+    height: 10,
+    marginBottom: 2,
+  },
+  timelineDotLarge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineActiveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  timelineInactiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#CBD5E1',
+  },
+  timelineLineAfter: {
+    width: 2,
+    height: 10,
+    marginTop: 2,
+  },
+  timelineRightCol: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  timelineStepLabel: {
+    fontSize: 13,
+  },
+  timelineMoreHint: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  timelineMoreText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  shipmentExpandedDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3E7D9',
+    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  detailsBox: {
+    flex: 1,
+    minWidth: '48%',
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  detailsLabel: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  detailsValue: {
+    marginTop: 5,
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  copyTrackBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copyTrackText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 13,
+    marginLeft: 6,
+  },
   shipmentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -902,6 +1214,9 @@ const styles = StyleSheet.create({
   shipInfoGrid: {
     flexDirection: 'row',
     gap: 8,
+  },
+  shipInfoGridSpaced: {
+    marginTop: 8,
   },
   shipInfoBox: {
     flex: 1,

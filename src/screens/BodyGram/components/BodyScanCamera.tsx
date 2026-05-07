@@ -115,7 +115,7 @@ export default function BodyScanCamera({ onCapture, mode }: Props) {
       />
 
       {/* OVERLAY HƯỚNG DẪN */}
-      <BodySilhouetteOverlay mode={mode} />
+      <BodySilhouetteOverlay mode={mode} isFrontCamera={useFront} />
 
       {/* HƯỚNG DẪN POSE */}
       <View className="absolute top-10 w-full items-center">

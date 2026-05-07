@@ -93,6 +93,11 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
     showPracticeConfirmModal,
     closePracticeConfirmModal,
     onPracticeConfirmModal,
+    // Sets
+    currentSet,
+    totalSets,
+    showSetRestCountdown,
+    onSetRestCountdownFinished,
   } = useProgramDetail({
     route,
     navigation,
@@ -139,6 +144,8 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
             exerciseDuration={currentExercise.duration}
             exerciseTimeLeft={exerciseTimeLeft}
             isExerciseRunning={isExerciseRunning}
+            currentSet={currentSet}
+            totalSets={totalSets}
           />
         </>
       ) : (
@@ -303,6 +310,12 @@ const ProgramDetail: React.FC<Props> = ({ route, navigation }) => {
         visible={showRestCountdown}
         duration={restCountdownDuration}
         onFinish={onRestCountdownFinished}
+      />
+
+      <CountdownModal
+        visible={showSetRestCountdown}
+        duration={restCountdownDuration}
+        onFinish={onSetRestCountdownFinished}
       />
 
       {/* ── MODALS PRACTICE ── */}

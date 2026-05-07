@@ -16,7 +16,11 @@ import {
 } from '../../utils/CourseLessonProgressType';
 import { fetchTraineeProfile } from '../../services/profile';
 import { formatVND } from '../../utils/number';
-import { ExerciseType, PackageType, TutorialType } from '../../utils/ExerciseType';
+import {
+  ExerciseType,
+  PackageType,
+  TutorialType,
+} from '../../utils/ExerciseType';
 import { getProfile } from '../../services/auth';
 import { WalletType } from '../../utils/WalletType';
 import { WalletService } from '../../hooks/wallet.service';
@@ -45,6 +49,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const TIMEOUT = 3010;
   const COUNTDOWN_START = 5;
   const COUNTDOWN_REST = 15;
+  const COUNTDOWN_SET_REST = 10;
 
   // ─── STATE: Program ───────────────────────────────────────────────────────
   const [programFullDetail, setProgramFullDetail] =
@@ -94,12 +99,15 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [practicePayload, setPracticePayload] =
     useState<PracticePayload | null>(null);
+  const [currentSet, setCurrentSet] = useState<number>(1);
+  const [totalSets, setTotalSets] = useState<number>(1);
 
   // Countdown
   const [showStartCountdown, setShowStartCountdown] = useState(false);
   const [showRestCountdown, setShowRestCountdown] = useState(false);
   const [restCountdownDuration, setRestCountdownDuration] =
     useState(COUNTDOWN_REST);
+  const [showSetRestCountdown, setShowSetRestCountdown] = useState(false);
 
   // Timer
   const [exerciseTimeLeft, setExerciseTimeLeft] = useState(0);
@@ -121,6 +129,8 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
   const workoutSessionRef = useRef<WorkoutSessionType | undefined>(undefined);
   const practicePayloadRef = useRef<PracticePayload | null>(null);
   const isEnrolledRef = useRef(false);
+  const currentSetRef = useRef<number>(1);
+  const totalSetsRef = useRef<number>(1);
 
   // ─── VARIABLES ────────────────────────────────────────────────────────────
   const isFromList = source === 'List';
@@ -163,6 +173,14 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
       wallet.availableVND < programFullDetail.course.price,
     );
   }, [programFullDetail, wallet]);
+
+  useEffect(() => {
+    currentSetRef.current = currentSet;
+  }, [currentSet]);
+
+  useEffect(() => {
+    totalSetsRef.current = totalSets;
+  }, [totalSets]);
 
   // ─── FETCH: Program ───────────────────────────────────────────────────────
   const fetchInformation = async () => {
@@ -486,6 +504,7 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
         ex => ex.durationSeconds ?? ex.exercise.duration ?? 60,
       ),
       restSeconds: sorted.map(ex => ex.restSeconds ?? COUNTDOWN_REST),
+      sets: sorted.map(ex => ex.sets ?? 1),
       programId: program_id,
       traineeCourseId,
     };
@@ -550,6 +569,12 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
       const payload = buildPayload(lesson, progressId);
       setPracticePayload(payload);
       practicePayloadRef.current = payload;
+
+      const firstTotalSets = payload.sets?.[0] ?? 1;
+      setTotalSets(firstTotalSets);
+      totalSetsRef.current = firstTotalSets;
+      setCurrentSet(1);
+      currentSetRef.current = 1;
 
       const firstExerciseId = payload.exerciseIds[0];
       const [exercise, tutorial] = await Promise.all([
@@ -707,19 +732,49 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     await doTransitionToNextExercise();
   };
 
+  const onSetRestCountdownFinished = () => {
+    setShowSetRestCountdown(false);
+    // Tăng set, reset timer
+    const nextSet = currentSetRef.current + 1;
+    currentSetRef.current = nextSet;
+    setCurrentSet(nextSet);
+
+    setIsPlaying(true);
+
+    const payload = practicePayloadRef.current;
+    const duration =
+      payload?.lessonDurations?.[currentExerciseIndexRef.current] ??
+      payload?.durations?.[currentExerciseIndexRef.current] ??
+      60;
+    startExerciseTimer(duration);
+  };
+
   // ─── EXERCISE DONE ────────────────────────────────────────────────────────
   const handleExerciseDone = async () => {
     const payload = practicePayloadRef.current;
     if (!payload) return;
 
     try {
+      const isLastSet = currentSetRef.current >= totalSetsRef.current;
+
+      if (!isLastSet) {
+        // Còn set tiếp theo → nghỉ giữa sets
+        setIsPlaying(false);
+        const rest =
+          payload.restSeconds?.[currentExerciseIndexRef.current] ??
+          COUNTDOWN_SET_REST;
+        setRestCountdownDuration(rest);
+        setShowSetRestCountdown(true);
+        return;
+      }
+
+      // Hết tất cả sets của bài này
       await endWorkout();
 
-      const isLast =
+      const isLastExercise =
         currentExerciseIndexRef.current === payload.exerciseIds.length - 1;
 
-      if (!isLast) {
-        // Dừng video khi nghỉ giữa bài
+      if (!isLastExercise) {
         setIsPlaying(false);
         const rest =
           payload.restSeconds?.[currentExerciseIndexRef.current] ??
@@ -733,7 +788,6 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
         openPracticeSuccessModal('Bạn đã hoàn thành buổi tập!');
         setTimeout(async () => {
           stopPractice();
-          // Fetch lại sau khi hoàn thành
           setIsLoading(true);
           try {
             await fetchById();
@@ -756,6 +810,13 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
 
     currentExerciseIndexRef.current = nextIndex;
     setCurrentExerciseIndex(nextIndex);
+
+    // Reset sets cho bài mới
+    const nextTotalSets = payload.sets?.[nextIndex] ?? 1;
+    totalSetsRef.current = nextTotalSets;
+    setTotalSets(nextTotalSets);
+    currentSetRef.current = 1;
+    setCurrentSet(1);
 
     const [nextExercise, nextTutorial] = await Promise.all([
       exerciseService.getById(nextExerciseId),
@@ -791,6 +852,11 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     setPracticePayload(null);
     practicePayloadRef.current = null;
     setWorkoutSessionSynced(undefined);
+    setCurrentSet(1);
+    currentSetRef.current = 1;
+    setTotalSets(1);
+    totalSetsRef.current = 1;
+    setShowSetRestCountdown(false);
   };
 
   const onPressExitPractice = () => {
@@ -1077,5 +1143,10 @@ export const useProgramDetail = ({ route, navigation }: Props) => {
     showPracticeConfirmModal,
     closePracticeConfirmModal,
     onPracticeConfirmModal,
+    // Sets
+    currentSet,
+    totalSets,
+    showSetRestCountdown,
+    onSetRestCountdownFinished,
   };
 };

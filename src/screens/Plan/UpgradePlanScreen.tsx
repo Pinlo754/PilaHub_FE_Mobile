@@ -552,14 +552,13 @@ const UpgradePlanScreen: React.FC = () => {
 
             const subscription = extractSubscriptionFromResponse(res);
 
-            if (subscription) {
-              setActiveSubscription(
-                String(subscription?.status ?? '').toUpperCase() === 'ACTIVE'
-                  ? subscription
-                  : activeSubscription,
-              );
+            // Force update active subscription if purchase successful
+            if (subscription && String(subscription?.status ?? '').toUpperCase() === 'ACTIVE') {
+              setActiveSubscription(subscription);
+              console.log('[UpgradePlan] purchase successful, active subscription updated:', subscription);
             }
 
+            // Refresh to get latest data from backend
             await refreshSubscriptionAndPlans();
 
             showModal({
@@ -752,6 +751,17 @@ const UpgradePlanScreen: React.FC = () => {
               const itemPkgId = getPackageIdFromPlan(item);
               const subscriptionStatus = getSubscriptionStatusByPackageId(itemPkgId);
 
+              // Check if user has higher tier subscription (VIP_MEMBER)
+              const currentPackageType = activeSubscription?.subscribedPackage?.packageType
+                ?? activeSubscription?.package?.packageType
+                ?? activeSubscription?.packageInfo?.packageType
+                ?? null;
+
+              const itemPackageType = item?.raw?.packageType ?? item?.packageType ?? null;
+
+              // If user has VIP_MEMBER, disable MEMBER package
+              const isHigherTierActive = currentPackageType === 'VIP_MEMBER' && itemPackageType === 'MEMBER';
+
               const canUpgrade = upgradeablePackages.some((u: any) => {
                 const upPkgId =
                   u?.packageInfo?.packageId ??
@@ -769,9 +779,11 @@ const UpgradePlanScreen: React.FC = () => {
                     ? 'UPGRADED'
                     : subscriptionStatus === 'EXPIRED'
                       ? 'EXPIRED'
-                      : canUpgrade
-                        ? 'UPGRADE'
-                        : 'SUBSCRIBE';
+                      : isHigherTierActive
+                        ? 'UPGRADED' // Show "Không khả dụng" for lower tier when higher tier is active
+                        : canUpgrade
+                          ? 'UPGRADE'
+                          : 'SUBSCRIBE';
 
               const upgradeInfo =
                 upgradeablePackages.find((u: any) => {
@@ -789,6 +801,9 @@ const UpgradePlanScreen: React.FC = () => {
                 itemPkgId,
                 subscriptionStatus,
                 actionType,
+                currentPackageType,
+                itemPackageType,
+                isHigherTierActive,
               });
 
               return (

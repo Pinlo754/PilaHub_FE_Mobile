@@ -63,51 +63,51 @@ const TabNavigator: React.FC = () => {
             tabBarIcon: TabIcon('list-circle-outline', 'list-circle', 28),
           }}
         />
-        <Tab.Screen
-          name="Roadmap"
-          component={RoadmapStackNavigator}
-          options={{
-            tabBarLabel: () => null,
-            tabBarIcon: TabIcon(
-              'git-network-outline',
-              'git-network-outline',
-              30,
-              '#FFF',
-            ),
-            tabBarButton: RenderCenterTabBtn,
-          }}
-          listeners={({ navigation: nav }) => ({
-            tabPress: (_e: any) => {
-              // When pressing the Roadmap tab
-              const state = nav.getState();
-              const currentTabRoute = state?.routes[state.index];
-
-              // If currently on Roadmap tab
-              if (currentTabRoute?.name === 'Roadmap' && currentTabRoute?.state) {
-                const nestedState = currentTabRoute.state;
-                if (nestedState?.routes && nestedState.routes.length > 1 && nestedState.index !== undefined) {
-                  const detailRoute = nestedState.routes[nestedState.index];
-                  const source = (detailRoute?.params as any)?.source;
-
-                  // If from list, reset to RoadmapList
-                  if (source === 'list') {
-                    nav.reset({
-                      index: 0,
-                      routes: [{ name: 'Roadmap', state: { routes: [{ name: 'RoadmapList' }] } }],
-                    });
-                  }
-                  // If from home, keep the detail screen (do nothing)
-                }
-              } else {
-                // If NOT on Roadmap tab (e.g., coming from Home), reset to RoadmapList
-                nav.reset({
-                  index: 0,
-                  routes: [{ name: 'Roadmap', state: { routes: [{ name: 'RoadmapList' }] } }],
-                });
-              }
-            },
-          })}
-        />
+     <Tab.Screen
+  name="Roadmap"
+  component={RoadmapStackNavigator}
+  options={{
+    tabBarLabel: () => null,
+    tabBarIcon: TabIcon(
+      'git-network-outline',
+      'git-network-outline',
+      30,
+      '#FFF',
+    ),
+    tabBarButton: RenderCenterTabBtn,
+  }}
+  listeners={({ navigation: nav }) => ({
+    tabPress: (_e: any) => {
+      // When pressing the Roadmap tab
+      const state = nav.getState();
+      const currentTabRoute = state?.routes[state.index];
+      
+      // If currently on Roadmap tab
+      if (currentTabRoute?.name === 'Roadmap' && currentTabRoute?.state) {
+        const nestedState = currentTabRoute.state;
+        if (nestedState?.routes && nestedState.routes.length > 1 && nestedState.index !== undefined) {
+          const detailRoute = nestedState.routes[nestedState.index];
+          const source = (detailRoute?.params as any)?.source;
+          
+          // If from list, reset to RoadmapList
+          if (source === 'list') {
+            nav.reset({
+              index: 0,
+              routes: [{ name: 'Roadmap', state: { routes: [{ name: 'RoadmapList' }] } }],
+            });
+          }
+          // If from home, keep the detail screen (do nothing)
+        }
+      } else {
+        // If NOT on Roadmap tab (e.g., coming from Home), reset to RoadmapList
+        nav.reset({
+          index: 0,
+          routes: [{ name: 'Roadmap', state: { routes: [{ name: 'RoadmapList' }] } }],
+        });
+      }
+    },
+  })}
+/>
         <Tab.Screen
           name="Shop"
           component={ShopScreen}

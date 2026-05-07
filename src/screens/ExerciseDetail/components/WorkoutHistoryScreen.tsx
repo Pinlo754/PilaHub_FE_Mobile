@@ -13,13 +13,12 @@ type Props = {
   fetchAISummary: (workoutSessionId: string, recordUrl: string) => void;
 };
 
-type FilterTab = 'all' | 'free' | 'course' | 'roadmap';
+type FilterTab = 'free' | 'course' | 'roadmap';
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
-  { key: 'all', label: 'Tất cả' },
   { key: 'free', label: 'Tập lẻ' },
   { key: 'course', label: 'Khóa học' },
-  { key: 'roadmap', label: 'Roadmap' },
+  { key: 'roadmap', label: 'Lộ trình cá nhân' },
 ];
 
 const PAGE_SIZE = 13;
@@ -30,7 +29,7 @@ const WorkoutHistoryScreen = ({
   workoutHistory,
   fetchAISummary,
 }: Props) => {
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('free');
   const [page, setPage] = useState(1);
   const [selectedSession, setSelectedSession] =
     useState<WorkoutSessionType | null>(null);
@@ -83,7 +82,7 @@ const WorkoutHistoryScreen = ({
           <Pressable
             key={tab.key}
             onPress={() => onChangeFilter(tab.key)}
-            className={`flex items-center w-24 border-b-2 ${
+            className={`flex items-center w-36 border-b-2 ${
               activeFilter === tab.key
                 ? 'border-foreground'
                 : 'border-transparent'
