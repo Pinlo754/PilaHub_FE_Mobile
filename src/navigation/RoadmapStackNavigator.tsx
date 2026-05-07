@@ -9,6 +9,8 @@ export type RoadmapStackParamList = {
   RoadmapList: undefined;
   RoadmapDetail: {
     roadmapId: string;
+    roadmap?: any;  // Optional roadmap data from list
+    source?: 'home' | 'list';  // Track where it came from
   };
   RoadmapResult: {
   roadmapId: string;
@@ -45,3 +47,5 @@ const RoadmapStackNavigator = () => {
 };
 
 export default RoadmapStackNavigator;
+
+

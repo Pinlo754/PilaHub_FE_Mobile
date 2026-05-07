@@ -8,6 +8,7 @@ type BleContextType = {
   connectedDevice: Device | null;
   hr: number | null;
   status: string;
+  isIotDeviceConnected: boolean;
   startScanForPolar: () => void;
   stopScan: () => void;
   disconnect: () => void;
@@ -24,7 +25,7 @@ export const BleProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const scanRef = useRef<any>(null);
   // keep simple reconnect attempts counter if needed later
   // const reconnectAttempts = useRef<number>(0);
-
+  const isIotDeviceConnected = connectedDevice !== null && status === 'receiving';
   async function ensurePermissions() {
     if (Platform.OS !== 'android') return true;
     try {
@@ -226,7 +227,7 @@ export const BleProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <BleContext.Provider
-      value={{ connectedDevice, hr, status, startScanForPolar, stopScan, disconnect }}
+      value={{ connectedDevice, hr, status, isIotDeviceConnected, startScanForPolar, stopScan, disconnect }}
     >
       {children}
     </BleContext.Provider>

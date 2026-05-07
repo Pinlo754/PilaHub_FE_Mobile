@@ -178,11 +178,30 @@ export default function HealthProfileAssessmentScreen() {
          *   screen: 'Roadmap',
          *   params: ...
          * }
+         * 
+         * Or with nested screen:
+         * returnToAfterAssessment = {
+         *   root: 'MainTabs',
+         *   screen: 'Roadmap',
+         *   nestedScreen: 'RoadmapDetail',
+         *   params: { roadmapId: '...' }
+         * }
          */
         if (
           typeof returnToAfterAssessment === 'object' &&
           returnToAfterAssessment.root
         ) {
+          const nestedScreen = (returnToAfterAssessment as any).nestedScreen;
+          const params = (returnToAfterAssessment as any).params ?? undefined;
+
+          // If there's a nested screen, include it in params
+          const screenParams = nestedScreen
+            ? {
+              screen: nestedScreen,
+              params,
+            }
+            : (params ?? undefined);
+
           (navigation as any).reset({
             index: 0,
             routes: [
@@ -190,7 +209,7 @@ export default function HealthProfileAssessmentScreen() {
                 name: returnToAfterAssessment.root,
                 params: {
                   screen: returnToAfterAssessment.screen ?? 'Home',
-                  params: returnToAfterAssessment.params ?? undefined,
+                  params: screenParams,
                 },
               },
             ],

@@ -8,6 +8,8 @@ export type VendorItem = {
   description?: string;
   logoUrl?: string;
   city?: string;
+  address?: string;
+  phoneNumber?: string;
   rating?: number;
   verified?: boolean;
   raw?: any;
@@ -28,6 +30,10 @@ export async function getVendorById(vendorId: string): Promise<VendorItem | null
       description: v.description ?? v.about ?? undefined,
       logoUrl: normalizeImageUrl(v.logoUrl ?? v.logo_url ?? v.logo) ?? undefined,
       city: v.city ?? v.location ?? undefined,
+      // map possible address fields returned by different APIs
+      address:
+        v.address ?? v.address_line ?? v.street_address ?? v.location_address ?? v.address_line1 ?? undefined,
+      phoneNumber: v.phoneNumber ?? v.phone_number ?? v.phone ?? undefined,
       rating: typeof v.avgRating === 'number' ? v.avgRating : (v.avg_rating ? Number(v.avg_rating) : undefined),
       verified: Boolean(v.verified ?? false),
       raw: v,

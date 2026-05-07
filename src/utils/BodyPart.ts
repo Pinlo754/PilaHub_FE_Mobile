@@ -27,3 +27,33 @@ export const BODY_PART_MAP: Record<string, string> = {
 export const getBodyPartId = (name: string): string | null => {
   return BODY_PART_MAP[name.toLowerCase()] || null;
 };
+
+export const BODY_PART_VI_MAP: Record<string, string> = {
+  core: "Cơ trung tâm",
+  chest: "Ngực",
+  neck: "Cổ",
+  feet: "Bàn chân",
+  "lower back": "Lưng dưới",
+  ankles: "Mắt cá chân",
+  "upper back": "Lưng trên",
+  elbows: "Khuỷu tay",
+  "thoracic spine": "Cột sống ngực",
+  "lumbar spine": "Cột sống thắt lưng",
+  shoulders: "Vai",
+  glutes: "Mông",
+  arms: "Cánh tay",
+  "cervical spine": "Cột sống cổ",
+  wrists: "Cổ tay",
+  hips: "Hông",
+  hands: "Bàn tay",
+  forearms: "Cẳng tay",
+  knees: "Đầu gối",
+  thighs: "Đùi",
+  "upper arms": "Bắp tay",
+  calves: "Bắp chân",
+  head: "Đầu",
+};
+
+export const getBodyPartVi = (name: string): string => {
+  return BODY_PART_VI_MAP[name.toLowerCase()] || name;
+};

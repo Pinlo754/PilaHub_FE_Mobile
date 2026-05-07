@@ -411,6 +411,7 @@ export default function AddressFormScreen({ route }: any) {
         ) : (
           <Picker
             selectedValue={selectedProvince}
+            className='text-black'
             onValueChange={value => {
               setSelectedProvince(value);
               setSelectedDistrict(null);
@@ -444,6 +445,7 @@ export default function AddressFormScreen({ route }: any) {
           <Picker
             selectedValue={selectedDistrict}
             enabled={districts.length > 0}
+            className='text-black'
             onValueChange={value => {
               setSelectedDistrict(value);
               setSelectedWard(null);
@@ -474,6 +476,7 @@ export default function AddressFormScreen({ route }: any) {
         ) : (
           <Picker
             selectedValue={selectedWard}
+            className='text-black'
             enabled={wards.length > 0}
             onValueChange={value => {
               setSelectedWard(value);

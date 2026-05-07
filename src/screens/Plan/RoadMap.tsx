@@ -9,6 +9,7 @@ import {
   Image,
   Modal,
   TextInput,
+  DeviceEventEmitter,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ModalPopup from '../../components/ModalPopup';
@@ -267,13 +268,57 @@ const RoadMap = () => {
 
   const fetchNewest = useCallback(async () => {
     try {
+      console.log('[fetchNewest] 🚀 Bắt đầu fetch dữ liệu mới...');
       setSaving(true);
 
-      const newestData = routeRoadmapId
-        ? await RoadmapApi.getRoadmapDetail(String(routeRoadmapId))
-        : await RoadmapApi.getNewest();
+      let newestData: any;
+      
+      if (routeRoadmapId) {
+        console.log('[fetchNewest] 📥 Fetching with routeRoadmapId:', routeRoadmapId);
+        newestData = await RoadmapApi.getRoadmapDetail(String(routeRoadmapId));
+      } else {
+        // First get the newest roadmap to get the ID
+        console.log('[fetchNewest] 📥 Fetching newest roadmap first...');
+        const newestResponse = await RoadmapApi.getNewest();
+        console.log('[fetchNewest] Got newest roadmap response:', newestResponse);
+        
+        const roadmapId = newestResponse?.roadmapId ?? newestResponse?.id ?? null;
+        
+        if (roadmapId) {
+          // Now fetch the full details with stages and schedules
+          console.log('[fetchNewest] 📥 Fetching full details for roadmapId:', roadmapId);
+          newestData = await RoadmapApi.getRoadmapDetail(String(roadmapId));
+        } else {
+          console.warn('[fetchNewest] ⚠️ Could not get roadmapId from getNewest()');
+          newestData = newestResponse;
+        }
+      }
 
-      console.log('roadmap current response:', newestData);
+      console.log('[fetchNewest] ✅ Fetch thành công:', newestData);
+      console.log('[fetchNewest] 📋 Stages từ server:', newestData?.stages);
+      
+      // Log thông tin chi tiết về schedules
+      if (newestData?.stages && Array.isArray(newestData.stages)) {
+        newestData.stages.forEach((stage: any, idx: number) => {
+          console.log(`[fetchNewest] Stage ${idx}:`, stage?.name ?? stage?.title);
+          if (stage?.schedules && Array.isArray(stage.schedules)) {
+            stage.schedules.forEach((sch: any, sidx: number) => {
+              const schedule = sch?.schedule ?? sch;
+              console.log(
+                `  - Schedule ${sidx}: ${schedule?.scheduleName ?? 'N/A'} | completed: ${schedule?.completed} | status: ${schedule?.status}`
+              );
+              // 🔍 Log chi tiết từng exercise
+              if (sch?.exercises && Array.isArray(sch.exercises)) {
+                sch.exercises.forEach((ex: any, eidx: number) => {
+                  console.log(
+                    `    - Exercise ${eidx}: ${ex?.exerciseName ?? 'N/A'} | completed: ${ex?.completed}`
+                  );
+                });
+              }
+            });
+          }
+        });
+      }
 
       const roadmapFromServer = newestData?.roadmap ?? newestData ?? null;
 
@@ -325,10 +370,12 @@ const RoadMap = () => {
       setCurrentStagesData(
         Array.isArray(stagesFromServer) ? stagesFromServer : [],
       );
+      console.log('[fetchNewest] 📊 Cập nhật state xong');
     } catch (err: any) {
-      console.warn('fetchNewest error', err);
+      console.warn('[fetchNewest] ❌ Lỗi:', err);
     } finally {
       setSaving(false);
+      console.log('[fetchNewest] ⏹️ Fetch xong');
     }
   }, [
     getRoadmapId,
@@ -366,6 +413,32 @@ const RoadMap = () => {
   useEffect(() => {
     fetchNewest();
   }, [fetchNewest]);
+
+  // 🔄 Listener cho scheduleCompleted event để auto-refresh
+  useEffect(() => {
+    console.log('[RoadMap] 📡 Setting up scheduleCompleted listener...');
+    const listener = DeviceEventEmitter.addListener(
+      'scheduleCompleted',
+      async () => {
+        console.log('[RoadMap] 🎉 scheduleCompleted event FIRED! Calling fetchNewest...');
+        await fetchNewest();
+      }
+    );
+
+    return () => {
+      console.log('[RoadMap] 🗑️ Cleaning up scheduleCompleted listener');
+      listener.remove();
+    };
+  }, [fetchNewest]);
+
+  // 🔄 Auto-refresh khi chọn schedule từ calendar
+  useEffect(() => {
+    if (selectedScheduleData && showScheduleModal) {
+      console.log('[RoadMap] Schedule selected, refreshing data...');
+      fetchNewest();
+    }
+  }, [selectedScheduleData, showScheduleModal, fetchNewest]);
+
   const fetchEquipmentAndSupplements = useCallback(
     async (rm: any) => {
       try {
@@ -742,23 +815,30 @@ const RoadMap = () => {
 
   const totalSessions = allSchedules.length;
 
-  const handleSelectDate = (
+  const handleSelectDate = useCallback((
     date: string | null,
     scheduleWrapperFromCalendar?: any,
   ) => {
+    console.log('[handleSelectDate] � CALLED with date:', date);
     setSelectedDate(date);
     setSelectedScheduleData(null);
 
     if (!scheduleWrapperFromCalendar) {
+      console.log('[handleSelectDate] ⚠️ Không có schedule cho ngày này');
       setShowScheduleModal(true);
       return;
     }
 
     const scheduleObject = getScheduleObject(scheduleWrapperFromCalendar);
+    console.log('[handleSelectDate] ✅ Tìm thấy schedule:', scheduleObject?.scheduleName);
 
     setSelectedScheduleData(scheduleObject);
     setShowScheduleModal(true);
-  };
+    
+    // 🔄 Auto-refresh khi chọn ngày
+    console.log('[handleSelectDate] 🔄 Gọi fetchNewest ngay bây giờ...');
+    fetchNewest();
+  }, [getScheduleObject, fetchNewest]);
 
   const handleGoBack = () => {
     navigation.navigate('RoadmapList' as never);
@@ -996,7 +1076,7 @@ const RoadMap = () => {
           </View>
         )}
 
-        {currentRoadmap?.status == 'PENDING' && (
+        {currentRoadmap?.status === 'PENDING' && (
           <View className="flex-col gap-3 px-4 py-3">
             {/* Nút Từ chối lộ trình */}
             <TouchableOpacity
@@ -1054,9 +1134,13 @@ const RoadMap = () => {
               <SafeAreaView style={styles.modalContainer as any}>
                 <View style={styles.modalHeader}>
                   <TouchableOpacity
-                    onPress={() => {
+                    onPress={async () => {
+                      console.log('[RoadMap] ❌ Đóng modal, refreshing trang toàn bộ...');
                       setShowScheduleModal(false);
                       setSelectedScheduleData(null);
+                      // 🔄 Refresh toàn bộ trang
+                      await fetchNewest();
+                      console.log('[RoadMap] ✅ Refresh xong!');
                     }}
                     activeOpacity={0.85}
                   >
@@ -1080,7 +1164,23 @@ const RoadMap = () => {
                       }
                       schedule={selectedScheduleData}
                       onScheduleCompleted={async () => {
+                        // ⏳ Fetch newest data từ backend - lần 1
+                        console.log('[ScheduleDetail] Hoàn thành workout, fetch lần 1...');
                         await fetchNewest();
+                        
+                        // ⏳ Wait 1 second để backend xử lý
+                        const delay = new Promise(resolve => {
+                          setTimeout(() => resolve(null), 1000);
+                        });
+                        await delay;
+                        
+                        // ⏳ Fetch lần 2 để ensure dữ liệu mới nhất
+                        console.log('[ScheduleDetail] Fetch lần 2 để confirm...');
+                        await fetchNewest();
+                        
+                        // 🔄 Reset modal - user sẽ thấy "Không có lịch"
+                        // Khi mở lại sẽ là dữ liệu mới từ calendar
+                        setSelectedScheduleData(null);
                       }}
                     />
                   ) : (
@@ -1818,3 +1918,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+

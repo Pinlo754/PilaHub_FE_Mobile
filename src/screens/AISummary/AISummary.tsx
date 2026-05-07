@@ -150,16 +150,14 @@ const AISummary = ({ route, navigation }: Props) => {
             <StatsSection feedback={currentFeedback} />
 
             {/* Heart Rate Chart */}
-            <HeartRateChart
-              heartRateData={
-                heartRateData.length ? heartRateData : [56, 100, 90, 78, 70, 60]
-              }
-            />
+            {heartRateData.length > 0 && (
+              <HeartRateChart heartRateData={heartRateData} />
+            )}
 
             {/* Metrics Section */}
             <MetricsSection
-              formScore={currentFeedback?.formScore || 0}
-              enduranceScore={currentFeedback?.enduranceScore || 0}
+              formScore={currentFeedback?.formScore}
+              enduranceScore={currentFeedback?.enduranceScore}
             />
 
             {/* Advice Section */}

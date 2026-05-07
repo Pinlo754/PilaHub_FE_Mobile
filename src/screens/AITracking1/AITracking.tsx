@@ -25,7 +25,7 @@ import { NavigationProp, RouteProp, useNavigation, useRoute } from '@react-navig
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { WorkoutSessionType } from '../../utils/WorkoutSessionType';
 import { Video } from 'react-native-compressor';
-import { getBodyPartId } from '../../utils/BodyPart';
+import { getBodyPartId, getBodyPartVi } from '../../utils/BodyPart';
 import ViewShot from "react-native-view-shot";
 import { useBle } from '../../services/BleProvider';
 import { heartRateService } from '../../hooks/heartRate.service';
@@ -322,33 +322,33 @@ export default function AITracking1({
       }
 
 
-      await Promise.all(
-        mistakeLogs.map(async log => {
-          try {
-            console.log('bắt đầu tải ảnh mistake')
-            if (!log.imagePath || typeof log.imagePath !== "string") {
-              console.log("skip upload (invalid path)", log.imagePath);
-              return log;
-            }
-            const ref = storage().ref(
-              `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
-            );
+      // await Promise.all(
+      //   mistakeLogs.map(async log => {
+      //     try {
+      //       console.log('bắt đầu tải ảnh mistake')
+      //       if (!log.imagePath || typeof log.imagePath !== "string") {
+      //         console.log("skip upload (invalid path)", log.imagePath);
+      //         return log;
+      //       }
+      //       const ref = storage().ref(
+      //         `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
+      //       );
 
 
-            await ref.putFile(log.imagePath);
+      //       await ref.putFile(log.imagePath);
 
 
-            log.imageUrl = await ref.getDownloadURL();
+      //       log.imageUrl = await ref.getDownloadURL();
 
 
-            delete log.imagePath;
-          }
-          catch (e) {
-            console.log("Upload error", e);
-          }
-        }
-        )
-      );
+      //       delete log.imagePath;
+      //     }
+      //     catch (e) {
+      //       console.log("Upload error", e);
+      //     }
+      //   }
+      //   )
+      // );
 
 
       await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
@@ -486,7 +486,7 @@ export default function AITracking1({
           }
 
           const now = Date.now();
-          if (now - lastCorrectTime.current > 1250) {
+          if (now - lastCorrectTime.current > 1) {
             onFeedback({
               status: '✅ CHUẨN',
               detail: 'Tư thế chính xác',
@@ -507,7 +507,7 @@ export default function AITracking1({
             }
 
             const now = Date.now();
-            if (now - lastCorrectTime.current > 1250) {
+            if (now - lastCorrectTime.current > 1) {
               onFeedback({
                 status: '✅ CHUẨN',
                 detail: 'Tư thế chính xác',
@@ -651,9 +651,9 @@ export default function AITracking1({
 
       onFeedback({
         status: '❌ CẦN SỬA',
-        detail: `${bodyPart} (${side})`,
+        detail: `${getBodyPartVi(bodyPart)}`,
       });
-      
+
 
       pendingMistake.current = null;
     }
@@ -773,14 +773,14 @@ export default function AITracking1({
             onPress={handleStartSession}
             className="bg-emerald-500 px-4 py-2 rounded-full z-10"
           >
-            <Text className="text-white text-xl font-bold">START RECORD</Text>
+            <Text className="text-white text-xl font-bold">Bắt đầu phiên</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             onPress={handleEndSession}
             className="bg-red-500 px-4 py-2 rounded-full z-10"
           >
-            <Text className="text-white text-xl font-bold">END SESSION</Text>
+            <Text className="text-white text-xl font-bold">Kết thúc phiên</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -789,7 +789,7 @@ export default function AITracking1({
       {isRecording && (
         <View className="absolute top-16 right-5 flex-row items-center bg-black/60 px-3 py-1 rounded-full">
           <View className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-          <Text className="text-white font-bold">REC</Text>
+          <Text className="text-white font-bold">Đang ghi</Text>
         </View>
       )}
       {isSaving && (

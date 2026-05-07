@@ -30,8 +30,6 @@ const Header = ({ openInstructModal }: Props) => {
       <View className="py-4 flex-row justify-between">
         {/* Time */}
         <View className="flex-row items-center gap-2">
-          <Ionicons name="time-outline" size={26} color={colors.foreground} />
-          <Text className="color-foreground font-medium">02:35</Text>
         </View>
 
         {/* Heart Rate */}

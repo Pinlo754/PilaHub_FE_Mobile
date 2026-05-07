@@ -75,6 +75,7 @@ import OrdersScreen from '../screens/Profile/OrdersScreen';
 import RoadmapProductsScreen from '../screens/Shop/RoadmapProductsScreen';
 import InputBodyScreen from '../screens/BodyGram/screens/InputBodyScreen';
 import OrderSuccessScreen from '../screens/Shop/OrderSuccessScreen';
+import VendorShopScreen from '../screens/Shop/VendorShopScreen';
 import { PracticePayload } from '../utils/CourseLessonProgressType';
 import CreatePostScreen from '../screens/Coach/Blog/CreatePostScreen';
 import ChatScreen from '../screens/Chat/ChatScreen';
@@ -121,6 +122,7 @@ export type RootStackParamList = {
     source?: string;
   };
   ProductDetail: { productId: string };
+  VendorShop: { vendorId: string };
   Cart: undefined;
   InputBody: undefined;
   BodyScanFlow: undefined;
@@ -251,6 +253,8 @@ export type RootStackParamList = {
   TraineeDetailScreen: { traineeId: string, roadmapId: string };
   MyInjuries: undefined;
   NotificationScreen: undefined;
+  SentRequests: undefined;
+  SentRequestDetail: { request?: any } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -326,6 +330,7 @@ const AppNavigator: React.FC = () => {
               component={ProductDetailScreen}
             />
             <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="VendorShop" component={VendorShopScreen} />
             <Stack.Screen
               name="RoadmapProducts"
               component={RoadmapProductsScreen}
@@ -343,6 +348,8 @@ const AppNavigator: React.FC = () => {
               name="TraineeProfile"
               component={TraineeProfileScreen}
             />
+            <Stack.Screen name="SentRequests" component={require('../screens/RegisterCoachRoadmap/SentRequestsScreen').default} />
+            <Stack.Screen name="SentRequestDetail" component={require('../screens/RegisterCoachRoadmap/SentRequestDetail').default} />
             <Stack.Screen name="ProfileInfo" component={ProfileInfoScreen} />
             <Stack.Screen
               name="HealthProfiles"

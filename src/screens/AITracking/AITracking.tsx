@@ -25,7 +25,7 @@ import { NavigationProp, RouteProp, useNavigation, useRoute } from '@react-navig
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { WorkoutSessionType } from '../../utils/WorkoutSessionType';
 import { Video } from 'react-native-compressor';
-import { getBodyPartId } from '../../utils/BodyPart';
+import { getBodyPartId, getBodyPartVi } from '../../utils/BodyPart';
 import ViewShot from "react-native-view-shot";
 import { useBle } from '../../services/BleProvider';
 import api from '../../hooks/axiosInstance';
@@ -507,11 +507,12 @@ export default function AITracking({
       navigation.navigate('AISummary', {
         feedback: AIFeedback,
         videoUrl: downloadURL,
-        mistakeLog: mistakeLogs,
+        mistakeLog: currentMistakeLogs,
         heartRateLogs: hrSamplesRef.current || [],
       });
 
-
+      mistakeLogsRef.current = [];
+      setMistakeLogs([]);
     } catch (e) {
       console.error(e);
       setIsSaving(false);
@@ -632,7 +633,7 @@ export default function AITracking({
           }
 
           const now = Date.now();
-          if (now - lastCorrectTime.current > 1250) {
+          if (now - lastCorrectTime.current > 1) {
             onFeedback({
               status: '✅ CHUẨN',
               detail: 'Tư thế chính xác',
@@ -684,104 +685,71 @@ export default function AITracking({
   };
 
 
-  const handleCorrect = () => {
+  const handleIncorrect = (bodyPart: string, side: string) => {
     const now = Date.now();
+    const secondsFromStart = (now - sessionStartTime.current) / 1000;
 
+    // --- BƯỚC 1: HIỂN THỊ REAL-TIME (KHÔNG ĐỢI) ---
+    // Cập nhật UI ngay lập tức khi phát hiện lỗi
+    setErrorBodyPart(bodyPart);
+    onFeedback({
+      status: '❌ CẦN SỬA',
+      detail: `${getBodyPartVi(bodyPart)}`,
+    });
 
-    lastCorrectTime.current = now;
+    // --- BƯỚC 2: LOGIC ĐỢI 1.25S ĐỂ LƯU LOG ---
 
+    // Nếu chưa có pending hoặc đổi loại lỗi khác, khởi tạo lại timer
+    if (!pendingMistake.current || pendingMistake.current.bodyPart !== bodyPart) {
+      pendingMistake.current = {
+        bodyPart,
+        side,
+        detectedAt: now,
+      };
+      return;
+    }
 
-    if (!activeMistake.current) return;
+    // Nếu đã có pending và lỗi duy trì liên tục đủ 1.25s
+    if (now - pendingMistake.current.detectedAt >= 1250) { // 1.25s
 
+      // Nếu chưa chuyển thành activeMistake (nghĩa là chưa ghi log cho lần vi phạm này)
+      if (!activeMistake.current) {
+        activeMistake.current = {
+          bodyPart,
+          side,
+          recordedAtSecond: secondsFromStart,
+          startTime: now,
+          imagePath: ''
+        };
 
-    if (now - activeMistake.current.startTime >= DEBOUNCE_TIME) {
-      finalizeMistake(now);
-      setErrorBodyPart(null);
+        // Chụp ảnh và phát âm thanh (chỉ thực hiện 1 lần khi đủ điều kiện ghi log)
+        play(bodyPart.toLowerCase().replace(' ', ''));
+        captureMistakeImage().then((path) => {
+          if (activeMistake.current) {
+            activeMistake.current.imagePath = path;
+          }
+        });
+
+        console.log('Đã xác nhận lỗi đủ lâu, chuẩn bị ghi log:', activeMistake.current);
+      }
     }
   };
 
-
-  const handleIncorrect = (bodyPart: string, side: string) => {
+  const handleCorrect = () => {
     const now = Date.now();
+    lastCorrectTime.current = now;
 
+    // Nếu tư thế đúng, reset ngay UI
+    setErrorBodyPart(null);
 
-    const secondsFromStart =
-      (now - sessionStartTime.current) / 1000;
-
-
-    // nếu đang có active mistake
+    // Nếu trước đó đang có một lỗi "active" (đã duy trì > 1.25s)
     if (activeMistake.current) {
-      if (activeMistake.current.bodyPart !== bodyPart) {
-        finalizeMistake(now);
-
-
-        pendingMistake.current = {
-          bodyPart,
-          side,
-          detectedAt: now,
-        };
-      }
-
-
-      return;
+      finalizeMistake(now); // Lưu vào danh sách mistakeLogs
     }
 
-
-    // chưa có active -> xử lý pending
-    if (!pendingMistake.current) {
-      pendingMistake.current = {
-        bodyPart,
-        side,
-        detectedAt: now,
-      };
-      return;
-    }
-
-
-    if (pendingMistake.current.bodyPart !== bodyPart) {
-      pendingMistake.current = {
-        bodyPart,
-        side,
-        detectedAt: now,
-      };
-      return;
-    }
-
-
-    // đủ 1.25s -> confirm mistake
-    if (now - pendingMistake.current.detectedAt >= DEBOUNCE_TIME) {
-      activeMistake.current = {
-        bodyPart,
-        side,
-        recordedAtSecond: secondsFromStart,
-        startTime: now,
-        imagePath: ''
-      };
-
-
-      setErrorBodyPart(bodyPart);
-      captureMistakeImage().then((path) => {
-        console.log('Chụp ảnh lỗi thành công, path:', path);
-        if (activeMistake.current) {
-          activeMistake.current.imagePath = path;
-        }
-      });
-
-
-      console.log('current mistake:', activeMistake.current)
-
-
-      play(bodyPart.toLowerCase().replace(' ', ''));
-
-
-      onFeedback({
-        status: '❌ CẦN SỬA',
-        detail: `${bodyPart} (${side})`,
-      });
-
-
-      pendingMistake.current = null;
-    }
+    // Reset các biến tạm
+    pendingMistake.current = null;
+    activeMistake.current = null;
   };
 
 
@@ -898,14 +866,14 @@ export default function AITracking({
             onPress={handleStartSession}
             className="bg-emerald-500 px-4 py-2 rounded-full z-10"
           >
-            <Text className="text-white text-xl font-bold">START RECORD</Text>
+            <Text className="text-white text-xl font-bold">Bắt đầu phiên</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             onPress={handleEndSession}
             className="bg-red-500 px-4 py-2 rounded-full z-10"
           >
-            <Text className="text-white text-xl font-bold">END SESSION</Text>
+            <Text className="text-white text-xl font-bold">Kết thúc phiên</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -914,7 +882,7 @@ export default function AITracking({
       {isRecording && (
         <View className="absolute top-16 right-5 flex-row items-center bg-black/60 px-3 py-1 rounded-full">
           <View className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-          <Text className="text-white font-bold">REC</Text>
+          <Text className="text-white font-bold">Đang ghi</Text>
         </View>
       )}
       {isSaving && (

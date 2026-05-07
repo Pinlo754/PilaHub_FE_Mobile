@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, FlatList,StyleSheet } from 'react-native';
+import { View, Text, Image, FlatList,StyleSheet, TouchableOpacity } from 'react-native';
 import { getVendorById, VendorItem } from '../../../services/vendors';
 import { getProducts, ProductItem } from '../../../services/products';
 import { normalizeImageUrl } from '../../../services/products';
@@ -66,7 +66,7 @@ const VendorCard = ({ vendorId, onPressProduct }: Props) => {
   );
 };
 
-const VendorHeader = ({ vendor }: { vendor: VendorItem; onViewShop: () => void }) => (
+const VendorHeader = ({ vendor, onViewShop }: { vendor: VendorItem; onViewShop: () => void }) => (
   <>
     <View className="w-14 h-14 rounded-lg overflow-hidden bg-teal-500 items-center justify-center">
       {vendor.logoUrl ? (
@@ -88,9 +88,9 @@ const VendorHeader = ({ vendor }: { vendor: VendorItem; onViewShop: () => void }
       </View>
     </View>
 
-   {/* <TouchableOpacity className="bg-amber-400 px-3 py-2 rounded-lg" onPress={onViewShop}>
-       <Text className="text-white font-bold">Xem shop</Text>
-    </TouchableOpacity> */}
+    <TouchableOpacity onPress={onViewShop} className="bg-amber-400 px-3 py-2 rounded-lg ml-2">
+      <Text className="text-white font-bold">Xem shop</Text>
+    </TouchableOpacity>
   </>
 );
 
