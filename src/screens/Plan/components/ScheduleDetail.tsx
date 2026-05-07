@@ -19,6 +19,7 @@ import { getProfile } from '../../../services/auth';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../../../components/Toast';
 import { markPersonalScheduleCompleted } from '../../../services/personalSchedule.service';
+import { useBle } from '../../../services/BleProvider';
 
 // Helper: Phân giải URL video
 function resolveVideoSrc(raw?: string | null) {
@@ -509,11 +510,21 @@ export default function ScheduleDetail({
       return;
     }
 
+    const { isIotDeviceConnected, hr, status, } = useBle();
+    
+      useEffect(() => {
+        if (isIotDeviceConnected) {
+          console.log("Thiết bị đã sẵn sàng với nhịp tim:", hr);
+        } else {
+          console.log("Đang chờ thiết bị... Trạng thái hiện tại:", status);
+        }
+      }, [isIotDeviceConnected, hr]);
+      
     try {
       const session = await workoutSessionService.startRoadmapWorkout({
         personalExerciseId: String(ex.personalExerciseId || exerciseId),
         haveAITracking: true,
-        haveIOTDeviceTracking: true,
+        haveIOTDeviceTracking: isIotDeviceConnected,
       });
 
       const videoUrl = await resolveExerciseVideo(ex);

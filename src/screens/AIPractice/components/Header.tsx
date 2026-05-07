@@ -8,7 +8,7 @@ type Props = {
 };
 
 const Header = ({ openInstructModal }: Props) => {
-  const { hr, status, startScanForPolar, disconnect } = useBle();
+  const { hr, status} = useBle();
   return (
     <View className="px-4">
       {/* Title */}
@@ -40,24 +40,23 @@ const Header = ({ openInstructModal }: Props) => {
         {/* Heart Rate - show global BLE HR from BleProvider. Tap to start/stop */}
         <Pressable
           onPress={() => {
-            if (status === 'connected' || status === 'receiving') disconnect();
-            else startScanForPolar();
+            // if (status === 'connected' || status === 'receiving') disconnect();
+            // else startScanForPolar();
           }}
           className="flex-row items-center gap-2"
         >
-          {/* status dot */}
           <View
             style={[
               styles.statusDot,
               {
                 backgroundColor:
                   status === 'receiving' || status === 'connected'
-                    ? '#34D399' // green
+                    ? '#34D399'
                     : status === 'scanning' ||
                         status === 'connecting' ||
                         status === 'reconnecting'
-                      ? '#F59E0B' // amber
-                      : '#EF4444', // red
+                      ? '#F59E0B'
+                      : '#EF4444',
               },
             ]}
           />

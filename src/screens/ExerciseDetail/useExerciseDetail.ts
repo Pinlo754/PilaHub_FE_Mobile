@@ -379,7 +379,17 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       setIsLoading(false);
     }
   };
-  const { isIotDeviceConnected, hr, status } = useBle();
+
+  const { isIotDeviceConnected, hr, status, } = useBle();
+
+  useEffect(() => {
+    if (isIotDeviceConnected) {
+      console.log("Thiết bị đã sẵn sàng với nhịp tim:", hr);
+    } else {
+      console.log("Đang chờ thiết bị... Trạng thái hiện tại:", status);
+    }
+  }, [isIotDeviceConnected, hr]);
+
   const startWorkoutExerciseAI = async () => {
     if (!exercise_id) return;
 

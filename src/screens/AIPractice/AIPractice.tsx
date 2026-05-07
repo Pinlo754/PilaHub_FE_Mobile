@@ -45,24 +45,7 @@ const AIPractice = (props: Props) => {
       return "";
     }
   };
-
-  // start BLE scan automatically when this screen mounts to surface HR quickly
-  const { startScanForPolar, stopScan } = useBle();
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await startScanForPolar();
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      if (mounted) stopScan();
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  
 
   return (
     <View className="flex-1 bg-background pt-14">
