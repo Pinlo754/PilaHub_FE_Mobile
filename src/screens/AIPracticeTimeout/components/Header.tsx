@@ -22,10 +22,11 @@ const Header = ({ openInstructModal }: Props) => {
       {/* Metric Section */}
       <View className="py-4 flex-row justify-between">
         {/* Time */}
-        <View className="flex-row items-center gap-2">
-          <Ionicons name="time-outline" size={26} color={colors.foreground} />
-          <Text className="color-foreground font-medium">02:35</Text>
-        </View>
+        {/* <View className="flex-row items-center gap-2">
+                <Ionicons name="time-outline" size={26} color={colors.foreground} />
+                <Text className="color-foreground font-medium">02:35</Text>
+              </View> */}
+        <View />
 
         {/* Heart Rate - show global BLE HR from BleProvider. Tap to start/stop */}
         <Pressable
@@ -43,13 +44,19 @@ const Header = ({ openInstructModal }: Props) => {
                 backgroundColor:
                   status === 'receiving' || status === 'connected'
                     ? '#34D399' // green
-                    : status === 'scanning' || status === 'connecting' || status === 'reconnecting'
-                    ? '#F59E0B' // amber
-                    : '#EF4444', // red
+                    : status === 'scanning' ||
+                      status === 'connecting' ||
+                      status === 'reconnecting'
+                      ? '#F59E0B' // amber
+                      : '#EF4444', // red
               },
             ]}
           />
-          <Ionicons name="fitness-outline" size={26} color={colors.danger.DEFAULT} />
+          <Ionicons
+            name="fitness-outline"
+            size={26}
+            color={colors.danger.DEFAULT}
+          />
           <Text className="color-foreground font-medium">
             {hr === null ? '--' : hr}{' '}
             <Text className="color-secondaryText text-sm font-medium">bpm</Text>
@@ -59,11 +66,11 @@ const Header = ({ openInstructModal }: Props) => {
 
       {/* Noti */}
       {/* <View className="absolute top-10 right-4 p-2 bg-background-sub1 rounded-lg flex-row gap-2 items-center">
-        <Ionicons name="alert-circle" size={26} color={colors.danger.DEFAULT} />
-        <Text className="color-foreground font-bold text-lg">
-          Bạn đã tập sai tư thế!
-        </Text>
-      </View> */}
+              <Ionicons name="alert-circle" size={26} color={colors.danger.DEFAULT} />
+              <Text className="color-foreground font-bold text-lg">
+                Bạn đã tập sai tư thế!
+              </Text>
+            </View> */}
     </View>
   );
 };

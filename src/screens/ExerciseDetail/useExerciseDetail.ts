@@ -24,6 +24,7 @@ import { ExerciseEquipment } from '../../utils/EquipmentType';
 import { workoutFeedbackService } from '../../hooks/workoutFeedback.service';
 import { mistakeLogService } from '../../hooks/mistakeLog.service';
 import { heartRateService } from '../../hooks/heartRate.service';
+import { useBle } from '../../services/BleProvider';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'ExerciseDetail'>;
@@ -378,18 +379,18 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       setIsLoading(false);
     }
   };
-
+  const { isIotDeviceConnected, hr, status } = useBle();
   const startWorkoutExerciseAI = async () => {
     if (!exercise_id) return;
 
     setIsLoading(true);
     setError(null);
-
+    
     try {
       const payload: WorkoutExerciseReq = {
         exerciseId: id,
         haveAITracking: true,
-        haveIOTDeviceTracking: true,
+        haveIOTDeviceTracking: isIotDeviceConnected,
       };
 
       console.log('startWorkoutExerciseAI payload', payload);

@@ -43,7 +43,7 @@ const InstructModal = ({ visible, onClose }: Props) => {
             {/* Content */}
             <View className="p-4 min-h-[140px]">
               <Text className="color-inactive-darker/80 font-medium">
-                Hướng dẫn đặt camera...
+                Vui lòng đặt Camera ở khoảng cách 2M và quay được toàn bộ cơ thể.
               </Text>
             </View>
           </View>

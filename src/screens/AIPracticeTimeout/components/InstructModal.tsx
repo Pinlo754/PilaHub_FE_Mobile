@@ -1,5 +1,5 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View, Image } from 'react-native';
 import { colors } from '../../../theme/colors';
 
 type Props = {
@@ -43,9 +43,15 @@ const InstructModal = ({ visible, onClose }: Props) => {
             {/* Content */}
             <View className="p-4 min-h-[140px]">
               <Text className="color-inactive-darker/80 font-medium">
-                Hướng dẫn đặt camera...
+                Vui lòng đặt Camera ở khoảng cách 2M và quay được toàn bộ cơ thể.
               </Text>
             </View>
+
+            <Image
+              source={require('../../../assets/huong_dan_camera.png')}
+              style={{ width: '100%', height: '40%' }}
+              resizeMode="contain"
+            />
           </View>
         </View>
       </View>
