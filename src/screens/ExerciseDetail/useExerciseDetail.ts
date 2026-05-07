@@ -61,6 +61,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
   const [confirmMsg, setConfirmMsg] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [recommendMsg, setRecommendMsg] = useState<string>('');
@@ -83,6 +85,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const [showRestCountdown, setShowRestCountdown] = useState<boolean>(false);
   const [restCountdownDuration, setRestCountdownDuration] =
     useState<number>(COUNTDOWN_REST);
+  const [currentSet, setCurrentSet] = useState<number>(1);
+  const [totalSets, setTotalSets] = useState<number>(1);
+  const [showSetRestCountdown, setShowSetRestCountdown] = useState(false);
 
   // Exercise duration countdown
   const [exerciseTimeLeft, setExerciseTimeLeft] = useState<number>(0);
@@ -94,6 +99,8 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
   const exerciseTimeLeftRef = useRef<number>(0);
   const timerStartedRef = useRef<boolean>(false);
   const workoutSessionRef = useRef<WorkoutSessionType | undefined>(undefined);
+  const currentSetRef = useRef<number>(1);
+  const totalSetsRef = useRef<number>(1);
 
   // CHECK
   const isFromList = source === 'List';
@@ -205,9 +212,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       setActivePackage(res.data.activePackageType);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
+        openErrorModal(err.message);
       } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
     }
   };
@@ -226,9 +233,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       setCurrentTutorial(resTutorial);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
+        openErrorModal(err.message);
       } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
     }
   };
@@ -266,6 +273,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
       setWorkoutHistory(res.filter(session => session.completed));
     } catch (err: any) {
+      openErrorModal('Có lỗi xảy ra khi tải lịch sử tập luyện.');
       console.error('Fetch history error:', err);
     }
   };
@@ -274,8 +282,16 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     if (!exercise_id) return;
     try {
       const res = await workoutSessionService.getAll(exercise_id);
-      setWorkoutHistory(res.filter(session => session.completed));
+      const sortedHistory = res
+        .filter(session => session.completed)
+        .sort(
+          (a, b) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+        );
+
+      setWorkoutHistory(sortedHistory);
     } catch (err: any) {
+      openErrorModal('Có lỗi xảy ra khi tải lịch sử tập luyện.');
       console.error('Fetch history error:', err);
     }
   };
@@ -286,6 +302,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const res = await exerciseService.getExerciseEquipment(exercise_id);
       setExerciseEquipments(res);
     } catch (err: any) {
+      openErrorModal('Có lỗi xảy ra khi tải thông tin thiết bị.');
       console.error('Fetch equipment error:', err);
     }
   };
@@ -305,14 +322,14 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       const formattedMistakes = mistakeLog.map(log => {
         // Trích xuất side từ chuỗi details (vd: lấy chữ "both" từ "Form error at Hips (both)")
         const sideMatch = log.details.match(/\(([^)]+)\)/);
-        const side = sideMatch ? sideMatch[1] : "unknown";
+        const side = sideMatch ? sideMatch[1] : 'unknown';
 
         return {
           bodyPart: log.bodyPartName,
           side: side,
           recordedAtSecond: log.recordedAtSecond,
           duration: log.duration,
-          imagePath: log.imageUrl
+          imagePath: log.imageUrl,
         };
       });
 
@@ -326,7 +343,7 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
         })),
       });
     } catch (err) {
-      console.error('Fetch AI summary error:', err);
+      openErrorModal('Có lỗi khi lấy dữ liệu phân tích. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
@@ -353,9 +370,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       return res;
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
+        openErrorModal(err.message);
       } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
     } finally {
       setIsLoading(false);
@@ -383,9 +400,9 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       return res;
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
-        setError(err.message);
+        openErrorModal(err.message);
       } else {
-        setError('Có lỗi xảy ra. Vui lòng thử lại.');
+        openErrorModal('Có lỗi xảy ra. Vui lòng thử lại.');
       }
     } finally {
       setIsLoading(false);
@@ -460,6 +477,17 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     await doTransitionToNextExercise();
   };
 
+  const onSetRestCountdownFinished = () => {
+    setShowSetRestCountdown(false);
+    const nextSet = currentSetRef.current + 1;
+    currentSetRef.current = nextSet;
+    setCurrentSet(nextSet);
+
+    setIsPlaying(true);
+    const duration = getCurrentDuration(currentExerciseIndexRef.current);
+    startExerciseTimer(duration);
+  };
+
   // ─── LOGIC CHUYỂN BÀI ────────────────────────────────────────────────────
   /**
    * Gọi khi đếm ngược duration hết.
@@ -476,6 +504,22 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
         return;
       }
 
+      const isLastSet = currentSetRef.current >= totalSetsRef.current;
+
+      if (!isLastSet) {
+        // Còn set → nghỉ giữa sets
+        setIsPlaying(false);
+        const rest =
+          (practicePayload!.restSeconds?.[currentExerciseIndexRef.current] ??
+          isCourseFlow)
+            ? COUNTDOWN_REST
+            : COUNTDOWN_REST;
+        setRestCountdownDuration(rest);
+        setShowSetRestCountdown(true);
+        return;
+      }
+
+      // Hết sets - xử lý chuyển bài hoặc kết thúc
       // BÀI TẬP LẺ
       if (!isCourseFlow) {
         await endWorkout();
@@ -533,6 +577,12 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
 
     currentExerciseIndexRef.current = nextIndex;
     setCurrentExerciseIndex(nextIndex);
+
+    const nextTotalSets = practicePayload!.sets?.[nextIndex] ?? 1;
+    totalSetsRef.current = nextTotalSets;
+    setTotalSets(nextTotalSets);
+    currentSetRef.current = 1;
+    setCurrentSet(1);
 
     const [nextExercise, nextTutorial] = await Promise.all([
       exerciseService.getById(nextExerciseId),
@@ -611,6 +661,11 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setCurrentTutorial(tutorial);
     setCurrentExerciseIndex(0);
     currentExerciseIndexRef.current = 0;
+    setCurrentSet(1);
+    currentSetRef.current = 1;
+    setTotalSets(1);
+    totalSetsRef.current = 1;
+    setShowSetRestCountdown(false);
     if (isPracticeTab) {
       await fetchAllWorkoutHistory();
     }
@@ -633,6 +688,12 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
       } else {
         await startWorkoutExerciseFree();
       }
+      const firstTotalSets = practicePayload?.sets?.[0] ?? 1;
+      setTotalSets(firstTotalSets);
+      totalSetsRef.current = firstTotalSets;
+      setCurrentSet(1);
+      currentSetRef.current = 1;
+
       setShowStartCountdown(true);
     } catch (err: any) {
       if (err?.type === 'BUSINESS_ERROR') {
@@ -765,6 +826,16 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     setShowSuccessModal(false);
   };
 
+  const openErrorModal = (msg: string) => {
+    setErrorMsg(msg);
+    setShowErrorModal(true);
+  };
+
+  const closeErrorModal = () => {
+    setErrorMsg('');
+    setShowErrorModal(false);
+  };
+
   const openConfirmModal = (msg: string) => {
     setConfirmMsg(msg);
     setShowConfirmModal(true);
@@ -855,6 +926,14 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     return () => clearExerciseTimer();
   }, []);
 
+  useEffect(() => {
+    currentSetRef.current = currentSet;
+  }, [currentSet]);
+
+  useEffect(() => {
+    totalSetsRef.current = totalSets;
+  }, [totalSets]);
+
   // ─── RETURN ───────────────────────────────────────────────────────────────
   return {
     activeTab,
@@ -924,5 +1003,12 @@ export const useExerciseDetail = ({ route, navigation }: Props) => {
     notiMsg,
     showWorkoutHistory,
     setShowWorkoutHistory,
+    showErrorModal,
+    errorMsg,
+    closeErrorModal,
+    currentSet,
+    totalSets,
+    showSetRestCountdown,
+    onSetRestCountdownFinished,
   };
 };

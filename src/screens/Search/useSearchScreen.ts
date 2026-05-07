@@ -1,4 +1,3 @@
-import { calculateBookingSummary } from './../../utils/calculate';
 import { useEffect, useState } from 'react';
 import { SearchTab } from '../../constants/searchTab';
 import { TabTypeMap } from '../../utils/SearchType';
@@ -101,12 +100,10 @@ export const useSearchScreen = ({ navigation, route }: Props) => {
 
       switch (tab) {
         case SearchTab.Exercise:
-          console.log('fetch ex');
           result = await exerciseService.getAll();
           break;
 
         case SearchTab.Course:
-          console.log('fetch courses');
           const courses = await courseService.getAll();
 
           result = courses.map(course => ({
@@ -116,7 +113,6 @@ export const useSearchScreen = ({ navigation, route }: Props) => {
           break;
 
         case SearchTab.Coach:
-          console.log('fetch coach');
           result = await CoachService.getAll();
           break;
       }
@@ -303,16 +299,10 @@ export const useSearchScreen = ({ navigation, route }: Props) => {
 
   useEffect(() => {
     if (isSearching) return;
-    // if (activeTab === SearchTab.Course && enrolledCourseIds.size === 0) return; 
+    // if (activeTab === SearchTab.Course && enrolledCourseIds.size === 0) return;
 
     fetchAllData(activeTab);
-  }, [
-    activeTab,
-    dataByTab[activeTab].length,
-    isSearching,
-    traineeId,
-    enrolledCourseIds,
-  ]);
+  }, [activeTab, isSearching, traineeId, enrolledCourseIds]);
 
   return {
     activeTab,

@@ -2,7 +2,7 @@ import { colors } from '../theme/colors';
 import { BookingStatus } from './CoachBookingType';
 import { TrainingDay } from './CourseLessonProgressType';
 import { LevelType } from './CourseType';
-import { BreathingRuleType, ExerciseTypeEnum } from './ExerciseType';
+import { BodyPartNameType, BreathingRuleType, ExerciseTypeEnum } from './ExerciseType';
 
 // TYPE
 type MapType = {
@@ -242,6 +242,78 @@ export const BREATHING_RULE_MAP: Record<BreathingRuleType, MapType> = {
   },
 };
 
+export const BODY_PART_MAP: Record<
+  BodyPartNameType,
+  { label: string }
+> = {
+  Head: {
+    label: "Đầu",
+  },
+  Neck: {
+    label: "Cổ",
+  },
+  "Cervical Spine": {
+    label: "Cột sống cổ",
+  },
+  "Thoracic Spine": {
+    label: "Cột sống ngực",
+  },
+  "Lumbar Spine": {
+    label: "Cột sống thắt lưng",
+  },
+  Core: {
+    label: "Cơ trung tâm",
+  },
+  Shoulders: {
+    label: "Vai",
+  },
+  "Upper Back": {
+    label: "Lưng trên",
+  },
+  "Lower Back": {
+    label: "Lưng dưới",
+  },
+  Chest: {
+    label: "Ngực",
+  },
+  "Upper Arms": {
+    label: "Cánh tay trên",
+  },
+  Elbows: {
+    label: "Khuỷu tay",
+  },
+  Forearms: {
+    label: "Cẳng tay",
+  },
+  Wrists: {
+    label: "Cổ tay",
+  },
+  Hands: {
+    label: "Bàn tay",
+  },
+  Hips: {
+    label: "Hông",
+  },
+  Glutes: {
+    label: "Mông",
+  },
+  Thighs: {
+    label: "Đùi",
+  },
+  Knees: {
+    label: "Đầu gối",
+  },
+  Calves: {
+    label: "Bắp chân",
+  },
+  Ankles: {
+    label: "Cổ chân",
+  },
+  Feet: {
+    label: "Bàn chân",
+  },
+};
+
 // FUNCTIONS
 export const getProgressColor = (progress: number) =>
   PROGRESS_RULES.find(r => progress >= r.min)?.color ?? colors.danger.DEFAULT;
@@ -271,3 +343,11 @@ export const getBreathingRuleConfig = (rule: BreathingRuleType) =>
 
 export const getBreathingRuleLabel = (rule: BreathingRuleType) =>
   BREATHING_RULE_MAP[rule].label;
+
+export const getBodyPartLabel = (
+  name: string | null | undefined,
+): string => {
+  if (!name) return "Không xác định";
+
+  return BODY_PART_MAP[name as BodyPartNameType]?.label || name;
+};

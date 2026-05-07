@@ -9,6 +9,7 @@ import {
   Platform,
   Keyboard,
   LayoutChangeEvent,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -72,25 +73,31 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const scrollToInput = (key: string) => {
-    setTimeout(() => {
-      const y = inputPositions.current[key] ?? 0;
+    setTimeout(
+      () => {
+        const y = inputPositions.current[key] ?? 0;
 
-      scrollRef.current?.scrollTo({
-        y: Math.max(y - 80, 0),
-        animated: true,
-      });
-    }, Platform.OS === 'ios' ? 250 : 350);
+        scrollRef.current?.scrollTo({
+          y: Math.max(y - 80, 0),
+          animated: true,
+        });
+      },
+      Platform.OS === 'ios' ? 250 : 350,
+    );
   };
 
   const scrollToPhoneInput = () => {
-    setTimeout(() => {
-      const y = inputPositions.current.phone ?? 0;
+    setTimeout(
+      () => {
+        const y = inputPositions.current.phone ?? 0;
 
-      scrollRef.current?.scrollTo({
-        y: Math.max(y - 40, 0),
-        animated: true,
-      });
-    }, Platform.OS === 'ios' ? 250 : 450);
+        scrollRef.current?.scrollTo({
+          y: Math.max(y - 40, 0),
+          animated: true,
+        });
+      },
+      Platform.OS === 'ios' ? 250 : 450,
+    );
   };
 
   const handleRegister = async () => {
@@ -140,10 +147,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
       setLoading(false);
 
       const err =
-        e.response?.data?.message ??
-        e.response?.data ??
-        e.message ??
-        String(e);
+        e.response?.data?.message ?? e.response?.data ?? e.message ?? String(e);
 
       setError(err);
       setToastMsg(err);
@@ -164,7 +168,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={() => navigation.goBack()}
             className="w-8 h-8 items-center justify-center"
           >
-            <Text className="text-2xl text-foreground">←</Text>
+            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
           </TouchableOpacity>
 
           <Text className="flex-1 text-center text-lg font-semibold text-foreground">
@@ -178,30 +182,37 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardDismissMode={
+            Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+          }
           contentContainerStyle={{
             paddingHorizontal: 24,
-            paddingBottom: Platform.OS === 'ios' ? 100 : 100
+            paddingBottom: Platform.OS === 'ios' ? 100 : 100,
           }}
         >
-          <View className="items-center mt-6 mb-4">
-            <View className="w-16 h-16 rounded-full bg-black items-center justify-center">
+          <View className="items-center mt-6">
+            {/* <View className="w-16 h-16 rounded-full bg-black items-center justify-center">
               <Text className="text-white text-xl">🏋️</Text>
             </View>
 
             <Text className="mt-3 text-xl font-semibold text-foreground">
               PilaHub
-            </Text>
+            </Text> */}
+
+            <View className="rounded-full w-28 h-28 mb-2">
+              <Image
+                source={require('../../assets/logo.png')}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            </View>
 
             <Text className="mt-2 text-sm text-secondaryText text-center">
               Tạo tài khoản mới để bắt đầu hành trình của bạn
             </Text>
           </View>
 
-          <View
-            className="mt-12"
-            onLayout={e => saveInputPosition('email', e)}
-          >
+          <View className="mt-8" onLayout={e => saveInputPosition('email', e)}>
             <Text className="mb-1 text-secondaryText">Email</Text>
 
             <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
@@ -233,7 +244,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
             className="mt-4"
             onLayout={e => saveInputPosition('password', e)}
           >
-            <Text className="mb-1 text-secondaryText">Password</Text>
+            <Text className="mb-1 text-secondaryText">Mật khẩu</Text>
 
             <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
               <TextInput
@@ -273,9 +284,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
             className="mt-4"
             onLayout={e => saveInputPosition('confirmPassword', e)}
           >
-            <Text className="mb-1 text-secondaryText">
-              Xác nhận mật khẩu
-            </Text>
+            <Text className="mb-1 text-secondaryText">Xác nhận mật khẩu</Text>
 
             <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
               <TextInput
@@ -311,10 +320,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
             )}
           </View>
 
-          <View
-            className="mt-4"
-            onLayout={e => saveInputPosition('phone', e)}
-          >
+          <View className="mt-4" onLayout={e => saveInputPosition('phone', e)}>
             <Text className="mb-1 text-secondaryText">Số điện thoại</Text>
 
             <View className="flex-row items-center bg-white rounded-lg px-4 h-12 border border-gray-200">
@@ -340,8 +346,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           <TouchableOpacity
-            className={`mt-6 h-12 rounded-lg items-center justify-center ${canRegister ? 'bg-foreground' : 'bg-gray-300'
-              }`}
+            className={`mt-6 h-12 rounded-lg items-center justify-center ${
+              canRegister ? 'bg-foreground' : 'bg-gray-300'
+            }`}
             onPress={handleRegister}
             disabled={!canRegister || loading}
           >
@@ -365,7 +372,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           <TouchableOpacity className="h-12 rounded-lg bg-white border border-gray-300 flex-row items-center justify-center mb-3">
-            <Text className="text-base text-black">G</Text>
+            <Ionicons name="logo-google" size={18} color={colors.foreground} />
             <Text className="ml-2 text-base text-black">
               Tiếp tục với Google
             </Text>
@@ -386,9 +393,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text className="text-xs text-gray-500 mr-3">
                 Chính Sách Bảo Mật
               </Text>
-              <Text className="text-xs text-gray-500">
-                Điều Khoản Dịch Vụ
-              </Text>
+              <Text className="text-xs text-gray-500">Điều Khoản Dịch Vụ</Text>
             </View>
           </View>
         </ScrollView>
