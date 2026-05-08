@@ -3,8 +3,8 @@ import RNFS from 'react-native-fs';
 import ImageResizer from 'react-native-image-resizer';
 
 /* ================== CONFIG (fallback mặc định) ================== */
-const DEFAULT_API_KEY = 'zWEpcPP03RcyECfDl1WmD4DKL419BWZFAEEike0jRJn';
-const DEFAULT_ORG_ID = 'org_z4OIWgJN62OUQPxHMZoJY';
+const DEFAULT_API_KEY = '9R1GgY13odM55yFxVeyLCOecDzbZVK9LNER1EdkADCH';
+const DEFAULT_ORG_ID = 'org_4vhpBueow8UPqkHE7owZhb';
 const TARGET_W = 1080;
 const TARGET_H = 1920;
 

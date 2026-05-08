@@ -77,7 +77,7 @@ const VideoCall = (props: Props) => {
         setRole(storedRole);
 
         // Connect STOMP
-        const wsUrl = `https://pilahub.io.vn/ws/heartrate`;
+        const wsUrl = `https://api.pilahub.io.vn/ws/heartrate`;
         hrConnect({ url: wsUrl, token: token ?? undefined, useSockJS: true });
 
         // Nếu là Coach, thực hiện đăng ký nhận tin (nhưng không lưu state ở đây để tránh re-render cha)

@@ -41,7 +41,6 @@ const styles = StyleSheet.create({
   localVideoSurface: { width: '100%', height: '100%' },
   bleContainer: { position: 'absolute', left: 8, bottom: 8 },
   hrBadge: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
