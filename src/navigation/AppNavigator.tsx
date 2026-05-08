@@ -85,6 +85,8 @@ import TraineeDetailScreen from '../screens/Coach/TraineeList/TraineeDetail';
 import NotificationScreen from '../screens/Notifications/NotificationScreen';
 import DepositScreen from '../screens/Wallet/DepositScreen';
 import AIPracticeTimeout from '../screens/AIPracticeTimeout/AIPractice';
+import ReturnListScreen from '../screens/Profile/ReturnListScreen';
+import ReturnDetailScreen from '../screens/Profile/ReturnDetailScreen';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -255,6 +257,8 @@ export type RootStackParamList = {
   NotificationScreen: undefined;
   SentRequests: undefined;
   SentRequestDetail: { request?: any } | undefined;
+  ReturnList: undefined;
+  ReturnDetail: { returnId: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -440,6 +444,7 @@ const AppNavigator: React.FC = () => {
               name="HealthProfileAssessment"
               component={HealthProfileAssessmentScreen}
             />
+            <Stack.Screen name="ReturnList" component={ReturnListScreen} />
             <Stack.Screen name="Wallet" component={WalletScreen} />
             <Stack.Screen
               name="Withdraw"
@@ -480,6 +485,7 @@ const AppNavigator: React.FC = () => {
               name="NotificationScreen"
               component={NotificationScreen}
             />
+            <Stack.Screen name="ReturnDetail" component={ReturnDetailScreen} />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>

@@ -17,14 +17,21 @@ export type CreateOrderPayload = {
   recipientPhone: string;
   shippingAddress: string;
   addressId: string;
-
   items: OrderItem[];
-
   discountAmount?: number;
   vendorShippings: VendorShipping[];
-
   paymentMethod: 'WALLET' | 'VNPAY' | 'COD' | 'CARD' | string;
   notes?: string;
+};
+
+export type OrderReturnItem = {
+  orderDetailId: string;
+  quantity: number;
+};
+
+export type CreateOrderReturnPayload = {
+  reason: string;
+  items: OrderReturnItem[];
 };
 
 export async function createOrder(payload: CreateOrderPayload) {
@@ -56,6 +63,22 @@ export async function requestOrderDetailReturn(orderDetailId: string, reason: st
 
 export async function requestOrderReturn(orderId: string, reason: string) {
   const res = await axios.post(`/orders/${orderId}/return`, { reason });
+  return res.data.data;
+}
+
+/** Tạo yêu cầu trả hàng (chọn từng món) — POST /api/order-returns */
+export async function createOrderReturn(payload: CreateOrderReturnPayload) {
+  const res = await axios.post('/order-returns', payload);
+  return res.data.data;
+}
+
+export async function getMyOrderReturns() {
+  const res = await axios.get('/order-returns/my-returns');
+  return res.data.data;
+}
+
+export async function getOrderReturnById(returnId: string) {
+  const res = await axios.get(`/order-returns/${returnId}`);
   return res.data.data;
 }
 
