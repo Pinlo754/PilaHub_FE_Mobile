@@ -1,156 +1,288 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { getProfile } from '../services/auth';
-import { fetchMyHealthProfiles, fetchTraineeProfile } from '../services/profile';
+
+import {
+  fetchMyHealthProfiles,
+  fetchTraineeProfile,
+} from '../services/profile';
+
 import { setOnboardingCompletedFor } from './storage';
+
 import { getBodySavedFor } from './bodyCache';
+
 import useAuthStore from '../store/auth.store';
 
-export async function handlePostLogin(loginPayload: any, navigation: any) {
-  // Handle different response structures from backend
-  const authResponse = loginPayload?.authResponse ?? loginPayload;
-  const account = authResponse?.account ?? loginPayload?.account ?? loginPayload ?? {};
-  let role: string | null = account?.role ?? null;
+import { useOnboardingStore } from '../store/onboarding.store';
 
-  // try to read persisted role if payload missing it
-  if (!role) {
-    try {
-      const savedRole = await AsyncStorage.getItem('account:role');
-      role = savedRole ?? role;
-    } catch {
-      // ignore
-    }
-  }
+export async function handlePostLogin(
+  loginPayload: any,
+  navigation: any,
+) {
+  /**
+   * =========================
+   * LOGIN PAYLOAD
+   * =========================
+   */
 
-  // read persisted isCoach flag to avoid extra profile calls on reload
+  const authResponse =
+    loginPayload?.authResponse ?? loginPayload;
+
+  const account =
+    authResponse?.account ??
+    loginPayload?.account ??
+    loginPayload ??
+    {};
+
+  let role: string | null =
+    account?.role ?? null;
+
+  /**
+   * =========================
+   * CHECK SAVED COACH
+   * =========================
+   */
+
   try {
-    const savedIsCoach = await AsyncStorage.getItem('account:isCoach');
+    const savedIsCoach =
+      await AsyncStorage.getItem(
+        'account:isCoach',
+      );
+
     if (savedIsCoach === '1') {
-      // Ensure role reflects this state
-      role = role ?? 'COACH';
-      // persist to zustand auth store
-      try { useAuthStore.getState().setRole('COACH'); } catch {}
+      try {
+        useAuthStore
+          .getState()
+          .setRole('COACH');
+      } catch {}
+
       navigation.replace('CoachScreen');
+
       return;
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 
-  // derive userId from login payload if available
-  let userId: string | null = account?.accountId ?? account?.id ?? null;
+  /**
+   * =========================
+   * GET USER ID
+   * =========================
+   */
 
-  // fallback: if we still don't have userId or role, try to fetch profile
+  let userId: string | null =
+    account?.accountId ??
+    account?.id ??
+    null;
+
+  /**
+   * =========================
+   * FETCH PROFILE
+   * =========================
+   */
+
   if (!userId || !role) {
     try {
       const me = await getProfile();
+
       if (me.ok) {
         const d: any = me.data;
-        userId = userId ?? (d?.id ?? d?.accountId ?? d?.memberId ?? null);
-        // also derive role from fetched profile so COACH accounts are handled immediately
-        role = role ?? (d?.role ?? d?.account?.role ?? (Array.isArray(d?.roles) ? d.roles[0] : null) ?? null);
-        // persist derived role for future app reloads
+
+        userId =
+          userId ??
+          d?.id ??
+          d?.accountId ??
+          d?.memberId ??
+          null;
+
+        role =
+          role ??
+          d?.role ??
+          d?.account?.role ??
+          null;
+
         if (role) {
           try {
-            await AsyncStorage.setItem('account:role', String(role));
-            // persist isCoach flag too
-            if (String(role).toUpperCase() === 'COACH') {
-              await AsyncStorage.setItem('account:isCoach', '1');
-            } else {
-              await AsyncStorage.setItem('account:isCoach', '0');
-            }
-            // persist role to zustand store
-            try { useAuthStore.getState().setRole(String(role)); } catch {}
-          } catch {
-            // ignore
-          }
+            await AsyncStorage.setItem(
+              'account:role',
+              String(role),
+            );
+
+            await AsyncStorage.setItem(
+              'account:isCoach',
+              String(role).toUpperCase() ===
+                'COACH'
+                ? '1'
+                : '0',
+            );
+
+            try {
+              useAuthStore
+                .getState()
+                .setRole(String(role));
+            } catch {}
+          } catch {}
         }
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
-  // If role is COACH -> redirect immediately (also handle case where role arrived from profile)
-  if (role && String(role).toUpperCase() === 'COACH') {
-    try {
-      await AsyncStorage.setItem('account:role', 'COACH');
-      await AsyncStorage.setItem('account:isCoach', '1');
-      try { useAuthStore.getState().setRole('COACH'); } catch {}
-    } catch {
-      // ignore
-    }
+  /**
+   * =========================
+   * COACH
+   * =========================
+   */
+
+  if (
+    role &&
+    String(role).toUpperCase() ===
+      'COACH'
+  ) {
     navigation.replace('CoachScreen');
+
     return;
   }
 
-  // Primary server-driven checks: trainee profile and health profiles
-  let traineeExists = false;
+  /**
+   * =========================
+   * CHECK TRAINEE PROFILE
+   * =========================
+   */
+
+  let traineeProfile: any = null;
+
   try {
-    const tRes = await fetchTraineeProfile();
+    const tRes =
+      await fetchTraineeProfile();
+
     if (tRes.ok) {
-      traineeExists = true;
-    } else {
-      const err = tRes.error || {};
-      const msg = String(err?.message ?? err ?? '').toLowerCase();
-      const code = err?.errorCode ?? err?.code ?? err?.status;
-      if (code === 404 || msg.includes('not found') || code === 'TRAINEE_NOT_FOUND') {
-        traineeExists = false;
-      } else {
-        traineeExists = false;
-      }
+      traineeProfile =
+        tRes.data?.data ??
+        tRes.data ??
+        null;
     }
-  } catch {
-    traineeExists = false;
-  }
+  } catch {}
 
-  // if server says no trainee profile -> require onboarding
-  if (!traineeExists) {
+  /**
+   * =========================
+   * NO TRAINEE PROFILE
+   * =========================
+   */
+
+  if (!traineeProfile) {
+    try {
+      useOnboardingStore
+        .getState()
+        .reset();
+    } catch {}
+
     navigation.replace('Onboarding');
+
     return;
   }
 
-  // server has trainee -> mark per-user onboarding completed
-  if (userId) {
-    try {
-      await setOnboardingCompletedFor(userId);
-    } catch {
-      // ignore
-    }
-  }
+  /**
+   * =========================
+   * SAVE TRAINEE TO STORE
+   * =========================
+   */
 
-  // check health profiles
-  let hasHealth = false;
   try {
-    const hRes = await fetchMyHealthProfiles();
-    if (hRes.ok) {
-      const payload = (hRes.data && (hRes.data.data ?? hRes.data)) ?? hRes.data;
-      if (Array.isArray(payload)) hasHealth = payload.length > 0;
-      else if (Array.isArray(hRes.data)) hasHealth = hRes.data.length > 0;
-    }
-  } catch {
-    hasHealth = false;
-  }
+    useOnboardingStore
+      .getState()
+      .setData({
+        traineeId:
+          traineeProfile?.traineeId ??
+          traineeProfile?.id,
 
-  // fallback to local per-user body cache if server check inconclusive
+        fullName:
+          traineeProfile?.fullName,
+
+        age: traineeProfile?.age,
+
+        gender:
+          String(
+            traineeProfile?.gender ??
+              '',
+          ).toLowerCase() ===
+          'female'
+            ? 'female'
+            : 'male',
+      });
+  } catch {}
+
+  /**
+   * =========================
+   * CHECK HEALTH PROFILE
+   * =========================
+   */
+
+  let hasHealth = false;
+
+  try {
+    const hRes =
+      await fetchMyHealthProfiles();
+
+    if (hRes.ok) {
+      const payload =
+        hRes.data?.data ??
+        hRes.data ??
+        [];
+
+      hasHealth =
+        Array.isArray(payload) &&
+        payload.length > 0;
+    }
+  } catch {}
+
+  /**
+   * =========================
+   * LOCAL FALLBACK
+   * =========================
+   */
+
   if (!hasHealth) {
     try {
       if (userId) {
-        const saved = await getBodySavedFor(userId);
+        const saved =
+          await getBodySavedFor(
+            userId,
+          );
+
         hasHealth = !!saved;
-      } else {
-        const savedRaw = await AsyncStorage.getItem('bodygram:savedMeasurements');
-        hasHealth = !!savedRaw;
       }
-    } catch {
-      hasHealth = false;
-    }
+    } catch {}
   }
 
+  /**
+   * =========================
+   * NO HEALTH PROFILE
+   * =========================
+   */
+
   if (!hasHealth) {
+    try {
+      useOnboardingStore
+        .getState()
+        .setStep(5);
+    } catch {}
+
     navigation.replace('Onboarding');
+
     return;
   }
 
-  // default
+  /**
+   * =========================
+   * COMPLETE
+   * =========================
+   */
+
+  if (userId) {
+    try {
+      await setOnboardingCompletedFor(
+        userId,
+      );
+    } catch {}
+  }
+
   navigation.replace('MainTabs');
 }

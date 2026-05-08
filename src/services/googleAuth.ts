@@ -31,3 +31,21 @@ export async function googleAuth(payload: { email?: string; googleIdToken: strin
     return { ok: false, error };
   }
 }
+export async function googleSetPassword(payload: {
+  googleIdToken: string;
+  newPassword: string;
+}): Promise<AuthResult> {
+  try {
+    const res = await api.post('/auth/google-set-password', payload);
+
+    return {
+      ok: true,
+      data: res.data?.data ?? res.data,
+    };
+  } catch (e: any) {
+    return {
+      ok: false,
+      error: e.response?.data ?? e.message ?? e,
+    };
+  }
+}

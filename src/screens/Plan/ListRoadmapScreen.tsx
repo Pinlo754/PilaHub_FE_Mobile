@@ -15,8 +15,15 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../../theme/colors';
 import { RoadmapStackParamList } from '../../navigation/RoadmapStackNavigator';
 import RoadmapApi from '../../hooks/roadmap.api';
-
-type Props = NativeStackScreenProps<RoadmapStackParamList, 'RoadmapList'>;
+import { CompositeScreenProps } from '@react-navigation/native';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<
+    RoadmapStackParamList,
+    'RoadmapList'
+  >,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 type RoadmapGoal = {
   roadmapGoalId: string;
@@ -302,7 +309,7 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
               activeTab === 'TRAINEE' && styles.tabTextActive,
             ]}
           >
-            Tôi tạo
+            Của tôi
           </Text>
         </Pressable>
 
@@ -324,7 +331,7 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
               activeTab === 'COACH' && styles.tabTextActive,
             ]}
           >
-            HLV tạo
+            Của HLV 
           </Text>
         </Pressable>
       </View>
@@ -376,6 +383,32 @@ const RoadmapListScreen: React.FC<Props> = ({ navigation }) => {
                 ? 'Thử nhập tên lộ trình khác để tìm kiếm.'
                 : 'Khi bạn có lộ trình tập luyện, danh sách sẽ hiển thị ở đây.'}
             </Text>
+
+            {!searchText.trim() && activeTab === 'TRAINEE' && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.createButton,
+                  pressed && styles.createButtonPressed,
+                ]}
+                onPress={() => navigation.navigate('CreateRoadmap')}
+              >
+                <Text style={styles.createButtonText}>Tạo lộ trình mới</Text>
+              </Pressable>
+            )}
+
+            {!searchText.trim() && activeTab === 'COACH' && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.createButton,
+                  styles.createButtonCoach,
+                  pressed && styles.createButtonPressed,
+                ]}
+                onPress={() => navigation.navigate('Search')}
+              >
+               
+                <Text style={styles.createButtonText}>Đăng ký huấn luyện viên</Text>
+              </Pressable>
+            )}
           </View>
         }
         renderItem={({ item }) => (
@@ -931,6 +964,44 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  // ── New: Create button ──────────────────────────────────────────
+ createButton: {
+  marginTop: 24,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+
+  backgroundColor: '#A0522D',
+
+  paddingHorizontal: 28,
+  paddingVertical: 14,
+  borderRadius: 999,
+
+  shadowColor: '#7A3B1A',
+  shadowOpacity: 0.25,
+  shadowRadius: 12,
+  shadowOffset: {
+    width: 0,
+    height: 6,
+  },
+
+  elevation: 6,
+},
+  createButtonCoach: {
+    backgroundColor: '#7C3AED',
+    shadowColor: '#4C1D95',
+  },
+  createButtonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.97 }],
+  },
+  createButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: "#000000",
+  },
+  // ───────────────────────────────────────────────────────────────
+
   footerLoading: {
     paddingVertical: 18,
     alignItems: 'center',
@@ -958,4 +1029,3 @@ const styles = StyleSheet.create({
 });
 
 export default RoadmapListScreen;
-
