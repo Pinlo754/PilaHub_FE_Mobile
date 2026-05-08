@@ -352,14 +352,14 @@ const OrdersScreen: React.FC<any> = ({
             </View>
 
             <View style={styles.productAction}>
-              {d.status === 'DELIVERED' ? (
-                <Pressable
-                  style={styles.confirmBtn}
-                  onPress={() => handleConfirmDetail(d.orderDetailId)}
-                >
-                  <Text style={styles.confirmBtnText}>Đã nhận</Text>
-                </Pressable>
-              ) : null}
+             {['DELIVERED', 'COMPLETED'].includes(String(d.status)) ? (
+  <Pressable
+    style={styles.confirmBtn}
+    onPress={() => handleConfirmDetail(d.orderDetailId)}
+  >
+    <Text style={styles.confirmBtnText}>Đã nhận</Text>
+  </Pressable>
+) : null}
             </View>
           </View>
         ))}
@@ -377,7 +377,7 @@ const OrdersScreen: React.FC<any> = ({
               </Pressable>
             ) : null}
 
-            {item.status === 'DELIVERED' || item.status === 'COMPLETED' ? (
+            {item.status === 'DELIVERED' ? (
               <Pressable
                 style={styles.returnBtn}
                 onPress={() => handleRequestReturn(item.orderId)}
@@ -456,6 +456,12 @@ const OrdersScreen: React.FC<any> = ({
           <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn}>
             <Ionicons name="refresh" size={22} color={COLORS.primary} />
           </TouchableOpacity>
+          <TouchableOpacity 
+      onPress={() => navigation.navigate('ReturnList')} 
+      style={[styles.refreshBtn, { marginLeft: 8 }]}
+    >
+      <Ionicons name="timer-outline" size={24} color={COLORS.primary} />
+    </TouchableOpacity>
         </View>
       </View>
 

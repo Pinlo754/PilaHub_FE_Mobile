@@ -20,6 +20,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ModalPopup from '../../components/ModalPopup';
 
+// FIX: màu chữ cho Picker trên Android release build
+const PICKER_TEXT_COLOR = '#111827';
+
 export default function AddressFormScreen({ route }: any) {
   const navigation: any = useNavigation();
 
@@ -409,9 +412,11 @@ export default function AddressFormScreen({ route }: any) {
             <Text style={styles.loadingText}>Đang tải tỉnh/thành...</Text>
           </View>
         ) : (
+          // FIX: bỏ className, thêm style color và color vào mỗi Picker.Item
           <Picker
             selectedValue={selectedProvince}
-            className='text-black'
+            style={styles.picker}
+            dropdownIconColor={PICKER_TEXT_COLOR}
             onValueChange={value => {
               setSelectedProvince(value);
               setSelectedDistrict(null);
@@ -421,12 +426,17 @@ export default function AddressFormScreen({ route }: any) {
               setAddressLine('');
             }}
           >
-            <Picker.Item label="Chọn tỉnh/thành" value={null} />
+            <Picker.Item
+              label="Chọn tỉnh/thành"
+              value={null}
+              color={PICKER_TEXT_COLOR}
+            />
             {provinces.map(p => (
               <Picker.Item
                 key={p.provinceId}
                 label={p.provinceName}
                 value={p.provinceId}
+                color={PICKER_TEXT_COLOR}
               />
             ))}
           </Picker>
@@ -442,10 +452,12 @@ export default function AddressFormScreen({ route }: any) {
             <Text style={styles.loadingText}>Đang tải quận/huyện...</Text>
           </View>
         ) : (
+          // FIX: bỏ className, thêm style color và color vào mỗi Picker.Item
           <Picker
             selectedValue={selectedDistrict}
             enabled={districts.length > 0}
-            className='text-black'
+            style={styles.picker}
+            dropdownIconColor={PICKER_TEXT_COLOR}
             onValueChange={value => {
               setSelectedDistrict(value);
               setSelectedWard(null);
@@ -453,12 +465,17 @@ export default function AddressFormScreen({ route }: any) {
               setAddressLine('');
             }}
           >
-            <Picker.Item label="Chọn quận/huyện" value={null} />
+            <Picker.Item
+              label="Chọn quận/huyện"
+              value={null}
+              color={PICKER_TEXT_COLOR}
+            />
             {districts.map(d => (
               <Picker.Item
                 key={d.districtId}
                 label={d.districtName}
                 value={d.districtId}
+                color={PICKER_TEXT_COLOR}
               />
             ))}
           </Picker>
@@ -474,21 +491,28 @@ export default function AddressFormScreen({ route }: any) {
             <Text style={styles.loadingText}>Đang tải phường/xã...</Text>
           </View>
         ) : (
+          // FIX: bỏ className, thêm style color và color vào mỗi Picker.Item
           <Picker
             selectedValue={selectedWard}
-            className='text-black'
+            style={styles.picker}
+            dropdownIconColor={PICKER_TEXT_COLOR}
             enabled={wards.length > 0}
             onValueChange={value => {
               setSelectedWard(value);
               setAddressLine('');
             }}
           >
-            <Picker.Item label="Chọn phường/xã" value={null} />
+            <Picker.Item
+              label="Chọn phường/xã"
+              value={null}
+              color={PICKER_TEXT_COLOR}
+            />
             {wards.map(w => (
               <Picker.Item
                 key={w.wardCode}
                 label={w.wardName}
                 value={w.wardCode}
+                color={PICKER_TEXT_COLOR}
               />
             ))}
           </Picker>
@@ -608,7 +632,6 @@ export default function AddressFormScreen({ route }: any) {
                 {Content}
               </ScrollView>
 
-              {/* ModalPopup for errors/success inside modal flow */}
               <ModalPopup
                 {...(modalProps as any)}
                 onClose={closeModal}
@@ -645,7 +668,6 @@ export default function AddressFormScreen({ route }: any) {
         {Content}
       </ScrollView>
 
-      {/* ModalPopup rendered at root so it works in both modal and full-screen flows */}
       <ModalPopup
         {...(modalProps as any)}
         onClose={closeModal}
@@ -660,19 +682,7 @@ function normalizeVietnamPhone(phone: string): string {
 
 function isValidVietnamPhone(phone: string): boolean {
   const normalized = normalizeVietnamPhone(phone);
-
-  /**
-   * Hợp lệ:
-   * 03xxxxxxxx
-   * 05xxxxxxxx
-   * 07xxxxxxxx
-   * 08xxxxxxxx
-   * 09xxxxxxxx
-   *
-   * Tổng cộng 10 số.
-   */
   const vnPhoneRegex = /^(03|05|07|08|09)[0-9]{8}$/;
-
   return vnPhoneRegex.test(normalized);
 }
 
@@ -760,6 +770,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     backgroundColor: '#fff',
     overflow: 'hidden',
+  },
+
+  // FIX: style riêng cho Picker với color rõ ràng
+  picker: {
+    color: PICKER_TEXT_COLOR,
+    backgroundColor: '#fff',
   },
 
   loadingPicker: {
