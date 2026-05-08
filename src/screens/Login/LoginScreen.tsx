@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, Modal } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import { WEB_CLIENT_ID } from '../../config/key';
 import { handlePostLogin } from '../../utils/postLoginHandler';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '../../theme/colors';
-
+import { googleSetPassword } from '../../services/googleAuth';
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -20,7 +20,22 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
 
+  const [googleTokenForPassword, setGoogleTokenForPassword] = useState('');
+
+  const [pendingGoogleData, setPendingGoogleData] = useState<any>(null);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+const validatePassword = (password: string) => {
+  const regex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{6,}$/;
+
+  return regex.test(password);
+};
   useEffect(() => {
     configureGoogleSignIn({
       webClientId: WEB_CLIENT_ID,
@@ -74,6 +89,14 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       // delegate post-login routing
+      if (data?.hasPassword === false) {
+        setGoogleTokenForPassword(idToken);
+        setPendingGoogleData(data);
+        setShowSetPasswordModal(true);
+        setLoading(false);
+        return;
+      }
+
       await handlePostLogin(data, navigation);
       setLoading(false);
       return;
@@ -82,7 +105,52 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       setError(e?.message ?? String(e));
     }
   }
+  async function handleSetGooglePassword() {
+  try {
+    setError(null);
 
+    if (!newPassword || !confirmPassword) {
+      setError('Vui lòng nhập đầy đủ mật khẩu');
+      return;
+    }
+
+    if (!validatePassword(newPassword)) {
+      setError(
+        'Mật khẩu phải ≥ 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt'
+      );
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    setLoading(true);
+
+    const res = await googleSetPassword({
+      googleIdToken: googleTokenForPassword,
+      newPassword,
+    });
+
+    if (!res.ok) {
+      setLoading(false);
+      setError(res.error?.message ?? 'Không thể cập nhật mật khẩu');
+      return;
+    }
+
+    setShowSetPasswordModal(false);
+    setNewPassword('');
+    setConfirmPassword('');
+
+    await handlePostLogin(pendingGoogleData, navigation);
+
+    setLoading(false);
+  } catch (e: any) {
+    setLoading(false);
+    setError(e?.message ?? String(e));
+  }
+}
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
@@ -253,6 +321,228 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </TouchableOpacity>
       </View>
+     <Modal
+  visible={showSetPasswordModal}
+  transparent
+  animationType="fade"
+>
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      padding: 24,
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 20,
+          fontWeight: '700',
+          marginBottom: 8,
+        }}
+      >
+        Thiết lập mật khẩu
+      </Text>
+
+      <Text
+        style={{
+          color: '#666',
+          marginBottom: 20,
+        }}
+      >
+        Tài khoản Google của bạn chưa có mật khẩu.
+      </Text>
+
+      {/* NEW PASSWORD */}
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: '#ddd',
+          borderRadius: 10,
+          paddingHorizontal: 14,
+          height: 50,
+          marginBottom: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+      >
+        <TextInput
+          placeholder="Nhập mật khẩu mới"
+          secureTextEntry={!showNewPassword}
+          value={newPassword}
+          onChangeText={setNewPassword}
+          style={{
+            flex: 1,
+          }}
+        />
+
+        <TouchableOpacity
+          onPress={() => setShowNewPassword(v => !v)}
+        >
+          <Feather
+            name={showNewPassword ? 'eye' : 'eye-off'}
+            size={20}
+            color="#CD853F"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* CONFIRM PASSWORD */}
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor:
+            confirmPassword.length > 0 &&
+            confirmPassword !== newPassword
+              ? '#EF4444'
+              : '#ddd',
+          borderRadius: 10,
+          paddingHorizontal: 14,
+          height: 50,
+          marginBottom: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+      >
+        <TextInput
+          placeholder="Xác nhận mật khẩu"
+          secureTextEntry={!showConfirmPassword}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          style={{
+            flex: 1,
+          }}
+        />
+
+        <TouchableOpacity
+          onPress={() => setShowConfirmPassword(v => !v)}
+        >
+          <Feather
+            name={showConfirmPassword ? 'eye' : 'eye-off'}
+            size={20}
+            color="#CD853F"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* VALIDATION */}
+      <View style={{ marginBottom: 16 }}>
+        <Text
+          style={{
+            color: validatePassword(newPassword)
+              ? '#16A34A'
+              : '#EF4444',
+            fontSize: 13,
+            marginBottom: 4,
+          }}
+        >
+          • Ít nhất 6 ký tự
+        </Text>
+
+        <Text
+          style={{
+            color:
+              /[A-Z]/.test(newPassword)
+                ? '#16A34A'
+                : '#EF4444',
+            fontSize: 13,
+            marginBottom: 4,
+          }}
+        >
+          • Có chữ in hoa
+        </Text>
+
+        <Text
+          style={{
+            color:
+              /[a-z]/.test(newPassword)
+                ? '#16A34A'
+                : '#EF4444',
+            fontSize: 13,
+            marginBottom: 4,
+          }}
+        >
+          • Có chữ thường
+        </Text>
+
+        <Text
+          style={{
+            color:
+              /\d/.test(newPassword)
+                ? '#16A34A'
+                : '#EF4444',
+            fontSize: 13,
+            marginBottom: 4,
+          }}
+        >
+          • Có số
+        </Text>
+
+        <Text
+          style={{
+            color:
+              /[^A-Za-z\d]/.test(newPassword)
+                ? '#16A34A'
+                : '#EF4444',
+            fontSize: 13,
+            marginBottom: 4,
+          }}
+        >
+          • Có ký tự đặc biệt
+        </Text>
+
+        {confirmPassword.length > 0 &&
+          confirmPassword !== newPassword && (
+            <Text
+              style={{
+                color: '#EF4444',
+                fontSize: 13,
+                marginTop: 4,
+              }}
+            >
+              Mật khẩu xác nhận không khớp
+            </Text>
+          )}
+      </View>
+
+      <TouchableOpacity
+        disabled={
+          !validatePassword(newPassword) ||
+          confirmPassword !== newPassword ||
+          loading
+        }
+        onPress={handleSetGooglePassword}
+        style={{
+          height: 50,
+          backgroundColor:
+            !validatePassword(newPassword) ||
+            confirmPassword !== newPassword
+              ? '#ccc'
+              : colors.foreground,
+          borderRadius: 10,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Text
+          style={{
+            color: 'white',
+            fontWeight: '700',
+          }}
+        >
+          {loading ? 'Đang xử lý...' : 'Xác nhận'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
     </SafeAreaView>
   );
 };

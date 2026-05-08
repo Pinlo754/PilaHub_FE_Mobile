@@ -508,7 +508,7 @@ const CreateRoadmapScreen: React.FC = () => {
           }}
         />
 
-        <Text className="font-semibold mt-6">Mức độ theo onboarding</Text>
+        <Text className="font-semibold mt-6">Mức độ</Text>
 
         <View className="mt-2 p-4 bg-gray-100 rounded-lg border border-gray-200">
           <Text className="text-base">

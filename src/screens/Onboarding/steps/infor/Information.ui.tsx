@@ -35,15 +35,7 @@ export default function InformationUI() {
   const ageValue =
     typeof onboardingData.age === 'number' ? String(onboardingData.age) : '';
 
-  const weightValue =
-    typeof onboardingData.weight === 'number'
-      ? String(onboardingData.weight)
-      : '';
-
-  const heightValue =
-    typeof onboardingData.height === 'number'
-      ? String(onboardingData.height)
-      : '';
+  
 
   const handleNumberChange = (
     text: string,
@@ -209,23 +201,7 @@ export default function InformationUI() {
                 suffix="tuổi"
               />
 
-              <Input
-                label="Cân nặng"
-                value={weightValue}
-                onChange={text => handleNumberChange(text, 'weight')}
-                placeholder="Nhập cân nặng"
-                keyboard="decimal-pad"
-                suffix={onboardingData.weightUnit ?? 'kg'}
-              />
-
-              <Input
-                label="Chiều cao"
-                value={heightValue}
-                onChange={text => handleNumberChange(text, 'height')}
-                placeholder="Nhập chiều cao"
-                keyboard="numeric"
-                suffix={onboardingData.heightUnit ?? 'cm'}
-              />
+            
             </View>
           </ScrollView>
         </TouchableWithoutFeedback>
