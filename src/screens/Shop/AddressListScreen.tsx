@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +12,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getAddresses, deleteAddress } from '../../services/address';
+import ModalPopup from '../../components/ModalPopup';
 
 const COLORS = {
   bg: '#FFF9F3',
@@ -55,22 +55,44 @@ export default function AddressListScreen({ route }: any) {
   const [loading, setLoading] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
 
+  // ModalPopup state
+  const [modalProps, setModalProps] = useState<any>({
+    visible: false,
+    mode: 'noti',
+    titleText: '',
+    contentText: '',
+    onConfirm: undefined,
+    onCancel: undefined,
+  });
+
+  const showModal = useCallback((props: Partial<any>) => {
+    setModalProps((prev: any) => ({ ...prev, ...props, visible: true }));
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalProps((prev: any) => ({ ...prev, visible: false }));
+  }, []);
+
   /**
    * mode = 'select' => đi từ Checkout sang để chọn địa chỉ
    * mode = 'manage' hoặc undefined => đi từ Profile / quản lý địa chỉ
    */
-  // If caller passes an onSelect callback we consider this a select flow as well.
-  const isSelectMode = route.params?.mode === 'select' || typeof route.params?.onSelect === 'function';
+  const isSelectMode =
+    route.params?.mode === 'select' ||
+    typeof route.params?.onSelect === 'function';
 
   const load = async () => {
     setLoading(true);
-
     try {
       const data = await getAddresses();
       setAddresses(data || []);
     } catch (e) {
       console.warn('load addresses failed', e);
-      Alert.alert('Lỗi', 'Không thể tải danh sách địa chỉ');
+      showModal({
+        mode: 'noti',
+        titleText: 'Lỗi',
+        contentText: 'Không thể tải danh sách địa chỉ',
+      });
     } finally {
       setLoading(false);
     }
@@ -84,55 +106,48 @@ export default function AddressListScreen({ route }: any) {
     const unsub = navigation.addListener('focus', () => {
       load();
     });
-
     return unsub;
   }, [navigation]);
 
-  const onBack = () => {
-    navigation.goBack();
-  };
+  const onBack = () => navigation.goBack();
 
-  const goAdd = () => {
-    navigation.navigate('AddressForm', { onSaved: load });
-  };
+  const goAdd = () => navigation.navigate('AddressForm', { onSaved: load });
 
   const handleEdit = (addr: any) => {
     navigation.navigate('AddressForm', { address: addr, onSaved: load });
   };
 
   const handleDelete = (addr: any) => {
-    Alert.alert(
-      'Xoá địa chỉ',
-      `Bạn có chắc muốn xoá địa chỉ của ${
-        addr.receiverName || 'người nhận'
-      } không?`,
-      [
-        {
-          text: 'Huỷ',
-          style: 'cancel',
-        },
-        {
-          text: 'Xoá',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await deleteAddress(addr.addressId);
-              await load();
-            } catch (e) {
-              console.warn('delete address failed', e);
-              Alert.alert('Lỗi', 'Không thể xoá địa chỉ');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
-    );
+    showModal({
+      mode: 'confirm',
+      titleText: 'Xoá địa chỉ',
+      contentText: `Bạn có chắc muốn xoá địa chỉ của ${addr.receiverName || 'người nhận'} không?`,
+      confirmBtnText: 'Xoá',
+      confirmBtnColor: 'red',
+      cancelBtnText: 'Huỷ',
+      cancelBtnColor: 'grey',
+      onConfirm: async () => {
+        closeModal();
+        try {
+          setLoading(true);
+          await deleteAddress(addr.addressId);
+          await load();
+        } catch (e) {
+          console.warn('delete address failed', e);
+          showModal({
+            mode: 'noti',
+            titleText: 'Lỗi',
+            contentText: 'Không thể xoá địa chỉ',
+          });
+        } finally {
+          setLoading(false);
+        }
+      },
+      onCancel: closeModal,
+    });
   };
 
   const onSelect = (addr: any) => {
-    // If caller provided an onSelect callback (preferred pattern), call it and go back
     if (typeof route.params?.onSelect === 'function') {
       try {
         route.params.onSelect(addr);
@@ -143,13 +158,11 @@ export default function AddressListScreen({ route }: any) {
       return;
     }
 
-    // Legacy select-mode navigation: navigate back to Checkout with param
     if (isSelectMode) {
       navigation.navigate('Checkout', { selectedAddress: addr });
       return;
     }
 
-    // Default: open edit form
     handleEdit(addr);
   };
 
@@ -203,11 +216,7 @@ export default function AddressListScreen({ route }: any) {
               onPress={() => onSelect(item)}
               style={[styles.actionBtn, styles.selectBtn]}
             >
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={16}
-                color="#fff"
-              />
+              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
               <Text style={styles.selectBtnText}>Chọn địa chỉ</Text>
             </TouchableOpacity>
           ) : (
@@ -222,22 +231,14 @@ export default function AddressListScreen({ route }: any) {
               onPress={() => handleEdit(item)}
               style={styles.iconBtn}
             >
-              <Ionicons
-                name="pencil-outline"
-                size={18}
-                color={COLORS.primary}
-              />
+              <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => handleDelete(item)}
               style={styles.iconBtnDanger}
             >
-              <Ionicons
-                name="trash-outline"
-                size={18}
-                color={COLORS.danger}
-              />
+              <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -279,9 +280,7 @@ export default function AddressListScreen({ route }: any) {
       ) : (
         <FlatList
           data={addresses}
-          keyExtractor={(item: any, index) =>
-            String(item.addressId ?? index)
-          }
+          keyExtractor={(item: any, index) => String(item.addressId ?? index)}
           renderItem={renderAddress}
           contentContainerStyle={[
             styles.listContent,
@@ -291,6 +290,11 @@ export default function AddressListScreen({ route }: any) {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <ModalPopup
+        {...(modalProps as any)}
+        onClose={closeModal}
+      />
     </SafeAreaView>
   );
 }
@@ -300,7 +304,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-
   headerWrap: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -346,7 +349,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   loadingWrap: {
     flex: 1,
     alignItems: 'center',
@@ -357,7 +359,6 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontWeight: '600',
   },
-
   listContent: {
     padding: 16,
     paddingBottom: 32,
@@ -366,7 +367,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
   },
-
   addressCard: {
     backgroundColor: COLORS.card,
     borderRadius: 18,
@@ -423,7 +423,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-
   addressLineBox: {
     marginTop: 12,
     backgroundColor: '#FFF7ED',
@@ -440,7 +439,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: '600',
   },
-
   actionRow: {
     marginTop: 12,
     flexDirection: 'row',
@@ -499,7 +497,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-
   emptyWrap: {
     alignItems: 'center',
     paddingHorizontal: 26,

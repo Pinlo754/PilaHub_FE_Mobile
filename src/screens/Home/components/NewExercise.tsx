@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { colors } from '../../../theme/colors';
 import { ExerciseType } from '../../../utils/ExerciseType';
@@ -13,6 +14,8 @@ import CardExercise from './CardExercise';
 import { exerciseService } from '../../../hooks/exercise.service';
 
 const NewExercise = () => {
+  const navigation = useNavigation<any>();
+
   const [exercises, setExercises] = useState<ExerciseType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -40,9 +43,34 @@ const NewExercise = () => {
     fetchExercises();
   }, [fetchExercises]);
 
-  const renderItem = useCallback(({ item }: { item: ExerciseType }) => {
-    return <CardExercise item={item} onPress={() => {}} />;
-  }, []);
+  const handlePressExercise = useCallback(
+    (item: ExerciseType) => {
+      console.log('PRESS_EXERCISE:', item);
+
+      if (!item?.exerciseId) {
+        console.log('PRESS_EXERCISE_ERROR: missing exerciseId');
+        return;
+      }
+
+      navigation.navigate('ExerciseDetail', {
+        exercise_id: item.exerciseId,
+        source: 'Home',
+      });
+    },
+    [navigation],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: ExerciseType }) => {
+      return (
+        <CardExercise
+          item={item}
+          onPress={() => handlePressExercise(item)}
+        />
+      );
+    },
+    [handlePressExercise],
+  );
 
   return (
     <View className="pl-4 mt-4">
@@ -51,13 +79,13 @@ const NewExercise = () => {
         <Text className="color-foreground text-lg font-semibold">
           Bài tập mới
         </Text>
-
       </View>
 
       {/* Loading */}
       {loading ? (
         <View className="h-32 items-center justify-center">
           <ActivityIndicator size="small" color={colors.background.DEFAULT} />
+
           <Text className="mt-2 text-sm color-secondaryText">
             Đang tải bài tập...
           </Text>

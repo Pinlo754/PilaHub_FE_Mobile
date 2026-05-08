@@ -45,14 +45,11 @@ const RecommendCourse = () => {
       console.log('PRESS_RECOMMEND_COURSE_ERROR: missing courseId');
       return;
     }
-
-    navigation.navigate('ProgramDetail', {
-      courseId,
-      programId: courseId,
-      id: courseId,
-      source: 'recommend',
-      isFromList: false,
-    });
+navigation.navigate('ProgramDetail', {
+  program_id: courseId,
+  source: 'recommend',
+  isFromList: false,
+});
   };
 
   useEffect(() => {

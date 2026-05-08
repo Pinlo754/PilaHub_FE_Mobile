@@ -1,50 +1,85 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+} from 'react-native';
 import RoadmapApi from '../../hooks/roadmap.api';
 import { useCart } from '../../context/CartContext';
-import { formatVND } from '../../utils/number';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from '../../components/Toast';
+import CardProduct from '../Home/components/CardProduct';
+import { ProductItem } from '../../services/products';
 
-// SmallCard moved outside to avoid defining inside render
-function SmallCard({ item, onPress, onBuy }: { item: any; onPress: (i: any) => void; onBuy: (i: any) => void }) {
-  const price = item.price ?? item.raw?.price ?? 0;
+const CARD_WIDTH = Dimensions.get('window').width * 0.55;
+
+function CarouselSection({
+  title,
+  data,
+  onPress,
+  onNotify,
+}: {
+  title: string;
+  data: any[];
+  onPress: (item: any) => void;
+  onNotify: (msg: string, type: 'success' | 'error' | 'info') => void;
+}) {
+  if (data.length === 0) return null;
 
   return (
-    <TouchableOpacity onPress={() => onPress(item)} className="w-56 mr-4">
-      <View className="bg-white rounded-xl overflow-hidden shadow-sm">
-        <Image
-          source={(item.image || item.raw?.thumbnailUrl || item.raw?.thumnail_url) ? { uri: item.image ?? item.raw?.thumbnailUrl ?? item.raw?.thumnail_url } : { uri: 'https://via.placeholder.com/480x300.png?text=No+Image' }}
-          className="w-56 h-40 bg-[#f1f5f9]"
-        />
-        <View className="p-3">
-          <Text className="font-semibold text-base text-foreground mb-1" numberOfLines={2}>{item.name}</Text>
-          <View className="flex-row justify-between items-center mt-2">
-            <Text className="font-extrabold text-amber-600 text-lg">{price > 0 ? formatVND(price) : 'Liên hệ'}</Text>
-            <TouchableOpacity onPress={() => onBuy(item)} className="bg-amber-500 px-3 py-2 rounded-lg">
-              <Text className="text-white text-sm font-bold">Thêm</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+    <View style={styles.section}>
+      {/* Section header */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionSubtitle}>{data.length} sản phẩm</Text>
       </View>
-    </TouchableOpacity>
+
+      {/* Horizontal carousel */}
+      <FlatList
+        data={data}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item, index) => `${item.productId ?? item.id}-${index}`}
+        contentContainerStyle={styles.carouselContent}
+        renderItem={({ item }) => (
+          <View style={styles.cardWrapper}>
+            <CardProduct
+              item={item as any}
+              onPress={() => onPress(item)}
+              onNotify={onNotify}
+            />
+          </View>
+        )}
+      />
+    </View>
   );
 }
 
 export default function RoadmapProductsScreen() {
   const [loading, setLoading] = useState(true);
-  const [equipmentByStage, setEquipmentByStage] = useState<Record<string, any>>({});
-  const [supplementsByStage, setSupplementsByStage] = useState<Record<string, any>>({});
+  const [equipmentByStage, setEquipmentByStage] = useState<Record<string, any[]>>({});
+  const [supplementsByStage, setSupplementsByStage] = useState<Record<string, any[]>>({});
   const [error, setError] = useState<string | null>(null);
-  const { addToCart, totalItems } = useCart();
+  const { totalItems } = useCart();
   const navigation = useNavigation<any>();
-  
-  // Toast state
+
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+
+  const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToastMsg(msg);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -57,16 +92,12 @@ export default function RoadmapProductsScreen() {
 
         if (!roadmap) {
           setError('Không tìm thấy lộ trình cho người dùng hiện tại.');
-          setEquipmentByStage({});
-          setSupplementsByStage({});
           return;
         }
 
         const roadmapId = roadmap?.id ?? roadmap?.roadmapId ?? roadmap?._id ?? null;
         if (!roadmapId) {
           setError('Lộ trình không có id hợp lệ.');
-          setEquipmentByStage({});
-          setSupplementsByStage({});
           return;
         }
 
@@ -78,7 +109,6 @@ export default function RoadmapProductsScreen() {
         const equipmentRaw = eqRes.status === 'fulfilled' ? (Array.isArray(eqRes.value) ? eqRes.value : []) : [];
         const supplementsRaw = supRes.status === 'fulfilled' ? (Array.isArray(supRes.value) ? supRes.value : []) : [];
 
-        // prepare stage keys from server stages; fallback to single 'all' stage
         const keys: { key: string; title: string }[] = [];
         if (Array.isArray(stagesFromServer) && stagesFromServer.length > 0) {
           stagesFromServer.forEach((s: any, idx: number) => {
@@ -90,56 +120,45 @@ export default function RoadmapProductsScreen() {
           keys.push({ key: 'all', title: 'Tất cả' });
         }
 
-        // helper to compute stageKey for item
         const computeStageKey = (it: any) => {
           if (it == null) return 'unassigned';
           if (it.stageOrder != null) return String(it.stageOrder);
           if (it.stage_order != null) return String(it.stage_order);
           if (it.stageId != null) return String(it.stageId);
           if (it.stage_id != null) return String(it.stage_id);
-          if (it.stage && (it.stage.stageOrder != null || it.stage.stage_order != null)) return String(it.stage.stageOrder ?? it.stage.stage_order);
+          if (it.stage && (it.stage.stageOrder != null || it.stage.stage_order != null))
+            return String(it.stage.stageOrder ?? it.stage.stage_order);
           return 'unassigned';
         };
 
-        // init maps
+        const normalizeItem = (raw: any, idx: number, prefix: string): ProductItem => {
+          const pid = raw.productId ?? raw.product_id ?? raw.id ?? `${prefix}-${idx}`;
+          return {
+            id: pid,
+            productId: pid,
+            name: raw.name ?? raw.product_name ?? raw.title ?? 'Sản phẩm',
+            image: raw.thumbnailUrl ?? raw.thumnail_url ?? raw.imageUrl ?? raw.thumbnail ?? null,
+            price: raw.price ?? raw.retailPrice ?? raw.priceVND ?? raw.price_vnd ?? 0,
+            raw,
+          } as any;
+        };
+
         const equipmentMap: Record<string, any[]> = {};
         const supplementMap: Record<string, any[]> = {};
-        // ensure keys exist
         keys.forEach(k => { equipmentMap[k.key] = []; supplementMap[k.key] = []; });
         equipmentMap.unassigned = [];
         supplementMap.unassigned = [];
 
-        // normalize and group
         equipmentRaw.forEach((e: any, idx: number) => {
-          // expect product DTO from /products/roadmaps/{id}/equipments
-          const pid = e.productId ?? e.product_id ?? e.id ?? `eq-${idx}`;
-          const item = {
-            id: pid,
-            productId: pid,
-            name: e.name ?? e.product_name ?? e.title ?? 'Dụng cụ',
-            image: e.thumbnailUrl ?? e.thumnail_url ?? e.imageUrl ?? e.thumbnail ?? null,
-            price: e.price ?? e.retailPrice ?? e.priceVND ?? e.price_vnd ?? null,
-            raw: e,
-          };
+          const item = normalizeItem(e, idx, 'eq');
           const sk = computeStageKey(e);
-          if (equipmentMap[sk]) equipmentMap[sk].push(item);
-          else equipmentMap.unassigned.push(item);
+          (equipmentMap[sk] ?? equipmentMap.unassigned).push(item);
         });
 
         supplementsRaw.forEach((s: any, idx: number) => {
-          // expect product DTO from /products/roadmaps/{id}/supplements
-          const pid = s.productId ?? s.product_id ?? s.id ?? `sup-${idx}`;
-          const item = {
-            id: pid,
-            productId: pid,
-            name: s.name ?? s.product_name ?? s.title ?? 'Sản phẩm bổ sung',
-            image: s.thumbnailUrl ?? s.thumnail_url ?? s.imageUrl ?? s.thumbnail ?? null,
-            price: s.price ?? s.retailPrice ?? s.priceVND ?? s.price_vnd ?? null,
-            raw: s,
-          };
+          const item = normalizeItem(s, idx, 'sup');
           const sk = computeStageKey(s);
-          if (supplementMap[sk]) supplementMap[sk].push(item);
-          else supplementMap.unassigned.push(item);
+          (supplementMap[sk] ?? supplementMap.unassigned).push(item);
         });
 
         if (mounted) {
@@ -154,32 +173,8 @@ export default function RoadmapProductsScreen() {
         if (mounted) setLoading(false);
       }
     })();
-
     return () => { mounted = false; };
   }, []);
-
-  const handleBuy = async (item: any) => {
-    try {
-      const price = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (item.raw?.price ?? 0);
-
-      const cartItem = {
-        product_id: item.productId ?? item.id ?? `item-${Date.now()}`,
-        product_name: item.name ?? 'Sản phẩm',
-        thumnail_url: item.image ?? null,
-        price: price,
-        raw: item.raw ?? item,
-      } as any;
-      await addToCart(cartItem, 1);
-      setToastMsg(`Đã thêm ${item.name ?? 'sản phẩm'} vào giỏ hàng`);
-      setToastType('success');
-      setToastVisible(true);
-    } catch (e: any) {
-      console.warn('addToCart failed', e);
-      setToastMsg('Không thể thêm sản phẩm vào giỏ');
-      setToastType('error');
-      setToastVisible(true);
-    }
-  };
 
   const openDetail = (item: any) => {
     const candidateId = item.productId ?? item.id ?? item.raw?.productId ?? item.raw?.product_id ?? item.raw?.id;
@@ -190,82 +185,79 @@ export default function RoadmapProductsScreen() {
     }
   };
 
-  if (loading) return (
-    <SafeAreaView className="flex-1 bg-[#FFF8F0]">
-      <View className="px-3 py-3 border-b border-[#F3F4F6] bg-[#FFF8F0] flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3 p-1">
-            <Ionicons name="chevron-back" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text className="text-lg font-extrabold text-[#0F172A]">Sản phẩm của lộ trình</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Cart' as any)} className="relative">
-          <Ionicons name="cart-outline" size={24} color="#0F172A" />
-          {totalItems > 0 && (
-            <View className="absolute -top-2 -right-2 bg-amber-500 rounded-full w-5 h-5 items-center justify-center">
-              <Text className="text-white text-xs font-bold">{totalItems > 99 ? '99+' : totalItems}</Text>
-            </View>
-          )}
+  const NavHeader = () => (
+    <View style={styles.navHeader}>
+      <View style={styles.navLeft}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color="#0F172A" />
         </TouchableOpacity>
+        <Text style={styles.navTitle}>Sản phẩm của lộ trình</Text>
       </View>
-      <View className="flex-1 justify-center items-center"><ActivityIndicator /></View>
-    </SafeAreaView>
+      <TouchableOpacity onPress={() => navigation.navigate('Cart' as any)} style={styles.cartBtn}>
+        <Ionicons name="cart-outline" size={24} color="#0F172A" />
+        {totalItems > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{totalItems > 99 ? '99+' : totalItems}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <NavHeader />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#CD853F" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <NavHeader />
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={48} color="#CD853F" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const equipmentItems = equipmentByStage.unassigned ?? [];
+  const supplementItems = supplementsByStage.unassigned ?? [];
+  const hasContent = equipmentItems.length > 0 || supplementItems.length > 0;
+
   return (
-    <SafeAreaView className="flex-1 bg-[#FFF8F0]">
-      <View className="px-3 py-3 border-b border-[#F3F4F6] bg-[#FFF8F0] flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3 p-1">
-            <Ionicons name="chevron-back" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text className="text-lg font-extrabold text-[#0F172A]">Sản phẩm của lộ trình</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Cart' as any)} className="relative">
-          <Ionicons name="bag-outline" size={24} color="#0F172A" />
-          {totalItems > 0 && (
-            <View className="absolute -top-2 -right-2 bg-amber-500 rounded-full w-5 h-5 items-center justify-center">
-              <Text className="text-white text-xs font-bold">{totalItems > 99 ? '99+' : totalItems}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.screen}>
+      <NavHeader />
 
-      {error ? (
-        <View className="flex-1 justify-center items-center"><Text>{error}</Text></View>
+      {!hasContent ? (
+        <View style={styles.center}>
+          <Ionicons name="cube-outline" size={48} color="#CD853F" />
+          <Text style={styles.emptyText}>Chưa có sản phẩm nào trong lộ trình</Text>
+        </View>
       ) : (
-        <View className="p-3">
-          {/* Unassigned items */}
-          {((equipmentByStage.unassigned ?? []).length > 0 || (supplementsByStage.unassigned ?? []).length > 0) ? (
-            <View className="mt-6">
-              {(equipmentByStage.unassigned ?? []).length > 0 ? (
-                <>
-                  <Text className="text-sm font-semibold text-[#374151] mb-2">Thiết bị tập luyện</Text>
-                  <FlatList
-                    data={equipmentByStage.unassigned}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(i) => i.id}
-                    renderItem={({ item }) => <SmallCard item={item} onPress={openDetail} onBuy={handleBuy} />}
-                  />
-                </>
-              ) : null}
-
-              {(supplementsByStage.unassigned ?? []).length > 0 ? (
-                <>
-                  <Text className="text-sm font-semibold text-[#374151] mt-3 mb-2">Thực phẩm chức năng</Text>
-                  <FlatList
-                    data={supplementsByStage.unassigned}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(i) => i.id}
-                    renderItem={({ item }) => <SmallCard item={item} onPress={openDetail} onBuy={handleBuy} />}
-                  />
-                </>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <CarouselSection
+            title="Thiết bị tập luyện"
+            data={equipmentItems}
+            onPress={openDetail}
+            onNotify={showToast}
+          />
+          <CarouselSection
+            title="Thực phẩm chức năng"
+            data={supplementItems}
+            onPress={openDetail}
+            onNotify={showToast}
+          />
+        </ScrollView>
       )}
 
       <Toast
@@ -277,3 +269,97 @@ export default function RoadmapProductsScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFF8F0',
+  },
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    backgroundColor: '#FFF8F0',
+  },
+  navLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backBtn: {
+    marginRight: 12,
+    padding: 4,
+  },
+  navTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cartBtn: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#F59E0B',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    color: '#0F172A',
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  emptyText: {
+    color: '#0F172A',
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  section: {
+    marginTop: 20,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  carouselContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  cardWrapper: {
+    width: CARD_WIDTH,
+  },
+});
