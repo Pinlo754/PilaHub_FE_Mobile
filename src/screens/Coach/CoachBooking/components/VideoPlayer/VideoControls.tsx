@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Pressable, Text } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { VideoProgress } from './VideoProgress';
-import { colors } from '../../../../theme/colors';
-import { formatTime } from '../../../../utils/time';
+import { formatTime } from '../../../../../utils/time';
+import { colors } from '../../../../../theme/colors';
 
 type Props = {
   paused: boolean;

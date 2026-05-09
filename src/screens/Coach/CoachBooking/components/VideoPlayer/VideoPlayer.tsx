@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { VideoSurface } from './VideoSurface';
 import { VideoControls } from './VideoControls';
-import { useVideoPlayer } from '../../../../hooks/useVideoPlayer';
 import Orientation from 'react-native-orientation-locker';
 import { useWindowDimensions } from 'react-native';
+import { useVideoPlayer } from '../../../../../hooks/useVideoPlayer';
 
 type Props = {
   source: string;

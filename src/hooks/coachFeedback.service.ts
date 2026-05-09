@@ -44,8 +44,8 @@ export const coachFeedbackService = {
   },
 
    // GET BY LIVESESSION ID
-  getByLiveSessionId: async (liveSessionId: string): Promise<CoachFeedbackType[]> => {
-    const res = await api.get<ApiResponse<CoachFeedbackType[]>>(
+  getByLiveSessionId: async (liveSessionId: string): Promise<CoachFeedbackType> => {
+    const res = await api.get<ApiResponse<CoachFeedbackType>>(
       `/coach-feedbacks/live-session/${liveSessionId}`,
     );
 

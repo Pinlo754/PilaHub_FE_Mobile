@@ -3,13 +3,13 @@ import { View } from 'react-native';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useCoachBooking } from './useCoachBooking';
 import LoadingOverlay from '../../../components/LoadingOverlay';
-import DetailModal from '../../TraineeBooking/components/DetailModal';
-import VideoPlayer from '../../TraineeBooking/components/VideoPlayer/VideoPlayer';
+import DetailModal from './components/DetailModal';
 import ModalPopup from '../../../components/ModalPopup';
 import ReportDetailModal from '../../TraineeBooking/components/ReportDetailModal';
 import CoachBookingHeader from './components/CoachBookingHeader';
 import CoachBookingList from './components/CoachBookingList';
 import CoachFeedbackModal from './components/CoachFeedbackModal';
+import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CoachBooking'>;
 
@@ -84,7 +84,7 @@ const CoachBooking = (props: Props) => {
         <CoachFeedbackModal
           visible={showFeedbackModal}
           onClose={closeFeedbackModal}
-           feedback={coachFeedback}
+        feedback={coachFeedback}
         />
 
         {/* Report Detail Modal */}
