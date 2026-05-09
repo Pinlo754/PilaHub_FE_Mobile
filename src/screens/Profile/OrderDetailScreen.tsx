@@ -715,94 +715,91 @@ const OrderDetailScreen: React.FC = () => {
           <Text style={styles.shippingAddress}>{order.shippingAddress}</Text>
         </View>
 
-        {/* Products */}
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="bag-outline" size={19} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Sản phẩm</Text>
+<View style={styles.card}>
+  <View style={styles.sectionHeader}>
+    <Ionicons name="bag-outline" size={19} color={COLORS.primary} />
+    <Text style={styles.sectionTitle}>Sản phẩm</Text>
+  </View>
+
+  {uniqueOrderDetails.map((detail: any) => {
+    const returnedQty = returnedQtyMap[String(detail.orderDetailId)] ?? 0;
+    const totalQty = Number(detail.quantity ?? 0);
+    const hasReturn = returnedQty > 0;
+    const isFullReturn = hasReturn && returnedQty >= totalQty;
+
+    return (
+      <View key={detail.orderDetailId} style={styles.itemRow}>
+        <View style={styles.thumbWrapper}>
+          <Image
+            source={detail.productImageUrl ? { uri: detail.productImageUrl } : placeholderImg}
+            style={[styles.thumb, isFullReturn && styles.thumbDimmed]}
+          />
+          {isFullReturn && (
+            <View style={styles.thumbReturnOverlay}>
+              <Ionicons name="arrow-undo" size={16} color="#fff" />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.flex1}>
+          <Text style={styles.itemTitle} numberOfLines={2}>
+            {detail.productName}
+          </Text>
+
+          <View style={styles.itemQtyRow}>
+            <Text style={styles.meta}>
+              {totalQty} × {formatCurrency(detail.unitPrice)}
+            </Text>
+            {hasReturn && (
+              <View style={styles.returnedQtyBadge}>
+                <Ionicons name="arrow-undo-outline" size={10} color="#B7791F" />
+                <Text style={styles.returnedQtyText}>
+                  Đã trả {returnedQty}/{totalQty}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {uniqueOrderDetails.map((detail: any) => {
-            const returnedQty = returnedQtyMap[String(detail.orderDetailId)] ?? 0;
-            const totalQty = Number(detail.quantity ?? 0);
-            const hasReturn = returnedQty > 0;
-            const isFullReturn = hasReturn && returnedQty >= totalQty;
+          {hasReturn && !isFullReturn && (
+            <View style={styles.returnProgressBar}>
+              <View
+                style={[
+                  styles.returnProgressFill,
+                  { width: `${(returnedQty / totalQty) * 100}%` as any },
+                ]}
+              />
+            </View>
+          )}
 
-            return (
-              <View key={detail.orderDetailId} style={styles.itemRow}>
-                <View style={styles.thumbWrapper}>
-                  <Image
-                    source={detail.productImageUrl ? { uri: detail.productImageUrl } : placeholderImg}
-                    style={[styles.thumb, isFullReturn && styles.thumbDimmed]}
-                  />
-                  {isFullReturn && (
-                    <View style={styles.thumbReturnOverlay}>
-                      <Ionicons name="arrow-undo" size={16} color="#fff" />
-                    </View>
-                  )}
-                </View>
+          <View style={styles.detailStatusPill}>
+            <Text style={styles.detailStatusText}>{String(detail.status)}</Text>
+          </View>
 
-                <View style={styles.flex1}>
-                  <Text style={styles.itemTitle} numberOfLines={2}>
-                    {detail.productName}
-                  </Text>
-
-                  {/* Quantity row — show returned breakdown */}
-                  <View style={styles.itemQtyRow}>
-                    <Text style={styles.meta}>
-                      {totalQty} × {formatCurrency(detail.unitPrice)}
-                    </Text>
-                    {hasReturn && (
-                      <View style={styles.returnedQtyBadge}>
-                        <Ionicons name="arrow-undo-outline" size={10} color="#B7791F" />
-                        <Text style={styles.returnedQtyText}>
-                          Đã trả {returnedQty}/{totalQty}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Quantity progress bar for partial return */}
-                  {hasReturn && !isFullReturn && (
-                    <View style={styles.returnProgressBar}>
-                      <View
-                        style={[
-                          styles.returnProgressFill,
-                          { width: `${(returnedQty / totalQty) * 100}%` as any },
-                        ]}
-                      />
-                    </View>
-                  )}
-
-                  <View style={styles.detailStatusPill}>
-                    <Text style={styles.detailStatusText}>{String(detail.status)}</Text>
-                  </View>
-
-                  {detail.installationRequest ? (
-                    <View style={styles.installPill}>
-                      <Ionicons name="construct-outline" size={13} color={COLORS.success} />
-                      <Text style={styles.installText}>Có yêu cầu lắp đặt</Text>
-                    </View>
-                  ) : null}
-                </View>
-                ) : null}
-                {/* Trong vòng lặp uniqueOrderDetails.map */}
-                {(detail.status === 'DELIVERED' || detail.status === 'COMPLETED') && (
-                  <TouchableOpacity
-                    style={styles.reviewTriggerBtn}
-                    onPress={() => {
-                      setSelectedProduct(detail);
-                      setReviewModalVisible(true);
-                    }}
-                  >
-                    <Ionicons name="star-outline" size={14} color={COLORS.primary} />
-                    <Text style={styles.reviewTriggerText}>Đánh giá sản phẩm</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          })}
+          {detail.installationRequest ? (
+            <View style={styles.installPill}>
+              <Ionicons name="construct-outline" size={13} color={COLORS.success} />
+              <Text style={styles.installText}>Có yêu cầu lắp đặt</Text>
+            </View>
+          ) : null}
         </View>
+
+        {/* Nút đánh giá sản phẩm */}
+        {(detail.status === 'DELIVERED' || detail.status === 'COMPLETED') && (
+          <TouchableOpacity
+            style={styles.reviewTriggerBtn}
+            onPress={() => {
+              setSelectedProduct(detail);
+              setReviewModalVisible(true);
+            }}
+          >
+            <Ionicons name="star-outline" size={14} color={COLORS.primary} />
+            <Text style={styles.reviewTriggerText}>Đánh giá sản phẩm</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  })}
+</View>
 
         {/* ── Return Requests Section ────────────────────────────────────────── */}
         {orderReturns.length > 0 && (

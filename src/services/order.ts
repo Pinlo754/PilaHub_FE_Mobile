@@ -112,6 +112,8 @@ export async function getReturnByOrder(orderId: string) {
 }
 export async function completeOrder(orderId: string) {
   const res = await axios.post(`/orders/${orderId}/complete`);
+  return res.data.data;
+}
 
 export async function review(payload: any) {
   const res = await axios.post(`/product-reviews`, payload);
