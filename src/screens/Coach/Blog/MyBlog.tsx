@@ -20,6 +20,7 @@ import Video from 'react-native-video';
 import { useNavigation } from '@react-navigation/native';
 import { CoachService } from '../../../hooks/coach.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 /* ============================ 
     INTERFACES 
    ============================ */
@@ -322,8 +323,9 @@ export const MyBlogScreen = () => {
     );
 
     return (
-        <View className="flex-1 bg-gray-100">
+        <SafeAreaView className="flex-1 bg-gray-100">
             <View className="pb-4 pt-6 flex-row items-center justify-center">
+                <Header />
 
                 {/* Back button */}
                 <TouchableOpacity
@@ -366,7 +368,7 @@ export const MyBlogScreen = () => {
 
             {selectedPost && <PostDetailModal visible={isDetailVisible} post={selectedPost} onClose={() => setIsDetailVisible(false)} onRefreshPost={() => fetchBlogPosts()} />}
 
-        </View>
+        </SafeAreaView>
     );
 };
 

@@ -44,4 +44,21 @@ export const liveSessionReportService = {
 
     return res.data.data;
   },
+
+  // GET ALL RECEIVED
+  getAllReceived: async (): Promise<LiveSessionReportType[]> => {
+    const res = await api.get<ApiResponse<LiveSessionReportType[]>>(
+      `/live-session-reports/my-reports/received`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

@@ -20,6 +20,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 // Polyfill cho TextEncoding
 import { TextEncoder, TextDecoder } from 'text-encoding';
 import Header from '../Coach/components/Header';
+import { SafeAreaView } from 'react-native-safe-area-context';
 const globalAny = globalThis as any;
 if (typeof globalAny.TextEncoder === 'undefined') globalAny.TextEncoder = TextEncoder as any;
 if (typeof globalAny.TextDecoder === 'undefined') globalAny.TextDecoder = TextDecoder as any;
@@ -253,7 +254,7 @@ const ListChatScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
       <Header/>
       <View className="px-4 pb-4 border-b border-gray-100 flex-row justify-between items-center">
@@ -282,7 +283,7 @@ const ListChatScreen = ({ navigation }: any) => {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

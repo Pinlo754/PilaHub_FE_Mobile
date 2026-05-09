@@ -96,3 +96,8 @@ export async function getOrderTracking(orderNumber: string) {
   const res = await axios.get(`/orders/tracking/${orderNumber}`);
   return res.data.data;
 }
+
+export async function review(payload: any) {
+  const res = await axios.post(`/product-reviews`, payload);
+  return res.data.data;
+}

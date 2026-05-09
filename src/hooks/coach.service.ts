@@ -62,6 +62,20 @@ export const CoachService = {
     return res.data.data;
   },
 
+  createCoach: async (payload: any) => {
+    const res = await api.post<ApiResponse<[]>>(`/coaches`, payload);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
   getTimeOff: async () => {
     const res = await api.get<ApiResponse<[]>>(`/coach-time-offs/my-time-offs`);
 
