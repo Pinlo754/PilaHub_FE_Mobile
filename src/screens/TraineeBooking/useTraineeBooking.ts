@@ -226,7 +226,7 @@ export const useTraineeBooking = () => {
   // EFFECT
   useEffect(() => {
     fetchData();
-  }, []);
+  });
 
   // RETURN
   return {

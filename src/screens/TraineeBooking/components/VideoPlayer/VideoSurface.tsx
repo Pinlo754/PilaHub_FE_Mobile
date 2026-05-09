@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import Video from 'react-native-video';
-
-const { width: SW, height: SH } = Dimensions.get('window');
 
 type VideoSize = { naturalW: number; naturalH: number };
 
@@ -21,6 +19,12 @@ export function VideoSurface({
   onLoad,
   onProgress,
 }: Props) {
+  const { width: W, height: H } = useWindowDimensions();
+  const SCALE = 0.8;
+  // Luôn lấy cạnh dài = ngang (landscape), cạnh ngắn = dọc
+  const SW = Math.max(W, H);
+  const SH = Math.min(W, H);
+
   const [size, setSize] = useState<VideoSize | null>(null);
 
   const handleLoad = (data: any) => {
@@ -31,8 +35,11 @@ export function VideoSurface({
   };
 
   const aspect = size ? size.naturalW / size.naturalH : 16 / 9;
-  const videoH = SW / aspect; // landscape: SW là chiều dài màn hình ngang
-  const videoTop = (SH - videoH) / 2;
+  const VERTICAL_OFFSET = 1; // thử 0.6 → 0.8 tuỳ mắt
+  const videoH = (SW / aspect) * SCALE;
+  const videoW = SW * SCALE;
+  const videoTop = (SH - videoH) * VERTICAL_OFFSET;
+  const videoLeft = (SW - videoW) / 2;
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -47,10 +54,10 @@ export function VideoSurface({
         progressUpdateInterval={250}
         style={{
           position: 'absolute',
-          width: SW,
+          width: videoW,
           height: videoH,
           top: videoTop,
-          left: 0,
+          left: videoLeft,
         }}
       />
     </View>

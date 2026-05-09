@@ -44,7 +44,8 @@ export function VideoControls({
       {onBack && (
         <Pressable
           onPress={onPressBack}
-          className="absolute left-4 -top-[760px] z-10"
+          className="bg-black/40 rounded-full w-10 h-10 flex justify-center items-center"
+           style={{ position: 'absolute', top: -290, left: 24, zIndex: 10 }}
         >
           <Ionicons
             name="chevron-back-outline"
