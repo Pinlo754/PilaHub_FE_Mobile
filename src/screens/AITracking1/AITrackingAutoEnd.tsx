@@ -22,9 +22,9 @@ import { mistakeLogService } from '../../hooks/mistakeLog.service';
 import { CreateMistakeReq, MistakeLogReq } from '../../utils/MistakeLogType';
 
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { RootStackParamList } from "../../navigation/AppNavigator";
+import { RootStackParamList } from '../../navigation/AppNavigator';
 import { WorkoutSessionType } from '../../utils/WorkoutSessionType';
-import ViewShot from "react-native-view-shot";
+import ViewShot from 'react-native-view-shot';
 import { useBle } from '../../services/BleProvider';
 import { heartRateService } from '../../hooks/heartRate.service';
 import { getBodyPartId } from '../../utils/BodyPart';
@@ -36,8 +36,18 @@ type Props = {
   nameAITracking: string;
 };
 
-export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captureMistakeImage, nameAITracking }: Props) {
-  console.log('AITrackingAutoEnd props rendered:', { workoutSessionId, onFeedback, captureMistakeImage, nameAITracking });
+export default function AITrackingAutoEnd({
+  workoutSessionId,
+  onFeedback,
+  captureMistakeImage,
+  nameAITracking,
+}: Props) {
+  console.log('AITrackingAutoEnd props rendered:', {
+    workoutSessionId,
+    onFeedback,
+    captureMistakeImage,
+    nameAITracking,
+  });
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const plugin = useTensorflowModel(
     require('../../assets/AITracking/pose_correction_exercise_aware.tflite'),
@@ -63,7 +73,9 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
   const [isSessionActive, setIsSessionActive] = useState(false);
   const sessionStartTime = useRef<number>(0);
   const { hr } = useBle();
-  const hrSamplesRef = useRef<Array<{ heartRate: number; recordedAt: number }>>([]);
+  const hrSamplesRef = useRef<Array<{ heartRate: number; recordedAt: number }>>(
+    [],
+  );
   const hrTimerRef = useRef<number | null>(null);
   const [mistakeLogs, setMistakeLogs] = useState<any[]>([]);
   const [showCamera, setShowCamera] = useState(true);
@@ -72,17 +84,18 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
   const pendingMistake = useRef<any>(null);
   const activeMistake = useRef<any>(null);
   const lastCorrectTime = useRef<number>(0);
-  const [workoutSession, setWorkoutSession] = useState<WorkoutSessionType | null>(null);
+  const [workoutSession, setWorkoutSession] =
+    useState<WorkoutSessionType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPersonDetected, setIsPersonDetected] = useState(false);
   const lastPersonDetected = useRef(Date.now());
   const BODY_PART_MAP: Record<string, number[]> = {
-    "Lower Back": [23, 24],
-    "Upper Back": [11, 12],
-    "Left Knee": [25],
-    "Right Knee": [26],
-    "Left Elbow": [13],
-    "Right Elbow": [14],
+    'Lower Back': [23, 24],
+    'Upper Back': [11, 12],
+    'Left Knee': [25],
+    'Right Knee': [26],
+    'Left Elbow': [13],
+    'Right Elbow': [14],
   };
 
   const MODEL_BODY_PARTS = Object.values(labelMappings.body_parts) as string[];
@@ -137,11 +150,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
     ];
 
     const scale =
-      Math.hypot(
-        shC[0] - hipC[0],
-        shC[1] - hipC[1],
-        shC[2] - hipC[2],
-      ) + 1e-8;
+      Math.hypot(shC[0] - hipC[0], shC[1] - hipC[1], shC[2] - hipC[2]) + 1e-8;
 
     const norm: number[] = [];
     for (let i = 0; i < 33; i++) {
@@ -155,22 +164,67 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
     }
 
     const angles = [
-      calcAngle(getXY(raw_kps, LEFT_SHOULDER), getXY(raw_kps, LEFT_HIP), getXY(raw_kps, LEFT_ANKLE)),
-      calcAngle(getXY(raw_kps, RIGHT_SHOULDER), getXY(raw_kps, RIGHT_HIP), getXY(raw_kps, RIGHT_ANKLE)),
-      calcAngle(getXY(raw_kps, LEFT_SHOULDER), getXY(raw_kps, LEFT_ELBOW), getXY(raw_kps, LEFT_WRIST)),
-      calcAngle(getXY(raw_kps, RIGHT_SHOULDER), getXY(raw_kps, RIGHT_ELBOW), getXY(raw_kps, RIGHT_WRIST)),
-      calcAngle(getXY(raw_kps, LEFT_HIP), getXY(raw_kps, LEFT_SHOULDER), getXY(raw_kps, LEFT_ELBOW)),
-      calcAngle(getXY(raw_kps, RIGHT_HIP), getXY(raw_kps, RIGHT_SHOULDER), getXY(raw_kps, RIGHT_ELBOW)),
-      calcAngle(getXY(raw_kps, LEFT_EAR), getXY(raw_kps, LEFT_SHOULDER), getXY(raw_kps, LEFT_HIP)),
-      calcAngle(getXY(raw_kps, RIGHT_EAR), getXY(raw_kps, RIGHT_SHOULDER), getXY(raw_kps, RIGHT_HIP)),
-      calcAngle(getXY(raw_kps, LEFT_HIP), getXY(raw_kps, LEFT_KNEE), getXY(raw_kps, LEFT_ANKLE)),
-      calcAngle(getXY(raw_kps, RIGHT_HIP), getXY(raw_kps, RIGHT_KNEE), getXY(raw_kps, RIGHT_ANKLE)),
-      Math.abs(getXYZ(raw_kps, LEFT_HIP)[1] - getXYZ(raw_kps, RIGHT_HIP)[1]) * 100,
-      Math.abs(getXYZ(raw_kps, LEFT_SHOULDER)[1] - getXYZ(raw_kps, RIGHT_SHOULDER)[1]) * 100,
+      calcAngle(
+        getXY(raw_kps, LEFT_SHOULDER),
+        getXY(raw_kps, LEFT_HIP),
+        getXY(raw_kps, LEFT_ANKLE),
+      ),
+      calcAngle(
+        getXY(raw_kps, RIGHT_SHOULDER),
+        getXY(raw_kps, RIGHT_HIP),
+        getXY(raw_kps, RIGHT_ANKLE),
+      ),
+      calcAngle(
+        getXY(raw_kps, LEFT_SHOULDER),
+        getXY(raw_kps, LEFT_ELBOW),
+        getXY(raw_kps, LEFT_WRIST),
+      ),
+      calcAngle(
+        getXY(raw_kps, RIGHT_SHOULDER),
+        getXY(raw_kps, RIGHT_ELBOW),
+        getXY(raw_kps, RIGHT_WRIST),
+      ),
+      calcAngle(
+        getXY(raw_kps, LEFT_HIP),
+        getXY(raw_kps, LEFT_SHOULDER),
+        getXY(raw_kps, LEFT_ELBOW),
+      ),
+      calcAngle(
+        getXY(raw_kps, RIGHT_HIP),
+        getXY(raw_kps, RIGHT_SHOULDER),
+        getXY(raw_kps, RIGHT_ELBOW),
+      ),
+      calcAngle(
+        getXY(raw_kps, LEFT_EAR),
+        getXY(raw_kps, LEFT_SHOULDER),
+        getXY(raw_kps, LEFT_HIP),
+      ),
+      calcAngle(
+        getXY(raw_kps, RIGHT_EAR),
+        getXY(raw_kps, RIGHT_SHOULDER),
+        getXY(raw_kps, RIGHT_HIP),
+      ),
+      calcAngle(
+        getXY(raw_kps, LEFT_HIP),
+        getXY(raw_kps, LEFT_KNEE),
+        getXY(raw_kps, LEFT_ANKLE),
+      ),
+      calcAngle(
+        getXY(raw_kps, RIGHT_HIP),
+        getXY(raw_kps, RIGHT_KNEE),
+        getXY(raw_kps, RIGHT_ANKLE),
+      ),
+      Math.abs(getXYZ(raw_kps, LEFT_HIP)[1] - getXYZ(raw_kps, RIGHT_HIP)[1]) *
+        100,
+      Math.abs(
+        getXYZ(raw_kps, LEFT_SHOULDER)[1] - getXYZ(raw_kps, RIGHT_SHOULDER)[1],
+      ) * 100,
     ];
 
     const full = [...norm, ...angles];
-    const scaled = full.map((v, i) => (v - SCALER_MEAN[i]) / (SCALER_SCALE[i] || 1));
+    const scaled = full.map(
+      (v, i) => (v - SCALER_MEAN[i]) / (SCALER_SCALE[i] || 1),
+    );
     return { scaled, angles };
   };
 
@@ -222,7 +276,11 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
       sessionStartTime.current = Date.now();
 
       // initialize countdown from workoutSession.durationSeconds if available
-      if (workoutSession && workoutSession.durationSeconds && workoutSession.durationSeconds > 0) {
+      if (
+        workoutSession &&
+        workoutSession.durationSeconds &&
+        workoutSession.durationSeconds > 0
+      ) {
         const secs = Math.round(workoutSession.durationSeconds);
         setRemainingSeconds(secs);
         // start countdown
@@ -296,7 +354,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         finalizeMistake(Date.now());
       }
 
-      console.log("Original video:", file.path);
+      console.log('Original video:', file.path);
 
       const downloadURL = await uploadVideoToFirebase(file.path);
 
@@ -307,14 +365,20 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         const samples = hrSamplesRef.current || [];
         if (samples.length > 0) {
           // simple dedupe: collapse consecutive samples with same HR
-          const compressed: Array<{ heartRate: number; recordedAt: number }> = [];
+          const compressed: Array<{ heartRate: number; recordedAt: number }> =
+            [];
           for (const s of samples) {
             const last = compressed[compressed.length - 1];
             if (!last || last.heartRate !== s.heartRate) {
               compressed.push(s);
             }
           }
-          console.log('Sending HR logs batch (compressed):', compressed.length, 'original:', samples.length);
+          console.log(
+            'Sending HR logs batch (compressed):',
+            compressed.length,
+            'original:',
+            samples.length,
+          );
           await heartRateService.sendBatch(workoutSessionId, compressed);
           console.log('HR logs batch sent:', compressed.length);
         }
@@ -325,13 +389,13 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
       await Promise.all(
         mistakeLogs.map(async log => {
           try {
-            console.log('bắt đầu tải ảnh mistake')
-            if (!log.imagePath || typeof log.imagePath !== "string") {
-              console.log("skip upload (invalid path)", log.imagePath);
+            console.log('bắt đầu tải ảnh mistake');
+            if (!log.imagePath || typeof log.imagePath !== 'string') {
+              console.log('skip upload (invalid path)', log.imagePath);
               return log;
             }
             const ref = storage().ref(
-              `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
+              `mistakes/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`,
             );
 
             await ref.putFile(log.imagePath);
@@ -339,12 +403,10 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
             log.imageUrl = await ref.getDownloadURL();
 
             delete log.imagePath;
+          } catch (e) {
+            console.log('Upload error', e);
           }
-          catch (e) {
-            console.log("Upload error", e);
-          }
-        }
-        )
+        }),
       );
 
       await workoutSessionService.endWorkout(workoutSessionId, downloadURL);
@@ -357,7 +419,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
             imageUrl: imageUrl || '',
             recordedAtSecond: recordedAtSecond,
             duration: duration || 0,
-          })
+          }),
         );
 
         const payload: CreateMistakeReq = {
@@ -366,14 +428,14 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         };
 
         await mistakeLogService.createMistakeLog(payload);
-
       }
 
-      const AIFeedback = await workoutSessionService.feedbackWorkout(workoutSessionId);;
+      const AIFeedback =
+        await workoutSessionService.feedbackWorkout(workoutSessionId);
 
       console.log('Mistake logs saved:', mistakeLogs);
 
-      console.log('AI Feedback')
+      console.log('AI Feedback');
       // pass HR samples to AISummary so UI can render heart rate timeline
       navigation.navigate('AISummary', {
         feedback: AIFeedback,
@@ -381,7 +443,6 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         mistakeLog: mistakeLogs,
         heartRateLogs: hrSamplesRef.current || [],
       });
-
     } catch (e) {
       console.error(e);
       setIsSaving(false);
@@ -424,7 +485,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
 
         console.log('Detected exercise:', exerciseName);
         const exIdx = LABELS.exercises.findIndex(
-          e => e.toLowerCase() === exerciseName
+          e => e.toLowerCase() === exerciseName,
         );
 
         if (exIdx !== -1) {
@@ -479,9 +540,10 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         const sideIdx = sideOutput ? argMax(sideOutput) : 0;
         const modelSide = MODEL_SIDES[sideIdx] ?? 'both';
 
-        const finalBodyPart = modelBodyPart === 'none'
-          ? 'none'
-          : ruleOverride(angles, modelBodyPart);
+        const finalBodyPart =
+          modelBodyPart === 'none'
+            ? 'none'
+            : ruleOverride(angles, modelBodyPart);
 
         console.log('AI model debug:', {
           scaledLength: scaled.length,
@@ -527,8 +589,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
   const finalizeMistake = (endTime: number) => {
     if (!activeMistake.current) return;
 
-    const duration =
-      (endTime - activeMistake.current.startTime) / 1000;
+    const duration = (endTime - activeMistake.current.startTime) / 1000;
 
     if (duration >= 1.25) {
       const log = {
@@ -536,7 +597,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         side: activeMistake.current.side,
         recordedAtSecond: activeMistake.current.recordedAtSecond,
         duration,
-        imagePath: activeMistake.current.imagePath
+        imagePath: activeMistake.current.imagePath,
       };
 
       setMistakeLogs(prev => [...prev, log]);
@@ -560,8 +621,7 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
   const handleIncorrect = (bodyPart: string, side: string) => {
     const now = Date.now();
 
-    const secondsFromStart =
-      (now - sessionStartTime.current) / 1000;
+    const secondsFromStart = (now - sessionStartTime.current) / 1000;
 
     // nếu đang có active mistake
     if (activeMistake.current) {
@@ -604,17 +664,17 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         side,
         recordedAtSecond: secondsFromStart,
         startTime: now,
-        imagePath: ''
+        imagePath: '',
       };
 
-      captureMistakeImage().then((path) => {
+      captureMistakeImage().then(path => {
         console.log('Chụp ảnh lỗi thành công, path:', path);
         if (activeMistake.current) {
           activeMistake.current.imagePath = path;
         }
       });
 
-      console.log('current mistake:', activeMistake.current)
+      console.log('current mistake:', activeMistake.current);
 
       play(bodyPart.toLowerCase().replace(' ', ''));
 
@@ -721,13 +781,16 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
             <RNMediapipe
               style={{ flex: 1 }}
               onLandmark={data => {
-                const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                const parsed =
+                  typeof data === 'string' ? JSON.parse(data) : data;
                 handlePoseRef.current(parsed);
               }}
             />
           ) : (
             <View className="flex-1 justify-center items-center bg-black">
-              <Text className="text-white">Đang ghi hình (AI không bật cho bài này)</Text>
+              <Text className="text-white">
+                Đang ghi hình (AI không bật cho bài này)
+              </Text>
             </View>
           )
         ) : (
@@ -739,15 +802,27 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
         {!isPersonDetected && isSessionActive && (
           <View className="absolute inset-0 bg-black/50 justify-center items-center">
             <Text className="text-white text-xl font-bold text-center">
-              Không phát hiện người trong camera.{'\n'}Vui lòng đứng vào khung hình.
+              Không phát hiện người trong camera.{'\n'}Vui lòng đứng vào khung
+              hình.
             </Text>
           </View>
         )}
 
         {/* Remaining time badge */}
         {remainingSeconds !== null && isSessionActive && (
-          <View style={{ position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 8 }}>
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>{`Thời gian còn lại: ${remainingSeconds}s`}</Text>
+          <View
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              padding: 8,
+              borderRadius: 8,
+            }}
+          >
+            <Text
+              style={{ color: 'white', fontWeight: 'bold' }}
+            >{`Thời gian còn lại: ${remainingSeconds}s`}</Text>
           </View>
         )}
       </ViewShot>
@@ -797,4 +872,6 @@ export default function AITrackingAutoEnd({ workoutSessionId, onFeedback, captur
       )}
     </View>
   );
-};
+}
+
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import LoginScreen from '../screens/Login/LoginScreen';
@@ -87,6 +87,7 @@ import DepositScreen from '../screens/Wallet/DepositScreen';
 import AIPracticeTimeout from '../screens/AIPracticeTimeout/AIPractice';
 import ReturnListScreen from '../screens/Profile/ReturnListScreen';
 import ReturnDetailScreen from '../screens/Profile/ReturnDetailScreen';
+import Orientation from 'react-native-orientation-locker';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
@@ -264,6 +265,15 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator: React.FC = () => {
+
+    useEffect(() => {
+      Orientation.lockToPortrait();
+  
+      return () => {
+        Orientation.unlockAllOrientations();
+      };
+    }, []);
+
   return (
     <BleProvider>
       <CartProvider>
