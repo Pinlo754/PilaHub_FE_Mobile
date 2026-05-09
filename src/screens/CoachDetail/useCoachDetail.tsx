@@ -91,8 +91,8 @@ export const useCoachDetail = ({ route, navigation }: Props) => {
 
       navigation.navigate('ChatScreen', {
         receiverId: coachId,
-        receiverName: coachDetail?.fullName,
-        receiverAvatar: coachDetail?.avatarUrl,
+        receiverName: coachDetail?.fullName || '',
+        receiverAvatar: coachDetail?.avatarUrl || '',
         conversationId: conversationId,
       });
     } catch (error) {
@@ -100,8 +100,8 @@ export const useCoachDetail = ({ route, navigation }: Props) => {
       // Fallback navigation without conversationId
       navigation.navigate('ChatScreen', {
         receiverId: coachId,
-        receiverName: coachDetail?.fullName,
-        receiverAvatar: coachDetail?.avatarUrl,
+        receiverName: coachDetail?.fullName || '',
+        receiverAvatar: coachDetail?.avatarUrl || '',
       });
     }
   };

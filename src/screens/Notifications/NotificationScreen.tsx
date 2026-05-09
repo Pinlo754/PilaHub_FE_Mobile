@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Modal, ActivityIndicator, Alert, Pressable } from 'react-native';
 import { MessageService, NotificationItem } from '../../hooks/notification.service';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../Home/components/Header';
-
-const NotificationScreen = () => {
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { colors } from '../../theme/colors';
+import Header from '../Coach/components/Header';
+const NotificationScreen = ({ route, navigation }: any)  => {
+    const navigate = navigation.navigate;
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
@@ -57,6 +59,7 @@ const NotificationScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-white p-4">
+            <Header/>
             <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-xl font-bold">Thông báo</Text>
                 <TouchableOpacity onPress={handleReadAll}>

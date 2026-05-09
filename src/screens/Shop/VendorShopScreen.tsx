@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Linking } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Linking} from 'react-native';
 import { getVendorById, VendorItem } from '../../services/vendors';
 import { getProducts, ProductItem } from '../../services/products';
 import { normalizeImageUrl } from '../../services/products';
@@ -7,7 +7,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import CardProduct from '../Home/components/CardProduct';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import Button from '../../components/Button';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MessageService } from '../../hooks/message.service';
 const COLORS = {
   // aligned with tailwind.config.js colors for consistency
   primary: '#A0522D', // foreground (brown)
@@ -44,6 +46,41 @@ const VendorShopScreen: React.FC<Props> = ({ route }) => {
     }
   }, [vendorId]);
 
+  const onChatPress = async () => {
+    try {
+      const idStr = await AsyncStorage.getItem('id');
+      const currentId = idStr ? JSON.parse(idStr) : null;
+
+      if (!currentId || ! vendorId) return;
+
+      // Fetch conversations to find the one with coach
+      const response = await MessageService.getConversationByUser(currentId) as any;
+      let conversationId = null;
+
+      if (response && response.content) {
+        const conversation = response.content.find(
+          (conv: any) => conv.otherUserId === vendorId
+        );
+        conversationId = conversation?.conversationId || null;
+      }
+
+      navigation.navigate('ChatScreen', {
+        receiverId: vendorId,
+        receiverName: vendor?.businessName,
+        receiverAvatar: vendor?.logoUrl,
+        conversationId: conversationId,
+      });
+    } catch (error) {
+      console.error('Error navigating to chat:', error);
+      // Fallback navigation without conversationId
+      navigation.navigate('ChatScreen', {
+        receiverId: vendorId,
+        receiverName: vendor?.businessName,
+        receiverAvatar: vendor?.logoUrl,
+      });
+    }
+  };
+  
   const loadProducts = useCallback(async (p = 0) => {
     if (!vendorId) return;
     try {
@@ -80,14 +117,14 @@ const VendorShopScreen: React.FC<Props> = ({ route }) => {
 
   if (loading && page === 0) {
     return (
-      <SafeAreaView style={[localStyles.root, { backgroundColor: COLORS.bg }]}> 
+      <SafeAreaView style={[localStyles.root, { backgroundColor: COLORS.bg }]}>
         <ActivityIndicator style={localStyles.centerLoader} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[localStyles.root, { backgroundColor: COLORS.bg }]}> 
+    <SafeAreaView style={[localStyles.root, { backgroundColor: COLORS.bg }]}>
       {/* Header */}
       <View style={localStyles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={localStyles.headerButton} accessibilityLabel="Back">
@@ -138,8 +175,20 @@ const VendorShopScreen: React.FC<Props> = ({ route }) => {
                   <Text style={localStyles.phoneText}>{vendor.phoneNumber}</Text>
                 </TouchableOpacity>
               ) : null}
+
+              
             </View>
+            <Button
+                text="Nhắn tin"
+                onPress={onChatPress}
+                colorType="sub1"
+                rounded="xl"
+                iconName="chatbubble-outline"
+                iconSize={26}
+              />
+
           </View>
+          
         </View>
       ) : null}
 
