@@ -18,7 +18,9 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ModalPopup from '../../components/ModalPopup';
-
+import * as ImagePicker from 'react-native-image-picker';
+import storage from '@react-native-firebase/storage';
+import { Asset } from 'react-native-image-picker';
 import {
   getOrderById,
   cancelOrder,
@@ -26,6 +28,7 @@ import {
   getOrderTracking,
   getReturnByOrder,
   getReturnReasons,
+  review,
 } from '../../services/order';
 
 const placeholderImg = require('../../assets/placeholderAvatar.png');
@@ -106,18 +109,18 @@ const mapReturnStatusLabel = (status?: string) => {
 
 const mapOrderStatusLabel = (status?: string) => {
   switch (String(status)) {
-    case 'PENDING':      return 'Chờ xử lý';
-    case 'PROCESSING':   return 'Đang xử lý';
-    case 'CONFIRMED':    return 'Đã xác nhận';
-    case 'READY':        return 'Sẵn sàng giao';
-    case 'SHIPPED':      return 'Đang giao';
-    case 'DELIVERED':    return 'Đã giao';
-    case 'COMPLETED':    return 'Hoàn tất';
-    case 'CANCELLED':    return 'Đã huỷ';
-    case 'RETURNED':     return 'Đã trả hàng';
-    case 'REFUNDED':     return 'Đã hoàn tiền';
+    case 'PENDING': return 'Chờ xử lý';
+    case 'PROCESSING': return 'Đang xử lý';
+    case 'CONFIRMED': return 'Đã xác nhận';
+    case 'READY': return 'Sẵn sàng giao';
+    case 'SHIPPED': return 'Đang giao';
+    case 'DELIVERED': return 'Đã giao';
+    case 'COMPLETED': return 'Hoàn tất';
+    case 'CANCELLED': return 'Đã huỷ';
+    case 'RETURNED': return 'Đã trả hàng';
+    case 'REFUNDED': return 'Đã hoàn tiền';
     case 'FAILED_DELIVERY': return 'Giao thất bại';
-    default:             return String(status ?? 'N/A');
+    default: return String(status ?? 'N/A');
   }
 };
 
@@ -228,8 +231,8 @@ const OrderDetailScreen: React.FC = () => {
   const navigation: any = useNavigation();
   const { orderId } = (route.params as any) ?? { orderId: '' };
 
-  const [loading, setLoading]   = useState(true);
-  const [order,   setOrder]     = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<any | null>(null);
   const [tracking, setTracking] = useState<any | null>(null);
 
   // Return data
@@ -243,7 +246,7 @@ const OrderDetailScreen: React.FC = () => {
 
   // Cancel modal
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
-  const [cancelReason,       setCancelReason]       = useState('');
+  const [cancelReason, setCancelReason] = useState('');
 
   // Return bottom-sheet
   const [returnSheetVisible, setReturnSheetVisible] = useState(false);
@@ -254,6 +257,113 @@ const OrderDetailScreen: React.FC = () => {
 
   // ModalPopup state
   const [modalState, setModalState] = useState<any>({ visible: false, mode: 'noti', message: '' });
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [comment, setComment] = useState('');
+  const [rating, setRating] = useState(5);
+
+  const handleSelectMedia = async () => {
+    const result = await ImagePicker.launchImageLibrary({
+      mediaType: 'photo', // Hoặc 'mixed' nếu backend hỗ trợ video
+      quality: 0.8,
+      selectionLimit: 5 - selectedAssets.length, // Giới hạn tổng 5 file
+    });
+
+    if (result.assets) {
+      setSelectedAssets(prev => [...prev, ...result.assets!]);
+    }
+  };
+
+  const uploadAllToFirebase = async (assets: Asset[]): Promise<string[]> => {
+    const uploadPromises = assets.map(async (asset) => {
+      const { uri, fileName, type } = asset;
+      if (!uri) return null;
+
+      const uploadUri = Platform.OS === 'ios' ? uri.replace('file://', '') : uri;
+      const path = `reviews/${Date.now()}_${fileName || 'image.jpg'}`;
+      const reference = storage().ref(path);
+
+      try {
+        await reference.putFile(uploadUri);
+        return await reference.getDownloadURL();
+      } catch (e) {
+        console.error("Firebase Upload Error: ", e);
+        return null;
+      }
+    });
+
+    const urls = await Promise.all(uploadPromises);
+    return urls.filter((url): url is string => url !== null); // Loại bỏ các request thất bại
+  };
+
+  const submitReview = async () => {
+    // 1. Validate dữ liệu đầu vào
+    if (!comment.trim()) {
+      showModal({ title: 'Lỗi', message: 'Vui lòng nhập bình luận', mode: 'noti' });
+      return;
+    }
+
+    setActionLoading(true);
+
+    try {
+      // 2. Upload toàn bộ ảnh lên Firebase và lấy danh sách URLs
+      let uploadedUrls: string[] = [];
+      if (selectedAssets.length > 0) {
+        uploadedUrls = await uploadAllToFirebase(selectedAssets);
+
+        if (uploadedUrls.length === 0 && selectedAssets.length > 0) {
+          throw new Error("Không thể tải ảnh lên máy chủ.");
+        }
+      }
+
+      // 3. Chuẩn bị Payload
+      // Nếu backend chỉ nhận 1 string imageUrl, ta lấy cái đầu tiên: uploadedUrls[0]
+      // Nếu backend nhận mảng, ta gửi: uploadedUrls.join(',') hoặc gửi cả mảng
+      const payload = {
+        productId: selectedProduct.productId,
+        rating: rating,
+        comment: comment.trim(),
+        imageUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : "",
+      };
+
+      // 4. Gọi API review
+      await review(payload);
+
+      // 5. Thành công
+      showModal({
+        title: 'Thành công',
+        message: 'Cảm ơn bạn đã đánh giá sản phẩm!',
+        mode: 'noti'
+      });
+
+      setReviewModalVisible(false);
+      resetForm();
+
+    } catch (err: any) {
+      console.error("Submit Review Error:", err);
+      showModal({
+        title: 'Lỗi',
+        message: err.message || 'Không thể gửi đánh giá',
+        mode: 'noti'
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setComment('');
+    setSelectedAssets([]);
+    setRating(5);
+  };
+
+  const removeAsset = (index: number) => {
+    setSelectedAssets(prev => prev.filter((_, i) => i !== index));
+  };
+
+
 
   const showModal = (opts: {
     title?: string; message: string;
@@ -266,7 +376,7 @@ const OrderDetailScreen: React.FC = () => {
       title: opts.title,
       message: opts.message,
       onConfirm: () => {
-        try { setModalState((s: any) => ({ ...s, visible: false })); } catch {}
+        try { setModalState((s: any) => ({ ...s, visible: false })); } catch { }
         if (opts.onConfirm) opts.onConfirm();
       },
     });
@@ -305,7 +415,7 @@ const OrderDetailScreen: React.FC = () => {
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-      try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch {}
+      try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch { }
     }
   }, []);
 
@@ -387,12 +497,12 @@ const OrderDetailScreen: React.FC = () => {
   const openReturnSheet = () => {
     const items: ReturnableDetail[] = returnableDetails.map((d: any) => ({
       orderDetailId: d.orderDetailId,
-      productName:   d.productName,
+      productName: d.productName,
       productImageUrl: d.productImageUrl,
-      quantity:      Number(d.quantity ?? 1),
-      unitPrice:     Number(d.unitPrice ?? 0),
-      returnQty:     Number(d.quantity ?? 1),
-      checked:       false,
+      quantity: Number(d.quantity ?? 1),
+      unitPrice: Number(d.unitPrice ?? 0),
+      returnQty: Number(d.quantity ?? 1),
+      checked: false,
     }));
     setReturnItems(items);
     setSelectedReasonId('');
@@ -483,7 +593,7 @@ const OrderDetailScreen: React.FC = () => {
         const Clipboard = require('@react-native-clipboard/clipboard');
         Clipboard.setString(String(text));
         copied = true;
-      } catch {}
+      } catch { }
       if (copied) {
         showModal({ title: 'Đã sao chép', message: 'Mã vận đơn đã được sao chép', mode: 'noti' });
       } else {
@@ -675,6 +785,20 @@ const OrderDetailScreen: React.FC = () => {
                     </View>
                   ) : null}
                 </View>
+                ) : null}
+                {/* Trong vòng lặp uniqueOrderDetails.map */}
+                {(detail.status === 'DELIVERED' || detail.status === 'COMPLETED') && (
+                  <TouchableOpacity
+                    style={styles.reviewTriggerBtn}
+                    onPress={() => {
+                      setSelectedProduct(detail);
+                      setReviewModalVisible(true);
+                    }}
+                  >
+                    <Ionicons name="star-outline" size={14} color={COLORS.primary} />
+                    <Text style={styles.reviewTriggerText}>Đánh giá sản phẩm</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -861,12 +985,12 @@ const OrderDetailScreen: React.FC = () => {
               const isExpanded = expandedShipments[shipmentKey] ?? false;
 
               const allStatuses = [
-                { value: 'READY_TO_PICK',  label: 'Chuẩn bị giao' },
-                { value: 'PICKING',        label: 'Đang chuẩn bị' },
-                { value: 'PICKED',         label: 'Đã chuẩn bị' },
-                { value: 'TRANSPORTING',   label: 'Đang vận chuyển' },
-                { value: 'DELIVERING',     label: 'Đang giao hàng' },
-                { value: 'DELIVERED',      label: 'Đã giao' },
+                { value: 'READY_TO_PICK', label: 'Chuẩn bị giao' },
+                { value: 'PICKING', label: 'Đang chuẩn bị' },
+                { value: 'PICKED', label: 'Đã chuẩn bị' },
+                { value: 'TRANSPORTING', label: 'Đang vận chuyển' },
+                { value: 'DELIVERING', label: 'Đang giao hàng' },
+                { value: 'DELIVERED', label: 'Đã giao' },
               ];
 
               const currentStatus = String(shipment.status).toUpperCase();
@@ -901,9 +1025,9 @@ const OrderDetailScreen: React.FC = () => {
 
                   <View style={styles.timelineVertical}>
                     {allStatuses.slice(0, isExpanded ? allStatuses.length : 3).map((status, idx) => {
-                      const isPast    = currentIdx > idx;
+                      const isPast = currentIdx > idx;
                       const isCurrent = currentIdx === idx;
-                      const colors    = getStatusColor(idx, isCurrent, isPast);
+                      const colors = getStatusColor(idx, isCurrent, isPast);
                       return (
                         <View key={status.value} style={styles.timelineRowWrap}>
                           <View style={styles.timelineLeftCol}>
@@ -1019,6 +1143,74 @@ const OrderDetailScreen: React.FC = () => {
             </Text>
           </View>
         </View>
+
+        <Modal visible={reviewModalVisible} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Đánh giá sản phẩm</Text>
+                <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView>
+                {/* Thông tin sản phẩm */}
+                <View style={styles.reviewProductInfo}>
+                  <Image source={{ uri: selectedProduct?.productImageUrl }} style={styles.reviewThumb} />
+                  <Text style={styles.reviewProductName} numberOfLines={2}>{selectedProduct?.productName}</Text>
+                </View>
+
+                {/* Chọn Rating bằng Icon */}
+                <View className='flex flex-row justify-center'>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                      <Ionicons
+                        name={star <= rating ? "happy" : "happy-outline"}
+                        size={40}
+                        color={star <= rating ? COLORS.accent : COLORS.muted}
+                      />
+                    </TouchableOpacity>
+                  ))}
+
+                </View>
+                <Text className='text-center mt-2'>
+                  {rating === 5 ? 'Rất hài lòng' : rating >= 3 ? 'Hài lòng' : 'Chưa hài lòng'}
+                </Text>
+                {/* Input Comment */}
+                <TextInput
+                  style={styles.reviewInput}
+                  placeholder="Chất lượng sản phẩm tuyệt vời..."
+                  multiline
+                  value={comment}
+                  onChangeText={setComment}
+                />
+
+                {/* Upload Ảnh */}
+                <Text style={styles.uploadTitle}>Hình ảnh thực tế ({selectedAssets.length}/5)</Text>
+                <View style={styles.imageGrid}>
+                  {selectedAssets.map((asset, idx) => (
+                    <View key={idx} style={styles.imageWrapper}>
+                      <Image source={{ uri: asset.uri }} style={styles.previewImg} />
+                      <TouchableOpacity style={styles.removeImgBtn} onPress={() => removeAsset(idx)}>
+                        <Ionicons name="close-circle" size={20} color={COLORS.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {selectedAssets.length < 5 && (
+                    <TouchableOpacity style={styles.addImgBtn} onPress={handleSelectMedia}>
+                      <Ionicons name="camera-outline" size={30} color={COLORS.muted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </ScrollView>
+
+              <Pressable style={styles.submitReviewBtn} onPress={submitReview} disabled={actionLoading}>
+                {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitReviewText}>Gửi đánh giá</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
 
         {/* Cancel button */}
         {canCancel ? (
@@ -1301,37 +1493,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg,
   },
-  headerRow:        { flexDirection: 'row', alignItems: 'center' },
-  headerBackBtn:    { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  headerCenter:     { flex: 1, marginHorizontal: 12 },
-  headerTitle:      { color: COLORS.text, fontWeight: '900', fontSize: 20 },
-  headerSub:        { color: COLORS.muted, fontSize: 12, marginTop: 3, fontWeight: '600' },
-  refreshBtn:       { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  headerPlaceholder:{ width: 42 },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  headerBackBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
+  headerCenter: { flex: 1, marginHorizontal: 12 },
+  headerTitle: { color: COLORS.text, fontWeight: '900', fontSize: 20 },
+  headerSub: { color: COLORS.muted, fontSize: 12, marginTop: 3, fontWeight: '600' },
+  refreshBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
+  headerPlaceholder: { width: 42 },
 
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText:      { marginTop: 10, color: COLORS.muted, fontWeight: '600' },
+  loadingText: { marginTop: 10, color: COLORS.muted, fontWeight: '600' },
 
-  emptyWrap:  { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   emptyTitle: { marginTop: 12, color: COLORS.text, fontSize: 18, fontWeight: '900' },
-  emptyDesc:  { marginTop: 6, color: COLORS.muted, textAlign: 'center' },
+  emptyDesc: { marginTop: 6, color: COLORS.muted, textAlign: 'center' },
 
   heroCard: { backgroundColor: COLORS.card, borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
-  heroTop:  { flexDirection: 'row', alignItems: 'flex-start' },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start' },
   heroOrderNo: { color: COLORS.text, fontSize: 17, fontWeight: '900' },
   heroDate: { marginTop: 5, color: COLORS.muted, fontSize: 12, fontWeight: '600' },
   orderStatusBadge: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
-  orderStatusText:  { fontWeight: '900', fontSize: 11 },
-  heroSummaryRow:   { marginTop: 16, backgroundColor: COLORS.soft, borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center' },
-  heroSummaryItem:  { flex: 1 },
-  heroDivider:      { width: 1, height: 36, backgroundColor: COLORS.border, marginHorizontal: 12 },
-  summarySmall:     { color: COLORS.muted, fontSize: 11, fontWeight: '700' },
-  summaryStrong:    { marginTop: 4, color: COLORS.text, fontSize: 14, fontWeight: '900' },
+  orderStatusText: { fontWeight: '900', fontSize: 11 },
+  heroSummaryRow: { marginTop: 16, backgroundColor: COLORS.soft, borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center' },
+  heroSummaryItem: { flex: 1 },
+  heroDivider: { width: 1, height: 36, backgroundColor: COLORS.border, marginHorizontal: 12 },
+  summarySmall: { color: COLORS.muted, fontSize: 11, fontWeight: '700' },
+  summaryStrong: { marginTop: 4, color: COLORS.text, fontSize: 14, fontWeight: '900' },
 
   card: { backgroundColor: COLORS.card, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  sectionTitle:  { marginLeft: 8, color: COLORS.text, fontWeight: '900', fontSize: 16 },
-  receiverText:  { color: COLORS.text, fontWeight: '800', fontSize: 14 },
+  sectionTitle: { marginLeft: 8, color: COLORS.text, fontWeight: '900', fontSize: 16 },
+  receiverText: { color: COLORS.text, fontWeight: '800', fontSize: 14 },
   shippingAddress: { marginTop: 7, color: '#334155', fontSize: 13, lineHeight: 20, fontWeight: '600' },
 
   // Product item
@@ -1484,7 +1676,7 @@ const styles = StyleSheet.create({
 
   // ── Shipment timeline ───────────────────────────────────────────────────
 
-  shipmentTimelineWrap:   { backgroundColor: '#FFFBF7', borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: '#F3E7D9', overflow: 'hidden' },
+  shipmentTimelineWrap: { backgroundColor: '#FFFBF7', borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: '#F3E7D9', overflow: 'hidden' },
   shipmentTimelineHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#F3E7D9' },
   timelineVertical:  { paddingVertical: 12, paddingHorizontal: 12 },
   timelineRowWrap:   { flexDirection: 'row', marginBottom: 12 },
@@ -1494,13 +1686,13 @@ const styles = StyleSheet.create({
   timelineActiveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.success },
   timelineInactiveDot:{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#CBD5E1' },
   timelineLineAfter: { width: 2, height: 10, marginTop: 2 },
-  timelineRightCol:  { flex: 1, marginLeft: 12, justifyContent: 'center' },
+  timelineRightCol: { flex: 1, marginLeft: 12, justifyContent: 'center' },
   timelineStepLabel: { fontSize: 13 },
-  timelineMoreHint:  { paddingVertical: 8, alignItems: 'center' },
-  timelineMoreText:  { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
+  timelineMoreHint: { paddingVertical: 8, alignItems: 'center' },
+  timelineMoreText: { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
   shipmentExpandedDetails: { borderTopWidth: 1, borderTopColor: '#F3E7D9', paddingTop: 12, paddingHorizontal: 12, paddingBottom: 12 },
-  detailsGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  detailsBox:   { flex: 1, minWidth: '48%', backgroundColor: COLORS.card, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#F3F4F6' },
+  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  detailsBox: { flex: 1, minWidth: '48%', backgroundColor: COLORS.card, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#F3F4F6' },
   detailsLabel: { color: COLORS.muted, fontSize: 10, fontWeight: '700' },
   detailsValue: { marginTop: 5, color: COLORS.text, fontSize: 12, fontWeight: '800' },
   copyTrackBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
@@ -1517,25 +1709,25 @@ const styles = StyleSheet.create({
   paymentTotalLabel: { color: COLORS.text, fontWeight: '900' },
   paymentTotalValue: { color: COLORS.primary, fontWeight: '900' },
 
-  fullDangerBtn:  { backgroundColor: COLORS.dangerBg, borderRadius: 14, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  fullDangerBtn: { backgroundColor: COLORS.dangerBg, borderRadius: 14, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   fullDangerText: { marginLeft: 7, color: '#C53030', fontWeight: '900' },
   fullWarningBtn: { backgroundColor: COLORS.warningBg, borderRadius: 14, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
-  fullWarningText:{ marginLeft: 7, color: COLORS.warning, fontWeight: '900' },
+  fullWarningText: { marginLeft: 7, color: COLORS.warning, fontWeight: '900' },
 
   // ── Modals ──────────────────────────────────────────────────────────────
 
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
-  modalCard:    { backgroundColor: COLORS.card, padding: 18, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
-  modalHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  modalTitle:   { flex: 1, fontWeight: '900', fontSize: 18, color: COLORS.text },
-  modalCloseBtn:{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC' },
-  modalInput:   { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, minHeight: 90, color: COLORS.text, backgroundColor: '#FFFBF7' },
+  modalCard: { backgroundColor: COLORS.card, padding: 18, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { flex: 1, fontWeight: '900', fontSize: 18, color: COLORS.text },
+  modalCloseBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC' },
+  modalInput: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, minHeight: 90, color: COLORS.text, backgroundColor: '#FFFBF7' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 14 },
-  modalCancel:  { paddingHorizontal: 16, paddingVertical: 11, marginRight: 8 },
+  modalCancel: { paddingHorizontal: 16, paddingVertical: 11, marginRight: 8 },
   modalCancelText: { color: COLORS.muted, fontWeight: '800' },
-  modalSend:    { minWidth: 88, alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: COLORS.primary },
+  modalSend: { minWidth: 88, alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: COLORS.primary },
   modalSendDisabled: { backgroundColor: '#CBD5E1' },
-  modalSendText:{ color: '#fff', fontWeight: '900' },
+  modalSendText: { color: '#fff', fontWeight: '900' },
 
   // Return sheet
   returnSheetCard: {
@@ -1548,7 +1740,7 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
   },
   returnItemList: { marginBottom: 4 },
-  returnEmptyText:{ color: COLORS.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 },
+  returnEmptyText: { color: COLORS.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 },
 
   returnItemRow: {
     flexDirection: 'row',
@@ -1576,12 +1768,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  qtyStepper:  { flexDirection: 'row', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 6 },
-  qtyLabel:    { color: COLORS.muted, fontSize: 11, fontWeight: '700' },
+  qtyStepper: { flexDirection: 'row', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 6 },
+  qtyLabel: { color: COLORS.muted, fontSize: 11, fontWeight: '700' },
   qtyControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.soft, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
-  qtyBtn:      { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  qtyInput:    { minWidth: 36, maxWidth: 52, height: 40, textAlign: 'center', fontWeight: '900', color: COLORS.text, fontSize: 13, paddingHorizontal: 4, borderLeftWidth: 1, borderRightWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
-  qtyMax:      { color: COLORS.muted, fontSize: 10, fontWeight: '600' },
+  qtyBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  qtyInput: { minWidth: 36, maxWidth: 52, height: 40, textAlign: 'center', fontWeight: '900', color: COLORS.text, fontSize: 13, paddingHorizontal: 4, borderLeftWidth: 1, borderRightWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  qtyMax: { color: COLORS.muted, fontSize: 10, fontWeight: '600' },
 
   returnReasonLabel: { marginTop: 14, marginBottom: 6, color: COLORS.text, fontWeight: '800', fontSize: 13 },
 
@@ -1627,6 +1819,101 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 12,
     flex: 1,
+  },
+  reviewTriggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    alignSelf: 'flex-start',
+  },
+  reviewTriggerText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  reviewProductInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: COLORS.soft,
+    padding: 10,
+    borderRadius: 12,
+  },
+  reviewThumb: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  reviewProductName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+    height: 100,
+    textAlignVertical: 'top',
+    backgroundColor: '#FAFAFA',
+  },
+  uploadTitle: {
+    marginTop: 20,
+    fontWeight: '800',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  imageWrapper: {
+    position: 'relative',
+  },
+  previewImg: {
+    width: 70,
+    height: 70,
+    borderRadius: 8,
+  },
+  removeImgBtn: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  addImgBtn: {
+    width: 70,
+    height: 70,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: COLORS.muted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitReviewBtn: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  submitReviewText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 16,
   },
 });
 

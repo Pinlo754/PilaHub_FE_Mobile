@@ -38,9 +38,9 @@ const Header = () => {
       </Text>
 
       {/* Logout */}
-      <TouchableOpacity onPress={onLogout} className="absolute right-4">
+      {/* <TouchableOpacity onPress={onLogout} className="absolute right-4">
         <Ionicons name="log-out-outline" size={22} color="#A0522D" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
     </View>
   );
