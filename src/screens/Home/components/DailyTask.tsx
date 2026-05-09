@@ -1,5 +1,6 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,15 +10,10 @@ import {
   View,
 } from 'react-native';
 
-import { RootStackParamList } from '../../../navigation/AppNavigator';
+import { RootTabParamList } from '../../../navigation/TabNavigator';
 import { colors } from '../../../theme/colors';
 import CardDaily from './CardDaily';
 import { DailyTaskItem, dailyTaskService } from '../../../hooks/dailyTask.service';
-
-
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
-};
 
 const ItemSeparator = () => <View className="w-3" />;
 
@@ -26,7 +22,8 @@ const contentContainerStyle = {
   paddingVertical: 4,
 };
 
-const DailyTask = ({ navigation }: Props) => {
+const DailyTask = () => {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList, 'Home'>>();
   const [tasks, setTasks] = useState<DailyTaskItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -59,18 +56,25 @@ const DailyTask = ({ navigation }: Props) => {
     (item: DailyTaskItem) => {
       console.log('PRESS DAILY TASK:', item);
 
+      if (!navigation) return;
+
       if (item.type === 'BOOKING') {
         const booking = item.raw as any;
-        // Navigate to VideoCall if available
         if (booking.id) {
-          navigation.navigate('VideoCall', { bookingId: booking.id });
+          (navigation as any).navigate('TraineeBooking', { bookingId: booking.id });
         }
       } else if (item.type === 'ROADMAP') {
-        // Navigate to Roadmap/SchedulePlayer
-        navigation.navigate('Roadmap');
+        const roadmap = item.raw as any;
+        navigation.navigate('Roadmap', {
+          screen: 'RoadmapDetail',
+          params: {
+            roadmapId: roadmap?.id,
+            roadmap: roadmap,
+            source: 'home',
+          },
+        });
       } else if (item.type === 'COURSE') {
-        // Navigate to Courses
-        navigation.navigate('Courses');
+        navigation.navigate('List');
       }
     },
     [navigation],
@@ -91,12 +95,9 @@ const DailyTask = ({ navigation }: Props) => {
 
   return (
     <View className="pl-4">
-     
-        <Text className="color-foreground text-lg font-semibold">
-          Nhiệm vụ hôm nay
-        </Text>
-
-      
+      <Text className="color-foreground text-lg font-semibold">
+        Nhiệm vụ hôm nay
+      </Text>
 
       {loading ? (
         <View className="h-32 items-center justify-center">

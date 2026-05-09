@@ -90,7 +90,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <QuickActions navigation={navigation} targetRefs={targetRefs} />
 
         {/* Daily Task */}
-        <DailyTask navigation={navigation} />
+        <DailyTask  />
 
         {/* Thêm các section khác nếu cần */}
         <RecommendCourse />

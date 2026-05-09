@@ -98,7 +98,7 @@ export default function InformationUI() {
                   source={{
                     uri:
                       avatar ??
-                      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e',
+                      'https://sangkienvietnam.org/wp-content/uploads/2023/11/avatar-placeholder.gif',
                   }}
                   className="w-40 h-40 rounded-full border-4 border-white"
                 />

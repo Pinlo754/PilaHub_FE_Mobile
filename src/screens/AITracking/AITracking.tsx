@@ -908,3 +908,16 @@ export default function AITracking({
     </View>
   );
 };
+
+// import { View, Text } from 'react-native'
+// import React from 'react'
+
+// const AITracking = () => {
+//   return (
+//     <View>
+//       <Text>AITracking</Text>
+//     </View>
+//   )
+// }
+
+// export default AITracking
