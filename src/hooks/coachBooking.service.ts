@@ -43,6 +43,23 @@ export const coachBookingService = {
     return res.data.data;
   },
 
+   // GET ALL BOOKING OF COACH
+  getAllBookingOfCoach: async (): Promise<CoachBookingType[]> => {
+    const res = await api.get<ApiResponse<CoachBookingType[]>>(
+      `/coach-bookings/my-coaching-sessions`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
+
   // GET BUSY TIME SLOT
   getBusyTimeSlot: async (
     payload: BusyTimeSlotReq,

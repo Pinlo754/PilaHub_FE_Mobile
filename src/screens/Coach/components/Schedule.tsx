@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, FlatList, Text } from 'react-native';
+import { View, FlatList, Text, StyleSheet, Pressable } from 'react-native';
 import CalendarStrip from 'react-native-calendar-strip';
 import moment from 'moment';
 import { NavigationProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -97,18 +97,25 @@ const MyCalendar = () => {
   };
 
   return (
-    <View className="bg-[#F5DEB3] rounded-3xl pb-4" style={{ maxHeight: 520 }}>
-      <View className="pt-3 px-5 flex-row items-center">
+    <View className="bg-[#F5DEB3] rounded-3xl pt-2 pb-4" style={{ maxHeight: 520 }}>
+      <View className="flex-row justify-between items-center">
+        <View className="pt-2 px-5 flex-row items-center">
+
         <Text className="text-2xl font-bold text-[#8B5E3C]">Lịch học</Text>
         <Text className="ml-2 text-xl text-[#8B5E3C]">🕒</Text>
-      </View>
+       </View>
 
+       <Pressable className="py-2 px-2 mr-2 flex-row items-center bg-background rounded-xl" onPress={() => navigation.navigate('CoachBooking')}>
+        <Text className="text-xl font-semibold text-[#8B5E3C]">Lịch sử phiên học</Text>
+      </Pressable>
+      </View>
       {/* Header tháng tiếng Việt */}
       <View className="items-center py-1">
         <Text className="text-[#8B5E3C] text-[22px] font-bold">
           {currentMonthVi} {currentYear}
         </Text>
       </View>
+        
 
       <CalendarStrip
         scrollable

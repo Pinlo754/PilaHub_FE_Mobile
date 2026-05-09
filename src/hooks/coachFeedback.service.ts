@@ -42,4 +42,21 @@ export const coachFeedbackService = {
 
     return res.data.data;
   },
+
+   // GET BY LIVESESSION ID
+  getByLiveSessionId: async (liveSessionId: string): Promise<CoachFeedbackType[]> => {
+    const res = await api.get<ApiResponse<CoachFeedbackType[]>>(
+      `/coach-feedbacks/live-session/${liveSessionId}`,
+    );
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
+  },
 };

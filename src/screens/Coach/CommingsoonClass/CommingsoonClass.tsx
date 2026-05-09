@@ -70,7 +70,7 @@ const CommingsoonClass = () => {
         setShowConfirmModal(false);
         setIsCancelling(true);
         try {
-            // await LiveSessionService.cancel(selectedId);
+            await LiveSessionService.cancel(selectedId);
             console.log("Đã gọi API hủy lịch với ID:", selectedId);
             setModalState({
                 visible: true,

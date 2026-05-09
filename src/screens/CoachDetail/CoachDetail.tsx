@@ -65,7 +65,8 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
         />
 
         {/* Blog Section */}
-        <BlogSection coachId={coachDetail.coachId} />
+        <BlogSection coachId={coachDetail.coachId} 
+          avatartUrl={coachDetail?.avatarUrl}/>
       </Animated.ScrollView>
 
       <View className="pt-2 px-4 pb-8 gap-4">
@@ -86,7 +87,7 @@ const CoachDetail: React.FC<Props> = ({ route, navigation }) => {
             rounded="xl"
             iconName="today-outline"
             iconSize={26}
-            width={205}
+            width={180}
           />
         </View>
         <Button

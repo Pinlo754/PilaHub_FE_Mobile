@@ -21,6 +21,8 @@ import { useNavigation } from '@react-navigation/native';
 import { CoachService } from '../../../hooks/coach.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TraineeService } from '../../../hooks/trainee.service';
+import { get } from 'lodash';
 /* ============================ 
     INTERFACES 
    ============================ */
@@ -33,11 +35,13 @@ interface Post {
     reactCount?: number;
     commentCount?: number;
     reactedByMe?: boolean;
+    coachId: string;
 }
 
 interface Comment {
     commentId: string;
     accountName: string;
+    accountId: string;
     content: string;
     createdAt: string;
     replies: any[];
@@ -56,6 +60,7 @@ export const MyBlogScreen = () => {
     const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
     const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
     const [isPaused, setIsPaused] = useState(true);
+
     /* ============================ 
    MODAL: TÙY CHỌN BÀI VIẾT (MORE OPTIONS)
    ============================ */
@@ -216,11 +221,10 @@ export const MyBlogScreen = () => {
         }
     };
     const [coachInfo, setCoachInfo] = useState<any>(null);
-    const fetchMe = async () => {
+    const fetchCoach = async () => {
         try {
-            const idStr = await AsyncStorage.getItem('id');
-            const currentId = idStr ? JSON.parse(idStr) : null;
-            const res = await CoachService.getById(currentId);
+
+            const res = await CoachService.getById(posts[0].coachId);
             setCoachInfo(res);
             console.log("Thông tin coach:", res);
         } catch (error) {
@@ -229,18 +233,18 @@ export const MyBlogScreen = () => {
     };
 
     useEffect(() => {
-        fetchMe();
-    }, []);
+        fetchCoach();
+    }, [posts]);
 
 
     const renderPostItem = ({ item }: { item: Post }) => (
-        <View className="bg-white mb-3 shadow-sm py-2">
+        <View className="bg-background mb-3 shadow-sm py-2">
             {/* Header: Avatar + Tên + More Button */}
             <View className="flex-row justify-between items-center px-4 py-2">
                 <View className="flex-row items-center">
                     <Image source={{ uri: coachInfo?.avatarUrl || 'https://via.placeholder.com/100' }} className="w-10 h-10 rounded-full bg-gray-200" />
                     <View className="ml-3">
-                        <Text className="font-bold text-gray-900">{item.coachName}</Text>
+                        <Text className="font-bold text-foreground">{item.coachName}</Text>
                         <Text className="text-gray-400 text-[10px]">{new Date(item.createdAt).toLocaleDateString()}</Text>
                     </View>
                 </View>
@@ -262,7 +266,7 @@ export const MyBlogScreen = () => {
                                     source={{ uri: media.mediaUrl }}
                                     style={{ width: '100%', height: 270 }} // Do not rely on layout logic here, use fixed numbers first
                                     resizeMode="contain" // Use 'contain' to ensure video isn't being cropped out of existence
-                                    controls = {true}
+                                    controls={true}
                                 />
 
                                 {/* Nút Play hiển thị đè lên khi video đang pause */}
@@ -325,7 +329,6 @@ export const MyBlogScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-gray-100">
             <View className="pb-4 pt-6 flex-row items-center justify-center">
-                <Header />
 
                 {/* Back button */}
                 <TouchableOpacity
@@ -382,9 +385,29 @@ export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) 
     const [replyTarget, setReplyTarget] = useState<Comment | null>(null); // Lưu comment đang được reply
 
     const [localPost, setLocalPost] = useState(post);
+    console.log("Local Post:", localPost);
+
     useEffect(() => {
         setLocalPost(post);
     }, [post]);
+
+    const [coachInfo, setCoachInfo] = useState<any>(null);
+
+    const fetchCoach = async () => {
+        try {
+
+            const res = await CoachService.getById(localPost.coachId);
+            console.log("Coach ID:", localPost.coachId);
+            setCoachInfo(res);
+            console.log("Thông tin coach:", res);
+        } catch (error) {
+            console.error("Lỗi khi lấy thông tin coach:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchCoach();
+    }, [localPost]);
 
     const toggleLikeInModal = async () => {
         // 1. Lưu trạng thái cũ để rollback
@@ -450,46 +473,62 @@ export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) 
 
     useEffect(() => { if (visible) loadComments(); }, [visible, loadComments]);
 
+
+
+
+    const [isPaused, setIsPaused] = useState(true);
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-            <View className="flex-1 bg-white pt-10">
+            <View className="flex-1 bg-background pt-10">
                 <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
                     <TouchableOpacity onPress={onClose} className="p-1"><Ionicons name="chevron-down" size={28} color="black" /></TouchableOpacity>
-                    <Text className="ml-4 font-bold text-lg text-gray-900">Bài viết</Text>
+                    <Text className="ml-4 font-bold text-lg text-foreground">Bài viết</Text>
                 </View>
 
                 <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                     {/* Post Original Content */}
                     <View className="p-4 flex-row items-center">
-                        <Image source={{ uri: 'https://via.placeholder.com/100' }} className="w-10 h-10 rounded-full bg-gray-200" />
+                        <Image source={{ uri: coachInfo?.avatarUrl || 'https://via.placeholder.com/100' }} className="w-10 h-10 rounded-full bg-gray-200" />
                         <View className="ml-3">
-                            <Text className="font-bold text-gray-900">{localPost.coachName}</Text>
+                            <Text className="font-bold text-foreground">{localPost.coachName}</Text>
                             <Text className="text-[10px] text-gray-400">{new Date(localPost.createdAt).toLocaleString()}</Text>
                         </View>
                     </View>
                     <Text className="px-4 text-[16px] text-gray-800 mb-4 leading-6">{localPost.content}</Text>
-                    {localPost.medias?.map((m: any) => {
-                        if (m.mediaType === "VIDEO") {
+                    {localPost.medias && localPost.medias.length > 0 && (() => {
+                        const media = localPost.medias[0];
+
+                        if (media.mediaType === "VIDEO") {
                             return (
-                                <Video
-                                    key={m.postMediaId}
-                                    source={{ uri: m.mediaUrl }}
-                                    className="w-full h-80 bg-black mb-2"
-                                    resizeMode="cover"
-                                    controls
-                                />
+                                <View className="w-full h-72 bg-gray-900 justify-center items-center">
+                                    <Video
+                                        source={{ uri: media.mediaUrl }}
+                                        style={{ width: '100%', height: 270 }} // Do not rely on layout logic here, use fixed numbers first
+                                        resizeMode="contain" // Use 'contain' to ensure video isn't being cropped out of existence
+                                        controls={true}
+                                    />
+
+                                    {/* Nút Play hiển thị đè lên khi video đang pause */}
+                                    {isPaused && (
+                                        <TouchableOpacity
+                                            className="absolute bg-black/40 p-4 rounded-full"
+                                            onPress={() => setIsPaused(false)}
+                                        >
+                                            <Ionicons name="play" size={40} color="white" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             );
                         }
 
                         return (
                             <Image
-                                key={m.postMediaId}
-                                source={{ uri: m.mediaUrl }}
-                                className="w-full h-80 bg-gray-50 mb-2"
+                                source={{ uri: media.mediaUrl }}
+                                className="w-full h-72 bg-gray-100"
                                 resizeMode="cover"
                             />
                         );
-                    })}
+                    })()}
 
                     <View className="px-4 py-4 border-b border-gray-50 flex-row items-center">
                         <TouchableOpacity
@@ -497,9 +536,9 @@ export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) 
                             onPress={toggleLikeInModal}
                         >
                             <Ionicons
-                                name={localPost.reactedByMe ? "heart" : "heart-outline"}
+                                name={localPost.reactedByMe ? "thumbs-up" : "thumbs-up-outline"}
                                 size={18}
-                                color={localPost.reactedByMe ? "#ef4444" : "#666"}
+                                color={localPost.reactedByMe ? "#3b82f6" : "#666"}
                             />
                             <Text className="ml-2 font-bold text-gray-700 text-sm">
                                 {localPost.reactCount} lượt thích
@@ -514,6 +553,7 @@ export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) 
                             comments.map((comment) => (
                                 <View key={comment.commentId} className="mb-6">
                                     <CommentItem
+                                        accounntId={comment.accountId}
                                         name={comment.accountName}
                                         content={comment.content}
                                         time={comment.createdAt}
@@ -522,6 +562,7 @@ export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) 
                                     {/* Sub-comments tương tự... */}
                                     {comment.replies?.map((reply: any) => (
                                         <CommentItem
+                                            accounntId={reply.accountId}
                                             key={reply.commentId}
                                             name={reply.accountName}
                                             content={reply.content}
@@ -595,9 +636,37 @@ export const PostDetailModal = ({ visible, post, onClose, onRefreshPost }: any) 
 /* ============================ 
     SUB-COMPONENT: COMMENT ITEM 
    ============================ */
-const CommentItem = ({ name, content, time, isReply = false, onReply }: any) => (
-    <View className={`flex-row ${isReply ? 'ml-8 mb-4' : ''}`}>
-        <Image source={{ uri: 'https://via.placeholder.com/100' }} className={`${isReply ? 'w-6 h-6' : 'w-9 h-9'} rounded-full bg-gray-200`} />
+
+
+const CommentItem = ({ accounntId, name, content, time, isReply = false, onReply }: any) => {
+
+    const [avatarUrl, setAvatarUrl] = useState('');
+    const getCommentAvatar = async (id: string) => {
+        const account = await CoachService.getAccountById(id);
+        if (account.role === 'COACH') {
+            const profile = await CoachService.getById(account.accountId);
+            console.log("Profile:", profile);
+            setAvatarUrl(profile.avatarUrl || 'https://via.placeholder.com/100');
+        } else {
+            const profile = await TraineeService.getById(account.accountId);
+            console.log("Profile:", profile);
+            setAvatarUrl(profile.avatarUrl || 'https://via.placeholder.com/100');
+        }
+    };
+
+    useEffect(() => {
+        const loadAvatar = async () => {
+            if (!accounntId) return;
+
+            getCommentAvatar(accounntId);
+        };
+
+        loadAvatar();
+    }, [accounntId]);
+
+
+    return (<View className={`flex-row ${isReply ? 'ml-8 mb-4' : ''}`}>
+        <Image source={{ uri: avatarUrl }} className={`${isReply ? 'w-6 h-6' : 'w-9 h-9'} rounded-full bg-gray-200`} />
         <View className="flex-1 ml-3">
             <View className="bg-gray-100 p-3 rounded-2xl self-start max-w-[95%]">
                 <Text className="font-bold text-[11px] text-gray-900">{name}</Text>
@@ -605,7 +674,7 @@ const CommentItem = ({ name, content, time, isReply = false, onReply }: any) => 
             </View>
             <View className="flex-row mt-1.5 ml-1 space-x-5 gap-4">
                 <Text className="text-[10px] text-gray-400 font-medium">{new Date(time).toLocaleDateString()}</Text>
-                <TouchableOpacity><Text className="text-[10px] font-bold text-gray-500 uppercase">Thích</Text></TouchableOpacity>
+                
 
                 {/* Nút Phản hồi */}
                 <TouchableOpacity onPress={onReply}>
@@ -614,5 +683,6 @@ const CommentItem = ({ name, content, time, isReply = false, onReply }: any) => 
             </View>
         </View>
     </View>
-);
+    )
+};
 

@@ -25,7 +25,7 @@ const globalAny = globalThis as any;
 if (typeof globalAny.TextEncoder === 'undefined') globalAny.TextEncoder = TextEncoder as any;
 if (typeof globalAny.TextDecoder === 'undefined') globalAny.TextDecoder = TextDecoder as any;
 
-const BACKEND_URL = 'https://pilahub.io.vn';
+const BACKEND_URL = 'https://api.pilahub.io.vn';
 
 interface Message {
   messageId: string;

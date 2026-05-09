@@ -149,8 +149,8 @@ const LiveSessionService = {
 
   // CANCEL LIVE SESSION
   cancel: async (bookingId: string): Promise<string> => {
-    const res = await api.get<ApiResponse<string>>(
-      `/live-sessions/${bookingId}/recording-url`,
+    const res = await api.delete<ApiResponse<string>>(
+      `/coach-bookings/${bookingId}/cancel`,
     );
 
     if (!res.data.success) {

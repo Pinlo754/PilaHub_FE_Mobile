@@ -87,6 +87,7 @@ import DepositScreen from '../screens/Wallet/DepositScreen';
 import AIPracticeTimeout from '../screens/AIPracticeTimeout/AIPractice';
 import ReturnListScreen from '../screens/Profile/ReturnListScreen';
 import ReturnDetailScreen from '../screens/Profile/ReturnDetailScreen';
+import CoachBooking from '../screens/Coach/CoachBooking/CoachBooking';
 import Orientation from 'react-native-orientation-locker';
 
 export type RootStackParamList = {
@@ -260,6 +261,7 @@ export type RootStackParamList = {
   SentRequestDetail: { request?: any } | undefined;
   ReturnList: undefined;
   ReturnDetail: { returnId: string } | undefined;
+  CoachBooking: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -496,6 +498,7 @@ const AppNavigator: React.FC = () => {
               component={NotificationScreen}
             />
             <Stack.Screen name="ReturnDetail" component={ReturnDetailScreen} />
+            <Stack.Screen name="CoachBooking" component={CoachBooking} />
           </Stack.Navigator>
         </AppLayout>
       </CartProvider>
