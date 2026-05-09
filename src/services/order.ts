@@ -28,7 +28,12 @@ export type OrderReturnItem = {
   orderDetailId: string;
   quantity: number;
 };
-
+export type ReturnReason = {
+  reasonId: string;
+  code: string;
+  description: string;
+  enabled: boolean;
+};
 export type CreateOrderReturnPayload = {
   reason: string;
   items: OrderReturnItem[];
@@ -94,5 +99,23 @@ export async function getMyOrdersByStatus(status: string) {
 
 export async function getOrderTracking(orderNumber: string) {
   const res = await axios.get(`/orders/tracking/${orderNumber}`);
+  return res.data.data;
+}
+export async function getReturnReasons() {
+  const res = await axios.get('/order-returns/reasons');
+  return res.data.data;
+}
+
+export async function getReturnByOrder(orderId: string) {
+  const res = await axios.get(`/order-returns/order/${orderId}`);
+  return res.data.data;
+}
+export async function completeOrder(orderId: string) {
+  const res = await axios.post(`/orders/${orderId}/complete`);
+  return res.data.data;
+}
+
+export async function review(payload: any) {
+  const res = await axios.post(`/product-reviews`, payload);
   return res.data.data;
 }

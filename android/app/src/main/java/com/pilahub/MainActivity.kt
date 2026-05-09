@@ -21,7 +21,7 @@ class MainActivity : ReactActivity() {
     Log.d("MainActivity", "onActivityResult: requestCode=$requestCode resultCode=$resultCode")
 
     try {
-     NitroScreenRecorder.handleActivityResult(requestCode, resultCode, data)
+      NitroScreenRecorder.handleActivityResult(requestCode, resultCode, data)
       Log.d("MainActivity", "noi dung")
     } catch (e: Exception) {
       Log.e("MainActivity", "Error handling activity result: ${e.message}")
