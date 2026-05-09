@@ -127,9 +127,8 @@ const MyCalendar = () => {
         scrollToOnSetSelectedDate={true}
         useIsoWeekday={false}
 
-        // TẮT HOÀN TOÀN HEADER MẶC ĐỊNH
         headerTextContainerStyle={{ display: 'none' }}
-        showMonth={false}                    // ← Thêm dòng này
+        showMonth={false}                   
         showDayName={true}
         showDate={true}
 

@@ -11,7 +11,7 @@ type Props = {
 
 const CoachBookingHeader = ({ navigation, handleRefresh }: Props) => {
   const handleGoBack = () => {
-    navigation.navigate('MainTabs', { screen: 'Home' });
+    navigation.navigate('CoachScreen');
   };
 
   return (

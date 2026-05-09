@@ -22,7 +22,7 @@ export const useCoachBooking = () => {
   const [data, setData] = useState<CoachBookingType[]>([]);
   const [reportMap, setReportMap] = useState<Record<string, LiveSessionReportType>>({});
   const [liveSessionDetail, setLiveSessionDetail] = useState<LiveSessionType | null>(null);
- const [coachFeedback, setCoachFeedback] = useState<CoachFeedbackType | null>(null);
+  const [coachFeedback, setCoachFeedback] = useState<CoachFeedbackType | null>(null);
   const [recordUrl, setRecordUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -75,23 +75,22 @@ export const useCoachBooking = () => {
     }
   };
 
-  // CoachBookingId === LiveSessionId
   const fetchCoachFeedback = async (bookingId: string) => {
-    if (!bookingId) return;
-    setIsLoading(true);
-    try {
-      const res = await coachFeedbackService.getByLiveSessionId(bookingId);
-      setCoachFeedbacks(res);
-    } catch (err: any) {
-      if (err?.type === 'BUSINESS_ERROR') {
-        openErrorModal(err.message);
-      } else {
-        openErrorModal('Chưa có đánh giá từ học viên!');
-      }
-    } finally {
-      setIsLoading(false);
+  if (!bookingId) return;
+  setIsLoading(true);
+  try {
+    const res = await coachFeedbackService.getByLiveSessionId(bookingId);
+    setCoachFeedback(res);
+  } catch (err: any) {
+    if (err?.type === 'BUSINESS_ERROR') {
+      openErrorModal(err.message);
+    } else {
+      openErrorModal('Chưa có đánh giá từ học viên!');
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const getRecordUrl = async (bookingId: string): Promise<boolean> => {
     setIsLoading(true);
@@ -123,15 +122,15 @@ export const useCoachBooking = () => {
   };
 
   const openFeedbackModal = async (bookingId: string) => {
-    setCoachFeedbacks([]);
-    await fetchCoachFeedback(bookingId);
-    setShowFeedbackModal(true);
-  };
+  setCoachFeedback(null);
+  await fetchCoachFeedback(bookingId);
+  setShowFeedbackModal(true);
+};
 
-  const closeFeedbackModal = () => {
-    setShowFeedbackModal(false);
-    setCoachFeedbacks([]);
-  };
+const closeFeedbackModal = () => {
+  setShowFeedbackModal(false);
+  setCoachFeedback(null);
+};
 
   const openVideoRecord = async (bookingId: string) => {
     const success = await getRecordUrl(bookingId);
@@ -179,7 +178,7 @@ export const useCoachBooking = () => {
     isLoading,
     errorMsg,
     liveSessionDetail,
-    coachFeedbacks,
+    coachFeedback,
     recordUrl,
     showDetailModal,
     showFeedbackModal,
