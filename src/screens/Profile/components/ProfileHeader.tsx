@@ -47,7 +47,7 @@ export default function ProfileHeader({
   const avatar =
     profile?.avatar ??
     profile?.avatarUrl ??
-    'https://www.toponseek.com/wp-content/uploads/2024/07/celeb-la-gi-6.jpg';
+    'https://sangkienvietnam.org/wp-content/uploads/2023/11/avatar-placeholder.gif';
 
   const name = profile?.fullName ?? profile?.name ?? 'Nguyễn Văn A';
 
