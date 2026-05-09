@@ -25,7 +25,7 @@ const globalAny = globalThis as any;
 if (typeof globalAny.TextEncoder === 'undefined') globalAny.TextEncoder = TextEncoder as any;
 if (typeof globalAny.TextDecoder === 'undefined') globalAny.TextDecoder = TextDecoder as any;
 
-const BACKEND_URL = 'https://pilahub.io.vn';
+const BACKEND_URL = 'https://api.pilahub.io.vn';
 
 type UserRole = 'COACH' | 'TRAINEE' | 'VENDOR';
 const SERVICE_MAP: Record<UserRole, any> = {
@@ -44,6 +44,7 @@ interface LastMessage {
 interface UserInfo {
   fullName: string;
   avatarUrl: string | null;
+  businessName?: string;
 }
 
 interface Conversation {
@@ -98,38 +99,44 @@ const ListChatScreen = ({ navigation }: any) => {
     stompClient.current = client;
   };
 
-  const fetchUserInfo = async (userId: string, myRole: string): Promise<UserInfo | null> => {
-    try {
-      // Giả định otherRole dựa trên myRole
-      let otherRole: UserRole;
-      if (myRole === 'COACH') {
-        otherRole = 'TRAINEE';
-      } else if (myRole === 'TRAINEE') {
-        otherRole = 'COACH';
-      } else {
-        otherRole = 'VENDOR';
-      }
+  const fetchUserInfo = async (userId: string): Promise<UserInfo | null> => {
+  try {
+    // 1. Lấy account
+    const account = await CoachService.getAccountById(userId);
 
-      const service = SERVICE_MAP[otherRole];
+    if (!account) return null;
 
-      if (service) {
-        const response: any = await service.getById(userId);
-        const userData = Array.isArray(response) ? response[0] : response;
-        const finalData = userData?.data || userData;
+    const role = account.role as UserRole;
+    const accountId = account.accountId;
 
-        if (finalData) {
-          return {
-            fullName: finalData.fullName || finalData.name || "Người dùng",
-            avatarUrl: finalData.avatarUrl || finalData.image || finalData.logoUrl || null,
-          };
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error(`Error fetch user info ${userId}:`, error);
-      return null;
-    }
-  };
+    // 2. Chọn service đúng theo role
+    const service = SERVICE_MAP[role];
+
+    if (!service) return null;
+
+    // 3. Fetch profile
+    const response = await service.getById(accountId);
+
+    const userData = Array.isArray(response) ? response[0] : response;
+    const finalData = userData?.data || userData;
+
+    return {
+      fullName:
+        finalData?.fullName ||
+        finalData?.businessName ||
+        'Người dùng',
+
+      avatarUrl:
+        finalData?.avatarUrl ||
+        finalData?.image ||
+        finalData?.logoUrl ||
+        null,
+    };
+  } catch (error) {
+    console.error(`Error fetch user info ${userId}:`, error);
+    return null;
+  }
+};
 
   const fetchConversations = async () => {
     try {
@@ -142,7 +149,7 @@ const ListChatScreen = ({ navigation }: any) => {
         if (response && response.content) {
           const conversationsWithUserInfo = await Promise.all(
             response.content.map(async (conv: Conversation) => {
-              const userInfo = await fetchUserInfo(conv.otherUserId, myRole);
+              const userInfo = await fetchUserInfo(conv.otherUserId);
               return {
                 ...conv,
                 otherUserInfo: userInfo,
@@ -205,7 +212,7 @@ const ListChatScreen = ({ navigation }: any) => {
   };
 
   const renderItem = ({ item }: { item: Conversation }) => {
-    const userInfo = item.otherUserInfo || { fullName: 'User', avatarUrl: null };
+    const userInfo = item.otherUserInfo || { fullName: 'User', avatarUrl: null, businessName: 'Shop'};
     const lastMessageDisplay = getLastMessageDisplay(item.lastMessage);
 
     return (
@@ -235,7 +242,7 @@ const ListChatScreen = ({ navigation }: any) => {
         <View className="flex-1 ml-4">
           <View className="flex-row justify-between items-center">
             <Text className="font-bold text-gray-900 text-base" numberOfLines={1}>
-              {userInfo.fullName}
+              {userInfo.fullName || userInfo.businessName}
             </Text>
             <Text className="text-gray-400 text-xs ml-2">
               {formatTime(item.lastMessageAt)}

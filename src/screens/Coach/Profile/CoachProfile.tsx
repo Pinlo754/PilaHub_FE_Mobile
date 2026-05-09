@@ -20,7 +20,6 @@ import ModalPopup, { IconColor } from '../../../components/ModalPopup';
 // --- THƯ VIỆN UPLOAD FILE & FIREBASE CLI ---
 import { launchImageLibrary } from 'react-native-image-picker';
 import storage from '@react-native-firebase/storage';
-import FileSelector from 'react-native-file-selector';
 
 interface CoachFormData {
   fullName: string;

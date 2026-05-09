@@ -27,7 +27,7 @@ export const LABELS = {
     ],
     // KHỚP THỨ TỰ TỪ 0 -> 2
     sides: [
-        "both",         // 0
+        "both",         // 0x  
         "left",         // 1
         "right"         // 2
     ],

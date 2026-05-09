@@ -3,6 +3,20 @@ import api from './axiosInstance';
 import { CoachType } from '../utils/CoachType';
 import { get } from 'react-native/Libraries/NativeComponent/NativeComponentRegistry';
 
+type Account = {
+  accountId: string;
+  email: string;
+  phoneNumber: string;
+  role: string;
+  active: boolean;
+  emailVerified: boolean;
+  lastSeenAt: string;
+  fcmToken: string;
+  isReminded: true;
+  createdAt: string;
+  activePackageType: string;
+}
+
 export const CoachService = {
   getAll: async () => {
     const res = await api.get<ApiResponse<[]>>(`/coaches/active`);
@@ -212,5 +226,20 @@ export const CoachService = {
     }
 
     return res.data.data;
+  },
+
+  getAccountById : async (id: string) => {
+    const res = await api.get<ApiResponse<Account>>(`/accounts/${id}`);
+
+    if (!res.data.success) {
+      throw {
+        type: 'BUSINESS_ERROR',
+        message: res.data.message,
+        errorCode: res.data.errorCode,
+      };
+    }
+
+    return res.data.data;
   }
+        
 };
