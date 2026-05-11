@@ -50,29 +50,29 @@ const COLORS = {
   soft: '#FFF7ED',
 };
 
-// Cộng thêm 7 tiếng để bù lệch DB (UTC → UTC+7)
-function addSevenHours(dateInput: any): Date {
-  const d = new Date(dateInput ?? Date.now());
-  d.setHours(d.getHours() + 7);
-  return d;
-}
-
-function formatDateTime(dateInput: any): string {
+// ─── FORMAT THỜI GIAN CHUẨN VIỆT NAM ─────────────────────────────────────
+const formatDateTime = (dateInput: any): string => {
+  if (!dateInput) return '';
   try {
-    const d = addSevenHours(dateInput);
-    return d.toLocaleString('vi-VN', {
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return '';
+
+    return date.toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     });
-  } catch {
+  } catch (e) {
+    console.error('Format DateTime Error:', e);
     return '';
   }
-}
+};
 
-function formatCurrency(amount: any) {
+const formatCurrency = (amount: any) => {
   try {
     const n = Number(amount ?? 0);
     return new Intl.NumberFormat('vi-VN', {
@@ -82,7 +82,7 @@ function formatCurrency(amount: any) {
   } catch {
     return (amount ?? 0).toString();
   }
-}
+};
 
 const EmptyListComp = () => (
   <View style={styles.emptyWrap}>
@@ -117,7 +117,6 @@ const OrdersScreen: React.FC<any> = ({
     id: null,
     orderId: null,
   });
-
   const [modalState, setModalState] = useState<any>({
     visible: false,
     mode: 'noti',
@@ -324,7 +323,7 @@ const OrdersScreen: React.FC<any> = ({
               {item.orderNumber ?? item.orderId}
             </Text>
             <Text style={styles.orderDate}>
-              {formatDateTime(item.createdAt)}
+             {formatDateTime(item.createdAt)}
             </Text>
           </View>
           <View style={styles.orderStatusWrap}>

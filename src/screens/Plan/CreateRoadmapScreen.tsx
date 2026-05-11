@@ -59,6 +59,11 @@ const getErrorMessage = (err: any) => {
 const CreateRoadmapScreen: React.FC = () => {
   const nav: any = useNavigation();
 
+  useEffect(() => {
+    console.log('CreateRoadmapScreen mounted');
+    console.log(Date.now());
+  }, []);
+
   const onboarding = useOnboardingStore(s => s.data);
   const addRoadmap = useRoadmapStore(s => s.addRoadmap);
 
@@ -90,8 +95,9 @@ const CreateRoadmapScreen: React.FC = () => {
   ]);
 
   const [durationWeeks, setDurationWeeks] = useState<string>('4');
-
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() + 7 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 10);
   const [startDate, setStartDate] = useState<string>(today);
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
 
@@ -322,7 +328,7 @@ const CreateRoadmapScreen: React.FC = () => {
       ],
     });
   };
-
+  
   const validateManualStages = () => {
     if (manualStages.length === 0) {
       showModal({
@@ -560,12 +566,13 @@ const CreateRoadmapScreen: React.FC = () => {
         />
 
         <Text className="font-semibold mt-6">Ngày bắt đầu</Text>
-
+      
         <Pressable
           onPress={() => setShowCalendar(prev => !prev)}
           className="border border-gray-200 rounded-lg px-4 py-3 mt-2"
         >
           <Text className="text-base">{startDate}</Text>
+          
         </Pressable>
 
         {showCalendar && (

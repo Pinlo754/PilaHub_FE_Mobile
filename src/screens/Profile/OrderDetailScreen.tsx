@@ -72,8 +72,6 @@ const statusColor = (status?: string) => {
   }
 };
 
-// ─── Return status helpers ────────────────────────────────────────────────────
-
 const returnStatusColor = (status?: string) => {
   switch (String(status).toUpperCase()) {
     case 'PENDING':
@@ -133,19 +131,15 @@ const formatCurrency = (amount: any) => {
   }
 };
 
-// ─── FORMAT THỜI GIAN +7 GIỜ ──────────────────────────────────────────────
-const add7Hours = (date: Date): Date => {
-  const newDate = new Date(date.getTime());
-  newDate.setHours(newDate.getHours() + 7);
-  return newDate;
-};
-
+// ─── FORMAT THỜI GIAN CHUẨN VIỆT NAM (+7) ─────────────────────────────────────
 const formatDateTime = (value?: string | null) => {
   if (!value) return '—';
   try {
     const date = new Date(value);
-    const adjusted = add7Hours(date);
-    return adjusted.toLocaleString('vi-VN', {
+    if (isNaN(date.getTime())) return '—';
+
+    return date.toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -153,7 +147,8 @@ const formatDateTime = (value?: string | null) => {
       minute: '2-digit',
       hour12: false,
     });
-  } catch {
+  } catch (e) {
+    console.error('Format DateTime Error:', e);
     return '—';
   }
 };
@@ -162,16 +157,20 @@ const formatDate = (value?: string | null) => {
   if (!value) return '—';
   try {
     const date = new Date(value);
-    const adjusted = add7Hours(date);
-    return adjusted.toLocaleDateString('vi-VN', {
+    if (isNaN(date.getTime())) return '—';
+
+    return date.toLocaleDateString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
-  } catch {
+  } catch (e) {
+    console.error('Format Date Error:', e);
     return '—';
   }
 };
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ReturnableDetail = {
@@ -184,7 +183,6 @@ type ReturnableDetail = {
   checked: boolean;
 };
 
-// Map reason code → tiếng Việt (fallback sang description nếu không khớp)
 const REASON_CODE_VI: Record<string, string> = {
   DAMAGED:           'Sản phẩm bị hư hỏng',
   WRONG_ITEM:        'Giao sai sản phẩm',
@@ -202,20 +200,16 @@ const mapReasonCodeVI = (code?: string, description?: string): string => {
   return REASON_CODE_VI[String(code).toUpperCase()] ?? description ?? String(code);
 };
 
-// Build a map: orderDetailId → total returned quantity across all return requests
-// API trả về field "itemReturns" (không phải "items")
 const buildReturnedQtyMap = (returns: any[]): Record<string, number> => {
   const map: Record<string, number> = {};
   if (!Array.isArray(returns)) return map;
   for (const ret of returns) {
-    // Hỗ trợ cả "itemReturns" (schema mới) và "items" (fallback)
     const items = Array.isArray(ret.itemReturns) ? ret.itemReturns
                 : Array.isArray(ret.items)       ? ret.items
                 : [];
     for (const item of items) {
       const id = String(item.orderDetailId ?? item.id ?? '');
       if (!id) continue;
-      // Chỉ tính các return chưa bị từ chối/huỷ
       const retStatus = String(ret.status ?? '').toUpperCase();
       if (['REJECTED', 'CANCELLED'].includes(retStatus)) continue;
       map[id] = (map[id] ?? 0) + Number(item.quantity ?? 0);
@@ -235,27 +229,22 @@ const OrderDetailScreen: React.FC = () => {
   const [order, setOrder] = useState<any | null>(null);
   const [tracking, setTracking] = useState<any | null>(null);
 
-  // Return data
   const [orderReturns, setOrderReturns] = useState<any[]>([]);
   const [expandedReturn, setExpandedReturn] = useState<Record<string, boolean>>({});
 
-  // Return reasons from API
   const [returnReasons, setReturnReasons] = useState<any[]>([]);
   const [selectedReasonId, setSelectedReasonId] = useState<string>('');
-  const [returnReasonOther, setReturnReasonOther] = useState(''); // chỉ dùng khi chọn OTHER
+  const [returnReasonOther, setReturnReasonOther] = useState('');
 
-  // Cancel modal
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  // Return bottom-sheet
   const [returnSheetVisible, setReturnSheetVisible] = useState(false);
-  const [returnItems,        setReturnItems]        = useState<ReturnableDetail[]>([]);
+  const [returnItems, setReturnItems] = useState<ReturnableDetail[]>([]);
 
   const [actionLoading, setActionLoading] = useState(false);
   const [expandedShipments, setExpandedShipments] = useState<Record<string, boolean>>({});
 
-  // ModalPopup state
   const [modalState, setModalState] = useState<any>({ visible: false, mode: 'noti', message: '' });
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -266,9 +255,9 @@ const OrderDetailScreen: React.FC = () => {
 
   const handleSelectMedia = async () => {
     const result = await ImagePicker.launchImageLibrary({
-      mediaType: 'photo', // Hoặc 'mixed' nếu backend hỗ trợ video
+      mediaType: 'photo',
       quality: 0.8,
-      selectionLimit: 5 - selectedAssets.length, // Giới hạn tổng 5 file
+      selectionLimit: 5 - selectedAssets.length,
     });
 
     if (result.assets) {
@@ -278,7 +267,7 @@ const OrderDetailScreen: React.FC = () => {
 
   const uploadAllToFirebase = async (assets: Asset[]): Promise<string[]> => {
     const uploadPromises = assets.map(async (asset) => {
-      const { uri, fileName, type } = asset;
+      const { uri, fileName } = asset;
       if (!uri) return null;
 
       const uploadUri = Platform.OS === 'ios' ? uri.replace('file://', '') : uri;
@@ -295,32 +284,22 @@ const OrderDetailScreen: React.FC = () => {
     });
 
     const urls = await Promise.all(uploadPromises);
-    return urls.filter((url): url is string => url !== null); // Loại bỏ các request thất bại
+    return urls.filter((url): url is string => url !== null);
   };
 
   const submitReview = async () => {
-    // 1. Validate dữ liệu đầu vào
     if (!comment.trim()) {
       showModal({ title: 'Lỗi', message: 'Vui lòng nhập bình luận', mode: 'noti' });
       return;
     }
 
     setActionLoading(true);
-
     try {
-      // 2. Upload toàn bộ ảnh lên Firebase và lấy danh sách URLs
       let uploadedUrls: string[] = [];
       if (selectedAssets.length > 0) {
         uploadedUrls = await uploadAllToFirebase(selectedAssets);
-
-        if (uploadedUrls.length === 0 && selectedAssets.length > 0) {
-          throw new Error("Không thể tải ảnh lên máy chủ.");
-        }
       }
 
-      // 3. Chuẩn bị Payload
-      // Nếu backend chỉ nhận 1 string imageUrl, ta lấy cái đầu tiên: uploadedUrls[0]
-      // Nếu backend nhận mảng, ta gửi: uploadedUrls.join(',') hoặc gửi cả mảng
       const payload = {
         productId: selectedProduct.productId,
         rating: rating,
@@ -328,10 +307,8 @@ const OrderDetailScreen: React.FC = () => {
         imageUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : "",
       };
 
-      // 4. Gọi API review
       await review(payload);
 
-      // 5. Thành công
       showModal({
         title: 'Thành công',
         message: 'Cảm ơn bạn đã đánh giá sản phẩm!',
@@ -340,7 +317,6 @@ const OrderDetailScreen: React.FC = () => {
 
       setReviewModalVisible(false);
       resetForm();
-
     } catch (err: any) {
       console.error("Submit Review Error:", err);
       showModal({
@@ -363,20 +339,14 @@ const OrderDetailScreen: React.FC = () => {
     setSelectedAssets(prev => prev.filter((_, i) => i !== index));
   };
 
-
-
-  const showModal = (opts: {
-    title?: string; message: string;
-    mode?: 'noti' | 'confirm' | 'toast';
-    onConfirm?: () => void;
-  }) => {
+  const showModal = (opts: any) => {
     setModalState({
       visible: true,
       mode: opts.mode ?? 'noti',
       title: opts.title,
       message: opts.message,
       onConfirm: () => {
-        try { setModalState((s: any) => ({ ...s, visible: false })); } catch { }
+        setModalState((s: any) => ({ ...s, visible: false }));
         if (opts.onConfirm) opts.onConfirm();
       },
     });
@@ -384,7 +354,6 @@ const OrderDetailScreen: React.FC = () => {
 
   const closeModal = () => setModalState((s: any) => ({ ...s, visible: false }));
 
-  // Deduplicate order details
   const uniqueOrderDetails = React.useMemo(() => {
     const arr = Array.isArray(order?.orderDetails) ? order.orderDetails : [];
     const seen = new Set<string>();
@@ -398,10 +367,8 @@ const OrderDetailScreen: React.FC = () => {
     return out;
   }, [order]);
 
-  // Map: orderDetailId → returned quantity (non-rejected)
   const returnedQtyMap = React.useMemo(() => buildReturnedQtyMap(orderReturns), [orderReturns]);
 
-  // Items eligible for return (DELIVERED or COMPLETED at detail level, or fall back to order status)
   const returnableDetails = React.useMemo(() => {
     return uniqueOrderDetails.filter((d: any) => {
       const s = String(d.status ?? '');
@@ -431,11 +398,9 @@ const OrderDetailScreen: React.FC = () => {
           setTracking(trackingData);
         } catch (e) {
           console.warn('getOrderTracking', e);
-          setTracking(null);
         }
       }
 
-      // Load return requests for this order
       try {
         const returnData = await getReturnByOrder(orderId);
         setOrderReturns(Array.isArray(returnData) ? returnData : returnData ? [returnData] : []);
@@ -444,7 +409,6 @@ const OrderDetailScreen: React.FC = () => {
         setOrderReturns([]);
       }
 
-      // Load return reasons (chỉ fetch 1 lần là đủ)
       try {
         const reasons = await getReturnReasons();
         setReturnReasons(Array.isArray(reasons) ? reasons.filter((r: any) => r.enabled !== false) : []);
@@ -460,8 +424,6 @@ const OrderDetailScreen: React.FC = () => {
   }, [orderId]);
 
   useEffect(() => { load(); }, [load]);
-
-  // ── Cancel ────────────────────────────────────────────────────────────────
 
   const openCancelModal = () => {
     setCancelReason('');
@@ -481,7 +443,6 @@ const OrderDetailScreen: React.FC = () => {
       setCancelModalVisible(false);
       await load();
     } catch (err: any) {
-      console.error('cancelOrder', err);
       showModal({
         title: 'Lỗi',
         message: err?.response?.data?.message || 'Không thể hủy đơn',
@@ -491,8 +452,6 @@ const OrderDetailScreen: React.FC = () => {
       setActionLoading(false);
     }
   };
-
-  // ── Return sheet ──────────────────────────────────────────────────────────
 
   const openReturnSheet = () => {
     const items: ReturnableDetail[] = returnableDetails.map((d: any) => ({
@@ -531,7 +490,6 @@ const OrderDetailScreen: React.FC = () => {
   const selectedReturnItems = returnItems.filter(it => it.checked);
 
   const performReturn = async () => {
-    // Resolve lý do: nếu chọn reason từ API thì dùng description/code, nếu OTHER thì cần nhập thêm
     const selectedReason = returnReasons.find(r => r.reasonId === selectedReasonId);
     const isOther = selectedReason?.code?.toUpperCase() === 'OTHER' || !selectedReasonId;
     const finalReason = isOther
@@ -563,7 +521,6 @@ const OrderDetailScreen: React.FC = () => {
       setReturnSheetVisible(false);
       await load();
     } catch (err: any) {
-      console.error('createOrderReturn', err);
       showModal({
         title: 'Lỗi',
         message: err?.response?.data?.message || 'Không thể gửi yêu cầu trả hàng',
@@ -573,8 +530,6 @@ const OrderDetailScreen: React.FC = () => {
       setActionLoading(false);
     }
   };
-
-  // ── Misc ──────────────────────────────────────────────────────────────────
 
   const toggleShipment = (key: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -588,24 +543,13 @@ const OrderDetailScreen: React.FC = () => {
 
   const copyToClipboard = async (text: string) => {
     try {
-      let copied = false;
-      try {
-        const Clipboard = require('@react-native-clipboard/clipboard');
-        Clipboard.setString(String(text));
-        copied = true;
-      } catch { }
-      if (copied) {
-        showModal({ title: 'Đã sao chép', message: 'Mã vận đơn đã được sao chép', mode: 'noti' });
-      } else {
-        showModal({ title: 'Không hỗ trợ', message: 'Không thể sao chép trên thiết bị này', mode: 'noti' });
-      }
+      const Clipboard = require('@react-native-clipboard/clipboard');
+      Clipboard.setString(String(text));
+      showModal({ title: 'Đã sao chép', message: 'Mã vận đơn đã được sao chép', mode: 'noti' });
     } catch (e) {
-      console.warn('copyToClipboard', e);
       showModal({ title: 'Lỗi', message: 'Không thể sao chép', mode: 'noti' });
     }
   };
-
-  // ── Loading / empty guards ────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -630,7 +574,6 @@ const OrderDetailScreen: React.FC = () => {
               <Text style={styles.headerTitle}>Chi tiết đơn hàng</Text>
               <Text style={styles.headerSub}>Không tìm thấy đơn hàng</Text>
             </View>
-            <View style={styles.headerPlaceholder} />
           </View>
         </View>
         <View style={styles.emptyWrap}>
@@ -644,12 +587,7 @@ const OrderDetailScreen: React.FC = () => {
 
   const orderStatus = statusColor(order.status);
   const canCancel = String(order.status) === 'PROCESSING' || String(order.status) === 'PENDING';
-  const canReturn = (
-    String(order.status) === 'DELIVERED' ||
-    returnableDetails.length > 0
-  );
-
-  // ── Render ────────────────────────────────────────────────────────────────
+  const canReturn = String(order.status) === 'DELIVERED' || returnableDetails.length > 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -672,7 +610,6 @@ const OrderDetailScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-
         {/* Hero card */}
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
@@ -722,83 +659,93 @@ const OrderDetailScreen: React.FC = () => {
   </View>
 
   {uniqueOrderDetails.map((detail: any) => {
-    const returnedQty = returnedQtyMap[String(detail.orderDetailId)] ?? 0;
-    const totalQty = Number(detail.quantity ?? 0);
-    const hasReturn = returnedQty > 0;
-    const isFullReturn = hasReturn && returnedQty >= totalQty;
+  const returnedQty = returnedQtyMap[String(detail.orderDetailId)] ?? 0;
+  const totalQty = Number(detail.quantity ?? 0);
+  const hasReturn = returnedQty > 0;
+  const isFullReturn = hasReturn && returnedQty >= totalQty;
 
-    return (
-      <View key={detail.orderDetailId} style={styles.itemRow}>
-        <View style={styles.thumbWrapper}>
-          <Image
-            source={detail.productImageUrl ? { uri: detail.productImageUrl } : placeholderImg}
-            style={[styles.thumb, isFullReturn && styles.thumbDimmed]}
-          />
-          {isFullReturn && (
-            <View style={styles.thumbReturnOverlay}>
-              <Ionicons name="arrow-undo" size={16} color="#fff" />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.flex1}>
-          <Text style={styles.itemTitle} numberOfLines={2}>
-            {detail.productName}
-          </Text>
-
-          <View style={styles.itemQtyRow}>
-            <Text style={styles.meta}>
-              {totalQty} × {formatCurrency(detail.unitPrice)}
-            </Text>
-            {hasReturn && (
-              <View style={styles.returnedQtyBadge}>
-                <Ionicons name="arrow-undo-outline" size={10} color="#B7791F" />
-                <Text style={styles.returnedQtyText}>
-                  Đã trả {returnedQty}/{totalQty}
-                </Text>
-              </View>
-            )}
+  return (
+    <View key={detail.orderDetailId} style={styles.itemRow}>
+      <View style={styles.thumbWrapper}>
+        <Image
+          source={detail.productImageUrl ? { uri: detail.productImageUrl } : placeholderImg}
+          style={[styles.thumb, isFullReturn && styles.thumbDimmed]}
+        />
+        {isFullReturn && (
+          <View style={styles.thumbReturnOverlay}>
+            <Ionicons name="arrow-undo" size={16} color="#fff" />
           </View>
-
-          {hasReturn && !isFullReturn && (
-            <View style={styles.returnProgressBar}>
-              <View
-                style={[
-                  styles.returnProgressFill,
-                  { width: `${(returnedQty / totalQty) * 100}%` as any },
-                ]}
-              />
-            </View>
-          )}
-
-          <View style={styles.detailStatusPill}>
-            <Text style={styles.detailStatusText}>{String(detail.status)}</Text>
-          </View>
-
-          {detail.installationRequest ? (
-            <View style={styles.installPill}>
-              <Ionicons name="construct-outline" size={13} color={COLORS.success} />
-              <Text style={styles.installText}>Có yêu cầu lắp đặt</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Nút đánh giá sản phẩm */}
-        {(detail.status === 'DELIVERED' || detail.status === 'COMPLETED') && (
-          <TouchableOpacity
-            style={styles.reviewTriggerBtn}
-            onPress={() => {
-              setSelectedProduct(detail);
-              setReviewModalVisible(true);
-            }}
-          >
-            <Ionicons name="star-outline" size={14} color={COLORS.primary} />
-            <Text style={styles.reviewTriggerText}>Đánh giá sản phẩm</Text>
-          </TouchableOpacity>
         )}
       </View>
-    );
-  })}
+
+      <View style={styles.flex1}>
+        <Text style={styles.itemTitle} numberOfLines={2}>
+          {detail.productName}
+        </Text>
+
+        <View style={styles.itemQtyRow}>
+          <Text style={styles.meta}>
+            {totalQty} × {formatCurrency(detail.unitPrice)}
+          </Text>
+          {hasReturn && (
+            <View style={styles.returnedQtyBadge}>
+              <Ionicons name="arrow-undo-outline" size={10} color="#B7791F" />
+              <Text style={styles.returnedQtyText}>
+                Đã trả {returnedQty}/{totalQty}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {hasReturn && !isFullReturn && (
+          <View style={styles.returnProgressBar}>
+            <View
+              style={[
+                styles.returnProgressFill,
+                { width: `${(returnedQty / totalQty) * 100}%` as any },
+              ]}
+            />
+          </View>
+        )}
+
+        <View style={styles.detailStatusPill}>
+          <Text style={styles.detailStatusText}>{String(detail.status)}</Text>
+        </View>
+
+        {detail.installationRequest ? (
+          <View style={styles.installPill}>
+            <Ionicons name="construct-outline" size={13} color={COLORS.success} />
+            <Text style={styles.installText}>Có yêu cầu lắp đặt</Text>
+          </View>
+        ) : null}
+
+        {/* Hiển thị nếu đã đánh giá */}
+        {detail.isReviewed && (
+          <View style={[styles.detailStatusPill, { backgroundColor: COLORS.successBg, marginTop: 6 }]}>
+            <Text style={[styles.detailStatusText, { color: COLORS.success, marginLeft: 4 }]}>
+              Đã đánh giá
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Nút đánh giá - CHỈ HIỂN THỊ khi chưa đánh giá và đã giao */}
+      {(detail.status === 'DELIVERED' || detail.status === 'COMPLETED') && 
+       !detail.isReviewed && (
+        <TouchableOpacity
+          style={styles.reviewTriggerBtn}
+          onPress={() => {
+            setSelectedProduct(detail);
+            setReviewModalVisible(true);
+          }}
+        >
+          <Ionicons name="star-outline" size={14} color={COLORS.primary} />
+          <Text style={styles.reviewTriggerText}>Đánh giá sản phẩm</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+})}
 </View>
 
         {/* ── Return Requests Section ────────────────────────────────────────── */}

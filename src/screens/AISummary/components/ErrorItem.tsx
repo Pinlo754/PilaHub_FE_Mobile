@@ -9,7 +9,7 @@ type ErrorLog = {
   recordedAtSecond: number;
   imageUrl: string;
 };
-import { secondsToTime } from '../../../utils/time';
+import { getBodyPartVi } from '../../../utils/BodyPart';
 
 type Props = {
   item: ErrorLog;
@@ -24,10 +24,7 @@ const formatTime = (seconds: number) => {
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
-const getBodyPartName = (part: string) => {
-  if (part === 'none') return 'Lỗi kỹ thuật';
-  return part;
-};
+
 const ErrorItem = ({ item, expanded, onPress, onPlayVideo }: Props) => {
   return (
     <View className="mb-3">
@@ -37,7 +34,7 @@ const ErrorItem = ({ item, expanded, onPress, onPlayVideo }: Props) => {
       >
         {/* Title */}
         <Text className="color-foreground text-lg font-medium">
-          {getBodyPartName(item.bodyPart)} ({item.side})
+         { item.bodyPart ? getBodyPartVi(item.bodyPart) : "Không xác định"}
         </Text>
 
         {/* Time */}

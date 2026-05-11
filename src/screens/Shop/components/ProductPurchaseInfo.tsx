@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -48,10 +48,16 @@ const ProductPurchaseInfo: React.FC<Props> = ({
 }) => {
   const installationSupported = Boolean(
     product.installationSupported ??
-      product.raw?.installationSupported ??
-      product.raw?.installation_supported ??
-      false,
+    product.raw?.installationSupported ??
+    product.raw?.installation_supported ??
+    false,
   );
+
+  const [localQuantity, setLocalQuantity] = useState(String(quantity));
+
+  useEffect(() => {
+    setLocalQuantity(String(quantity));
+  }, [quantity]);
 
   const invalidReason = getMainInvalidReason(validation);
   const canBuy = validation.canCheckout;
@@ -74,23 +80,37 @@ const ProductPurchaseInfo: React.FC<Props> = ({
     setQuantity(quantity + 1);
   };
 
-  const onChangeQuantity = (text: string) => {    
+  const onChangeQuantity = (text: string) => {
     const digits = text.replace(/[^0-9]/g, '');
-    
-    if (digits.length === 0) {
+
+    // 1. Cho phép UI hiển thị chuỗi rỗng khi người dùng bấm xóa
+    setLocalQuantity(digits);
+
+    // 2. Chỉ đẩy dữ liệu lên cha khi có số hợp lệ
+    if (digits.length > 0) {
+      let n = parseInt(digits, 10);
+
+      if (!Number.isFinite(n) || n <= 0) n = 1;
+
+      if (validation.stock !== null && n > validation.stock) {
+        // Gợi ý nhỏ: Gán thẳng bằng giới hạn tồn kho thay vì n / 10 sẽ cho UX tốt hơn
+        n = validation.stock;
+      }
+
+      setQuantity(n);
+    }
+  };
+
+  // 3. Xử lý khi user bấm ra ngoài ô nhập (blur)
+  const handleBlur = () => {
+    if (localQuantity === '' || parseInt(localQuantity, 10) <= 0) {
+      // Nếu xóa trắng rồi bỏ đi không nhập gì, tự động đưa về 1
+      setLocalQuantity('1');
       setQuantity(1);
-      return;
+    } else {
+      // Sync lại text cho chuẩn (ví dụ gõ '090' -> '90')
+      setLocalQuantity(String(quantity));
     }
-
-    let n = parseInt(digits, 10);
-
-    if (!Number.isFinite(n) || n <= 0) n = 1;
-
-    if (validation.stock !== null && n > validation.stock) {
-      n = Math.floor(n / 10);
-    }
-
-    setQuantity(n);
   };
 
   const statusBg = canBuy ? '#D1FAE5' : '#FEE2E2';
@@ -244,8 +264,9 @@ const ProductPurchaseInfo: React.FC<Props> = ({
               </TouchableOpacity>
 
               <TextInput
-                value={String(quantity)}
+                value={localQuantity} // Thay String(quantity) bằng localQuantity
                 onChangeText={onChangeQuantity}
+                onBlur={handleBlur}   // Thêm onBlur để reset khi để trống
                 keyboardType="number-pad"
                 returnKeyType="done"
                 className="font-extrabold text-center text-[#0F172A]"

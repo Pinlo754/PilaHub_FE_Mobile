@@ -1305,11 +1305,7 @@ const RoadMap = () => {
                           {sp.supplementName ?? 'Supplement'}
                         </Text>
 
-                        {sp.priority && (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{sp.priority}</Text>
-                          </View>
-                        )}
+                      
                       </View>
 
                       {sp.recommendedTiming && (
